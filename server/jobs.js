@@ -1,6 +1,7 @@
 import { comfy, comfyUrl, normalizeComfyError } from './comfy.js';
 import { imageGraph, videoGraph } from './graphs.js';
-import { outputsFrom, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
+import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
+import { storePrivateOutputsWithKey } from './vault.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 
 export const jobs = new Map();
@@ -46,6 +47,7 @@ function applyPreviewBuffer(id, buffer) {
   if (image.length < 16) return true;
   const preview = `data:${mime};base64,${image.toString("base64")}`;
   const current = jobs.get(id) || {};
+  if (current.privateVault) return true;
   jobs.set(id, { ...current, preview });
   if ((current.items?.length || 1) <= 1) updateGalleryJob(id, { preview }, { persist: false });
   return true;
@@ -60,6 +62,7 @@ function applyExecutedOutputPreviews(id, output) {
   if (!outputs.length) return false;
   const previews = outputs.map((item) => item.url);
   const current = jobs.get(id) || {};
+  if (current.privateVault) return true;
   const nextPreviews = [...(Array.isArray(current.previews) ? current.previews : [])];
   previews.forEach((preview, index) => {
     if (preview) nextPreviews[index] = preview;
@@ -130,7 +133,8 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
         updateGalleryJob(id, { status: "canceled" });
       }
       if (message.type === "execution_error") {
-        const error = normalizeComfyError(data.exception_message);
+        const context = data.node_type ? ` (${data.node_type}${data.node_id ? `, node ${data.node_id}` : ""})` : "";
+        const error = normalizeComfyError(`${data.exception_message || "ComfyUI execution failed"}${context}`);
         jobs.set(id, { ...current, status: "error", error });
         updateGalleryJob(id, { status: "error", filename: error });
       }
@@ -174,7 +178,10 @@ async function runJob(id, body) {
       const history = await comfy(`/history/${queued.prompt_id}`);
       if (history[queued.prompt_id]) {
         const outputs = outputsFrom(history[queued.prompt_id]);
-        const completed = replaceGalleryJob(id, outputs, body, jobs);
+        const completed = body.privateVault
+          ? storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey)
+          : replaceGalleryJob(id, outputs, body, jobs);
+        if (body.privateVault) removeGalleryJob(id);
         markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
         jobs.set(id, { ...jobs.get(id), status: "done", outputs: completed });
         socket?.close();
@@ -189,4 +196,102 @@ async function runJob(id, body) {
     socket?.close();
   }
 }
+
+function hashString(str = "") {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash;
+}
+
+export function generateMockImageDataUrl(prompt = "", width = 1024, height = 1024, kind = "image") {
+  const colorPalettes = [
+    ["#1e1b4b", "#312e81", "#4338ca", "#6366f1", "#818cf8"],
+    ["#0f172a", "#1e293b", "#334155", "#0284c7", "#38bdf8"],
+    ["#14532d", "#166534", "#15803d", "#22c55e", "#4ade80"],
+    ["#701a75", "#86198f", "#a21caf", "#c026d3", "#e879f9"],
+    ["#7c2d12", "#9a3412", "#c2410c", "#ea580c", "#fb923c"],
+  ];
+  const palette = colorPalettes[Math.abs(hashString(prompt)) % colorPalettes.length];
+  const title = (prompt || "Demo Generation").replace(/[<>&'"]/g, "").slice(0, 50);
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="${palette[0]}"/>
+        <stop offset="40%" stop-color="${palette[1]}"/>
+        <stop offset="80%" stop-color="${palette[2]}"/>
+        <stop offset="100%" stop-color="${palette[3]}"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="50%" cy="40%" r="60%">
+        <stop offset="0%" stop-color="${palette[4]}" stop-opacity="0.7"/>
+        <stop offset="100%" stop-color="${palette[0]}" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="blurFilter">
+        <feGaussianBlur stdDeviation="40"/>
+      </filter>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#bg)"/>
+    <circle cx="${width * 0.5}" cy="${height * 0.45}" r="${Math.min(width, height) * 0.45}" fill="url(#glow)"/>
+    <rect x="5%" y="5%" width="90%" height="90%" rx="18" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2"/>
+    <text x="50%" y="46%" font-family="system-ui, -apple-system, sans-serif" font-size="${Math.max(14, Math.min(26, width / 28))}" font-weight="600" fill="#ffffff" text-anchor="middle">${title}</text>
+    <text x="50%" y="54%" font-family="system-ui, -apple-system, sans-serif" font-size="${Math.max(11, Math.min(15, width / 42))}" font-weight="500" fill="rgba(255,255,255,0.65)" text-anchor="middle">Demo Mode · ${width}×${height} · ${kind.toUpperCase()}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+export function runMockJob(id, body) {
+  const steps = Number(body.steps || 4) || 4;
+  const count = body.kind === "image" ? Math.max(1, Math.min(8, Number(body.count || 1))) : 1;
+  let currentStep = 0;
+
+  updateGalleryJob(id, { status: "running", progress: { step: 1, maxSteps: steps, nodeName: "KSampler" } }, { persist: false });
+
+  const interval = setInterval(() => {
+    currentStep += Math.max(1, Math.ceil(steps / 4));
+    if (currentStep < steps) {
+      updateGalleryJob(id, { progress: { step: currentStep, maxSteps: steps, nodeName: "KSampler" } }, { persist: false });
+    } else {
+      clearInterval(interval);
+      updateGalleryJob(id, { progress: { step: steps, maxSteps: steps, nodeName: "VAEDecode" } }, { persist: false });
+
+      setTimeout(() => {
+        const completedAt = new Date().toISOString();
+        const outputs = Array.from({ length: count }, (_, index) => {
+          const url = generateMockImageDataUrl(body.prompt + (count > 1 ? ` #${index + 1}` : ""), body.width, body.height, body.kind);
+          return {
+            id: `${id}-${index}`,
+            jobId: id,
+            index,
+            url,
+            filename: body.kind === "image" && count > 1 ? `${body.prompt} ${index + 1}` : body.prompt,
+            type: body.kind === "video" ? "video" : "image",
+            status: "done",
+            completedAt,
+            elapsedMs: 2100,
+            width: Number(body.width || 1024),
+            height: Number(body.height || 1024),
+            model: body.model || "flux1-schnell.safetensors",
+            prompt: body.prompt,
+            negative: body.negative || ""
+          };
+        });
+
+        if (body.privateVault) {
+          const completed = storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey);
+          removeGalleryJob(id);
+          jobs.set(id, { ...jobs.get(id), status: "done", outputs: completed });
+          return;
+        }
+        replaceGalleryJob(id, outputs, body, jobs);
+        markWorkflowUsed(body.profileId || body.model || body.workflow || "", outputs[0]?.url || "");
+        jobs.set(id, { status: "done", outputs });
+      }, 400);
+    }
+  }, 350);
+}
+
 export { runJob };

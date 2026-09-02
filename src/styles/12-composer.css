@@ -1,0 +1,294 @@
+/* ---------------------------------------------------------------------------
+   Composer bar density system
+
+   The bar measures itself and demotes controls one notch at a time (full ->
+   compact -> mini -> drawer). Every notch has to be a real width saving, so
+   these rules mostly trade text for icons and drop what stops earning its room.
+--------------------------------------------------------------------------- */
+
+.zen-prompt-actions { position: relative; }
+
+/* The row never wraps any more: the ladder is what makes it fit. */
+.zen-inline-settings { flex-wrap: nowrap; }
+
+/* --- Number pickers: label -> icon -> icon + value ------------------------ */
+
+.number-picker-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  flex: 0 0 auto;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+}
+.number-picker.is-density-compact { padding-left: 4px; }
+.number-picker.is-density-mini {
+  gap: 0;
+  padding: 2px 6px 2px 8px;
+}
+.number-picker.is-density-mini .number-picker-value,
+.number-picker.is-density-mini .number-picker-input { min-width: 24px; }
+.number-picker.is-density-mini .number-picker-input { width: 36px; min-width: 36px; }
+.zen-inline-settings .number-picker.is-density-mini .number-picker-value { padding: 0 4px; }
+
+/* --- Aspect: shape + label -> shape + chevron -> shape -------------------- */
+
+.zen-inline-settings .aspect-picker.is-density-compact > button {
+  grid-template-columns: 18px 12px;
+  gap: 5px;
+  padding: 0 11px;
+}
+.zen-inline-settings .aspect-picker.is-density-mini > button {
+  grid-template-columns: 18px;
+  gap: 0;
+  padding: 0 11px;
+}
+
+/* --- Workflow: the name is priority one, so it only ever gets cut short --- */
+
+/* The trigger hugs the name (a fixed track would reserve room it is not using)
+   and each notch just tightens how much of the name survives. */
+.zen-prompt-actions .model-picker.is-compact .model-trigger { grid-template-columns: minmax(0, max-content) 12px; }
+.zen-prompt-actions .model-picker.is-compact .model-trigger .model-copy strong { max-width: 210px; }
+.zen-prompt-actions .model-picker.is-density-compact .model-trigger .model-copy strong { max-width: 96px; }
+.zen-prompt-actions .model-picker.is-density-mini .model-trigger .model-copy strong { max-width: 58px; }
+
+/* --- Private / negative: icon-only fallbacks ----------------------------- */
+
+.private-toggle.is-density-compact,
+.private-toggle.is-density-mini {
+  min-width: 40px;
+  width: 40px;
+  gap: 0;
+  padding: 0;
+  /* With the word gone the lock is the only thing carrying the state, so it
+     cannot sit at label brightness. */
+  color: hsl(var(--muted-foreground) / 1);
+}
+.private-toggle.is-density-compact .private-toggle-indicator,
+.private-toggle.is-density-mini .private-toggle-indicator { width: 18px; height: 18px; }
+.negative-toggle.is-density-compact,
+.negative-toggle.is-density-mini {
+  width: 40px;
+  min-width: 40px;
+  gap: 0;
+  padding: 0;
+}
+.negative-toggle.is-density-compact.is-unavailable::after,
+.negative-toggle.is-density-mini.is-unavailable::after {
+  position: absolute;
+  margin: -18px 0 0 22px;
+}
+.negative-toggle.is-density-compact,
+.negative-toggle.is-density-mini { position: relative; }
+
+.lora-pill.is-density-compact,
+.lora-pill.is-density-mini {
+  gap: 4px;
+  padding: 0 9px;
+  color: hsl(var(--muted-foreground));
+}
+.lora-pill.is-density-compact .animated-number,
+.lora-pill.is-density-mini .animated-number { color: hsl(var(--foreground)); }
+
+/* --- The drawer trigger and panel ---------------------------------------- */
+
+.composer-more {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  background: #090909;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background var(--motion-base, 180ms) var(--motion-ease, ease), color 160ms ease, box-shadow 160ms ease;
+}
+.composer-more i {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--foreground));
+}
+@media (hover: hover) and (pointer: fine) {
+  .composer-more:hover {
+    background: #161616;
+    color: hsl(var(--foreground));
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+  }
+}
+.composer-more.active {
+  background: #1c1c1c;
+  color: hsl(var(--foreground));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+}
+
+.composer-drawer {
+  position: absolute;
+  right: 8px;
+  bottom: calc(100% + 10px);
+  z-index: 16;
+  width: min(320px, calc(100vw - 32px));
+  display: grid;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 24px;
+  background: rgb(22 22 22 / .96);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  box-shadow: var(--shadow-float, var(--shadow-lg));
+}
+.composer-drawer > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px 6px 8px;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+.composer-drawer-row {
+  /* 24px panel radius - 8px panel padding = 16px on the rows inside it. */
+  border-radius: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 4px 0 8px;
+}
+.composer-drawer-row > span {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+}
+.composer-drawer-row > div {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  min-width: 0;
+}
+/* The row already names the control, so the control does not repeat itself. */
+.composer-drawer-row .number-picker-label,
+.composer-drawer-row .number-picker-icon { display: none; }
+.composer-drawer-row .model-picker.is-compact .model-trigger { grid-template-columns: minmax(0, 150px) 12px; }
+.composer-drawer-row .aspect-picker { width: auto; }
+.composer-drawer .model-menu,
+.composer-drawer .aspect-menu {
+  right: 0;
+  left: auto;
+  min-width: 220px;
+}
+
+/* The narrow-screen overrides in 06-responsive.css are meant for the sidebar
+   picker; the composer's compact one has to stay a single 40px line. */
+.zen-prompt-actions .model-picker.is-compact .model-trigger,
+.composer-drawer .model-picker.is-compact .model-trigger {
+  min-height: 40px;
+  height: 40px;
+}
+.zen-prompt-actions .model-copy strong,
+.composer-drawer .model-copy strong {
+  display: block;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
+}
+
+.composer-more:active:not(:disabled) { scale: 0.96; }
+
+/* The mini picker's value is a 28px target inside a 40px pill - grow the hit
+   area back to 40x40 without changing what you see. */
+.number-picker.is-density-mini .number-picker-value { position: relative; }
+.number-picker.is-density-mini .number-picker-value::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  min-width: 40px;
+  height: 40px;
+  translate: -50% -50%;
+}
+
+/* The composer's menus open upward and right-aligned; at mini widths they must
+   not inherit the trigger's width or the workflow names get clipped. */
+.zen-prompt-actions .model-picker.is-compact .model-menu {
+  min-width: min(320px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+
+@media (max-width: 620px) {
+  /* The menus belong to the composer, not to a 99px-wide trigger: span the
+     composer instead of running off the right edge. */
+  .zen-prompt-actions .model-picker.is-compact .model-menu,
+  .zen-prompt-actions .aspect-picker .aspect-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: calc(100% + 8px);
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+  .composer-drawer {
+    left: 8px;
+    right: 8px;
+    width: auto;
+  }
+  .composer-drawer-row { min-height: 48px; }
+}
+
+/* ---------------------------------------------------------------------------
+   Phone: the zen chrome moves to the top edge
+
+   The composer owns the bottom of a phone screen, and its height changes with
+   the ladder, so anything that used to float above it either moves up top or
+   clears the measured --zen-prompt-h. These rules land last on purpose: the
+   shared dock styling in 08-overhaul.css pins bottom: 18px on all three docks.
+--------------------------------------------------------------------------- */
+
+@media (max-width: 620px) {
+  /* Clears the studio's brand pill; in zen mode the corner is free. */
+  .zen-control-button {
+    top: 10px;
+    bottom: auto;
+    left: 62px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  /* Zen has no brand pill, so the controls button takes the corner and the
+     gallery restore steps aside. */
+  .zen-shell .zen-control-button { left: 10px; }
+  .zen-shell .zen-gallery-restore { left: 62px; }
+  .zen-gallery-restore {
+    top: 10px;
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .zen-top-actions { top: 10px; bottom: auto; right: 10px; height: 40px; min-height: 40px; }
+  .zen-zoom-dock {
+    top: auto;
+    bottom: calc(var(--zen-prompt-h, 160px) + 10px + env(safe-area-inset-bottom));
+    left: 10px;
+    height: 40px;
+    min-height: 40px;
+  }
+  .zen-zoom-dock .icon-button { width: 32px; height: 32px; }
+  .zen-zoom-dock .viewer-zoom { height: 32px; min-width: 52px; }
+  .zen-zoom-dock.with-side { display: none; }
+  .gallery-tidy-dock { bottom: calc(var(--zen-prompt-h, 160px) + 10px + env(safe-area-inset-bottom)); }
+}

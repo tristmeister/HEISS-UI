@@ -50,6 +50,7 @@ Live ComfyUI previews while an image is running.
 - Zen mode for a cleaner fullscreen workflow
 - Live queue/progress cards with cancel controls
 - Persistent local gallery metadata
+- Optional Private Vault for encrypted, password-gated generations
 - Start-image reuse when the selected ComfyUI workflow supports it
 - Importable ComfyUI API workflow templates
 
@@ -160,7 +161,18 @@ JAI_DATA_DIR=./data
 COMFY_OUTPUT_DIR=
 ```
 
-`COMFY_OUTPUT_DIR` is optional. Set it only if you want the app's output-folder button to open a specific ComfyUI output directory.
+`COMFY_OUTPUT_DIR` is optional for the normal gallery. It is required for **Private Vault**: J AI uses it to ingest a finished Comfy output into encrypted vault storage, then removes the ordinary Comfy output file.
+
+</details>
+
+<details>
+<summary>Private Vault</summary>
+
+Private Vault is opt-in per generation. First set a privacy password in Settings, configure `COMFY_OUTPUT_DIR`, then use the **Private** switch beside the prompt.
+
+J AI encrypts the original, gallery preview, prompt, settings, and asset key in a hidden data directory. Locked browsers receive anonymous private placeholders; after entering the password, J AI decrypts and streams the item with no-store cache headers. Download remains an explicit action.
+
+ComfyUI necessarily writes a working output while it generates. J AI encrypts and removes that working file after completion; this is a privacy boundary for ordinary Finder/Explorer browsing, not a forensic guarantee against an administrator, disk recovery, swap, or backups made while generation was running.
 
 </details>
 

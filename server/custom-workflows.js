@@ -3,6 +3,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { dataDir } from './gallery-store.js';
 import { root } from './comfy.js';
+import { workflowIds } from './workflow-registry.js';
 
 export const bundledWorkflowsDir = path.join(root, "workflows");
 export const userWorkflowsDir = path.join(dataDir, "workflows");
@@ -23,13 +24,52 @@ function readJson(file) {
   }
 }
 
-export function graphFromJson(raw) {
+export function graphFromJson(raw, info = {}) {
   if (raw?.graph && typeof raw.graph === "object") return raw.graph;
+  if (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) return visualWorkflowToApi(raw, info);
   const copy = { ...raw };
   delete copy.jAiStudio;
   delete copy.j_ai_studio;
   delete copy.metadata;
   return copy;
+}
+
+function schemaInputNames(info, classType) {
+  const schema = info?.[classType]?.input || {};
+  return [...Object.keys(schema.required || {}), ...Object.keys(schema.optional || {})]
+    .filter((name) => !["unique_id", "control_after_generate"].includes(name));
+}
+
+function visualWorkflowToApi(raw, info = {}) {
+  const links = new Map((raw.links || []).map((link) => [String(link[0]), [String(link[1]), Number(link[2] || 0)]]));
+  const graph = {};
+  // These nodes exist only for canvas organization and are not part of the API prompt.
+  const uiOnly = new Set(["Note", "Reroute", "PrimitiveNode", "NoteNode"]);
+  for (const node of raw.nodes) {
+    const id = String(node.id);
+    const classType = node.type || node.class_type;
+    if (!classType) throw new Error(`Visual workflow node ${id} is missing a type.`);
+    if (uiOnly.has(classType)) continue;
+    const inputs = {};
+    for (const input of node.inputs || []) {
+      if (input?.link != null && links.has(String(input.link))) inputs[input.name] = links.get(String(input.link));
+    }
+    const names = schemaInputNames(info, classType);
+    const linked = new Set(Object.keys(inputs));
+    const widgetNames = names.filter((name) => !linked.has(name));
+    const widgets = Array.isArray(node.widgets_values) ? node.widgets_values : [];
+    if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than its ComfyUI schema. Reconnect ComfyUI before importing.`);
+    widgets.forEach((value, index) => { inputs[widgetNames[index]] = value; });
+    graph[id] = { class_type: classType, inputs, ...(node._meta ? { _meta: node._meta } : {}) };
+  }
+  return graph;
+}
+
+export function detectWorkflowFormat(raw) {
+  if (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) return "comfyui-visual";
+  if (raw?.prompt && typeof raw.prompt === "object") return "comfyui-api-wrapper";
+  if (raw && typeof raw === "object" && Object.values(raw).some((node) => node?.class_type)) return "comfyui-api";
+  return "unsupported";
 }
 
 export function metadataFromJson(raw, file) {
@@ -100,7 +140,7 @@ export function validateGraph(graph) {
   }
 }
 
-export function allCustomWorkflowRecords() {
+export function allCustomWorkflowRecords({ dedupe = true } = {}) {
   const dirs = [
     { dir: bundledWorkflowsDir, source: "bundled" },
     { dir: userWorkflowsDir, source: "custom" }
@@ -152,11 +192,22 @@ export function allCustomWorkflowRecords() {
       }
     }
   }
+  if (!dedupe) return items;
+  // The bundled folder is scanned first, so a hand-authored template wins over
+  // an imported copy of the same id.
   const seen = new Set();
   return items.filter((item) => {
     if (seen.has(item.id)) return false;
     seen.add(item.id);
     return true;
+  });
+}
+
+function withinWorkflowRoot(file) {
+  const resolved = path.resolve(file);
+  return [bundledWorkflowsDir, userWorkflowsDir].some((dir) => {
+    const base = path.resolve(dir);
+    return resolved === base || resolved.startsWith(`${base}${path.sep}`);
   });
 }
 
@@ -184,27 +235,61 @@ export function saveCustomWorkflow(raw) {
   return { ...workflow, path: file };
 }
 
+/**
+ * An import that collides with a bundled template would be written but never
+ * shown, because the bundled copy wins the scan. Give it its own id instead.
+ * Re-importing over an existing user copy still overwrites, so updates work.
+ */
+function unshadowedId(id) {
+  const records = allCustomWorkflowRecords({ dedupe: false });
+  // Built-in registry workflows do not have a JSON file, so checking only the
+  // bundled directory is not enough to keep imported workflows out of the
+  // built-in namespace.
+  const reserved = new Set(workflowIds());
+  const shadowed = (candidate) => reserved.has(candidate) || records.some((record) => record.id === candidate && record.source === "bundled");
+  if (!shadowed(id)) return id;
+  for (let suffix = 2; suffix < 100; suffix += 1) {
+    const candidate = safeId(`${id}-${suffix}`);
+    if (!shadowed(candidate) && !records.some((record) => record.id === candidate)) return candidate;
+  }
+  return safeId(`${id}-${crypto.randomUUID().slice(0, 8)}`);
+}
+
 export function saveImportedWorkflow(raw, meta = {}) {
   const mergedMeta = {
     ...(raw?.jAiStudio || raw?.j_ai_studio || {}),
     ...meta
   };
   const workflow = metadataFromJson({ ...raw, jAiStudio: mergedMeta });
+  workflow.id = unshadowedId(workflow.id);
+  mergedMeta.id = workflow.id;
+  workflow.profileId = `custom:${workflow.id}`;
   fs.mkdirSync(userWorkflowsDir, { recursive: true });
   const file = path.join(userWorkflowsDir, `${workflow.id}.json`);
   fs.writeFileSync(file, JSON.stringify({ ...raw, jAiStudio: mergedMeta }, null, 2));
   return { ...workflow, path: file };
 }
 
+/**
+ * Removes every file backing an id, across both workflow folders. Deleting only
+ * the user copy left a same-id template in the bundled folder to re-supply the
+ * workflow on the next scan, which read as "delete did nothing".
+ * A record's filename can differ from its id, so resolve real paths rather than
+ * guessing `<id>.json`.
+ */
 export function deleteImportedWorkflow(id) {
   const safe = safeId(id);
-  const file = path.join(userWorkflowsDir, `${safe}.json`);
-  const base = path.resolve(userWorkflowsDir);
-  const resolved = path.resolve(file);
-  if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`)) throw new Error("Invalid workflow path.");
-  if (!fs.existsSync(resolved)) throw new Error("Workflow file was not found.");
-  fs.unlinkSync(resolved);
-  return { ok: true, id: safe };
+  const targets = allCustomWorkflowRecords({ dedupe: false })
+    .filter((record) => record.id === safe && record.path && withinWorkflowRoot(record.path));
+  if (!targets.length) throw new Error("Workflow file was not found.");
+  const removed = [];
+  for (const record of targets) {
+    if (!fs.existsSync(record.path)) continue;
+    fs.unlinkSync(record.path);
+    removed.push(record.path);
+  }
+  if (!removed.length) throw new Error("Workflow file was not found.");
+  return { ok: true, id: safe, removed };
 }
 
 function nodeInputsForClass(classType = "") {
@@ -215,7 +300,7 @@ function nodeInputsForClass(classType = "") {
   return [];
 }
 
-export function detectWorkflowMetadata(raw, fallbackName = "") {
+export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
   const existing = raw?.jAiStudio || raw?.j_ai_studio || {};
   const graph = graphFromJson(raw);
   const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", inputs: node?.inputs || {} }));

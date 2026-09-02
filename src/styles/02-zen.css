@@ -1,4 +1,6 @@
 .zen-shell {
+  /* Replaced at runtime with the composer's measured height (ComposerBar). */
+  --zen-prompt-h: 160px;
   position: fixed; inset: 0; overflow: hidden;
   background: hsl(var(--background));
   color: hsl(var(--foreground));
@@ -355,7 +357,65 @@
 .prompt-left-actions {
   display: flex;
   align-items: center;
+  gap: 6px;
   min-width: 0;
+}
+
+.private-toggle {
+  height: 40px;
+  min-width: 84px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 20px;
+  background: #090909;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transform: scale(1);
+  transition: transform 140ms var(--ease-out), color 160ms ease, border-color 160ms ease;
+}
+.private-toggle:active { transform: scale(0.96); }
+.private-toggle.is-private {
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border-strong));
+}
+.private-toggle-indicator {
+  position: relative;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+}
+.private-toggle-slash {
+  position: absolute;
+  width: 17px;
+  height: 1px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(-45deg) scaleX(1);
+  opacity: 0.9;
+  transition: transform 180ms var(--ease-out), opacity 140ms ease;
+}
+.private-toggle.is-private .private-toggle-slash {
+  transform: rotate(-45deg) scaleX(0.2);
+  opacity: 0;
+}
+.private-toggle:disabled {
+  opacity: 0.46;
+  cursor: not-allowed;
+  transform: none;
+}
+@media (hover: hover) and (pointer: fine) {
+  .private-toggle:not(:disabled):hover {
+    color: hsl(var(--foreground));
+    border-color: hsl(var(--border-strong));
+  }
 }
 
 .zen-inline-settings {

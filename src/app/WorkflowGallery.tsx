@@ -109,21 +109,29 @@ export function WorkflowGallery({ view }: { view: any }) {
   };
 
   const deleteWorkflow = async (workflow: WorkflowSummary) => {
-    if (workflow.source !== "custom" || !workflow.deleteId) return;
-    if (!confirmAction(`Delete workflow "${workflow.name}"?`)) return;
-    await apiJson(`/api/workflows/${encodeURIComponent(workflow.deleteId)}`, { method: "DELETE" });
-    setWorkflows((current) => current.filter((item) => item.id !== workflow.id && item.profileId !== workflow.profileId));
-    if (selectedId === workflow.id) {
-      const fallback = workflows.find((item) => item.id !== workflow.id && item.kind === mode && item.validation.ok);
-      setSelectedId(fallback?.id || "");
+    if (!workflow.deleteId) return;
+    const where = workflow.path ? `\n${workflow.path}` : "";
+    if (!confirmAction(`Delete workflow "${workflow.name}"?${where}`)) return;
+    setBusy(true);
+    try {
+      await apiJson(`/api/workflows/${encodeURIComponent(workflow.deleteId)}`, { method: "DELETE" });
+      setWorkflows((current) => current.filter((item) => item.id !== workflow.id && item.profileId !== workflow.profileId));
+      if (selectedId === workflow.id) {
+        const fallback = workflows.find((item) => item.id !== workflow.id && item.kind === mode && item.validation.ok);
+        setSelectedId(fallback?.id || "");
+      }
+      if (model === workflow.profileId) {
+        const fallbackProfile = models?.profiles.find((profile) => profile.id !== workflow.profileId && profile.kind === mode);
+        if (fallbackProfile) chooseModel(fallbackProfile.id);
+      }
+      showToast("Workflow deleted", "success");
+      refreshModels(false);
+      refreshWorkflows();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Workflow deletion failed", "error");
+    } finally {
+      setBusy(false);
     }
-    if (model === workflow.profileId) {
-      const fallbackProfile = models?.profiles.find((profile) => profile.id !== workflow.profileId && profile.kind === mode);
-      if (fallbackProfile) chooseModel(fallbackProfile.id);
-    }
-    showToast("Workflow deleted", "success");
-    refreshModels(false);
-    refreshWorkflows();
   };
 
   const previewRaw = async (raw: unknown, filename = "") => {
@@ -265,7 +273,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                 <div className="workflow-actions">
                   <button onClick={() => useWorkflow(selected)} disabled={!selected.validation.ok}><CheckCircle2 size={15} /> Use Workflow</button>
                   <button onClick={() => updateFavorites(selected.id)}><Heart size={15} fill={selected.favorite ? "currentColor" : "none"} /> {selected.favorite ? "Unfavorite" : "Favorite"}</button>
-                  {selected.source === "custom" && selected.deleteId ? <button className="subtle-danger" onClick={() => deleteWorkflow(selected)}><Trash2 size={15} /> Delete</button> : null}
+                  {selected.deleteId ? <button className="subtle-danger" onClick={() => deleteWorkflow(selected)}><Trash2 size={15} /> Delete</button> : null}
                   <button onClick={refreshWorkflows}>Revalidate</button>
                 </div>
                 <div className="workflow-detail-grid">
@@ -304,6 +312,7 @@ export function WorkflowGallery({ view }: { view: any }) {
           <div className="workflow-import-list">
             {imports.map((item, index) => (
               <div className="workflow-import-card" key={`${item.filename}-${index}`}>
+                <div className="workflow-import-format"><FileJson size={14} /> {item.preview.format === "comfyui-visual" ? "Visual workflow normalized via ComfyUI schema" : item.preview.format === "comfyui-api-wrapper" ? "API workflow wrapper detected" : "ComfyUI API workflow detected"}</div>
                 <Field label="Name"><input value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
                 <div className="split">
                   <Field label="Kind"><Select value={item.metadata.kind} onChange={(value) => updateImport(index, { kind: value === "video" ? "video" : "image" })} options={["image", "video"]} /></Field>

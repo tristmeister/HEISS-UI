@@ -284,7 +284,9 @@ export function writeGalleryNow() {
     saveTimer = null;
   }
   fs.mkdirSync(dataDir, { recursive: true });
-  const persistable = gallery.slice(0, galleryLimit).map(({ preview, ...rest }) => protectGalleryItemForStorage(rest));
+  // Private-vault jobs exist only while Comfy is rendering. Their finished records
+  // live in the encrypted vault manifest, never in the ordinary gallery JSON.
+  const persistable = gallery.filter((item) => !item.privateVault).slice(0, galleryLimit).map(({ preview, ...rest }) => protectGalleryItemForStorage(rest));
   fs.writeFileSync(galleryPath, JSON.stringify(persistable, null, 2));
 }
 
@@ -381,8 +383,17 @@ export function makePendingItems(id, body) {
     referenceImage: body.startImageId || "",
     referenceImageName: body.startImageName || "",
     startImageId: body.startImageId || "",
-    settings: generationSettings(body)
+    settings: generationSettings(body),
+    privateVault: Boolean(body.privateVault)
   }));
+}
+
+export function removeGalleryJob(id, options = {}) {
+  const before = gallery;
+  gallery = gallery.filter((item) => item.jobId !== id);
+  const changes = diffGallery(before, gallery);
+  if (changes.upserts.length || changes.removes.length) bumpRevision(changes);
+  if (options.persist !== false) saveGallery();
 }
 
 export function dedupeGallery(items) {

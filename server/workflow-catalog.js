@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataDir, gallery } from './gallery-store.js';
-import { allCustomWorkflowRecords, detectWorkflowMetadata, graphFromJson, validateGraph } from './custom-workflows.js';
+import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph } from './custom-workflows.js';
 
 const preferencesPath = path.join(dataDir, "workflow-preferences.json");
 let preferencesCache = null;
@@ -131,7 +131,9 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       description: profile.description || "",
       kind: profile.kind,
       family: profile.family,
-      source: isCustom ? "custom" : "builtin",
+      // Every workflow-JSON profile is `custom:*`, bundled or not, so the id
+      // prefix cannot tell them apart - use the record's actual folder.
+      source: custom ? (custom.source === "bundled" ? "builtin" : "custom") : isCustom ? "custom" : "builtin",
       deleteId: custom?.id || (isCustom ? profile.id.replace(/^custom:/, "") : ""),
       controls: [],
       capabilities: profile.capabilities || {},
@@ -181,9 +183,12 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
   });
 }
 
-export function previewWorkflowImport(raw, filename = "") {
-  const graph = graphFromJson(raw);
-  const detected = detectWorkflowMetadata(raw, path.basename(filename || "", path.extname(filename || "")));
+export function previewWorkflowImport(raw, filename = "", info = {}) {
+  const format = detectWorkflowFormat(raw);
+  if (format === "unsupported") throw new Error("Unsupported JSON. Expected a ComfyUI API workflow or a visual workflow with nodes and links.");
+  const source = format === "comfyui-api-wrapper" ? raw.prompt : raw;
+  const graph = graphFromJson(format === "comfyui-visual" ? { ...raw } : source, info);
+  const detected = detectWorkflowMetadata({ ...source, graph }, path.basename(filename || "", path.extname(filename || "")), info);
   const validation = validateWorkflow({
     id: detected.id,
     profileId: `custom:${detected.id}`,
@@ -200,6 +205,7 @@ export function previewWorkflowImport(raw, filename = "") {
     filename,
     graph,
     detected,
+    format,
     hasJaiStudio: Boolean(raw?.jAiStudio || raw?.j_ai_studio),
     validation
   };

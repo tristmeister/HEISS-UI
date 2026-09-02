@@ -8,7 +8,6 @@ import {
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { springs } from "@/lib/springs";
 import { fontWeights } from "@/lib/font-weight";
 import { useShape } from "@/lib/shape-context";
 
@@ -45,6 +44,19 @@ function getSlideOffset(side: TooltipSide) {
       return { x: 4 };
     case "right":
       return { x: -4 };
+  }
+}
+
+function getTransformOrigin(side: TooltipSide) {
+  switch (side) {
+    case "top":
+      return "bottom center";
+    case "bottom":
+      return "top center";
+    case "left":
+      return "right center";
+    case "right":
+      return "left center";
   }
 }
 
@@ -99,14 +111,16 @@ function Tooltip({
                   shape.bg,
                   className
                 )}
-                style={{ fontVariationSettings: fontWeights.medium }}
-                initial={{ opacity: 0, ...slideOffset }}
+                style={{ fontVariationSettings: fontWeights.medium, transformOrigin: getTransformOrigin(side) }}
+                initial={{ opacity: 0, scale: 0.94, filter: "blur(3px)", ...slideOffset }}
                 animate={{
                   opacity: open ? 1 : 0,
+                  scale: open ? 1 : 0.96,
+                  filter: open ? "blur(0px)" : "blur(3px)",
                   x: 0,
                   y: 0,
                 }}
-                transition={open ? springs.fast : { duration: 0.1 }}
+                transition={open ? { type: "spring", duration: 0.26, bounce: 0 } : { duration: 0.12 }}
                 onAnimationComplete={handleExitComplete}
               >
                 {content}

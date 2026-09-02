@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { GalleryTile } from './GalleryTile';
+import { BundleTile, bundleSheetHeight } from './BundleTile';
 import type { GalleryItem } from './types';
 
 type VirtualMasonryGalleryProps = {
@@ -12,11 +13,18 @@ type VirtualMasonryGalleryProps = {
   titleFromPrompt: (value?: string) => string;
   openItem: (item: GalleryItem) => void;
   cancelJob: (jobId?: string) => void;
-  copyImageAndToast: (item: GalleryItem) => void;
+  copyPromptAndToast: (item: GalleryItem) => void;
   deleteItem: (item: GalleryItem) => void;
+  expandedBundles: Set<string>;
+  gatheringIds: Set<string>;
+  settlingBundles: Set<string>;
+  toggleBundle: (bundleId: string) => void;
+  setBundleCover: (domain: "gallery" | "vault", bundleId: string, itemId: string) => void;
+  ungroupBundle: (domain: "gallery" | "vault", bundleId: string) => void;
 };
 
-function estimatedHeight(item: GalleryItem, width: number) {
+function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set<string>) {
+  if (item.bundle && expandedBundles?.has(item.bundle.id)) return bundleSheetHeight(item.bundle.count, width);
   const ratio = Number(item.width || 1) / Math.max(1, Number(item.height || 1));
   return Math.max(120, Math.round(width / Math.max(0.2, ratio)));
 }
@@ -41,14 +49,20 @@ function useElementWidth<T extends HTMLElement>() {
 export function VirtualMasonryGallery({
   cancelJob,
   columns,
-  copyImageAndToast,
+  copyPromptAndToast,
   deleteItem,
+  expandedBundles,
+  gatheringIds,
   formatElapsed,
   items,
   now,
   openItem,
   scrollRef,
+  setBundleCover,
+  settlingBundles,
   titleFromPrompt,
+  toggleBundle,
+  ungroupBundle,
 }: VirtualMasonryGalleryProps) {
   const [containerRef, containerWidth] = useElementWidth<HTMLElement>();
   const safeColumns = Math.max(1, columns);
@@ -62,10 +76,10 @@ export function VirtualMasonryGallery({
         if (next[index].height < next[target].height) target = index;
       }
       next[target].items.push(item);
-      next[target].height += estimatedHeight(item, columnWidth) + spacing;
+      next[target].height += estimatedHeight(item, columnWidth, expandedBundles) + spacing;
     }
     return next.map((column) => column.items);
-  }, [columnWidth, items, safeColumns, spacing]);
+  }, [columnWidth, expandedBundles, items, safeColumns, spacing]);
 
   return (
     <section
@@ -78,14 +92,20 @@ export function VirtualMasonryGallery({
           key={`virtual-column-${index}`}
           cancelJob={cancelJob}
           column={column}
-          copyImageAndToast={copyImageAndToast}
+          copyPromptAndToast={copyPromptAndToast}
           deleteItem={deleteItem}
+          expandedBundles={expandedBundles}
+          gatheringIds={gatheringIds}
           formatElapsed={formatElapsed}
           now={now}
           openItem={openItem}
           scrollRef={scrollRef}
+          setBundleCover={setBundleCover}
+          settlingBundles={settlingBundles}
           spacing={spacing}
           titleFromPrompt={titleFromPrompt}
+          toggleBundle={toggleBundle}
+          ungroupBundle={ungroupBundle}
           width={columnWidth}
         />
       ))}
@@ -96,30 +116,36 @@ export function VirtualMasonryGallery({
 function VirtualMasonryColumn({
   cancelJob,
   column,
-  copyImageAndToast,
+  copyPromptAndToast,
   deleteItem,
+  expandedBundles,
+  gatheringIds,
   formatElapsed,
   now,
   openItem,
   scrollRef,
+  setBundleCover,
+  settlingBundles,
   spacing,
   titleFromPrompt,
+  toggleBundle,
+  ungroupBundle,
   width,
 }: Omit<VirtualMasonryGalleryProps, "columns" | "items"> & { column: GalleryItem[]; spacing: number; width: number }) {
   const virtualizer = useVirtualizer({
     count: column.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: (index) => estimatedHeight(column[index], width) + spacing,
+    estimateSize: (index: number) => estimatedHeight(column[index], width, expandedBundles) + spacing,
     overscan: 8,
-    getItemKey: (index) => itemKey(column[index]) || index,
+    getItemKey: (index: number) => itemKey(column[index]) || index,
   });
   return (
     <div className="gallery-column virtual-gallery-column" style={{ width }}>
       <div className="virtual-gallery-spacer" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((virtualItem) => {
+        {virtualizer.getVirtualItems().map((virtualItem: any) => {
           const item = column[virtualItem.index];
           if (!item) return null;
-          const height = estimatedHeight(item, width);
+          const height = estimatedHeight(item, width, expandedBundles);
           const cellHeight = height + spacing;
           return (
             <div
@@ -129,9 +155,25 @@ function VirtualMasonryColumn({
               data-index={virtualItem.index}
               style={{ height: cellHeight, transform: `translateY(${virtualItem.start}px)` }}
             >
+              {item.bundle ? (
+                <BundleTile
+                  expanded={expandedBundles.has(item.bundle.id)}
+                  height={height}
+                  item={item}
+                  onSetCover={setBundleCover}
+                  onToggle={toggleBundle}
+                  onUngroup={ungroupBundle}
+                  settling={settlingBundles.has(item.bundle.id)}
+                  openItem={openItem}
+                  titleFromPrompt={titleFromPrompt}
+                  width={width}
+                />
+              ) : (
               <GalleryTile
                 cancelJob={cancelJob}
-                copyImageAndToast={copyImageAndToast}
+                gathering={gatheringIds.has(item.id)}
+                gatherIndex={virtualItem.index}
+                copyPromptAndToast={copyPromptAndToast}
                 deleteItem={deleteItem}
                 formatElapsed={formatElapsed}
                 height={height}
@@ -141,6 +183,7 @@ function VirtualMasonryColumn({
                 titleFromPrompt={titleFromPrompt}
                 width={width}
               />
+              )}
             </div>
           );
         })}

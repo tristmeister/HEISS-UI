@@ -353,6 +353,95 @@ export function inferModels(info, stats = {}) {
   };
 }
 
+export function mockModelResult() {
+  const imageProfiles = [
+    buildProfile({
+      id: "mock-flux-schnell",
+      kind: "image",
+      label: "FLUX.1 Schnell (Demo)",
+      displayName: "FLUX.1 Schnell (Demo)",
+      description: "Fast 4-step image model for offline testing mode",
+      model: "flux1-schnell.safetensors",
+      workflow: "builtin-flux-schnell",
+      family: "flux",
+      defaults: { width: 1024, height: 1024, steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" },
+      capabilities: { lora: true, startImage: true, startImageRequired: false }
+    }),
+    buildProfile({
+      id: "mock-sdxl-turbo",
+      kind: "image",
+      label: "SDXL Turbo (Demo)",
+      displayName: "SDXL Turbo (Demo)",
+      description: "Realtime 1-step SDXL model",
+      model: "sd_xl_turbo_1.0.safetensors",
+      workflow: "builtin-sdxl-turbo",
+      family: "sdxl",
+      defaults: { width: 1024, height: 1024, steps: 1, cfg: 1, sampler: "euler_ancestral", scheduler: "normal" },
+      capabilities: { lora: true, startImage: true, startImageRequired: false }
+    }),
+    buildProfile({
+      id: "mock-illustrious",
+      kind: "image",
+      label: "Illustrious SDXL (Demo)",
+      displayName: "Illustrious SDXL (Demo)",
+      description: "Anime & Illustration specialized model",
+      model: "illustrious-xl-v1.0.safetensors",
+      workflow: "builtin-illustrious",
+      family: "sdxl",
+      defaults: { width: 832, height: 1216, steps: 24, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras" },
+      capabilities: { lora: true, startImage: true, startImageRequired: false }
+    })
+  ];
+
+  const videoProfiles = [
+    buildProfile({
+      id: "mock-wan-video",
+      kind: "video",
+      label: "Wan 2.1 Video (Demo)",
+      displayName: "Wan 2.1 Video (Demo)",
+      description: "16-frame video generation in offline testing mode",
+      model: "wan2.1_i2v_480p.safetensors",
+      workflow: "builtin-wan-video",
+      family: "wan",
+      defaults: { width: 832, height: 480, steps: 20, cfg: 6, frames: 16, fps: 16, sampler: "uni_pc", scheduler: "normal" },
+      capabilities: { lora: false, startImage: true, startImageRequired: false }
+    })
+  ];
+
+  const loras = [
+    { label: "Cyberpunk Neon", name: "cyberpunk_neon_v1.safetensors" },
+    { label: "35mm Film Grain", name: "film_grain_35mm.safetensors" },
+    { label: "Anime Watercolor", name: "anime_watercolor.safetensors" }
+  ];
+
+  const samplers = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_sde", "uni_pc"];
+  const schedulers = ["normal", "karras", "exponential", "simple", "beta"];
+
+  return {
+    isMock: true,
+    imageModels: imageProfiles.map((p) => ({ label: p.label, value: p.id })),
+    videoModels: videoProfiles.map((p) => ({ label: p.label, value: p.id })),
+    profiles: [...imageProfiles, ...videoProfiles],
+    unsupportedModels: [],
+    textEncoders: [],
+    vaes: [],
+    clipTypes: [],
+    weightDtypes: ["default", "fp8_e4m3fn", "fp8_e5m2"],
+    samplers,
+    schedulers,
+    loras,
+    defaults: {
+      imageModel: imageProfiles[0].id,
+      videoModel: videoProfiles[0].id
+    },
+    capabilities: {
+      image: true,
+      video: true,
+      startImage: true
+    }
+  };
+}
+
 function emptyModelResult(extra = {}) {
   return {
     imageModels: [],

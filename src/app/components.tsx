@@ -1,11 +1,15 @@
 import React, { memo, useEffect, useRef, useState } from 'react';
-import { ChevronDown, Minus, Plus } from 'lucide-react';
+import { ChevronDown, Info, Minus, Plus } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
+import { AnimatedNumber } from './AnimatedNumber';
 import type { AspectPreset, Output, Profile } from './types';
 import { aspectIconStyle, cn, titleFromPrompt } from './format';
 
-export function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** How much room a composer control gets: full label, icon-only, or bare essentials. */
+export type ControlDensity = "full" | "compact" | "mini";
+
+export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <label className="field">
       <span>{label}</span>
@@ -14,26 +18,37 @@ export function Field({ label, children }: { label: string; children: React.Reac
   );
 }
 
-function MediaComponent({ item, muted = false }: { item: Output; muted?: boolean }) {
+function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl?: string }; muted?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const rafRef = useRef(0);
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
   }, [item.url]);
-  if (!item.url || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || "Output unavailable"}</span></div>;
+  // Reveal on the next frame so the blurred/faded start state always paints
+  // once before the "unblur" transition runs — even for cache-hot images.
+  const reveal = () => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = requestAnimationFrame(() => setLoaded(true));
+    });
+  };
+  useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
+  const source = muted && item.thumbnailUrl ? item.thumbnailUrl : item.url;
+  if (!source || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || "Output unavailable"}</span></div>;
   if (item.type === "video") {
     return (
       <video
         className={cn(!loaded && "media-loading")}
-        src={item.url}
+        src={source}
         controls={!muted}
         muted={muted}
         loop
         autoPlay={muted}
         preload="metadata"
         draggable={false}
-        onLoadedData={() => setLoaded(true)}
+        onLoadedData={reveal}
         onError={() => setFailed(true)}
       />
     );
@@ -41,12 +56,12 @@ function MediaComponent({ item, muted = false }: { item: Output; muted?: boolean
   return (
     <img
       className={cn(!loaded && "media-loading")}
-      src={item.url}
+      src={source}
       alt={item.filename}
       loading="lazy"
       decoding="async"
       draggable={false}
-      onLoad={() => setLoaded(true)}
+      onLoad={reveal}
       onError={() => setFailed(true)}
       onDragStart={(event) => event.preventDefault()}
     />
@@ -93,9 +108,20 @@ export function StudioSelect({ value, onChange, options }: { value: string; onCh
 
 export function Tip({ content, side = "bottom", children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; children: React.ReactElement }) {
   return (
-    <FluidTooltip content={content} side={side} sideOffset={8} delayDuration={120}>
+    <FluidTooltip content={content} side={side} sideOffset={10} delayDuration={220} className="j-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
       {children}
     </FluidTooltip>
+  );
+}
+
+/** Small "i" affordance for the one explanation a control genuinely needs. */
+export function InfoTip({ content, side = "top" }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left" }) {
+  return (
+    <Tip content={content} side={side}>
+      <button type="button" className="info-tip" aria-label="More information">
+        <Info size={12} strokeWidth={2.6} />
+      </button>
+    </Tip>
   );
 }
 
@@ -108,7 +134,9 @@ export function NumberPicker({
   step = 1,
   precision,
   size = "md",
-  fill = false
+  fill = false,
+  density = "full",
+  icon
 }: {
   label: string;
   value: number;
@@ -119,6 +147,9 @@ export function NumberPicker({
   precision?: number;
   size?: "sm" | "md";
   fill?: boolean;
+  /** full = text label + steppers, compact = icon + steppers, mini = icon + value only. */
+  density?: ControlDensity;
+  icon?: React.ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
@@ -174,13 +205,18 @@ export function NumberPicker({
   };
 
   const labelLower = label.toLowerCase();
+  const showSteppers = density !== "mini";
   return (
     <div
-      className={cn("number-picker", size === "sm" && "is-sm", fill && "is-fill")}
+      className={cn("number-picker", size === "sm" && "is-sm", fill && "is-fill", density !== "full" && `is-density-${density}`)}
       onWheel={(event) => { event.preventDefault(); stepBy(event.deltaY < 0 ? 1 : -1); }}
     >
-      <span className="number-picker-label">{label}</span>
-      <Tip content={`Decrease ${labelLower}`}><button
+      {density === "full" || !icon ? (
+        <span className="number-picker-label">{label}</span>
+      ) : (
+        <Tip content={label}><span className="number-picker-icon" aria-hidden="true">{icon}</span></Tip>
+      )}
+      {showSteppers ? <Tip content={`Decrease ${labelLower}`}><button
         type="button"
         className="number-picker-btn"
         aria-label={`Decrease ${labelLower}`}
@@ -189,7 +225,7 @@ export function NumberPicker({
         onPointerUp={clearHold}
         onPointerLeave={clearHold}
         onPointerCancel={clearHold}
-      ><Minus size={12} /></button></Tip>
+      ><Minus size={12} /></button></Tip> : null}
       {editing ? (
         <input
           ref={inputRef}
@@ -208,10 +244,12 @@ export function NumberPicker({
             else if (event.key === "ArrowDown") { event.preventDefault(); stepBy(-1); }
           }}
         />
+      ) : density === "full" ? (
+        <button type="button" className="number-picker-value" onClick={beginEdit} aria-label={`${label}: ${formatValue(value)}, click to edit`}><AnimatedNumber value={formatValue(value)} /></button>
       ) : (
-        <button type="button" className="number-picker-value" onClick={beginEdit} aria-label={`${label}: ${formatValue(value)}, click to edit`}>{formatValue(value)}</button>
+        <Tip content={`${label}: ${formatValue(value)} - click to edit`}><button type="button" className="number-picker-value" onClick={beginEdit} aria-label={`${label}: ${formatValue(value)}, click to edit`}><AnimatedNumber value={formatValue(value)} /></button></Tip>
       )}
-      <Tip content={`Increase ${labelLower}`}><button
+      {showSteppers ? <Tip content={`Increase ${labelLower}`}><button
         type="button"
         className="number-picker-btn"
         aria-label={`Increase ${labelLower}`}
@@ -220,12 +258,12 @@ export function NumberPicker({
         onPointerUp={clearHold}
         onPointerLeave={clearHold}
         onPointerCancel={clearHold}
-      ><Plus size={12} /></button></Tip>
+      ><Plus size={12} /></button></Tip> : null}
     </div>
   );
 }
 
-export function AspectPicker({ value, options, onChange, currentSize, defaultSize }: { value: string; options: AspectPreset[]; onChange: (value: string) => void; currentSize: string; defaultSize: string }) {
+export function AspectPicker({ value, options, onChange, currentSize, defaultSize, density = "full" }: { value: string; options: AspectPreset[]; onChange: (value: string) => void; currentSize: string; defaultSize: string; density?: ControlDensity }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((item) => item.value === value);
@@ -238,12 +276,13 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
     window.addEventListener("pointerdown", closeOnOutside, true);
     return () => window.removeEventListener("pointerdown", closeOnOutside, true);
   }, [open]);
+  const label = selected ? selected.label : isDefault ? "Default" : "Free";
   return (
-    <div className="aspect-picker" ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content="Aspect ratio"><button type="button" data-open-trigger className="aspect-trigger" onClick={() => setOpen((next) => !next)}>
+    <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
+      <Tip content={density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}><button type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}`} onClick={() => setOpen((next) => !next)}>
           {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
-          <span>{selected ? selected.label : isDefault ? "Default" : "Free"}</span>
-          <ChevronDown size={14} className={cn(open && "flip")} />
+          {density === "full" ? <span>{label}</span> : null}
+          {density === "mini" ? null : <ChevronDown size={14} className={cn(open && "flip")} />}
         </button></Tip>
       {open ? (
         <div className="aspect-menu" data-open-surface>
@@ -289,7 +328,7 @@ export function familyLabel(profile: Profile | null) {
   return profile.family;
 }
 
-export function ModelPicker({ value, profiles, onChange, compact = false, badges = {} }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string> }) {
+export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full" }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = profiles.find((profile) => profile.id === value) || profiles[0] || null;
@@ -302,8 +341,8 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
     return () => window.removeEventListener("pointerdown", closeOnOutside, true);
   }, [open]);
   return (
-    <div className={cn("model-picker", compact && "is-compact")} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content="Choose model"><button type="button" data-open-trigger className="model-trigger" onClick={() => setOpen((next) => !next)}>
+    <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
+      <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button type="button" data-open-trigger className="model-trigger" onClick={() => setOpen((next) => !next)}>
           {compact ? (
             <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No model"}</strong></span>
           ) : (

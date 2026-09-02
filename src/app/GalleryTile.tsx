@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Copy, Download, Trash2 } from 'lucide-react';
+import { Copy, Download, LockKeyhole, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Media, Tip } from './components';
@@ -14,8 +14,10 @@ type GalleryTileProps = {
   titleFromPrompt: (value?: string) => string;
   openItem: (item: GalleryItem) => void;
   cancelJob: (jobId?: string) => void;
-  copyImageAndToast: (item: GalleryItem) => void;
+  copyPromptAndToast: (item: GalleryItem) => void;
   deleteItem: (item: GalleryItem) => void;
+  gathering?: boolean;
+  gatherIndex?: number;
 };
 
 const numberVariants = {
@@ -37,12 +39,7 @@ const tileEnterTransition = {
   mass: 0.86,
 };
 
-function nodeName(node?: string) {
-  if (!node || /^\d+$/.test(node)) return "Rendering";
-  return node;
-}
-
-function GalleryTileComponent({ cancelJob, copyImageAndToast, deleteItem, formatElapsed, height, item, now, openItem, titleFromPrompt, width }: GalleryTileProps) {
+function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, now, openItem, titleFromPrompt, width }: GalleryTileProps) {
   const ratio = item.progress?.max ? Math.min(1, Math.max(0, item.progress.value / item.progress.max)) : 0;
   const indeterminate = !item.progress?.max;
   const mountedRef = useRef(false);
@@ -51,8 +48,8 @@ function GalleryTileComponent({ cancelJob, copyImageAndToast, deleteItem, format
   useEffect(() => { mountedRef.current = true; }, []);
   return (
     <motion.div
-      className="tile-motion-wrap"
-      style={{ width, height } as React.CSSProperties}
+      className={cn("tile-motion-wrap", gathering && "is-gathering")}
+      style={{ width, height, "--gather-delay": `${Math.min(gatherIndex, 6) * 14}ms` } as React.CSSProperties}
       initial={prefersReducedMotion || !isEntering ? false : { opacity: 0, y: -18, scale: 0.965 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -79,43 +76,41 @@ function GalleryTileComponent({ cancelJob, copyImageAndToast, deleteItem, format
                 />
               ) : null}
             </AnimatePresence>
-            {item.preview ? <div className="generate-blur-veil" /> : null}
             {!item.preview ? <div className="noise-layer" /> : null}
             <div className="generate-overlay">
               <span className="generate-step">
                 {item.progress?.max ? (
-                  <span className="generate-step-count">
-                    <AnimatePresence mode="wait">
-                      <motion.span key={item.progress.value} variants={numberVariants} initial="initial" animate="animate" exit="exit">
-                        {item.progress.value}
-                      </motion.span>
-                    </AnimatePresence>
-                    <i>/</i>{item.progress.max}
-                  </span>
+                  <>
+                    <span className="generate-step-label">Step</span>
+                    <span className="generate-step-count">
+                      <AnimatePresence mode="wait">
+                        <motion.span key={item.progress.value} variants={numberVariants} initial="initial" animate="animate" exit="exit">
+                          {item.progress.value}
+                        </motion.span>
+                      </AnimatePresence>
+                      <i>/</i>{item.progress.max}
+                    </span>
+                  </>
                 ) : (
                   <span className="generate-step-label is-queued">Queued</span>
                 )}
               </span>
-              <span className="generate-info">
-                <span className="generate-state">{nodeName(item.progress?.node)}</span>
-                <span className="generate-info-dot" />
-                <span className="generate-elapsed">{formatElapsed(now - Date.parse(item.createdAt || new Date().toISOString()))}</span>
-              </span>
+              <span className="generate-elapsed">{formatElapsed(now - Date.parse(item.createdAt || new Date().toISOString()))}</span>
             </div>
             <div className={cn("generate-bar", indeterminate && "is-indeterminate")}>
               <div className="generate-bar-fill" />
             </div>
           </div>
-        ) : item.status === "done" ? <Media item={item} muted /> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
+        ) : item.vaultLocked ? <div className="generating stopped vault-locked"><LockKeyhole size={22} /><span>Private item</span></div> : item.status === "done" ? <Media item={item} muted /> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
         <span className="tile-caption">
-          <strong>{titleFromPrompt(item.prompt || item.filename)}</strong>
-          <em>{item.status === "pending" ? formatElapsed(now - Date.parse(item.createdAt || new Date().toISOString())) : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
+          <strong>{item.vaultLocked ? "Private item" : titleFromPrompt(item.prompt || item.filename)}</strong>
+          <em>{item.vaultLocked ? "Unlock to view" : item.status === "pending" ? formatElapsed(now - Date.parse(item.createdAt || new Date().toISOString())) : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
         {item.status === "pending" ? <Tip content="Cancel generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Cancel</span></Tip> : null}
-        {item.status !== "pending" ? (
-          <span className="tile-hover-actions">
+        {item.status !== "pending" && !item.vaultLocked ? (
+          <span className="tile-hover-actions" onPointerDown={(event) => event.stopPropagation()}>
             {item.url ? <Tip content="Download" side="left"><a className="tile-icon" aria-label="Download" href={item.url} download onClick={(event) => event.stopPropagation()}><Download size={13} /></a></Tip> : null}
-            {item.status === "done" ? <Tip content="Copy" side="left"><span className="tile-icon" role="button" aria-label="Copy" onClick={(event) => { event.stopPropagation(); copyImageAndToast(item); }}><Copy size={14} /></span></Tip> : null}
+            {item.status === "done" ? <Tip content="Copy prompt" side="left"><span className="tile-icon" role="button" aria-label="Copy prompt" onClick={(event) => { event.stopPropagation(); copyPromptAndToast(item); }}><Copy size={14} /></span></Tip> : null}
             <Tip content="Delete from gallery" side="left"><span className="tile-delete" role="button" aria-label="Delete from gallery" onClick={(event) => { event.stopPropagation(); deleteItem(item); }}><Trash2 size={14} /></span></Tip>
           </span>
         ) : null}
@@ -126,6 +121,7 @@ function GalleryTileComponent({ cancelJob, copyImageAndToast, deleteItem, format
 
 export const GalleryTile = React.memo(GalleryTileComponent, (previous, next) => {
   if (previous.item !== next.item) return false;
+  if (previous.gathering !== next.gathering) return false;
   if (previous.width !== next.width || previous.height !== next.height) return false;
   if (previous.item.status === "pending") return previous.now === next.now;
   return true;

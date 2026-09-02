@@ -50,11 +50,19 @@ export async function apiJson<T>(url: string, options?: RequestInit): Promise<T>
   return data as T;
 }
 
+const prefsMigrationKey = "j-ai-studio-prefs-migrated";
+
 export function loadPrefs(): Preferences {
   try {
     const saved = localStorage.getItem("j-ai-studio-prefs");
     if (!saved) return { ...defaultPrefs };
     const parsed = JSON.parse(saved);
+    // The run cooldown shipped at 5 minutes and was lowered to 1 the same day;
+    // nobody chose the old value on purpose, so carry installs over once.
+    if (!localStorage.getItem(prefsMigrationKey)) {
+      localStorage.setItem(prefsMigrationKey, "run-cooldown-1");
+      if (parsed.runCooldownMinutes === 5) delete parsed.runCooldownMinutes;
+    }
     return { ...defaultPrefs, ...parsed };
   } catch {
     return { ...defaultPrefs };

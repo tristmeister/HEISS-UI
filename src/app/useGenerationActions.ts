@@ -12,7 +12,7 @@ export function useGenerationActions(view: any) {
   const {
     active, canUseStartImage, confirmAction, count, currentProfile, denoise,
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, mode,
-    model, negative, prefs, prompt, sampler, scheduler, seed, setActive, setGallery,
+    model, negative, prefs, privateGeneration, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
     textEncoder, vae, clipType, weightDtype, width
   } = view;
@@ -101,7 +101,8 @@ export function useGenerationActions(view: any) {
         fps,
         loras,
         startImageId: canUseStartImage ? startImageId : "",
-        startImageName
+        startImageName,
+        privateVault: Boolean(privateGeneration)
       };
       const queuedJobs: string[] = [];
       for (let index = 0; index < imageRuns; index += 1) {

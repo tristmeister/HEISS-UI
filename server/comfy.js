@@ -1,3 +1,4 @@
+import { writeLocalEnvValue } from "./env.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -8,7 +9,17 @@ export const comfyUrl = process.env.COMFY_URL || "http://127.0.0.1:8188";
 export const host = process.env.HOST || "127.0.0.1";
 export const port = Number(process.env.PORT || 8787);
 const localComfyOutputDir = "C:\\CUVenv\\ComfyUI\\output";
-export const comfyOutputDir = process.env.COMFY_OUTPUT_DIR || (fs.existsSync(localComfyOutputDir) ? localComfyOutputDir : "");
+export let comfyOutputDir = process.env.COMFY_OUTPUT_DIR || (fs.existsSync(localComfyOutputDir) ? localComfyOutputDir : "");
+
+export function setComfyOutputDir(value = "") {
+  const requested = String(value || "").trim();
+  if (!requested) throw new Error("Choose an existing ComfyUI output folder.");
+  const next = path.resolve(requested);
+  if (!fs.existsSync(next) || !fs.statSync(next).isDirectory()) throw new Error("Choose an existing ComfyUI output folder.");
+  writeLocalEnvValue("COMFY_OUTPUT_DIR", next);
+  comfyOutputDir = next;
+  return comfyOutputDir;
+}
 export const localHosts = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export const allowLanActions = process.env.JAI_ALLOW_LAN === "1" || host === "0.0.0.0" || host === "::";
 
@@ -42,7 +53,17 @@ export function normalizeComfyError(message = "") {
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      text = parsed?.error?.message || parsed?.node_errors && Object.values(parsed.node_errors)[0]?.errors?.[0]?.message || text;
+      const nodeErrors = parsed?.node_errors || {};
+      const details = Object.entries(nodeErrors).flatMap(([nodeId, node]) =>
+        (node?.errors || []).map((error) => {
+          const name = error?.name || node?.class_type || `node ${nodeId}`;
+          const detail = error?.message || error?.type || "invalid value";
+          return `${name}: ${detail}`;
+        })
+      );
+      text = details.length
+        ? `${parsed?.error?.message || "Prompt validation failed"}: ${details.slice(0, 3).join("; ")}`
+        : parsed?.error?.message || text;
     } catch {
       // Keep the original ComfyUI error text.
     }

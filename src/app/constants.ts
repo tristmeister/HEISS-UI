@@ -11,7 +11,10 @@ export const defaultPrefs: Preferences = {
   confirmActions: true,
   enterToGenerate: true,
   followLatest: true,
-  showFailedItems: true
+  showFailedItems: true,
+  groupRuns: true,
+  runGroupingMode: "smart",
+  runCooldownMinutes: 1
 };
 
 export const galleryInitialBatch = 72;

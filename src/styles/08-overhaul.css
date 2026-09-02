@@ -1,0 +1,395 @@
+/* J AI Studio 2026 visual system: quiet canvas, tactile floating surfaces, clear primary actions. */
+:root {
+  --background: 0 0% 4.2%;
+  --foreground: 0 0% 96%;
+  --card: 0 0% 7%;
+  --popover: 0 0% 10%;
+  --secondary: 0 0% 14%;
+  --muted: 0 0% 13%;
+  --muted-foreground: 0 0% 61%;
+  --accent: 0 0% 19%;
+  --border: 0 0% 18%;
+  --border-strong: 0 0% 27%;
+  --input: 0 0% 8%;
+  --radius: 1rem;
+  --shadow-float: 0 24px 80px rgb(0 0 0 / .5), 0 2px 10px rgb(0 0 0 / .38), inset 0 1px 0 rgb(255 255 255 / .045);
+}
+
+body { background: #0a0a0a; }
+button:not(:disabled):active { scale: .96; }
+
+.app-shell {
+  background: #0a0a0a;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .018);
+}
+.stage-gallery {
+  padding: 92px 10px 238px;
+  background-color: #0a0a0a;
+  background-image: radial-gradient(circle, rgb(255 255 255 / .038) .7px, transparent .8px);
+  background-size: 24px 24px;
+  scrollbar-gutter: stable;
+}
+.bottom-fade { height: 218px; }
+.bottom-fade::before {
+  background: linear-gradient(to top, #0a0a0a 0%, rgb(10 10 10 / .94) 38%, rgb(10 10 10 / .52) 72%, transparent 100%);
+}
+
+.studio-nav {
+  position: fixed;
+  top: 14px;
+  left: 16px;
+  right: 16px;
+  z-index: 14;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  pointer-events: none;
+}
+.studio-brand-lockup,
+.studio-nav-actions {
+  pointer-events: auto;
+  border: 1px solid rgb(255 255 255 / .09);
+  background: rgb(24 24 24 / .84);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  box-shadow: 0 10px 36px rgb(0 0 0 / .3), inset 0 1px 0 rgb(255 255 255 / .045);
+}
+.studio-brand-lockup {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 20px;
+}
+.studio-brand-lockup img {
+  width: 28px;
+  height: 28px;
+  padding: 7px;
+  border-radius: 50%;
+  background: #f4f4f4;
+}
+.studio-brand-lockup div { display: grid; gap: 1px; }
+.studio-brand-lockup strong { font-size: 12px; font-weight: 650; letter-spacing: -.015em; }
+.studio-brand-lockup span { display: none; }
+.studio-nav-actions {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 20px;
+}
+.nav-action,
+.studio-nav-actions .comfy-status-dot,
+.studio-nav-actions .queue-button {
+  min-width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 17px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 550;
+  cursor: pointer;
+  transition-property: background, color, scale;
+}
+.nav-action:hover { background: rgb(255 255 255 / .09); color: white; }
+.nav-action.icon-only { padding: 0; }
+.studio-nav-actions .comfy-status-dot { padding: 0; }
+.studio-nav-actions .queue-button { color: white; }
+
+.gallery { gap: 8px; }
+.tile-motion-wrap,
+.tile {
+  border-radius: 10px;
+}
+.tile-motion-wrap {
+  overflow: hidden;
+  background: #111;
+}
+.tile {
+  outline: 1px solid rgb(255 255 255 / .1);
+  outline-offset: -1px;
+  overflow: hidden;
+  box-shadow: none;
+}
+.tile img,
+.tile video,
+.tile .generating,
+.tile .media-fallback {
+  border-radius: inherit;
+}
+.empty {
+  width: min(520px, calc(100vw - 40px));
+  min-height: 260px;
+  padding: 36px;
+  border: 1px solid rgb(255 255 255 / .08);
+  border-radius: 28px;
+  background: rgb(20 20 20 / .74);
+  box-shadow: var(--shadow-float);
+}
+.empty img { width: 44px; height: 44px; padding: 10px; border-radius: 14px; background: #f3f3f3; }
+.empty h2 { margin-top: 18px; font-size: 23px; letter-spacing: -.025em; }
+.empty p { max-width: 390px; margin: 8px auto 0; color: hsl(var(--muted-foreground)); line-height: 1.55; }
+.empty-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.reconnect-btn {
+  min-height: 44px;
+  border-radius: 22px !important;
+  padding: 0 18px !important;
+  background: rgb(255 255 255 / .08) !important;
+}
+.reconnect-btn.primary { background: #f4f4f4 !important; color: #090909 !important; }
+
+/* The floating zen docks were three different heights (44 / 38 / 34) on three
+   different baselines. One surface, one height, one bottom offset - matched to
+   the composer's 18px - so they read as a set. */
+.zen-control-button,
+.zen-zoom-dock,
+.zen-top-actions,
+.zen-gallery-restore {
+  box-sizing: border-box;
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 22px;
+  background: rgb(30 30 30 / .9);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  box-shadow: 0 8px 26px rgb(0 0 0 / .36), inset 0 1px 0 rgb(255 255 255 / .06);
+}
+.zen-control-button,
+.zen-zoom-dock,
+.zen-top-actions { bottom: 18px; }
+.zen-control-button { left: 18px; width: 44px; }
+.zen-gallery-restore { width: 44px; }
+.zen-zoom-dock { left: 72px; gap: 2px; padding: 3px; }
+.zen-zoom-dock.with-side { left: calc(min(390px, 100vw - 36px) + 28px); }
+.zen-top-actions { right: 18px; align-items: center; gap: 2px; padding: 3px; }
+.zen-zoom-dock .icon-button,
+.zen-zoom-dock .viewer-zoom,
+.zen-top-actions .icon-button,
+.zen-top-actions .comfy-status-dot {
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 19px;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  transition-property: background-color, color, scale;
+}
+.zen-zoom-dock .viewer-zoom {
+  width: auto;
+  min-width: 54px;
+  padding: 0 10px;
+  color: hsl(var(--foreground));
+}
+.zen-zoom-dock .icon-button:hover:not(:disabled),
+.zen-zoom-dock .viewer-zoom:hover,
+.zen-top-actions .icon-button:hover:not(:disabled) {
+  background: rgb(255 255 255 / .09);
+  color: white;
+}
+.zen-controls {
+  left: 18px;
+  top: 82px;
+  bottom: 84px;
+  width: min(390px, calc(100vw - 36px));
+  padding: 16px;
+  gap: 14px;
+  border-color: rgb(255 255 255 / .11);
+  border-radius: 28px;
+  background: rgb(31 31 31 / .94);
+  box-shadow: var(--shadow-float);
+}
+.mode-tabs {
+  padding: 4px;
+  border: 0;
+  border-radius: 22px;
+  background: #090909;
+}
+.mode-tabs button { min-height: 40px; border-radius: 18px; }
+.mode-tabs button.active { background: #303030; color: white; box-shadow: inset 0 1px 0 rgb(255 255 255 / .08); }
+.workflow-card { min-height: 64px; border: 0; border-radius: 18px; background: #141414; padding: 10px; }
+.workflow-card:hover { background: #242424; }
+.workflow-card-thumb { width: 44px; height: 44px; border-radius: 13px; }
+.sidebar-subtabs { padding: 4px; border: 0; border-radius: 18px; background: #141414; }
+.sidebar-subtab { min-height: 38px; border-radius: 14px; }
+.sidebar-subtab.active { background: #303030; box-shadow: none; }
+
+.zen-prompt {
+  bottom: 18px;
+  /* Reserve a fixed lane for the bottom docks on each side. */
+  width: max(340px, min(920px, calc(100vw - 480px)));
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 26px;
+  background: rgb(22 22 22 / .92);
+  box-shadow: var(--shadow-float);
+}
+.composer-kicker {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 4px 9px 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .055em;
+  text-transform: uppercase;
+}
+.composer-kicker span:last-child { max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-prompt textarea { min-height: 48px; padding: 8px 10px 5px; font-size: 15px; line-height: 1.4; }
+.zen-prompt textarea::placeholder { color: rgb(255 255 255 / .34); }
+.zen-prompt-actions { padding: 2px; }
+/* The density ladder in 12-composer.css keeps this on one line; it must not
+   wrap, because a wrapped bar is exactly what the ladder exists to avoid. */
+.zen-inline-settings { justify-content: flex-end; flex-wrap: nowrap; gap: 5px; }
+.zen-prompt-actions .model-trigger,
+.zen-prompt-actions .aspect-picker > button,
+.zen-prompt-actions .number-picker,
+.zen-prompt-actions .negative-toggle,
+.zen-prompt-actions .generate,
+.lora-pill { height: 40px; min-height: 40px; border-radius: 20px; border-color: transparent; background: #090909; }
+.zen-prompt-actions .generate {
+  width: 40px;
+  min-width: 40px;
+  flex: 0 0 40px;
+  padding: 0;
+  border-radius: 12px;
+  color: #0b0b0b;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f2f2 52%, #dededf 100%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.45), 0 0 0 1px rgb(255 255 255 / 0.55) inset, 0 -1px 1px rgb(0 0 0 / 0.06) inset;
+}
+.zen-prompt-actions .generate:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 52%, #e7e7e8 100%);
+  box-shadow: 0 3px 8px rgb(0 0 0 / 0.4), 0 0 0 1px rgb(255 255 255 / 0.65) inset;
+}
+.zen-prompt-actions .generate.is-offline {
+  color: hsl(0 74% 46%);
+  background: linear-gradient(180deg, #ffffff 0%, #f1eaea 100%);
+}
+
+.model-menu,
+.aspect-menu,
+.lora-select-dropdown {
+  border-color: rgb(255 255 255 / .12);
+  border-radius: 22px;
+  background: #232323;
+  box-shadow: var(--shadow-float);
+  padding: 7px;
+}
+.model-option { border-radius: 15px; }
+.aspect-option { border-radius: 13px; }
+
+/* Selected rows sit on a light-on-dark chip, so every descendant has to switch
+   off the inverted (dark-on-white) palette it inherits from the base layer. */
+.model-option:hover,
+.aspect-option:hover { background: #2c2c2c; }
+.model-option.active,
+.model-option.active:hover,
+.aspect-option.active,
+.aspect-option.active:hover {
+  background: #343434;
+  color: hsl(var(--foreground));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+}
+.model-option.active .model-copy strong { color: hsl(var(--foreground)); }
+.model-option.active .model-copy em,
+.aspect-option.active em { color: rgb(255 255 255 / .62); }
+.model-badge {
+  border-color: rgb(255 255 255 / .16);
+  color: rgb(255 255 255 / .52);
+}
+.model-option.active .model-badge {
+  border-color: rgb(255 255 255 / .24);
+  color: rgb(255 255 255 / .78);
+}
+.aspect-option em { color: rgb(255 255 255 / .5); }
+
+.modal-scrim { background: rgb(0 0 0 / .74); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.settings-card {
+  width: min(1080px, calc(100vw - 32px));
+  max-height: min(900px, calc(100vh - 32px));
+  border-color: rgb(255 255 255 / .11);
+  border-radius: 30px;
+  background: #111;
+  box-shadow: var(--shadow-float);
+}
+.settings-card header { padding: 20px 24px; background: rgb(17 17 17 / .94); }
+.settings-card h2 { font-size: 21px; letter-spacing: -.025em; }
+.settings-card h3 { margin-bottom: 18px; font-size: 15px; }
+.project-card,
+.toggle-row,
+.workflow-detail-grid,
+.workflow-import-card { border-color: rgb(255 255 255 / .08); border-radius: 18px; background: #1b1b1b; }
+.setting-row { padding: 13px 0; border-color: rgb(255 255 255 / .07); }
+.setting-actions button,
+.wide-button,
+.danger-button { min-height: 44px; border-radius: 22px; }
+.setting-actions.single button,
+.setting-actions.single a { background: #f3f3f3; color: #0a0a0a; border-color: transparent; }
+.toggle-row input { width: 48px; height: 28px; padding: 3px; background: #3b3b3b; }
+.toggle-row input::before { width: 22px; height: 22px; background: #111; }
+.toggle-row input:checked::before { transform: translateX(20px); }
+
+.workflow-gallery {
+  width: min(1380px, calc(100vw - 24px));
+  height: min(920px, calc(100vh - 24px));
+  border-color: rgb(255 255 255 / .11);
+  border-radius: 30px;
+  background: #111;
+  box-shadow: var(--shadow-float);
+}
+.workflow-gallery-head { min-height: 76px; padding: 18px 24px; }
+.workflow-gallery-head h2 { font-size: 21px; letter-spacing: -.025em; }
+.workflow-gallery-head p { font-size: 13px; }
+.workflow-import-button { min-height: 44px; padding: 0 18px; border: 0; border-radius: 22px; background: #f4f4f4; color: #090909; }
+.workflow-gallery-body { grid-template-columns: minmax(430px, .82fr) minmax(420px, 1.18fr); }
+.workflow-gallery-list { padding: 18px; }
+.workflow-search { min-height: 48px; border: 0; border-radius: 20px; background: #1d1d1d; padding: 0 14px; }
+.workflow-drop { min-height: 62px; border-color: rgb(255 255 255 / .16); border-radius: 20px; background: #151515; }
+.workflow-tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.workflow-tile { min-height: 132px; padding: 10px; border-color: rgb(255 255 255 / .08); border-radius: 20px; background: #181818; }
+.workflow-tile:hover,
+.workflow-tile.active { border-color: rgb(255 255 255 / .18); background: #292929; }
+.workflow-thumb { border-radius: 14px; }
+.workflow-details { padding: 28px; }
+.workflow-detail-hero { grid-template-columns: 168px minmax(0, 1fr); gap: 22px; }
+.workflow-detail-thumb { width: 168px; border-radius: 20px; }
+.workflow-detail-hero h3 { font-size: 27px; letter-spacing: -.035em; }
+.workflow-tags span { border: 0; background: #272727; padding: 6px 10px; }
+.workflow-actions button { min-height: 44px; border-radius: 22px; }
+.workflow-actions button:first-child { background: #f4f4f4; color: #090909; border-color: transparent; }
+.workflow-import-panel { width: min(620px, 100%); border-color: rgb(255 255 255 / .1); background: #161616; padding: 24px; }
+
+@media (max-width: 760px) {
+  .studio-nav { top: 10px; left: 10px; right: 10px; }
+  .studio-brand-lockup { padding-right: 10px; }
+  .studio-brand-lockup div { display: none; }
+  .studio-nav-actions .nav-action span { display: none; }
+  .nav-action { padding: 0; }
+  .stage-gallery { padding-top: 76px; padding-bottom: calc(var(--zen-prompt-h, 160px) + 34px); }
+  .zen-prompt { width: calc(100vw - 20px); bottom: 10px; border-radius: 24px; }
+  .composer-kicker { display: none; }
+  .zen-prompt textarea { min-height: 48px; font-size: 16px; }
+  .workflow-gallery { width: calc(100vw - 12px); height: calc(100vh - 12px); border-radius: 24px; }
+
+  .workflow-gallery-body { grid-template-columns: 1fr; }
+  .workflow-details { display: none; }
+  .workflow-tile-grid { grid-template-columns: 1fr; }
+}
+
+/* Phones move this button to the top edge (06-responsive.css); on the tablet
+   band it still rides above the composer. */
+@media (min-width: 621px) and (max-width: 760px) {
+  .zen-control-button { left: 10px; bottom: calc(var(--zen-prompt-h, 160px) + 18px); }
+}

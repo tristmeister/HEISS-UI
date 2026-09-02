@@ -1,0 +1,238 @@
+/* Shared motion system + composer polish.
+   One vocabulary of durations, easings and press feedback so every control in
+   the app moves the same way. Loaded last so it can normalise earlier layers. */
+
+:root {
+  --motion-instant: 90ms;
+  --motion-fast: 140ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  /* Single easing for interactive state changes; --ease-soft stays for staged sequences. */
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --press-scale: 0.96;
+}
+
+/* ---------------------------------------------------------------------------
+   1. One press gesture everywhere
+   Several components rolled their own :active transform, which multiplied with
+   the global scale and made presses collapse twice as far as intended.
+--------------------------------------------------------------------------- */
+
+button:not(:disabled) {
+  transition-timing-function: var(--motion-ease);
+  transition-duration: var(--motion-base);
+}
+button:not(:disabled):active {
+  scale: var(--press-scale);
+  transition-duration: var(--motion-instant);
+}
+
+.mode-tabs button:active,
+.aspect-trigger:active,
+.aspect-option:active,
+.private-toggle:active,
+.number-picker-btn:active:not(:disabled) {
+  transform: none;
+}
+.generate:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* ---------------------------------------------------------------------------
+   2. One transition contract for the composer controls
+--------------------------------------------------------------------------- */
+
+.zen-prompt-actions .model-trigger,
+.zen-prompt-actions .aspect-picker > button,
+.zen-prompt-actions .number-picker,
+.zen-prompt-actions .negative-toggle,
+.zen-prompt-actions .private-toggle,
+.lora-pill,
+.nav-action,
+.workflow-card,
+.sidebar-subtab {
+  transition-property: background-color, border-color, color, box-shadow, scale;
+  transition-duration: var(--motion-base);
+  transition-timing-function: var(--motion-ease);
+}
+
+/* Hover reads as one family: same lift, same tint. */
+@media (hover: hover) and (pointer: fine) {
+  .zen-prompt-actions .model-trigger:hover,
+  .zen-prompt-actions .aspect-picker > button:hover,
+  .zen-prompt-actions .negative-toggle:hover,
+  .zen-prompt-actions .private-toggle:not(:disabled):hover,
+  .zen-prompt-actions .number-picker:hover {
+    background: #161616;
+    border-color: transparent;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+    color: hsl(var(--foreground));
+  }
+}
+.zen-prompt-actions .negative-toggle.active,
+.zen-prompt-actions .private-toggle.is-private {
+  background: #1c1c1c;
+  border-color: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  color: hsl(var(--foreground));
+}
+
+/* Icons in the bar rotate/settle on the same curve. */
+.negative-toggle svg,
+.model-trigger svg,
+.aspect-picker > button svg {
+  transition: transform var(--motion-base) var(--motion-ease), opacity var(--motion-fast) linear;
+}
+
+/* ---------------------------------------------------------------------------
+   3. Concentric radii inside the composer
+   Bar radius 26 - 8 padding = 20 on the controls; controls 20 - 2 padding = 18
+   on anything nested inside them.
+--------------------------------------------------------------------------- */
+
+.zen-inline-settings .number-picker-btn,
+.zen-inline-settings .number-picker-value,
+.zen-inline-settings .number-picker-input {
+  border-radius: 17px;
+}
+
+/* Small steppers keep a 40px hit area without growing visually. */
+.zen-inline-settings .number-picker-btn { position: relative; }
+.zen-inline-settings .number-picker-btn::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 40px;
+  height: 40px;
+  translate: -50% -50%;
+}
+
+/* ---------------------------------------------------------------------------
+   4. Number changes
+--------------------------------------------------------------------------- */
+
+.animated-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.animated-number-slot {
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  /* Tall enough for descenders and the roll, tight enough not to shift the row. */
+  height: 1.25em;
+}
+.animated-number-slot > * {
+  grid-area: 1 / 1;
+}
+.animated-number-char {
+  display: block;
+  will-change: transform, opacity;
+}
+.sr-only-value {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Anything else that counts should not reflow while it counts. */
+.prompt-count,
+.zen-status,
+.composer-kicker,
+.workflow-tags span,
+.model-badge {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   5. Tooltips: on-brand floating surface instead of the inverted white pill
+--------------------------------------------------------------------------- */
+
+.j-tooltip {
+  max-width: 248px;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  background: rgb(30 30 30 / 0.92);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  box-shadow: 0 12px 34px rgb(0 0 0 / 0.42), 0 1px 3px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.06);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------------------
+   6. Enter motion: split into chunks, staggered, subtle
+--------------------------------------------------------------------------- */
+
+@keyframes controlIn {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); filter: blur(3px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* Fill backwards, never forwards: a forwards-filled filter stays in the
+   computed style as blur(0px), which keeps the control a containing block and
+   traps its dropdown inside the trigger's own width. Backwards fill holds the
+   from-state before the delay elapses and hands the control back afterwards. */
+.prompt-left-actions > *,
+.zen-inline-settings > *,
+.zen-prompt-actions > .generate {
+  animation: controlIn var(--motion-slow) var(--motion-ease) backwards;
+}
+.zen-inline-settings > *:nth-child(1) { animation-delay: 20ms; }
+.zen-inline-settings > *:nth-child(2) { animation-delay: 45ms; }
+.zen-inline-settings > *:nth-child(3) { animation-delay: 70ms; }
+.zen-inline-settings > *:nth-child(4) { animation-delay: 95ms; }
+.zen-inline-settings > *:nth-child(n + 5) { animation-delay: 120ms; }
+.zen-prompt-actions > .generate { animation-delay: 145ms; }
+
+/* Menus open from the control they belong to. */
+@keyframes surfaceIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+.model-menu,
+.aspect-menu,
+.lora-select-dropdown {
+  animation: surfaceIn var(--motion-base) var(--motion-ease) both;
+  transform-origin: bottom center;
+}
+
+/* ---------------------------------------------------------------------------
+   7. Typography niceties
+--------------------------------------------------------------------------- */
+
+.empty h2,
+.settings-card h2,
+.workflow-gallery-head h2,
+.workflow-detail-hero h3 {
+  text-wrap: balance;
+}
+.empty p,
+.workflow-gallery-head p,
+.field-meta {
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-left-actions > *,
+  .zen-inline-settings > *,
+  .zen-prompt-actions > .generate,
+  .model-menu,
+  .aspect-menu,
+  .lora-select-dropdown {
+    animation: none;
+  }
+  button:not(:disabled):active { scale: 1; }
+}

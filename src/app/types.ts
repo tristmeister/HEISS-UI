@@ -3,7 +3,20 @@ export type Progress = { value: number; max: number; node?: string };
 export type Output = { url: string; filename: string; type: "image" | "video"; prompt?: string; negative?: string; outputName?: string };
 export type LoraSelection = { name: string; enabled: boolean; strength: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
-export type GalleryItem = Output & { id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean };
+export type GalleryItem = Output & { id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; bundle?: GalleryBundle };
+export type GalleryBundle = {
+  id: string;
+  domain: "gallery" | "vault";
+  reason: "prompt" | "batch";
+  reasonLabel: string;
+  count: number;
+  startedAt: string;
+  endedAt: string;
+  coverId: string;
+  items: GalleryItem[];
+};
+export type BundlePending = { runs: number; items: number; itemIds?: string[] };
+export type BundleStatus = { bundles: unknown[]; pending: BundlePending; mode: string; cooldownMinutes: number };
 export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[] };
 export type TouchGesture = { mode: "pan"; id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | { mode: "pinch"; distance: number; zoom: number; panX: number; panY: number; centerX: number; centerY: number; moved: boolean };
 export type SelectOption = { label: string; value: string };
@@ -74,6 +87,7 @@ export type WorkflowSummary = {
 export type WorkflowPreferences = { favorites: string[]; lastUsed: Record<string, string>; thumbnails: Record<string, string> };
 export type WorkflowImportPreview = {
   filename?: string;
+  format?: string;
   hasJaiStudio: boolean;
   detected: {
     id: string;
@@ -102,7 +116,10 @@ export type Preferences = {
   enterToGenerate: boolean;
   followLatest: boolean;
   showFailedItems: boolean;
+  groupRuns: boolean;
+  runGroupingMode: "smart" | "job";
+  runCooldownMinutes: number;
   mobileZenDefaulted?: boolean;
 };
 
-export type PrivacyStatus = { enabled: boolean; unlocked: boolean; cookieName?: string };
+export type PrivacyStatus = { enabled: boolean; unlocked: boolean; cookieName?: string; vault?: { enabled: boolean; unlocked: boolean; assetCount: number } };

@@ -178,7 +178,11 @@
 .skeleton-text.tiny { width: 34px; }
 .skeleton-text.path { width: min(260px, 52vw); }
 .skeleton-media { width: 100%; aspect-ratio: var(--tile-ratio, 1); border-radius: var(--radius); }
-.skeleton-tile { cursor: default; box-shadow: none; animation: tileIn 500ms var(--ease-out) both; }
+.skeleton-tile { cursor: default; box-shadow: none; transform-origin: center; animation: skeletonTileIn 620ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes skeletonTileIn {
+  from { opacity: 0; transform: scale(0.955); }
+  to { opacity: 1; transform: scale(1); }
+}
 .skeleton-tile:hover { transform: none; box-shadow: none; }
 .skeleton-stage { background: hsl(var(--background)); }
 .skeleton-logo { width: 56px; height: 56px; border-radius: 18px; opacity: 0.6; animation: logoPulse 2.4s var(--ease-soft) infinite alternate; }
