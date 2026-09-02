@@ -1,6 +1,7 @@
 import express from "express";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -111,6 +112,14 @@ function openFolder(folder) {
 
 app.get("/api/privacy/status", (req, res) => {
   res.json({ ...privacyStatusFor(req), vault: vaultStatusFor(req) });
+});
+
+app.get("/api/network", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || [])
+    .filter((entry) => entry.family === "IPv4" && !entry.internal)
+    .map((entry) => entry.address);
+  res.json({ addresses, port });
 });
 
 app.post("/api/privacy/setup", (req, res) => {

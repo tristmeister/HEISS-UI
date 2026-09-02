@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { CheckCircle2, FileJson, Heart, Search, Trash2, Upload, Wand2, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, FileJson, Heart, Search, Trash2, Upload, Wand2, XCircle } from 'lucide-react';
 import { apiJson } from './api';
 import { cn } from './format';
 import { Field, StudioSelect as Select, Tip } from './components';
@@ -64,6 +64,7 @@ export function WorkflowGallery({ view }: { view: any }) {
   const [pasteJson, setPasteJson] = useState("");
   const [imports, setImports] = useState<ImportDraft[]>([]);
   const [busy, setBusy] = useState(false);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const selected = workflows.find((item) => item.id === selectedId) || workflows[0] || null;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -221,13 +222,13 @@ export function WorkflowGallery({ view }: { view: any }) {
           <div className="workflow-head-actions">
             <label className="workflow-import-button" onClick={() => setImportOpen(true)}>
               <Upload size={15} />
-              Import
+              <span>Import</span>
               <input type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files) readFiles(event.target.files); event.currentTarget.value = ""; }} />
             </label>
             <Tip content="Close"><button className="icon-button" aria-label="Close workflows" onClick={onClose}>×</button></Tip>
           </div>
         </header>
-        <div className="workflow-gallery-body">
+        <div className={cn("workflow-gallery-body", mobileDetailsOpen && "is-detail-open")}>
           <aside className="workflow-gallery-list">
             <div className="workflow-search">
               <Search size={14} />
@@ -242,7 +243,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                 <h3>{label}</h3>
                 <div className="workflow-tile-grid">
                   {items.map((workflow) => (
-                    <button key={workflow.id} className={cn("workflow-tile", workflow.id === selected?.id && "active", !workflow.validation.ok && "is-broken")} onClick={() => setSelectedId(workflow.id)}>
+                    <button key={workflow.id} className={cn("workflow-tile", workflow.id === selected?.id && "active", !workflow.validation.ok && "is-broken")} onClick={() => { setSelectedId(workflow.id); setMobileDetailsOpen(true); }}>
                       <div className="workflow-thumb">
                         {workflow.thumbnail ? <img src={workflow.thumbnail} alt="" /> : <Wand2 size={22} />}
                       </div>
@@ -258,6 +259,9 @@ export function WorkflowGallery({ view }: { view: any }) {
             ))}
           </aside>
           <section className="workflow-details">
+            <button type="button" className="workflow-mobile-back" onClick={() => setMobileDetailsOpen(false)}>
+              <ArrowLeft size={15} /> All workflows
+            </button>
             {selected ? (
               <>
                 <div className="workflow-detail-hero">

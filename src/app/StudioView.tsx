@@ -45,6 +45,24 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
   const [settingsTab, setSettingsTab] = React.useState<string>("general");
+  const [lanBusy, setLanBusy] = React.useState(false);
+  const openLanUrl = React.useCallback(async () => {
+    setLanBusy(true);
+    try {
+      const response = await fetch("/api/network");
+      if (!response.ok) throw new Error("LAN address unavailable");
+      const data = await response.json();
+      const address = data.addresses?.[0];
+      if (!address) throw new Error("No local network address found");
+      const url = `${window.location.protocol}//${address}:${window.location.port || 5173}`;
+      await navigator.clipboard?.writeText(url);
+      copyAndToast(url, "LAN URL copied");
+    } catch (error) {
+      copyAndToast(error instanceof Error ? error.message : "Could not find LAN address", "error");
+    } finally {
+      setLanBusy(false);
+    }
+  }, [copyAndToast]);
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
@@ -502,7 +520,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         <Tip content="Check the local ComfyUI connection"><button className="is-primary" onClick={refreshHealth}>Check connection</button></Tip>
                         <Tip content="Rescan local models"><button onClick={() => refreshModels()}>Refresh models</button></Tip>
                         <Tip content="Open ComfyUI in a new tab"><button onClick={() => { window.open(health?.comfyUrl || "http://127.0.0.1:8188", "_blank"); }}>Open ComfyUI</button></Tip>
+                        <Tip content="Copy the address for another device when LAN mode is enabled"><button onClick={openLanUrl} disabled={lanBusy}>{lanBusy ? "Finding LAN address..." : "Copy LAN URL"}</button></Tip>
                       </div>
+                      <p className="field-meta">Start with <code>npm run dev:lan</code> before opening this address on another device.</p>
                     </section>
                     <section>
                       <details className="settings-disclosure">

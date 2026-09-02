@@ -39,8 +39,10 @@ export function sortGalleryItems(items: GalleryItem[]) {
 
 export function galleryColumnTarget() {
   if (typeof window === "undefined") return 6;
-  if (window.matchMedia("(max-width: 620px)").matches) return 3;
-  if (window.matchMedia("(max-width: 980px)").matches) return 4;
+  if (window.matchMedia("(max-width: 480px)").matches) return 2;
+  if (window.matchMedia("(max-width: 760px)").matches) return 3;
+  if (window.matchMedia("(max-width: 1100px)").matches) return 4;
+  if (window.matchMedia("(max-width: 1440px)").matches) return 5;
   return 6;
 }
 
