@@ -60,3 +60,17 @@ export async function getThumbnail(filename, subfolder, type) {
   pending.set(dedupeKey, promise);
   return promise;
 }
+
+// Vault assets are decrypted per request and must never leave a plaintext
+// derivative on disk, so this resizes in memory only — nothing is cached.
+export async function resizeInMemory(buffer, mime) {
+  if (!mime?.startsWith("image/") || mime === "image/svg+xml") return null;
+  try {
+    return await sharp(buffer)
+      .resize({ width: longestEdge, height: longestEdge, fit: "inside", withoutEnlargement: true })
+      .webp({ quality })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}

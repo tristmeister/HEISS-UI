@@ -11,7 +11,7 @@ import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, 
 import { inferModels, mockModelResult } from './models.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
-import { getThumbnail } from './thumbnails.js';
+import { getThumbnail, resizeInMemory } from './thumbnails.js';
 import { jobs, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
@@ -450,17 +450,18 @@ app.get("/api/vault/media/:id", (req, res) => {
   res.send(asset.buffer);
 });
 
-app.get("/api/vault/thumbnail/:id", (req, res) => {
+app.get("/api/vault/thumbnail/:id", async (req, res) => {
   const asset = readVaultAsset(req, req.params.id);
   if (!asset) {
     res.status(404).end();
     return;
   }
-  // The encrypted source doubles as the preview until a resize dependency is installed.
-  // It is still lazy-loaded and never exists as a plaintext thumbnail on disk.
-  res.setHeader("Content-Type", asset.item.mime || "application/octet-stream");
+  // Resized in memory only, from the already-decrypted buffer this request holds —
+  // never written to disk, so no plaintext derivative of a vault item persists.
+  const resized = await resizeInMemory(asset.buffer, asset.item.mime);
+  res.setHeader("Content-Type", resized ? "image/webp" : (asset.item.mime || "application/octet-stream"));
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
-  res.send(asset.buffer);
+  res.send(resized || asset.buffer);
 });
 
 app.get("/api/vault/export", (req, res) => {
