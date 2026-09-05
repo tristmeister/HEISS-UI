@@ -11,6 +11,7 @@ import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, 
 import { inferModels, mockModelResult } from './models.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
+import { getThumbnail } from './thumbnails.js';
 import { jobs, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
@@ -710,6 +711,24 @@ app.post("/api/shutdown", (_req, res) => {
   if (!requireLocal(_req, res)) return;
   res.json({ ok: true });
   setTimeout(() => process.exit(0), 250);
+});
+
+app.get("/comfy/thumb", async (req, res) => {
+  const filename = String(req.query.filename || "");
+  const subfolder = String(req.query.subfolder || "");
+  const type = String(req.query.type || "output");
+  if (!filename) { res.status(400).json({ error: "filename is required." }); return; }
+  try {
+    const thumbnail = await getThumbnail(filename, subfolder, type);
+    if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
+    if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
+    if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
+    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    res.type("image/webp");
+    await pipeline(fs.createReadStream(thumbnail.file), res);
+  } catch (error) {
+    if (!res.headersSent) res.status(502).json({ error: error.message }); else res.destroy();
+  }
 });
 
 app.get("/comfy/*path", async (req, res) => {

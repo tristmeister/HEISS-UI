@@ -17,10 +17,15 @@ function loadGallery() {
   try {
     const staleAfter = 30 * 60 * 1000;
     return JSON.parse(fs.readFileSync(galleryPath, "utf8")).map((item) => {
-      if (item.status === "pending" && Date.now() - Date.parse(item.createdAt || 0) > staleAfter) {
-        return { ...item, status: "canceled" };
+      let next = item;
+      if (next.status === "pending" && Date.now() - Date.parse(next.createdAt || 0) > staleAfter) {
+        next = { ...next, status: "canceled" };
       }
-      return item;
+      // Backfill thumbnailUrl for items saved before the thumbnail pipeline existed.
+      if (next.type === "image" && !next.thumbnailUrl && typeof next.url === "string" && next.url.startsWith("/comfy/view?")) {
+        next = { ...next, thumbnailUrl: next.url.replace("/comfy/view?", "/comfy/thumb?") };
+      }
+      return next;
     });
   } catch {
     return [];
@@ -314,7 +319,8 @@ export function outputsFrom(history) {
         subfolder: item.subfolder || "",
         type: item.type || "output"
       });
-      urls.push({ url: `/comfy/view?${params}`, filename, type: filename.endsWith(".mp4") ? "video" : "image" });
+      const isVideo = filename.endsWith(".mp4");
+      urls.push({ url: `/comfy/view?${params}`, thumbnailUrl: isVideo ? undefined : `/comfy/thumb?${params}`, filename, type: isVideo ? "video" : "image" });
     }
   }
   return urls;
