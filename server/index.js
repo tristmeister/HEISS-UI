@@ -57,9 +57,11 @@ function requireLocal(req, res) {
   return false;
 }
 
+// A request over the bridge's TLS listener already proved more than a LAN address can:
+// the client trusted this host's certificate. It still has to pass the privacy password.
 function requireTrustedAccess(req, res) {
   const remote = req.socket.remoteAddress || "";
-  if (isLocalClient(remote) || isTrustedClient(remote)) return true;
+  if (isLocalClient(remote) || isTrustedClient(remote) || bridgeNetwork.isBridgeRequest(req)) return true;
   res.status(403).json({ ok: false, error: "This app is only available from this computer or trusted local network." });
   return false;
 }
@@ -69,7 +71,7 @@ function requireLanUnlock(req, res, next) {
   if (req.path.startsWith("/api/privacy")) return next();
   const remote = req.socket.remoteAddress || "";
   if (isLocalClient(remote)) return next();
-  if (!allowLanActions || !isTrustedClient(remote)) {
+  if (!bridgeNetwork.isBridgeRequest(req) && (!allowLanActions || !isTrustedClient(remote))) {
     res.status(403).json({ ok: false, error: "This app is only available from this computer unless LAN mode is enabled." });
     return;
   }

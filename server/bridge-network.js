@@ -76,6 +76,9 @@ export function createBridgeNetwork(receiverApp, { directory, httpsPort = Number
   }
   return {
     info,
+    // True only for sockets accepted by the bridge's own TLS listener. Compares the
+    // server object rather than a port or header, so nothing a client sends can forge it.
+    isBridgeRequest(req) { return Boolean(secureServer && req?.socket?.server === secureServer && req.socket.encrypted); },
     enable() { if (info().enabled) return Promise.resolve(info()); return enabling ||= start().finally(() => { enabling = undefined; }); },
     trustHost,
     async resume() { if (fs.existsSync(enabledFile) && JSON.parse(fs.readFileSync(enabledFile, 'utf8')).enabled) return this.enable(); },
