@@ -1,7 +1,4 @@
 import express from "express";
-import https from 'node:https';
-import { createBridgeNetwork } from './bridge-network.js';
-import { bridgeAdmin, reserveBridgeJob, installBridgeRoutes, recoverBridgeJobs } from './bridge.js';
 import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
@@ -22,8 +19,6 @@ import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, 
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
-const bridgeNetwork = createBridgeNetwork(app, { directory: path.join(dataDir, '.bridge', 'certificates') });
-installBridgeRoutes(app, bridgeNetwork);
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 let comfyCache = { info: null, stats: null, fetchedAt: 0 };
@@ -57,11 +52,9 @@ function requireLocal(req, res) {
   return false;
 }
 
-// A request over the bridge's TLS listener already proved more than a LAN address can:
-// the client trusted this host's certificate. It still has to pass the privacy password.
 function requireTrustedAccess(req, res) {
   const remote = req.socket.remoteAddress || "";
-  if (isLocalClient(remote) || isTrustedClient(remote) || bridgeNetwork.isBridgeRequest(req)) return true;
+  if (isLocalClient(remote) || isTrustedClient(remote)) return true;
   res.status(403).json({ ok: false, error: "This app is only available from this computer or trusted local network." });
   return false;
 }
@@ -71,7 +64,7 @@ function requireLanUnlock(req, res, next) {
   if (req.path.startsWith("/api/privacy")) return next();
   const remote = req.socket.remoteAddress || "";
   if (isLocalClient(remote)) return next();
-  if (!bridgeNetwork.isBridgeRequest(req) && (!allowLanActions || !isTrustedClient(remote))) {
+  if (!allowLanActions || !isTrustedClient(remote)) {
     res.status(403).json({ ok: false, error: "This app is only available from this computer unless LAN mode is enabled." });
     return;
   }
@@ -507,10 +500,6 @@ app.post("/api/generate", async (req, res) => {
     const { info, stats } = await loadComfyContext();
     body = sanitizeGenerateBody(req.body, info, stats);
   } catch {
-    if (req.body?.bridgeDeviceId) {
-      res.status(400).json({ error: 'Bridge requires a connected ComfyUI and a valid image workflow.' });
-      return;
-    }
     const prompt = String(req.body?.prompt || "").trim();
     if (!prompt) {
       res.status(400).json({ error: "Prompt is required." });
@@ -535,17 +524,6 @@ app.post("/api/generate", async (req, res) => {
     };
   }
   body.privateVault = Boolean(req.body?.privateVault);
-  body.bridgeDeviceId = String(req.body?.bridgeDeviceId || '');
-  if (body.bridgeDeviceId) {
-    if (!bridgeAdmin(req, res)) return;
-    if (body.kind !== 'image' || body.startImageId || req.body?.startImage || body.privateVault) {
-      res.status(400).json({ error: 'Bridge supports image workflows. Disable Private Vault and start images.' });
-      return;
-    }
-    if (body.workflow?.startsWith('custom:') && req.body?.bridgeCustomAcknowledged !== true) {
-      return res.status(400).json({ error: 'Acknowledge the custom-workflow output warning before using LAN Bridge.' });
-    }
-  }
   if (body.privateVault && !isPrivacyEnabled()) {
     res.status(400).json({ ok: false, error: "Create a privacy password before using Private Vault." });
     return;
@@ -560,18 +538,13 @@ app.post("/api/generate", async (req, res) => {
   }
   const clientJobId = String(req.body?.clientJobId || "").replace(/[^\w-]/g, "");
   const id = clientJobId || crypto.randomUUID();
-  if (jobs.has(id)) return res.status(409).json({ error: 'Job ID already exists.' });
-  if (body.bridgeDeviceId) {
-    try { reserveBridgeJob(id, body.bridgeDeviceId); }
-    catch (error) { return res.status(400).json({ error: error.message }); }
-  }
   body.clientJobId = id;
   body.createdAt = new Date().toISOString();
   body.startedAt = Date.now();
   const items = makePendingItems(id, body);
   markWorkflowUsed(body.profileId || body.model || body.workflow || "");
-  if (!body.bridgeDeviceId) setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
-  jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, bridgeDeviceId: body.bridgeDeviceId, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
+  setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
+  jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
   res.json({ jobId: id, items: revealGalleryItemsForRequest(items, req), revision: galleryRevisionValue() });
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
@@ -588,9 +561,7 @@ app.get("/api/jobs/:id", (req, res) => {
     return;
   }
   const key = encryptionKeyFromRequest(req);
-  if (job.bridgeDeviceId && !bridgeAdmin(req, res)) return;
   const safeJob = { ...job, items: revealGalleryItemsForRequest(job.items || [], req) };
-  delete safeJob.vaultKey;
   if (isPrivacyEnabled() && !key) delete safeJob.prompt;
   res.json(safeJob);
 });
@@ -740,9 +711,6 @@ app.post("/api/shutdown", (_req, res) => {
 });
 
 app.get("/comfy/*path", async (req, res) => {
-  if (Object.keys(req.query).some(k => k !== 'filename' && k !== 'subfolder' && k !== 'type') || String(req.params.path) !== 'view' || String(req.query.subfolder || '').replaceAll('\\', '/').split('/').some(p => p === '.jai-bridge' || p === '..') || String(req.query.filename || '').includes('/') || String(req.query.filename || '').includes('\\')) {
-    res.status(403).json({ error: 'This Comfy resource is not available through J AI.' }); return;
-  }
   try {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
     const proxyPath = Array.isArray(req.params.path) ? req.params.path.join("/") : req.params.path;
@@ -762,20 +730,7 @@ if (fs.existsSync(dist)) {
 }
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
-let bridgeRecovering = false;
-const bridgeRecoveryTimer = setInterval(async () => {
-  if (bridgeRecovering) return;
-  bridgeRecovering = true;
-  try { await recoverBridgeJobs(new Set([...jobs].filter(([, job]) => ['queued', 'running', 'canceling'].includes(job.status)).map(([id]) => id))); } catch { console.error('Bridge recovery needs attention. Check output storage and ComfyUI.'); }
-  finally { bridgeRecovering = false; }
-}, 10_000);
-bridgeRecoveryTimer.unref();
 
-const tlsCert = process.env.JAI_TLS_CERT;
-const tlsKey = process.env.JAI_TLS_KEY;
-if (Boolean(tlsCert) !== Boolean(tlsKey)) throw new Error('Set both JAI_TLS_CERT and JAI_TLS_KEY.');
-const listener = tlsCert ? https.createServer({ cert: fs.readFileSync(tlsCert), key: fs.readFileSync(tlsKey) }, app) : app;
-listener.listen(port, host, () => {
-  console.log(`J AI Studio listening on ${tlsCert ? 'https' : 'http'}://${host}:${port}`);
+app.listen(port, host, () => {
+  console.log(`J AI Studio listening on http://${host}:${port}`);
 });
-bridgeNetwork.resume().catch(error => console.error('Desktop bridge could not start:', error.message));

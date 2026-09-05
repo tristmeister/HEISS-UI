@@ -1,7 +1,5 @@
 import { apiJson } from './api';
-import { useRef } from 'react';
 import { dedupeGalleryItems } from './gallery';
-import { clientJobUuid } from './format';
 import type { GalleryItem, Job } from './types';
 
 type GalleryPayload = { items?: GalleryItem[]; outputs?: GalleryItem[] };
@@ -11,7 +9,6 @@ function payloadItems(data: GalleryPayload | null | undefined) {
 }
 
 export function useGenerationActions(view: any) {
-  const acknowledgedBridgeWorkflows = useRef(new Set<string>());
   const {
     active, canUseStartImage, confirmAction, count, currentProfile, denoise,
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, mode,
@@ -55,18 +52,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function generate() {
-    if (view.bridgeDeviceId && (mode !== 'image' || startImageId || startImage)) {
-      showToast('LAN Bridge supports image workflows. Remove the start image or stop bridge mode.', 'error'); return;
-    }
     if (generatePostingRef.current) return;
-    if (view.bridgeDeviceId && currentProfile?.workflow?.startsWith('custom:') && !acknowledgedBridgeWorkflows.current.has(currentProfile.workflow)) {
-      generatePostingRef.current = true;
-      try {
-        const accepted = await confirmAction({ title: 'Custom workflow outputs', description: 'J AI sends images from standard SaveImage nodes and deletes those host files after delivery. Other nodes may save extra images, previews, or files on the host. You are responsible for knowing what your workflow writes and cleaning up those extra outputs.', action: 'I understand · use bridge', destructive: false });
-        if (!accepted) return;
-        acknowledgedBridgeWorkflows.current.add(currentProfile.workflow);
-      } finally { generatePostingRef.current = false; }
-    }
     if (!prompt.trim()) {
       showToast("Prompt is required", "error");
       return;
@@ -116,13 +102,11 @@ export function useGenerationActions(view: any) {
         loras,
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
-        privateVault: view.bridgeDeviceId ? false : Boolean(privateGeneration),
-        bridgeDeviceId: view.bridgeDeviceId || '',
-        bridgeCustomAcknowledged: Boolean(currentProfile?.workflow && acknowledgedBridgeWorkflows.current.has(currentProfile.workflow))
+        privateVault: Boolean(privateGeneration)
       };
       const queuedJobs: string[] = [];
       for (let index = 0; index < imageRuns; index += 1) {
-        const clientJobId = clientJobUuid();
+        const clientJobId = crypto.randomUUID();
         optimisticJobIds.push(clientJobId);
         const optimisticBody = { ...requestBody, count: requestCount, startImageId: canUseStartImage ? startImageId : "" };
         const optimisticItems = pendingItemsFor(clientJobId, optimisticBody);
@@ -157,10 +141,7 @@ export function useGenerationActions(view: any) {
             setStatus(message);
             return job;
           }
-          if (job.status === "done" || job.status === "canceled") {
-            if (view.bridgeDeviceId) galleryRemove([jobId]);
-            return job;
-          }
+          if (job.status === "done" || job.status === "canceled") return job;
           if (job.preview || job.previews?.length || job.progress || job.status === "queued" || job.status === "running") {
             galleryPatch((item: GalleryItem) => {
               if (item.jobId !== jobId) return item;
@@ -192,7 +173,7 @@ export function useGenerationActions(view: any) {
           setZenSelectedId(latest.id);
         }
       }
-      setStatus(view.bridgeDeviceId ? 'Sent to bridge · waiting for device save' : "Ready");
+      setStatus("Ready");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Generation failed";
       galleryPatch((item: GalleryItem) => {

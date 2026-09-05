@@ -17,9 +17,6 @@
     "dev:lan": "concurrently \"vite --host 0.0.0.0 --port 5173\" \"node -e \\\"process.env.HOST='0.0.0.0';process.env.JAI_ALLOW_LAN='1';import('./server/index.js')\\\"\"",
     "build": "tsc -b && vite build",
     "start": "node server/index.js",
-    "start:lan": "node -e \"process.env.HOST='0.0.0.0';process.env.JAI_ALLOW_LAN='1';import('./server/index.js')\"",
-    "test:bridge": "node --test server/bridge.test.js server/bridge-network.test.js",
-    "preview:bridge": "node server/bridge-preview.js",
     "preview": "vite preview --host 127.0.0.1 --port 5173",
     "check:updates": "npm outdated"
   },
@@ -45,7 +42,6 @@
     "framer-motion": "^12.38.0",
     "img-fx": "^0.5.1",
     "lucide-react": "^0.562.0",
-    "node-forge": "^1.4.0",
     "radix-ui": "^1.4.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

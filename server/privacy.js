@@ -128,7 +128,6 @@ export function setUnlockCookie(res, key) {
     "Path=/",
     `Max-Age=${cookieMaxAgeSeconds}`,
     "HttpOnly",
-    ...(process.env.JAI_TLS_CERT || res.req?.socket?.encrypted ? ['Secure'] : []),
     "SameSite=Lax"
   ];
   res.setHeader("Set-Cookie", cookie.join("; "));
