@@ -45,9 +45,12 @@ export function createBridgeNetwork(receiverApp, { directory, httpsPort = Number
   function bootstrap() {
     const app = express();
     app.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Content-Type-Options', 'nosniff'); res.setHeader('Referrer-Policy', 'no-referrer'); next(); });
-    app.get('/bridge/ca.cer', (_req, res) => res.type('application/pkix-cert').attachment('J-AI-Studio-CA.cer').send(certificates.caDer));
-    app.get('/bridge/trust-mac.mobileconfig', (_req, res) => res.type('application/x-apple-aspen-config').attachment('Trust-JAI.mobileconfig').send(macProfile()));
-    app.get('/bridge/trust-windows.cmd', (_req, res) => res.type('application/octet-stream').attachment('Trust-JAI.cmd').send(windowsInstaller()));
+    // attachment() derives Content-Type from the file extension, so it must come
+    // before type(). macOS only hands a profile to System Settings when it arrives
+    // as application/x-apple-aspen-config.
+    app.get('/bridge/ca.cer', (_req, res) => res.attachment('J-AI-Studio-CA.cer').type('application/pkix-cert').send(certificates.caDer));
+    app.get('/bridge/trust-mac.mobileconfig', (_req, res) => res.attachment('Trust-JAI.mobileconfig').type('application/x-apple-aspen-config').send(macProfile()));
+    app.get('/bridge/trust-windows.cmd', (_req, res) => res.attachment('Trust-JAI.cmd').type('application/octet-stream').send(windowsInstaller()));
     app.get('/bridge/setup', (_req, res) => {
       const details = info();
       const nonce = crypto.randomBytes(16).toString('base64');
