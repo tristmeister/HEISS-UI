@@ -51,6 +51,7 @@ Live ComfyUI previews while an image is running.
 - Live queue/progress cards with cancel controls
 - Persistent local gallery metadata
 - Optional Private Vault for encrypted, password-gated generations
+- LAN Bridge: save images on a paired device and delete the host originals after verified delivery
 - Start-image reuse when the selected ComfyUI workflow supports it
 - Importable ComfyUI API workflow templates
 
@@ -186,6 +187,30 @@ HOST=0.0.0.0
 ```
 
 Then open the selected `PORT` in your firewall. Only do this on a trusted network.
+
+</details>
+
+<details>
+<summary>LAN Bridge — save generated images on another device</summary>
+
+Build with `npm run build`, set `COMFY_OUTPUT_DIR` in `.env`, and run `npm start`. You do not need your own certificate or `npm run start:lan`: J AI generates a local certificate authority on demand and opens its own LAN listeners, leaving your main `HOST`/`PORT` binding alone.
+
+1. On the host, open the built app at `http://localhost:8787`, unlock Privacy, and open Settings → Privacy → LAN Bridge.
+2. Click **Enable desktop bridge**. J AI creates a local CA plus a 90-day server certificate covering localhost, your hostname and your LAN addresses, then starts an HTTPS receiver on port **8788** and a plain-HTTP trust-setup page on port **8789** (both on `0.0.0.0`). On macOS and Windows it also installs the certificate into your own user trust store — approve the operating-system prompt. The bridge stays enabled across restarts until you disable it.
+3. On the receiving computer, open the setup address shown in settings (`http://YOUR-LAN-HOST:8789/bridge/setup`). Compare the fingerprint on that page with the one under **Certificate fingerprint** on the host, then install the certificate. The page offers a macOS configuration profile, a Windows trust helper, and the raw public certificate; each embeds only the public CA, never a private key. Firefox needs the certificate imported in its own settings.
+4. Back on the host, click **Create pairing code**. On the receiving computer follow **Continue to receiver** (`https://YOUR-LAN-HOST:8788/bridge/receive`), enter the six digits, and choose a device name. Codes are single-use and expire after five minutes; enter them on the receiver page, never on the setup page.
+5. On the host, select the device under **Save new images to** and generate. Keep the receiver page open while receiving.
+6. The receiver verifies the image, commits it to IndexedDB, reads it back and verifies it again, then acknowledges it. Only then does the host delete the original. Refreshes and lost acknowledgements are safe to retry.
+
+Set `JAI_BRIDGE_PORT` and `JAI_BRIDGE_SETUP_PORT` to move those listeners. Keep them stable once devices are paired, because a receiver's library belongs to its web origin. If you would rather serve the whole app over a certificate you already manage, set `JAI_TLS_CERT` and `JAI_TLS_KEY` and run `npm run start:lan`; receivers can then use `https://YOUR-LAN-HOST:8787/bridge/receive` directly. That certificate must cover your LAN address and be trusted on the receiver, and only its public CA certificate belongs there. Either way, plain HTTP LAN connections are rejected by the bridge; localhost HTTP is available for development.
+
+Bridge mode currently supports PNG image generation, including batches, up to 128 MB per image. Video, reference-image uploads and Private Vault are rejected in this mode because their additional writes are not covered by this output lifecycle. Custom workflows are allowed after a one-time per-session warning: J AI redirects and cleans up standard `SaveImage` nodes, and anything else your graph writes to disk stays your responsibility. Receiver credentials allow only that receiver's transfers, not host administration or gallery access. Pairing and device management require an unlocked session on the host computer. Pending transfers can be reassigned to a different paired receiver or explicitly discarded from Privacy settings; discarding confirms deletion even if no receiver has saved the image.
+
+Images waiting for delivery remain under `COMFY_OUTPUT_DIR/.jai-bridge` and are excluded from gallery recovery and the J AI media proxy. A disconnected device does not cause deletion. The encrypted `.bridge` journal supports restart recovery; its local key is stored alongside it with restricted permissions, so it does not protect against an administrator with full host access. The generated authority lives in `JAI_DATA_DIR/.bridge/certificates` with the same restricted permissions — it is a real certificate authority for the machines that trust it, so treat that folder like a private key and delete it (then untrust the certificate on each receiver) if the host is ever compromised. ComfyUI must remain bound to localhost. Acknowledged transfer receipts contain no original image and let receivers safely retry after a lost response. Failed host cleanup is visible in Privacy settings and can be retried.
+
+The receiver library lives in browser storage, not automatically in Photos or Files. Use **Export image** to save externally. Clearing site data removes the library; browser storage can be evicted unless persistence is granted. Export valuable images. The app never claims forensic erasure of SSD remnants, snapshots, backups, swap, or ComfyUI memory. This mode removes the host file after confirmed delivery; it cannot promise both immediate deletion before delivery and loss-free transfer.
+
+Verification: `npm run test:bridge` tests isolation and deletion safety. `npm run preview:bridge` starts an isolated localhost fixture at port 8794 and prints a pairing code; each paired test device receives a sample PNG. It uses temporary storage and never connects to your ComfyUI. Stop it when finished.
 
 </details>
 

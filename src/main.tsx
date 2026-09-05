@@ -5,6 +5,8 @@ import "@fontsource/inter/latin-400.css";
 import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import "./styles.css";
+import './styles/16-bridge.css';
+import { BridgeReceiver } from './app/BridgeReceiver';
 
 import type { ComfyStatus, GalleryItem, Health, LoraSelection, Mode, Models, Paths, Preferences, PrivacyStatus, Profile, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
@@ -22,6 +24,7 @@ import { useGalleryStore } from './app/useGalleryStore';
 
 
 function App() {
+  const [bridgeDeviceId, setBridgeDeviceId] = useState('');
   const now = Date.now();
   const initialDraft = useMemo(() => loadDraft(), []);
   const [mode, setMode] = useState<Mode>(initialDraft.mode === "video" ? "video" : "image");
@@ -754,6 +757,7 @@ function App() {
 
 
   const generationActions = useGenerationActions({
+    bridgeDeviceId,
     active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, mode, model, negative, prefs, privateGeneration, prompt, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, vae, clipType, weightDtype, width
   });
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem } = generationActions;
@@ -768,7 +772,7 @@ function App() {
 
   const view = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectWorkflow, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs };
 
-  return <><StudioView view={view} />{confirmationDialog}</>;
+  return <><StudioView view={{ ...view, bridgeDeviceId, setBridgeDeviceId }} />{confirmationDialog}</>;
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(window.location.pathname === '/bridge/receive' ? <BridgeReceiver /> : <App />);

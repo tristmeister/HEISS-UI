@@ -341,6 +341,7 @@ export function recordsFromComfyHistory(history) {
     const rawCreatedAt = Number(item?.prompt?.[3]?.create_time || Date.now());
     const createdAtMs = rawCreatedAt > 0 && rawCreatedAt < 1e12 ? rawCreatedAt * 1000 : rawCreatedAt;
     for (const output of outputsFrom(item)) {
+      if (new URL(output.url, 'http://localhost').searchParams.get('subfolder')?.replaceAll('\\', '/').split('/').includes('.jai-bridge')) continue;
       const record = {
         ...output,
         id: output.url,

@@ -42,6 +42,8 @@ const SETTINGS_TABS = [
   { id: "advanced", label: "Advanced", icon: Wrench }
 ] as const;
 
+import { BridgeSettings } from './BridgeSettings';
+
 export function StudioView({ view }: { view: Record<string, any> }) {
   const { active, applyAllSettings, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
@@ -78,6 +80,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   return (
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open")}>
+      {view.bridgeDeviceId && <div className="bridge-destination" style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 60 }}>LAN Bridge active · images will be saved on your paired device<button onClick={() => view.setBridgeDeviceId('')}>Stop bridge</button></div>}
       {prefs.zenMode ? (
         <>
           <div className="zen-stage">
@@ -657,6 +660,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
 
                 {settingsTab === "privacy" ? (
                   <>
+                    <BridgeSettings deviceId={view.bridgeDeviceId || ''} onDeviceChange={(id) => { view.setBridgeDeviceId(id); if (id) setPrivateGeneration(false); }} />
                     <section>
                       <h3>Private Vault</h3>
                       <div className="setting-rows">

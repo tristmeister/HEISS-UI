@@ -3,6 +3,7 @@ import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
 import { storePrivateOutputsWithKey } from './vault.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
+import { bridgeGraph, markBridgePrompt, stageBridgeOutputs } from './bridge.js';
 
 export const jobs = new Map();
 const previewSlots = new Map();
@@ -82,7 +83,7 @@ function applyPreviewBuffer(id, buffer) {
   if (image.length < 16) return true;
   const preview = `data:${mime};base64,${image.toString("base64")}`;
   const current = jobs.get(id) || {};
-  if (current.privateVault) return true;
+  if (current.privateVault || current.bridgeDeviceId) return true;
   jobs.set(id, { ...current, preview });
   if ((current.items?.length || 1) <= 1) updateGalleryJob(id, { preview }, { persist: false });
   return true;
@@ -113,7 +114,7 @@ function applyExecutedOutputPreviews(id, output) {
   if (!outputs.length) return false;
   const previews = outputs.map((item) => item.url);
   const current = jobs.get(id) || {};
-  if (current.privateVault) return true;
+  if (current.privateVault || current.bridgeDeviceId) return true;
   const nextPreviews = [...(Array.isArray(current.previews) ? current.previews : [])];
   previews.forEach((preview, index) => {
     if (preview) nextPreviews[index] = preview;
@@ -203,14 +204,16 @@ async function runJob(id, body) {
   let socket = null;
   try {
     const prompt = body.kind === "video" ? await videoGraph(body) : await imageGraph(body);
+    if (body.bridgeDeviceId) bridgeGraph(prompt, id);
     socket = openProgressSocket(id);
     await waitForSocketOpen(socket);
     sendSocketFeatureFlags(socket);
     const queued = await comfy("/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt, client_id: id, extra_data: { preview_method: "auto" } })
+      body: JSON.stringify({ prompt, client_id: id, extra_data: { preview_method: body.bridgeDeviceId ? 'none' : "auto", ...(body.bridgeDeviceId ? { jai_bridge_id: id } : {}) } })
     });
+    if (body.bridgeDeviceId) markBridgePrompt(id, queued.prompt_id);
     if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
       await comfy("/queue", {
         method: "POST",
@@ -233,6 +236,13 @@ async function runJob(id, body) {
       const history = await comfy(`/history/${queued.prompt_id}`);
       if (history[queued.prompt_id]) {
         const outputs = outputsFrom(history[queued.prompt_id]);
+        if (body.bridgeDeviceId) {
+          stageBridgeOutputs(id, outputs);
+          await comfy('/history', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ delete: [queued.prompt_id] }) }).catch(() => null);
+          setTerminalJob(id, { status: 'done', outputs: [], bridgePending: true });
+          socket?.close();
+          return;
+        }
         const completed = body.privateVault
           ? storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey)
           : replaceGalleryJob(id, outputs, body, jobs);
