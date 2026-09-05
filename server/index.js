@@ -3,6 +3,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, port, root, setComfyOutputDir } from './comfy.js';
@@ -714,12 +716,26 @@ app.get("/comfy/*path", async (req, res) => {
   try {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
     const proxyPath = Array.isArray(req.params.path) ? req.params.path.join("/") : req.params.path;
-    const response = await fetch(`${comfyUrl}/${proxyPath}${query}`);
+    // Forward conditional headers so an unchanged image gets a 304 instead of a
+    // full re-transfer over a slow LAN link, and stream the body instead of
+    // buffering it so bytes start moving to the client as soon as they arrive.
+    const conditional = {};
+    if (req.headers["if-none-match"]) conditional["if-none-match"] = req.headers["if-none-match"];
+    if (req.headers["if-modified-since"]) conditional["if-modified-since"] = req.headers["if-modified-since"];
+    const response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
     res.status(response.status);
+    const etag = response.headers.get("etag");
+    const lastModified = response.headers.get("last-modified");
+    const contentLength = response.headers.get("content-length");
+    if (etag) res.setHeader("ETag", etag);
+    if (lastModified) res.setHeader("Last-Modified", lastModified);
+    if (contentLength) res.setHeader("Content-Length", contentLength);
+    res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
+    if (response.status === 304 || !response.body) { res.end(); return; }
     res.type(response.headers.get("content-type") || "application/octet-stream");
-    res.send(Buffer.from(await response.arrayBuffer()));
+    await pipeline(Readable.fromWeb(response.body), res);
   } catch (error) {
-    res.status(502).json({ error: error.message });
+    if (!res.headersSent) res.status(502).json({ error: error.message }); else res.destroy();
   }
 });
 
