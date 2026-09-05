@@ -1,5 +1,19 @@
 /* J AI Studio 2026 visual system: quiet canvas, tactile floating surfaces, clear primary actions. */
 :root {
+  /* One brand ladder: canvas -> surface -> raised -> selected -> action. */
+  --brand-canvas: #0a0a0a;
+  --brand-surface: #161616;
+  --brand-surface-raised: #1f1f1f;
+  --brand-surface-subtle: #141414;
+  --brand-surface-selected: #303030;
+  --brand-surface-hover: #242424;
+  --brand-action: #f4f4f4;
+  --brand-action-hover: #ffffff;
+  --brand-action-ink: #090909;
+  --brand-border: rgb(255 255 255 / .10);
+  --brand-radius-panel: 28px;
+  --brand-radius-card: 18px;
+  --brand-radius-control: 14px;
   --background: 0 0% 4.2%;
   --foreground: 0 0% 96%;
   --card: 0 0% 7%;
@@ -62,14 +76,19 @@ button:not(:disabled):active { scale: .96; }
   gap: 7px;
   padding: 5px 12px 5px 6px;
   border-radius: 20px;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
 }
+.studio-brand-lockup:hover { background: rgb(255 255 255 / .09); color: white; }
 .studio-brand-lockup img {
   width: 28px;
   height: 28px;
   padding: 7px;
   border-radius: 50%;
   background: #f4f4f4;
+  filter: none;
 }
+.studio-brand-lockup .mobile-sidebar-icon { display: none; }
 .studio-brand-lockup div { display: grid; gap: 1px; }
 .studio-brand-lockup strong { font-size: 12px; font-weight: 650; letter-spacing: -.015em; }
 .studio-brand-lockup span { display: none; }
@@ -283,7 +302,7 @@ button:not(:disabled):active { scale: .96; }
 .lora-select-dropdown {
   border-color: rgb(255 255 255 / .12);
   border-radius: 22px;
-  background: #232323;
+  background: var(--brand-surface-raised);
   box-shadow: var(--shadow-float);
   padding: 7px;
 }
@@ -293,12 +312,12 @@ button:not(:disabled):active { scale: .96; }
 /* Selected rows sit on a light-on-dark chip, so every descendant has to switch
    off the inverted (dark-on-white) palette it inherits from the base layer. */
 .model-option:hover,
-.aspect-option:hover { background: #2c2c2c; }
+.aspect-option:hover { background: var(--brand-surface-hover); }
 .model-option.active,
 .model-option.active:hover,
 .aspect-option.active,
 .aspect-option.active:hover {
-  background: #343434;
+  background: var(--brand-surface-selected);
   color: hsl(var(--foreground));
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
 }

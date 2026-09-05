@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { GalleryTile } from './GalleryTile';
+import { generationIdentity } from './GenerationPreview';
 import { BundleTile, bundleSheetHeight } from './BundleTile';
 import type { GalleryItem } from './types';
 
@@ -8,7 +9,6 @@ type VirtualMasonryGalleryProps = {
   items: GalleryItem[];
   columns: number;
   scrollRef: React.RefObject<HTMLElement | null>;
-  now: number;
   formatElapsed: (value: number) => string;
   titleFromPrompt: (value?: string) => string;
   openItem: (item: GalleryItem) => void;
@@ -30,7 +30,7 @@ function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set
 }
 
 function itemKey(item: GalleryItem) {
-  return item.id || item.url || item.outputName || item.filename;
+  return generationIdentity(item) || item.url || item.outputName || item.filename;
 }
 
 function useElementWidth<T extends HTMLElement>() {
@@ -55,7 +55,6 @@ export function VirtualMasonryGallery({
   gatheringIds,
   formatElapsed,
   items,
-  now,
   openItem,
   scrollRef,
   setBundleCover,
@@ -97,7 +96,6 @@ export function VirtualMasonryGallery({
           expandedBundles={expandedBundles}
           gatheringIds={gatheringIds}
           formatElapsed={formatElapsed}
-          now={now}
           openItem={openItem}
           scrollRef={scrollRef}
           setBundleCover={setBundleCover}
@@ -121,7 +119,6 @@ function VirtualMasonryColumn({
   expandedBundles,
   gatheringIds,
   formatElapsed,
-  now,
   openItem,
   scrollRef,
   setBundleCover,
@@ -178,7 +175,6 @@ function VirtualMasonryColumn({
                 formatElapsed={formatElapsed}
                 height={height}
                 item={item}
-                now={now}
                 openItem={openItem}
                 titleFromPrompt={titleFromPrompt}
                 width={width}

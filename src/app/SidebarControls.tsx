@@ -227,7 +227,7 @@ export function SidebarControls({ view }: { view: any }) {
                 <label className="file-pick">
                   <input type="file" accept="image/*" onChange={(event) => readStartImage(event.target.files?.[0])} />
                   <span>{startImageName || "Choose image"}</span>
-                  {startImageName ? <Tip content="Clear start image"><button type="button" onClick={(event) => { event.preventDefault(); if (confirmAction("Clear the selected start image?")) { setStartImage(""); setStartImageId(""); setStartImageName(""); } }}>Clear</button></Tip> : null}
+                  {startImageName ? <Tip content="Clear start image"><button type="button" onClick={async (event) => { event.preventDefault(); if (await confirmAction({ title: "Clear start image?", description: "Remove the selected image from this generation’s inputs.", action: "Clear image" })) { setStartImage(""); setStartImageId(""); setStartImageName(""); } }}>Clear</button></Tip> : null}
                 </label>
                 {currentProfile?.capabilities.denoise ? (
                   <NumberPicker label="Denoise" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />

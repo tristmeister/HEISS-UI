@@ -5,6 +5,41 @@ import { storePrivateOutputsWithKey } from './vault.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 
 export const jobs = new Map();
+const previewSlots = new Map();
+const terminalCleanupTimers = new Map();
+const previewIntervalMs = Math.max(100, Number(process.env.JAI_PREVIEW_INTERVAL_MS || 500));
+const terminalJobTtlMs = Math.max(10_000, Number(process.env.JAI_TERMINAL_JOB_TTL_MS || 5 * 60 * 1000));
+
+function clearPreviewSlot(id) {
+  const slot = previewSlots.get(id);
+  if (slot?.timer) clearTimeout(slot.timer);
+  previewSlots.delete(id);
+}
+
+export function setTerminalJob(id, patch) {
+  clearPreviewSlot(id);
+  const current = jobs.get(id) || {};
+  const next = {
+    ...current,
+    ...patch,
+    preview: undefined,
+    previews: undefined,
+    prompt: undefined,
+    items: undefined,
+    vaultKey: null,
+    terminalAt: Date.now()
+  };
+  jobs.set(id, next);
+  const previousTimer = terminalCleanupTimers.get(id);
+  if (previousTimer) clearTimeout(previousTimer);
+  const timer = setTimeout(() => {
+    if (jobs.get(id)?.terminalAt === next.terminalAt) jobs.delete(id);
+    terminalCleanupTimers.delete(id);
+  }, terminalJobTtlMs);
+  timer.unref?.();
+  terminalCleanupTimers.set(id, timer);
+  return next;
+}
 
 function binaryPreviewBuffer(data) {
   if (data instanceof ArrayBuffer) return Buffer.from(data);
@@ -51,6 +86,22 @@ function applyPreviewBuffer(id, buffer) {
   jobs.set(id, { ...current, preview });
   if ((current.items?.length || 1) <= 1) updateGalleryJob(id, { preview }, { persist: false });
   return true;
+}
+
+function queueLatestPreview(id, buffer) {
+  if (!buffer) return;
+  const current = previewSlots.get(id);
+  if (current) {
+    current.buffer = buffer;
+    return;
+  }
+  const slot = { buffer, timer: null };
+  slot.timer = setTimeout(() => {
+    previewSlots.delete(id);
+    applyPreviewBuffer(id, slot.buffer);
+  }, previewIntervalMs);
+  slot.timer.unref?.();
+  previewSlots.set(id, slot);
 }
 
 function outputsFromExecutedOutput(output = {}) {
@@ -108,7 +159,10 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
   socket.addEventListener("message", async (event) => {
     try {
       const buffer = await previewBuffer(event.data);
-      if (applyPreviewBuffer(id, buffer)) return;
+      if (buffer) {
+        queueLatestPreview(id, buffer);
+        return;
+      }
     } catch {
       // Ignore malformed binary frames.
     }
@@ -123,19 +177,19 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
       if (message.type === "progress") {
         const progress = { value: Number(data.value || 0), max: Number(data.max || 0), node: data.node || "" };
         jobs.set(id, { ...current, status: "running", progress });
-        updateGalleryJob(id, { status: "pending", progress });
+        updateGalleryJob(id, { status: "pending", progress }, { persist: false });
       }
       if (message.type === "executed" && data.output) {
         applyExecutedOutputPreviews(id, data.output);
       }
       if (message.type === "execution_interrupted") {
-        jobs.set(id, { ...current, status: "canceled" });
+        setTerminalJob(id, { status: "canceled" });
         updateGalleryJob(id, { status: "canceled" });
       }
       if (message.type === "execution_error") {
         const context = data.node_type ? ` (${data.node_type}${data.node_id ? `, node ${data.node_id}` : ""})` : "";
         const error = normalizeComfyError(`${data.exception_message || "ComfyUI execution failed"}${context}`);
-        jobs.set(id, { ...current, status: "error", error });
+        setTerminalJob(id, { status: "error", error });
         updateGalleryJob(id, { status: "error", filename: error });
       }
     } catch {
@@ -164,7 +218,7 @@ async function runJob(id, body) {
         body: JSON.stringify({ delete: [queued.prompt_id] })
       }).catch(() => null);
       updateGalleryJob(id, { status: "canceled" });
-      jobs.set(id, { ...jobs.get(id), status: "canceled", promptId: queued.prompt_id });
+      setTerminalJob(id, { status: "canceled", promptId: queued.prompt_id });
       return;
     }
     jobs.set(id, { ...jobs.get(id), status: "running", promptId: queued.prompt_id });
@@ -172,6 +226,7 @@ async function runJob(id, body) {
     while (true) {
       if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
         updateGalleryJob(id, { status: "canceled" });
+        setTerminalJob(id, { status: "canceled" });
         socket?.close();
         return;
       }
@@ -183,7 +238,7 @@ async function runJob(id, body) {
           : replaceGalleryJob(id, outputs, body, jobs);
         if (body.privateVault) removeGalleryJob(id);
         markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
-        jobs.set(id, { ...jobs.get(id), status: "done", outputs: completed });
+        setTerminalJob(id, { status: "done", outputs: completed });
         socket?.close();
         return;
       }
@@ -191,7 +246,7 @@ async function runJob(id, body) {
     }
   } catch (error) {
     const message = normalizeComfyError(error.message);
-    jobs.set(id, { ...jobs.get(id), status: "error", error: message });
+    setTerminalJob(id, { status: "error", error: message });
     updateGalleryJob(id, { status: "error", filename: message });
     socket?.close();
   }
@@ -283,12 +338,12 @@ export function runMockJob(id, body) {
         if (body.privateVault) {
           const completed = storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey);
           removeGalleryJob(id);
-          jobs.set(id, { ...jobs.get(id), status: "done", outputs: completed });
+          setTerminalJob(id, { status: "done", outputs: completed });
           return;
         }
         replaceGalleryJob(id, outputs, body, jobs);
         markWorkflowUsed(body.profileId || body.model || body.workflow || "", outputs[0]?.url || "");
-        jobs.set(id, { status: "done", outputs });
+        setTerminalJob(id, { status: "done", outputs });
       }, 400);
     }
   }, 350);

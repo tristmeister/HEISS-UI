@@ -6,6 +6,7 @@ export const defaultPrefs: Preferences = {
   defaultVideoFrames: 33,
   defaultVideoSteps: 12,
   defaultFps: 16,
+  generationPreviewMode: "advanced",
   variationQueueMode: "batch",
   zenMode: false,
   confirmActions: true,

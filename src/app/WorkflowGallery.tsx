@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, FileJson, Heart, Search, Trash2, Upload, Wand2, XCircle } from 'lucide-react';
+import * as Dialog from '@radix-ui/react-dialog';
+import type { ConfirmAction } from './useConfirmation';
 import { apiJson } from './api';
 import { cn } from './format';
 import { Field, StudioSelect as Select, Tip } from './components';
@@ -24,7 +26,7 @@ const controlLabels: Record<string, string> = {
 };
 
 function workflowStatus(workflow: WorkflowSummary) {
-  return workflow.validation?.ok ? "Ready" : "Broken";
+  return workflow.validation?.ok ? "Ready" : "Needs setup";
 }
 
 function timeLabel(value = "") {
@@ -38,12 +40,17 @@ function selectedNodeValue(mapping?: { node: string; input: string }) {
   return mapping?.node && mapping?.input ? `${mapping.node}.${mapping.input}` : "__none";
 }
 
+function WorkflowThumbnail({ src }: { src?: string }) {
+  const [failed, setFailed] = useState(false);
+  return src && !failed ? <img src={src} alt="" onError={() => setFailed(true)} /> : <Wand2 size={22} />;
+}
+
 export function WorkflowGallery({ view }: { view: any }) {
   const {
     confirmAction, mode, onClose, refreshModels, refreshWorkflows, selectWorkflow, setWorkflowPreferences,
     showToast, workflowPreferences, workflows, setWorkflows, model, chooseModel, models
   } = view as {
-    confirmAction: (message: string) => boolean;
+    confirmAction: ConfirmAction;
     mode: Mode;
     onClose: () => void;
     refreshModels: (notify?: boolean) => void;
@@ -65,7 +72,7 @@ export function WorkflowGallery({ view }: { view: any }) {
   const [imports, setImports] = useState<ImportDraft[]>([]);
   const [busy, setBusy] = useState(false);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
-  const selected = workflows.find((item) => item.id === selectedId) || workflows[0] || null;
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return workflows.filter((item) => {
@@ -74,6 +81,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       return [item.name, item.description, item.family, item.source, ...(item.tags || [])].join(" ").toLowerCase().includes(q);
     });
   }, [mode, query, workflows]);
+  const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
   const grouped = useMemo(() => {
     const favorites = filtered.filter((item) => item.favorite);
     const recent = filtered.filter((item) => !item.favorite && item.lastUsedAt);
@@ -111,8 +119,7 @@ export function WorkflowGallery({ view }: { view: any }) {
 
   const deleteWorkflow = async (workflow: WorkflowSummary) => {
     if (!workflow.deleteId) return;
-    const where = workflow.path ? `\n${workflow.path}` : "";
-    if (!confirmAction(`Delete workflow "${workflow.name}"?${where}`)) return;
+    if (!await confirmAction({ title: `Delete ${workflow.name}?`, description: "This removes the workflow from your library. Import its JSON again to restore it.", action: "Delete workflow", destructive: true })) return;
     setBusy(true);
     try {
       await apiJson(`/api/workflows/${encodeURIComponent(workflow.deleteId)}`, { method: "DELETE" });
@@ -212,19 +219,16 @@ export function WorkflowGallery({ view }: { view: any }) {
   };
 
   return (
-    <div className="scrim modal-scrim" onClick={onClose}>
-      <div data-open-surface className="workflow-gallery" onClick={(event) => event.stopPropagation()}>
+    <Dialog.Root open onOpenChange={(open) => { if (!open && !busy) onClose(); }}><Dialog.Portal>
+      <Dialog.Overlay className="scrim modal-scrim workflow-overlay" />
+      <Dialog.Content data-open-surface className="workflow-gallery" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}>
         <header className="workflow-gallery-head">
           <div>
-            <h2>Workflow Gallery</h2>
-            <p>Browse, favorite, import, and diagnose workflows.</p>
+            <Dialog.Title>Workflows</Dialog.Title>
+            <Dialog.Description>Choose a workflow for your next {mode === "video" ? "video" : "image"}.</Dialog.Description>
           </div>
           <div className="workflow-head-actions">
-            <label className="workflow-import-button" onClick={() => setImportOpen(true)}>
-              <Upload size={15} />
-              <span>Import</span>
-              <input type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files) readFiles(event.target.files); event.currentTarget.value = ""; }} />
-            </label>
+            <button className="workflow-import-button" onClick={() => setImportOpen(true)}><Upload size={15} /><span>Import workflow</span></button>
             <Tip content="Close"><button className="icon-button" aria-label="Close workflows" onClick={onClose}>×</button></Tip>
           </div>
         </header>
@@ -232,26 +236,23 @@ export function WorkflowGallery({ view }: { view: any }) {
           <aside className="workflow-gallery-list">
             <div className="workflow-search">
               <Search size={14} />
-              <input value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
+              <input aria-label="Search workflows" value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
             </div>
-            <div className="workflow-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); if (event.dataTransfer.files.length) readFiles(event.dataTransfer.files); }}>
-              <FileJson size={17} />
-              Drop workflow JSON
-            </div>
+            {!filtered.length ? <div className="workflow-empty"><Search size={22} /><h3>{query ? "No matching workflows" : "No workflows yet"}</h3><p>{query ? "Try a different name or clear your search." : "Import a workflow to get started."}</p><button onClick={() => query ? setQuery("") : setImportOpen(true)}>{query ? "Clear search" : "Import workflow"}</button></div> : null}
             {grouped.map(([label, items]) => (
               <section key={label} className="workflow-group">
-                <h3>{label}</h3>
+                <h3>{label}<span>{items.length}</span></h3>
                 <div className="workflow-tile-grid">
                   {items.map((workflow) => (
-                    <button key={workflow.id} className={cn("workflow-tile", workflow.id === selected?.id && "active", !workflow.validation.ok && "is-broken")} onClick={() => { setSelectedId(workflow.id); setMobileDetailsOpen(true); }}>
+                    <button key={workflow.id} aria-pressed={workflow.id === selected?.id} className={cn("workflow-tile", workflow.id === selected?.id && "active", !workflow.validation.ok && "is-broken")} onClick={() => { setSelectedId(workflow.id); setMobileDetailsOpen(true); }}>
                       <div className="workflow-thumb">
-                        {workflow.thumbnail ? <img src={workflow.thumbnail} alt="" /> : <Wand2 size={22} />}
+                        <WorkflowThumbnail key={workflow.thumbnail} src={workflow.thumbnail} />
                       </div>
                       <div className="workflow-tile-copy">
                         <strong>{workflow.name}</strong>
                         <span>{workflow.source === "builtin" ? "Built-in" : "Custom"} · {workflow.family}</span>
                       </div>
-                      <em>{workflowStatus(workflow)}</em>
+                      <em className={workflow.validation.ok ? "is-ready" : "needs-setup"}>{workflow.validation.ok ? <CheckCircle2 size={13} /> : "Setup"}</em>
                     </button>
                   ))}
                 </div>
@@ -266,19 +267,19 @@ export function WorkflowGallery({ view }: { view: any }) {
               <>
                 <div className="workflow-detail-hero">
                   <div className="workflow-detail-thumb">
-                    {selected.thumbnail ? <img src={selected.thumbnail} alt="" /> : <Wand2 size={32} />}
+                    <WorkflowThumbnail key={selected.thumbnail} src={selected.thumbnail} />
                   </div>
                   <div>
                     <h3>{selected.name}</h3>
-                    <p>{selected.description || "No description recorded."}</p>
+                    {selected.description ? <p>{selected.description}</p> : null}
                     <div className="workflow-tags">{(selected.tags || []).slice(0, 7).map((tag) => <span key={tag}>{tag}</span>)}</div>
                   </div>
                 </div>
                 <div className="workflow-actions">
-                  <button onClick={() => useWorkflow(selected)} disabled={!selected.validation.ok}><CheckCircle2 size={15} /> Use Workflow</button>
-                  <button onClick={() => updateFavorites(selected.id)}><Heart size={15} fill={selected.favorite ? "currentColor" : "none"} /> {selected.favorite ? "Unfavorite" : "Favorite"}</button>
-                  {selected.deleteId ? <button className="subtle-danger" onClick={() => deleteWorkflow(selected)}><Trash2 size={15} /> Delete</button> : null}
-                  <button onClick={refreshWorkflows}>Revalidate</button>
+                  <button onClick={() => useWorkflow(selected)} className="workflow-use" disabled={busy || !selected.validation.ok}><CheckCircle2 size={15} /> Use workflow</button>
+                  <button disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Could not update favorites", "error"))}><Heart size={15} fill={selected.favorite ? "currentColor" : "none"} /> {selected.favorite ? "Favorited" : "Favorite"}</button>
+                  {selected.deleteId ? <button className="subtle-danger" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={15} /> Delete</button> : null}
+                  <button disabled={busy} onClick={() => refreshWorkflows()}>Check status</button>
                 </div>
                 <div className="workflow-detail-grid">
                   <span>Status</span><strong>{workflowStatus(selected)}</strong>
@@ -286,7 +287,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                   <span>Source</span><strong>{selected.source}</strong>
                   <span>Last used</span><strong>{timeLabel(selected.lastUsedAt) || "Never"}</strong>
                   <span>Controls</span><strong>{selected.controls?.length ? selected.controls.map((key) => controlLabels[key] || key).join(", ") : "Detected from profile"}</strong>
-                  {selected.path ? <><span>Path</span><strong>{selected.path}</strong></> : null}
+
                 </div>
                 {!selected.validation.ok || selected.validation.warnings?.length ? (
                   <div className="workflow-issues">
@@ -295,13 +296,13 @@ export function WorkflowGallery({ view }: { view: any }) {
                   </div>
                 ) : null}
               </>
-            ) : <div className="workflow-empty">No workflows found.</div>}
+            ) : <div className="workflow-empty"><Wand2 size={24} /><h3>Your workflow library</h3><p>Choose a workflow to see its details.</p></div>}
           </section>
         </div>
-        <div className={cn("workflow-import-panel", importOpen && "open")}>
+        <Dialog.Root open={importOpen} onOpenChange={(open) => { if (!busy) setImportOpen(open); }}><Dialog.Portal><Dialog.Overlay className="workflow-import-overlay" /><Dialog.Content className="workflow-import-panel open" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}>
           <div className="workflow-import-head">
-            <h3>Import Workflows</h3>
-            <button className="icon-button" onClick={() => setImportOpen(false)}><XCircle size={15} /></button>
+            <div><Dialog.Title>Import workflow</Dialog.Title><Dialog.Description>Choose a ComfyUI JSON file or paste its contents.</Dialog.Description></div>
+            <button className="icon-button" aria-label="Close import" disabled={busy} onClick={() => setImportOpen(false)}><XCircle size={15} /></button>
           </div>
           <Field label="Paste workflow JSON">
             <textarea className="short" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ ... }" />
@@ -322,7 +323,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                   <Field label="Kind"><Select value={item.metadata.kind} onChange={(value) => updateImport(index, { kind: value === "video" ? "video" : "image" })} options={["image", "video"]} /></Field>
                   <Field label="Family"><input value={item.metadata.family} onChange={(event) => updateImport(index, { family: event.target.value })} /></Field>
                 </div>
-                <div className="workflow-map-grid">
+                <details className="workflow-mapping"><summary>Advanced control mapping</summary><div className="workflow-map-grid">
                   {Object.keys(controlLabels).map((key) => (
                     <Field key={key} label={controlLabels[key]}>
                       <Select
@@ -335,16 +336,16 @@ export function WorkflowGallery({ view }: { view: any }) {
                       />
                     </Field>
                   ))}
-                </div>
+                </div></details>
               </div>
             ))}
           </div>
           <div className="workflow-import-actions">
-            <button onClick={() => { setImports([]); setImportOpen(false); }}>Cancel</button>
-            <button onClick={saveImports} disabled={busy || !imports.length}>Save {imports.length || ""} Workflow{imports.length === 1 ? "" : "s"}</button>
+            <button disabled={busy} onClick={() => { setImports([]); setImportOpen(false); }}>Cancel</button>
+            <button onClick={saveImports} disabled={busy || !imports.length}>{busy ? "Working…" : `Import${imports.length ? ` ${imports.length}` : ""} workflow${imports.length === 1 ? "" : "s"}`}</button>
           </div>
-        </div>
-      </div>
-    </div>
+        </Dialog.Content></Dialog.Portal></Dialog.Root>
+      </Dialog.Content>
+    </Dialog.Portal></Dialog.Root>
   );
 }

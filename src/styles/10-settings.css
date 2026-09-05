@@ -32,7 +32,9 @@
   gap: 2px;
   padding: 12px 10px;
   border-right: 1px solid rgb(255 255 255 / 0.07);
-  background: #0d0d0d;
+  background: rgb(31 31 31 / .58);
+  backdrop-filter: blur(18px) saturate(1.2);
+  -webkit-backdrop-filter: blur(18px) saturate(1.2);
 }
 .settings-nav-item {
   min-height: 40px;
@@ -56,7 +58,7 @@
 .settings-nav-item svg { flex: 0 0 auto; opacity: 0.75; }
 .settings-nav-item:hover { background: rgb(255 255 255 / 0.05); color: hsl(var(--foreground)); }
 .settings-nav-item.active {
-  background: #262626;
+  background: var(--brand-surface-selected);
   color: hsl(var(--foreground));
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
 }
@@ -105,7 +107,7 @@
   display: grid;
   padding: 0 14px;
   border-radius: 18px;
-  background: #191919;
+  background: var(--brand-surface-subtle);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.06);
 }
 .setting-row {
@@ -191,7 +193,7 @@
   padding: 0 16px;
   border: 0;
   border-radius: 20px;
-  background: #1e1e1e;
+  background: var(--brand-surface-raised);
   box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.09);
   color: hsl(var(--foreground));
   font-size: 13px;
@@ -210,7 +212,7 @@
 .settings-panel .setting-actions a:hover,
 .disclosure-body .setting-actions button:hover:not(:disabled),
 .ghost-button:hover,
-.inline-form button:hover:not(:disabled) { background: #2a2a2a; }
+.inline-form button:hover:not(:disabled) { background: var(--brand-surface-hover); }
 
 .settings-panel .setting-actions .is-primary,
 .disclosure-body .setting-actions .is-primary {

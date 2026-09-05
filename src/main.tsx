@@ -12,6 +12,7 @@ import { apiJson, copyImage, copyText, loadDraft, loadPrefs } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
 import { useGalleryColumnCount } from './app/gallery';
 import { normalizeLoras } from './app/loras';
+import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
 import { SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
@@ -21,6 +22,7 @@ import { useGalleryStore } from './app/useGalleryStore';
 
 
 function App() {
+  const now = Date.now();
   const initialDraft = useMemo(() => loadDraft(), []);
   const [mode, setMode] = useState<Mode>(initialDraft.mode === "video" ? "video" : "image");
   const [models, setModels] = useState<Models | null>(null);
@@ -74,7 +76,6 @@ function App() {
   const [showDetails, setShowDetails] = useState(Boolean(initialDraft.showDetails));
   const [showGenerationSettings, setShowGenerationSettings] = useState(Boolean(initialDraft.showGenerationSettings));
   const [customSize, setCustomSize] = useState(Boolean(initialDraft.customSize));
-  const [now, setNow] = useState(Date.now());
   const [startImage, setStartImage] = useState("");
   const [startImageId, setStartImageId] = useState(String(initialDraft.startImageId || ""));
   const [startImageName, setStartImageName] = useState(String(initialDraft.startImageName || ""));
@@ -169,10 +170,6 @@ function App() {
     resetViewer();
   }, [prefs.zenMode]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (!active && !settings && !workflowGalleryOpen) return;
@@ -197,6 +194,7 @@ function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       if (event.key !== "Escape") return;
       if (settings) {
         event.preventDefault();
@@ -224,6 +222,7 @@ function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       if (settings || active) return;
       if (event.ctrlKey || event.metaKey || event.altKey) return;
       if (event.key.length !== 1 && event.key !== "Backspace") return;
@@ -283,6 +282,7 @@ function App() {
     const viewerItems = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
     const currentIndex = viewerItems.findIndex((item) => item.id === activeItem.id);
     function onKeyDown(event: KeyboardEvent) {
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
       if (event.key === "ArrowRight" && currentIndex >= 0) {
         event.preventDefault();
@@ -323,6 +323,7 @@ function App() {
     const zenItems = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
     const currentIndex = Math.max(0, zenItems.findIndex((item) => item.id === zenSelectedId));
     function onKeyDown(event: KeyboardEvent) {
+      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
       if (event.key === "ArrowRight" && zenItems.length) {
         event.preventDefault();
@@ -364,9 +365,7 @@ function App() {
     setPrefs({ zenMode: enabled });
   }
 
-  function confirmAction(message: string) {
-    return !prefs.confirmActions || window.confirm(message);
-  }
+  const { confirmAction, confirmationDialog } = useConfirmation(prefs.confirmActions);
 
   function showToast(message: string, tone: "default" | "success" | "error" = "default") {
     if (tone === "success") toast.success(message);
@@ -542,7 +541,7 @@ function App() {
   }
 
   async function installUpdate() {
-    if (!confirmAction("Update J AI Studio now? This runs git pull, npm install, and npm run build in this checkout.")) return;
+    if (!await confirmAction({ title: "Update J AI Studio?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
@@ -769,7 +768,7 @@ function App() {
 
   const view = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectWorkflow, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs };
 
-  return <StudioView view={view} />;
+  return <><StudioView view={view} />{confirmationDialog}</>;
 }
 
 createRoot(document.getElementById("root")!).render(<App />);

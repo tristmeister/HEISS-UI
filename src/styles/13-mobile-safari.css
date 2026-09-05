@@ -68,9 +68,12 @@ body {
     border-radius: 22px;
   }
 
-  .studio-brand-lockup { padding: 7px; }
-  .studio-brand-lockup img { width: 28px; height: 28px; }
-  .studio-nav-actions { flex: 0 0 auto; }
+  .studio-brand-lockup { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  .studio-brand-lockup img,
+  .studio-brand-lockup div { display: none; }
+  .studio-brand-lockup .mobile-sidebar-icon { display: block; }
+  .desktop-sidebar-trigger { display: none; }
+  .studio-nav-actions { flex: 0 0 auto; height: 44px; padding: 3px; gap: 1px; }
   .nav-action,
   .studio-nav-actions .comfy-status-dot,
   .studio-nav-actions .queue-button {

@@ -1,0 +1,98 @@
+/* Shared, quiet surfaces for workflows, empty states and confirmations. */
+.workflow-overlay { z-index: 100; background: rgb(0 0 0 / .74); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.workflow-gallery { position: fixed; z-index: 101; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(960px, calc(100vw - 40px)); height: min(700px, calc(100dvh - 64px)); border-radius: var(--brand-radius-panel); background: var(--brand-surface); border: 1px solid var(--brand-border); box-shadow: var(--shadow-float); animation: none; outline: none; }
+.workflow-gallery-head { min-height: 84px; padding: 20px 24px; }
+.workflow-gallery-head h2 { font-size: 17px; font-weight: 650; letter-spacing: -.025em; }
+.workflow-gallery-head p { font-size: 12px; color: #909090; margin-top: 5px; }
+.workflow-import-button { min-height: 44px; border-radius: 22px; padding: 0 18px; font-size: 12px; font-weight: 550; background: #f4f4f4; color: #090909; }
+.workflow-import-button:hover { background: #fff; color: #111; }
+.workflow-gallery-body { grid-template-columns: 330px minmax(0, 1fr); }
+.workflow-gallery-list { padding: 16px 12px; background: rgb(10 10 10 / .58); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
+.workflow-search { height: 44px; min-height: 44px; margin: 0 4px 22px; border-radius: 22px; background: var(--brand-surface-subtle); border: 0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04); }
+.workflow-group { margin-top: 18px; }
+.workflow-group h3 { display: flex; align-items: center; gap: 7px; padding: 0 10px; margin-bottom: 8px; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: #909090; }
+.workflow-group h3 span { color: #656565; font-variant-numeric: tabular-nums; }
+.workflow-tile-grid { grid-template-columns: 1fr; gap: 3px; }
+.workflow-tile { grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; gap: 10px; min-height: 64px; padding: 10px; border: 1px solid transparent; border-radius: 18px; background: transparent; transition: background 140ms, border-color 140ms; }
+.workflow-tile.is-broken { border-color: transparent; }
+.workflow-tile:hover { background: var(--brand-surface-hover); border-color: transparent; }
+.workflow-tile.active { background: var(--brand-surface-selected); border-color: transparent; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08); }
+.workflow-thumb { width: 36px; height: 36px; border-radius: 12px; background: #ffffff06; }
+.workflow-thumb svg { width: 17px; height: 17px; }
+.workflow-tile-copy, .workflow-tile > em { align-self: center; }
+.workflow-tile-copy strong { font-size: 13px; font-weight: 550; line-height: 1.5; }
+.workflow-tile-copy span { font-size: 11px; color: #858585; }
+.workflow-tile > em { font-size: 10px; font-style: normal; }
+.workflow-tile > em.is-ready { color: #83a99a; display: flex; }
+.workflow-tile > em.needs-setup { color: #b9a079; }
+.workflow-details { min-width: 0; padding: 30px; }
+.workflow-detail-hero { grid-template-columns: 1fr; gap: 18px; }
+.workflow-detail-thumb { width: 64px; height: 64px; border-radius: 20px; background: #ffffff06; }
+.workflow-detail-thumb svg { width: 23px; height: 23px; }
+.workflow-detail-hero h3 { font-size: 23px; font-weight: 550; letter-spacing: -.035em; line-height: 1.25; overflow-wrap: anywhere; }
+.workflow-detail-hero p { font-size: 13px; color: #939393; line-height: 1.7; max-width: 42ch; }
+.workflow-tags { gap: 5px; margin-top: 12px; }
+.workflow-tags span { font-size: 10px; padding: 5px 9px; border-radius: 12px; background: #272727; color: #909090; border: 0; }
+.workflow-actions { gap: 7px; margin: 24px 0; }
+.workflow-actions button, .workflow-import-actions button, .workflow-empty button { min-height: 44px; border-radius: 22px; padding: 0 16px; font-size: 12px; background: #ffffff08; border: 0; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .07); color: #bdbdbd; }
+.workflow-actions .workflow-use { background: #ebebeb; color: #171717; border-color: transparent; }
+.workflow-actions .workflow-use:hover:not(:disabled) { background: #fff; }
+.workflow-actions .subtle-danger { color: #ba9393; }
+.workflow-detail-grid { grid-template-columns: 82px minmax(0, 1fr); border: 0; border-radius: 18px; padding: 20px; background: #191919; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06); gap: 14px 16px; }
+.workflow-detail-grid span, .workflow-detail-grid strong { font-size: 12px; line-height: 1.6; }
+.workflow-detail-grid strong { font-weight: 400; color: #b8b8b8; overflow-wrap: anywhere; }
+.workflow-issues { border-radius: 18px; background: #b9955a08; border: 1px solid #b9955a20; padding: 18px; }
+.workflow-issues h4 { color: #c0a57e; font-size: 12px; }
+.workflow-issues p { font-size: 11px; color: #9a9287; line-height: 1.6; overflow-wrap: anywhere; }
+.workflow-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 230px; padding: 28px 12px; text-align: center; color: #757575; }
+.workflow-empty h3 { margin: 0; color: #bdbdbd; font-size: 13px; font-weight: 500; }
+.workflow-empty p { margin: 0 0 8px; font-size: 12px; max-width: 26ch; line-height: 1.6; }
+.workflow-import-overlay { position: fixed; inset: 0; z-index: 110; background: #0008; backdrop-filter: blur(4px); }
+.workflow-import-panel.open { position: fixed; inset: auto; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 111; width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 24px; background: var(--brand-surface); border: 1px solid var(--brand-border); border-radius: var(--brand-radius-panel); outline: none; box-shadow: var(--shadow-float); }
+.workflow-import-head { align-items: start; }
+.workflow-import-head h2 { font-size: 16px; margin: 0; font-weight: 550; }
+.workflow-import-head p { font-size: 12px; color: #8f8f8f; line-height: 1.6; margin: 6px 0 0; }
+.workflow-import-list { overflow: visible; }
+.workflow-import-card { padding: 16px; border-radius: 18px; background: #191919; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06); }
+.workflow-mapping summary { cursor: pointer; font-size: 12px; color: #929292; padding: 12px 0; }
+.workflow-import-actions { justify-content: flex-end; margin-top: 0; }
+.workflow-import-actions button:last-child { background: #ebebeb; color: #171717; }
+.empty, .studio-empty { gap: 10px; }
+.empty > svg, .studio-empty > svg { color: #777; margin-bottom: 8px; }
+.empty h2, .studio-empty h2 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: -.025em; color: #bfbfbf; }
+.empty p, .studio-empty p { margin: 0; font-size: 12px; line-height: 1.7; color: #737373; max-width: 32ch; }
+.studio-empty { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.empty-actions { margin-top: 8px; }
+.empty-actions .reconnect-btn { min-height: 36px; border-radius: 7px; font-size: 11px; }
+.confirmation-overlay { position: fixed; inset: 0; z-index: 200; background: #0009; backdrop-filter: blur(5px); animation: confirmation-fade 140ms ease-out; }
+.confirmation-dialog { position: fixed; z-index: 201; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); padding: 24px; border-radius: var(--brand-radius-card); background: var(--brand-surface-raised); color: hsl(var(--foreground)); border: 1px solid var(--brand-border); box-shadow: var(--shadow-float); outline: none; animation: confirmation-fade 140ms ease-out; font-family: "Geist", ui-sans-serif, system-ui, sans-serif; font-feature-settings: "cv02", "cv03", "cv04", "cv11"; -webkit-font-smoothing: antialiased; }
+.confirmation-symbol { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: #ffffff06; color: #aaa; margin-bottom: 18px; }
+.confirmation-symbol.is-destructive { color: #de9292; background: #db717110; }
+.confirmation-dialog h2 { font-size: 17px; line-height: 1.25; letter-spacing: -.02em; font-weight: 600; margin: 0 0 10px; overflow-wrap: anywhere; }
+.confirmation-dialog p { font-size: 13px; line-height: 1.55; color: hsl(var(--muted-foreground)); margin: 0; }
+.confirmation-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 26px; }
+.confirmation-actions button { min-height: 40px; padding: 0 13px; border: 1px solid var(--brand-border); border-radius: var(--brand-radius-control); background: rgb(255 255 255 / .06); color: #ccc; font-size: 12px; cursor: pointer; transition: background 140ms; }
+.confirmation-actions button:hover { background: #ffffff10; }
+.confirmation-actions .is-destructive { background: #b94e4e; border-color: transparent; color: #fff; }
+.confirmation-actions .is-destructive:hover { background: #ca5a5a; }
+.confirmation-actions .is-primary { background: #e5e5e5; color: #171717; }
+.confirmation-dialog button:focus-visible, .workflow-gallery button:focus-visible, .workflow-import-panel button:focus-visible, .workflow-mapping summary:focus-visible { outline: 2px solid #aaa; outline-offset: 3px; }
+@keyframes confirmation-fade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 760px) {
+  .workflow-gallery { width: calc(100vw - 20px); height: calc(100dvh - 32px); border-radius: 24px; }
+  .workflow-gallery-head { padding: 16px; gap: 10px; }
+  .workflow-gallery-head p { display: block; font-size: 11px; }
+  .workflow-head-actions { gap: 4px; }
+  .workflow-import-button { min-width: 44px; min-height: 44px; padding: 0 10px; }
+  .workflow-import-button span { display: none; }
+  .workflow-gallery-body { grid-template-columns: 1fr; }
+  .workflow-details { display: none; padding: 20px; }
+  .workflow-gallery-list { padding: 16px 12px; }
+  .workflow-gallery-body.is-detail-open .workflow-gallery-list { display: none; }
+  .workflow-gallery-body.is-detail-open .workflow-details { display: block; }
+  .workflow-mobile-back { display: inline-flex; margin-bottom: 24px; }
+  .workflow-actions button, .confirmation-actions button, .workflow-import-actions button { min-height: 44px; }
+  .workflow-import-panel.open { padding: 20px; }
+  .confirmation-dialog { padding: 22px; }
+}
+@media (prefers-reduced-motion: reduce) { .confirmation-overlay, .confirmation-dialog { animation: none; } }

@@ -8,6 +8,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (/node_modules\/(img-fx|three)\//.test(id)) return "generation-fx";
           if (id.includes("node_modules")) return "vendor";
         }
       }

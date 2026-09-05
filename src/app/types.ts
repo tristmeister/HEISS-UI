@@ -110,6 +110,7 @@ export type Preferences = {
   defaultVideoFrames: number;
   defaultVideoSteps: number;
   defaultFps: number;
+  generationPreviewMode: "advanced" | "simple";
   variationQueueMode: "batch" | "separate";
   zenMode: boolean;
   confirmActions: boolean;

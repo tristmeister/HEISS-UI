@@ -6,6 +6,8 @@ import { githubUrl } from './constants';
 import { cn } from './format';
 import { AspectPicker, Field, GallerySkeleton, InfoTip, Media, ModelPicker, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
+import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
+import { ElapsedTime } from './ElapsedTime';
 import { ComposerBar } from './ComposerBar';
 import { VirtualMasonryGallery } from './VirtualMasonryGallery';
 import { WorkflowGallery } from './WorkflowGallery';
@@ -74,6 +76,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     });
   }, []);
   return (
+    <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open")}>
       {prefs.zenMode ? (
         <>
@@ -98,26 +101,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                 onTouchCancel={endViewerTouch}
                 style={{ "--tile-ratio": `${zenDisplayItem.width || 1} / ${zenDisplayItem.height || 1}`, "--zoom": viewerZoom, "--pan-x": `${viewerPan.x}px`, "--pan-y": `${viewerPan.y}px` } as React.CSSProperties}
               >
+                <GenerationMedia item={zenDisplayItem} muted fit="contain">
                 {zenDisplayItem.status === "pending" ? (() => {
                   const ratio = zenDisplayItem.progress?.max ? Math.min(1, Math.max(0, zenDisplayItem.progress.value / zenDisplayItem.progress.max)) : 0;
                   const indeterminate = !zenDisplayItem.progress?.max;
                   return (
-                    <div className={cn("generating", "zen-generating", zenDisplayItem.preview && "has-preview")} style={{ "--progress-ratio": ratio } as React.CSSProperties}>
-                      <AnimatePresence mode="popLayout">
-                        {zenDisplayItem.preview ? (
-                          <motion.img
-                            key={zenDisplayItem.preview}
-                            className="generate-preview"
-                            src={zenDisplayItem.preview}
-                            alt=""
-                            draggable={false}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1, transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const } }}
-                            exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                          />
-                        ) : null}
-                      </AnimatePresence>
-                      {!zenDisplayItem.preview ? <div className="noise-layer" /> : null}
+                    <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
                       <div className="generate-overlay">
                         <span className="generate-step">
                           {zenDisplayItem.progress?.max ? (
@@ -141,14 +130,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                             <span className="generate-step-label is-queued">Queued</span>
                           )}
                         </span>
-                        <span className="generate-elapsed">{formatElapsed(now - Date.parse(zenDisplayItem.createdAt || new Date().toISOString()))}</span>
+                        <span className="generate-elapsed"><ElapsedTime startedAt={zenDisplayItem.createdAt} format={formatElapsed} /></span>
                       </div>
                       <div className={cn("generate-bar", indeterminate && "is-indeterminate")}>
                         <div className="generate-bar-fill" />
                       </div>
                     </div>
                   );
-                })() : <Media item={zenDisplayItem} muted />}
+                })() : null}
+                </GenerationMedia>
               </button>
             ) : !galleryLoaded ? (
               <div className="zen-empty skeleton-stage">
@@ -274,13 +264,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       ) : (
         <>
           <header className="studio-nav">
-            <div className="studio-brand-lockup">
+            <Tip content="Controls"><button className="studio-brand-lockup" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
               <img src="/j-ai-logo.png" alt="" />
               <div>
                 <strong>J AI Studio</strong>
                 <span>{mode === "image" ? "Image studio" : "Video studio"}</span>
               </div>
-            </div>
+              <PanelLeft className="mobile-sidebar-icon" size={18} />
+            </button></Tip>
             <div className="studio-nav-actions">
               {runningCount ? <Tip content="Cancel all running and queued generations"><button className="queue-button" onClick={cancelQueue}>Cancel queue</button></Tip> : null}
               <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
@@ -304,16 +295,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               deleteItem={deleteItem}
               formatElapsed={formatElapsed}
               items={renderedGallery}
-              now={now}
               openItem={openItem}
               scrollRef={galleryStageRef}
               titleFromPrompt={titleFromPrompt}
             />
           ) : comfyOffline ? (
             <section className="gallery"><div className="empty is-offline">
-              <WifiOff size={32} strokeWidth={1.5} />
+              <img src="/j-ai-logo.png" alt="" />
               <h2>ComfyUI is offline</h2>
-              <p>Start ComfyUI, then reconnect. You can review the server address and detected models in Settings.</p>
+              <p>Start ComfyUI to connect your studio.</p>
               <div className="empty-actions">
                 <button className="reconnect-btn primary" onClick={refreshComfyStatus}><RefreshCw size={13} /> Retry connection</button>
                 <button className="reconnect-btn" onClick={() => setSettings(true)}><Settings size={13} /> Open settings</button>
@@ -323,7 +313,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <section className="gallery"><div className="empty">
               <img src="/j-ai-logo.png" alt="" />
               <h2>No outputs yet</h2>
-              <p>Describe an image below, choose a workflow, and generate your first result.</p>
+              <p>Start with a prompt. Your creations will appear here.</p>
             </div></section>
           )}
             {galleryLoaded && hasMoreGallery ? (
@@ -352,7 +342,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               </motion.div>
             ) : null}
           </AnimatePresence>
-          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
+          <Tip content="Controls"><button data-open-trigger className="zen-control-button desktop-sidebar-trigger" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
@@ -493,6 +483,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           <input type="checkbox" checked={prefs.enterToGenerate} onChange={(event) => setPrefs({ enterToGenerate: event.target.checked })} />
                         </label>
                       </div>
+                      <Field label="Generation previews">
+                        <Select value={prefs.generationPreviewMode === "simple" ? "Simple · step previews" : "Advanced · pixel mosaic"}
+                          onChange={(value) => setPrefs({ generationPreviewMode: value === "Simple · step previews" ? "simple" : "advanced" })}
+                          options={[
+                            "Advanced · pixel mosaic",
+                            "Simple · step previews",
+                          ]} />
+                      </Field>
+                      <p className="generation-preview-help">Advanced adds animated pixels over early previews. Simple shows each step directly and uses less graphics power. Reduced motion uses simple previews.</p>
                       <Field label={<>Multiple images <InfoTip content="Batch runs one Comfy prompt with a larger latent batch. Separate jobs queue one prompt per image, which is easier to cancel individually." /></>}>
                         <Select
                           value={prefs.variationQueueMode}
@@ -803,26 +802,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   onClick={clickViewer}
                   onDoubleClick={(event) => { event.stopPropagation(); zoomViewer(viewerZoom > 1 ? 1 : 2.5); }}
                 >
+                  <GenerationMedia item={active} fit="contain">
                   {active.status === "pending" ? (() => {
                     const ratio = active.progress?.max ? Math.min(1, Math.max(0, active.progress.value / active.progress.max)) : 0;
                     return (
-                      <div className={cn("generating", "zen-generating", active.preview && "has-preview")} style={{ "--progress-ratio": ratio } as React.CSSProperties}>
-                        <AnimatePresence mode="popLayout">
-                          {active.preview ? (
-                            <motion.img
-                              key={active.preview}
-                              className="generate-preview"
-                              src={active.preview}
-                              alt=""
-                              draggable={false}
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1, transition: { duration: 0.3, ease: [0.32, 0.72, 0, 1] as const } }}
-                              exit={{ opacity: 0, transition: { duration: 0.2 } }}
-                            />
-                          ) : null}
-                        </AnimatePresence>
-                        {!active.preview ? <div className="noise-layer" /> : null}
-                        <div className="generate-overlay">
+                      <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
+                      <div className="generate-overlay">
                           <span className="generate-step">
                             {active.progress?.max ? (
                               <>
@@ -845,12 +830,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                               <span className="generate-step-label is-queued">Queued</span>
                             )}
                           </span>
-                          <span className="generate-elapsed">{formatElapsed(now - Date.parse(active.createdAt || new Date().toISOString()))}</span>
+                          <span className="generate-elapsed"><ElapsedTime startedAt={active.createdAt} format={formatElapsed} /></span>
                         </div>
                         <div className={cn("generate-bar", !active.progress?.max && "is-indeterminate")}><div className="generate-bar-fill" /></div>
                       </div>
                     );
-                  })() : <Media item={active} />}
+                  })() : null}
+                  </GenerationMedia>
                 </div>
                 {hasNeighbors ? (
                   <>
@@ -920,5 +906,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       {workflowGalleryOpen ? <WorkflowGallery view={{ ...view, onClose: () => setWorkflowGalleryOpen(false) }} /> : null}
       <Toaster theme="dark" position={isMobile ? "top-center" : "bottom-left"} richColors closeButton toastOptions={{ className: "sonner-toast" }} />
     </div>
+    </GenerationPreviewMode.Provider>
   );
 }

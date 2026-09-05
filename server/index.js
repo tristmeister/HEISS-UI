@@ -9,7 +9,7 @@ import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, 
 import { inferModels, mockModelResult } from './models.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
-import { jobs, runJob, runMockJob } from './jobs.js';
+import { jobs, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
@@ -598,7 +598,7 @@ app.post("/api/jobs/:id/cancel", async (req, res) => {
 app.post("/api/queue/cancel", async (_req, res) => {
   for (const [id, job] of jobs) {
     if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
-      jobs.set(id, { ...job, status: "canceled" });
+      setTerminalJob(id, { status: "canceled" });
       updateGalleryJob(id, { status: "canceled" });
     }
   }
@@ -634,7 +634,7 @@ app.post("/api/gallery/errors/clear", (_req, res) => {
 app.post("/api/cache/clear", async (_req, res) => {
   for (const [id, job] of jobs) {
     if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
-      jobs.set(id, { ...job, status: "canceled" });
+      setTerminalJob(id, { status: "canceled" });
       updateGalleryJob(id, { status: "canceled" });
     }
   }

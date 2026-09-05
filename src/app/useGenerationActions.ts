@@ -189,21 +189,21 @@ export function useGenerationActions(view: any) {
 
   async function cancelJob(jobId: string | undefined) {
     if (!jobId) return;
-    if (!confirmAction("Cancel this generation?")) return;
+    if (!await confirmAction({"title": "Stop generation?", "description": "This stops the current generation before it finishes.", "action": "Stop generation", "destructive": true})) return;
     galleryRemove([jobId]);
     await fetch(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
     setStatus("Ready");
   }
 
   async function cancelQueue() {
-    if (!confirmAction("Cancel everything currently queued or generating?")) return;
+    if (!await confirmAction({"title": "Stop all generations?", "description": "All queued and running generations will be canceled.", "action": "Stop all", "destructive": true})) return;
     galleryRemoveWhere((item: GalleryItem) => item.status === "pending" || item.status === "canceled");
     await fetch("/api/queue/cancel", { method: "POST" }).catch(() => null);
     setStatus("Ready");
   }
 
   async function clearGallery() {
-    if (!confirmAction("Clear finished gallery items from this app?")) return;
+    if (!await confirmAction({"title": "Clear gallery?", "description": "Finished outputs will be removed from this app\u2019s gallery.", "action": "Clear gallery", "destructive": true})) return;
     const data = await apiJson<GalleryPayload>("/api/gallery/clear", { method: "POST" }).catch(() => null);
     const items = payloadItems(data);
     if (data) setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
@@ -211,7 +211,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function clearFailedItems() {
-    if (!confirmAction("Clear failed and interrupted generations from this gallery?")) return;
+    if (!await confirmAction({"title": "Clear failed generations?", "description": "Remove failed and interrupted entries from your gallery.", "action": "Clear failed", "destructive": true})) return;
     const data = await apiJson<GalleryPayload>("/api/gallery/errors/clear", { method: "POST" }).catch(() => null);
     const items = payloadItems(data);
     if (data) setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
@@ -219,7 +219,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function resetAllSettings() {
-    if (!confirmAction("Reset all saved J AI Studio settings and prompt drafts?")) return;
+    if (!await confirmAction({"title": "Reset settings?", "description": "Your saved preferences and prompt drafts will be cleared. The app will reload.", "action": "Reset settings", "destructive": true})) return;
     localStorage.removeItem("j-ai-studio-draft");
     localStorage.removeItem("j-ai-studio-prefs");
     if ("caches" in window) {
@@ -229,7 +229,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function clearAllCache() {
-    if (!confirmAction("Clear browser cache, queued preview state, and free ComfyUI memory? Finished gallery items will stay.")) return;
+    if (!await confirmAction({"title": "Clear cache?", "description": "Clear cached previews and free ComfyUI memory. Finished gallery items will stay.", "action": "Clear cache", "destructive": false})) return;
     if ("caches" in window) {
       await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => null);
     }
@@ -245,7 +245,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function deleteItem(item: GalleryItem, confirmed = false) {
-    if (!confirmed && !confirmAction("Delete this generation from the gallery?")) return;
+    if (!confirmed && !await confirmAction({"title": "Delete generation?", "description": "This output will be removed from your gallery.", "action": "Delete generation", "destructive": true})) return;
     galleryRemove([item.id, item.url].filter(Boolean));
     if (active?.id === item.id) setActive(null);
     const response = await fetch(`/api/gallery/${encodeURIComponent(item.id)}`, { method: "DELETE" }).catch(() => null);
