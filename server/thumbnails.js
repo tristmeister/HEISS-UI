@@ -8,12 +8,14 @@ import { dataDir } from "./gallery-store.js";
 // Small on-demand cache of downscaled previews for the gallery grid, so a LAN client
 // only has to pull a full-resolution image when it actually opens the viewer.
 const thumbnailDir = path.join(dataDir, ".thumbnails");
-const longestEdge = 384;
+const longestEdge = 768;
 const quality = 72;
 const pending = new Map();
 
+// Folding the resize settings into the key means changing longestEdge/quality
+// naturally starts a fresh cache generation instead of serving stale-sized files.
 function cacheKey(filename, subfolder, type) {
-  return crypto.createHash("sha1").update(`${type}:${subfolder}:${filename}`).digest("hex");
+  return crypto.createHash("sha1").update(`${type}:${subfolder}:${filename}:${longestEdge}:${quality}`).digest("hex");
 }
 
 function cachePath(key, etag) {
