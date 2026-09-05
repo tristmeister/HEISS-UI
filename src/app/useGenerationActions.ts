@@ -1,4 +1,5 @@
 import { apiJson } from './api';
+import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
 import type { GalleryItem, Job } from './types';
 
@@ -106,7 +107,7 @@ export function useGenerationActions(view: any) {
       };
       const queuedJobs: string[] = [];
       for (let index = 0; index < imageRuns; index += 1) {
-        const clientJobId = crypto.randomUUID();
+        const clientJobId = clientJobUuid();
         optimisticJobIds.push(clientJobId);
         const optimisticBody = { ...requestBody, count: requestCount, startImageId: canUseStartImage ? startImageId : "" };
         const optimisticItems = pendingItemsFor(clientJobId, optimisticBody);
