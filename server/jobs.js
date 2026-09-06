@@ -299,6 +299,15 @@ export function generateMockImageDataUrl(prompt = "", width = 1024, height = 102
 }
 
 export function runMockJob(id, body) {
+  const isCanceled = () => {
+    const status = jobs.get(id)?.status;
+    return status === "canceling" || status === "canceled";
+  };
+  if (isCanceled()) {
+    setTerminalJob(id, { status: "canceled" });
+    updateGalleryJob(id, { status: "canceled" });
+    return;
+  }
   const steps = Number(body.steps || 4) || 4;
   const count = body.kind === "image" ? Math.max(1, Math.min(8, Number(body.count || 1))) : 1;
   let currentStep = 0;
@@ -306,6 +315,12 @@ export function runMockJob(id, body) {
   updateGalleryJob(id, { status: "running", progress: { step: 1, maxSteps: steps, nodeName: "KSampler" } }, { persist: false });
 
   const interval = setInterval(() => {
+    if (isCanceled()) {
+      clearInterval(interval);
+      if (jobs.get(id)?.status === "canceling") setTerminalJob(id, { status: "canceled" });
+      updateGalleryJob(id, { status: "canceled" });
+      return;
+    }
     currentStep += Math.max(1, Math.ceil(steps / 4));
     if (currentStep < steps) {
       updateGalleryJob(id, { progress: { step: currentStep, maxSteps: steps, nodeName: "KSampler" } }, { persist: false });
@@ -314,6 +329,11 @@ export function runMockJob(id, body) {
       updateGalleryJob(id, { progress: { step: steps, maxSteps: steps, nodeName: "VAEDecode" } }, { persist: false });
 
       setTimeout(() => {
+        if (isCanceled()) {
+          if (jobs.get(id)?.status === "canceling") setTerminalJob(id, { status: "canceled" });
+          updateGalleryJob(id, { status: "canceled" });
+          return;
+        }
         const completedAt = new Date().toISOString();
         const outputs = Array.from({ length: count }, (_, index) => {
           const url = generateMockImageDataUrl(body.prompt + (count > 1 ? ` #${index + 1}` : ""), body.width, body.height, body.kind);

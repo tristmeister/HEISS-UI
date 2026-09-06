@@ -309,9 +309,9 @@ export function promptTitle(text = "") {
 export function outputsFrom(history) {
   const urls = [];
   for (const output of Object.values(history.outputs || {})) {
-    const images = Array.isArray(output?.images) ? output.images : [];
-    const videos = Array.isArray(output?.videos) ? output.videos : [];
-    for (const item of [...images, ...videos]) {
+    const imageItems = Array.isArray(output?.images) ? output.images.map((item) => [item, "image"]) : [];
+    const videoItems = Array.isArray(output?.videos) ? output.videos.map((item) => [item, "video"]) : [];
+    for (const [item, collectionType] of [...imageItems, ...videoItems]) {
       const filename = typeof item?.filename === "string" ? item.filename : "";
       if (!filename) continue;
       const params = new URLSearchParams({
@@ -319,7 +319,7 @@ export function outputsFrom(history) {
         subfolder: item.subfolder || "",
         type: item.type || "output"
       });
-      const isVideo = filename.endsWith(".mp4");
+      const isVideo = collectionType === "video" || /\.(mp4|webm|mov|mkv)$/i.test(filename);
       urls.push({ url: `/comfy/view?${params}`, thumbnailUrl: isVideo ? undefined : `/comfy/thumb?${params}`, filename, type: isVideo ? "video" : "image" });
     }
   }

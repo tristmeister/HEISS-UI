@@ -54,7 +54,7 @@ async function applyMappedInputs(graph, workflow, body) {
     height: Number(body.height || 0),
     steps: Number(body.steps || 0),
     cfg: Number(body.cfg || 0),
-    denoise: Number(body.denoise || 1),
+    denoise: Number(body.denoise ?? 1),
     sampler: body.sampler || "",
     scheduler: body.scheduler || "",
     seed: Number(body.seed || crypto.randomInt(1, 2 ** 31)),
@@ -63,7 +63,7 @@ async function applyMappedInputs(graph, workflow, body) {
     fps: Number(body.fps || 0)
   };
   for (const [key, value] of Object.entries(values)) {
-    if (value !== "" && value !== 0) setMappedInput(graph, controls[key], value);
+    if (value !== "" && value !== undefined && value !== null) setMappedInput(graph, controls[key], value);
   }
   if ((body.startImage || body.startImageId) && controls.startImage) {
     const imageName = await uploadBodyStartImage(body);

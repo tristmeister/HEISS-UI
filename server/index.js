@@ -777,8 +777,9 @@ app.get("/comfy/*path", async (req, res) => {
     // full re-transfer over a slow LAN link, and stream the body instead of
     // buffering it so bytes start moving to the client as soon as they arrive.
     const conditional = {};
-    if (req.headers["if-none-match"]) conditional["if-none-match"] = req.headers["if-none-match"];
-    if (req.headers["if-modified-since"]) conditional["if-modified-since"] = req.headers["if-modified-since"];
+    for (const header of ["if-none-match", "if-modified-since", "range", "if-range"]) {
+      if (req.headers[header]) conditional[header] = req.headers[header];
+    }
     const response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
     res.status(response.status);
     const etag = response.headers.get("etag");
@@ -787,6 +788,10 @@ app.get("/comfy/*path", async (req, res) => {
     if (etag) res.setHeader("ETag", etag);
     if (lastModified) res.setHeader("Last-Modified", lastModified);
     if (contentLength) res.setHeader("Content-Length", contentLength);
+    for (const header of ["accept-ranges", "content-range", "content-disposition"]) {
+      const value = response.headers.get(header);
+      if (value) res.setHeader(header, value);
+    }
     res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
     if (response.status === 304 || !response.body) { res.end(); return; }
     res.type(response.headers.get("content-type") || "application/octet-stream");
