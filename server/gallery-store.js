@@ -337,13 +337,23 @@ export function recordsFromComfyHistory(history) {
     const latent = latentNode?.inputs || {};
     const modelLoader = Object.values(graph).find((node) => node?.inputs?.unet_name || node?.inputs?.ckpt_name);
     const model = modelLoader?.inputs?.unet_name || modelLoader?.inputs?.ckpt_name || "";
-    const loras = Object.values(graph)
-      .filter((node) => node?.class_type === "LoraLoader" && node?.inputs?.lora_name)
-      .map((node) => ({
-        name: node.inputs.lora_name,
-        enabled: true,
-        strength: Number(node.inputs.strength_model ?? node.inputs.strength_clip ?? 0.7)
-      }));
+    const loras = Object.values(graph).flatMap((node) => {
+      if (node?.class_type === "LoraLoader" && node?.inputs?.lora_name) {
+        return [{
+          name: node.inputs.lora_name,
+          enabled: true,
+          strength: Number(node.inputs.strength_model ?? node.inputs.strength_clip ?? 0.7)
+        }];
+      }
+      if (node?.class_type !== "Power Lora Loader (rgthree)") return [];
+      return Object.entries(node.inputs || {})
+        .filter(([key, value]) => /^lora_\d+$/i.test(key) && value?.on && value?.lora)
+        .map(([, value]) => ({
+          name: value.lora,
+          enabled: true,
+          strength: Number(value.strength ?? 0.7)
+        }));
+    }).slice(0, 8);
     const rawCreatedAt = Number(item?.prompt?.[3]?.create_time || Date.now());
     const createdAtMs = rawCreatedAt > 0 && rawCreatedAt < 1e12 ? rawCreatedAt * 1000 : rawCreatedAt;
     for (const output of outputsFrom(item)) {
@@ -464,7 +474,7 @@ export function generationSettings(body) {
   if (body.kind === "image") {
     settings.count = Number(body.count || 1);
     const loras = Array.isArray(body.loras)
-      ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 4).map((item) => ({
+      ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 8).map((item) => ({
         name: String(item.name || ""),
         enabled: true,
         strength: Number(item.strength ?? 0.7)

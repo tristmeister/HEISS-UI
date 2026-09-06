@@ -24,6 +24,16 @@ function readJson(file) {
   }
 }
 
+function powerLoraStack(meta = {}) {
+  const stack = meta.loraStack;
+  if (!stack || stack.adapter !== "rgthree-power-v1" || !stack.node) return null;
+  return {
+    adapter: stack.adapter,
+    node: String(stack.node),
+    max: Math.max(1, Math.min(8, Number(stack.max) || 8))
+  };
+}
+
 export function graphFromJson(raw, info = {}) {
   if (raw?.graph && typeof raw.graph === "object") return raw.graph;
   if (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) return visualWorkflowToApi(raw, info);
@@ -77,6 +87,7 @@ export function metadataFromJson(raw, file) {
   const id = safeId(meta.id || path.basename(file || "", path.extname(file || "")));
   const graph = graphFromJson(raw);
   const controls = meta.controls || {};
+  const loraStack = powerLoraStack(meta);
   const graphDefault = (key) => {
     const mapping = controls[key];
     return mapping?.node && mapping?.input ? graph?.[mapping.node]?.inputs?.[mapping.input] : undefined;
@@ -91,6 +102,7 @@ export function metadataFromJson(raw, file) {
     family: meta.family || "custom",
     graph,
     controls,
+    loraStack,
     requiredNodes: Array.isArray(meta.requiredNodes) && meta.requiredNodes.length ? meta.requiredNodes : classes,
     defaults: {
       model: graphDefault("model") || "",

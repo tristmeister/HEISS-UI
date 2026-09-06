@@ -18,7 +18,9 @@ import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, 
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
 import { clearUnlockCookie, encryptionKeyFromRequest, isPrivacyEnabled, privacyStatusFor, revealGalleryItemsForRequest, setPrivacyPassword, setUnlockCookie, verifyPrivacyPassword } from './privacy.js';
-import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, exportVaultBackup, readVaultAsset, setVaultBundleCover, vaultBundlePendingSummary, vaultConfigured, vaultGalleryItemsForRequest, vaultStatusFor } from './vault.js';
+import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, exportVaultBackup, readVaultAsset, setVaultBundleCover, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultGalleryItemsForRequest, vaultStatusFor } from './vault.js';
+import { sendGalleryExport } from './gallery-export.js';
+import { loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -394,7 +396,8 @@ function vaultAwarePage(req) {
   const cursor = String(req.query.cursor || "");
   const includeFailed = req.query.includeFailed !== "0";
   const bundlesEnabled = req.query.bundles !== "0";
-  const merged = sortGallery([...filterVisibleGallery(gallery), ...vaultGalleryItemsForRequest(req, { bundles: bundlesEnabled })]).filter((item) => {
+  const vaultItems = encryptionKeyFromRequest(req) ? vaultGalleryItemsForRequest(req, { bundles: bundlesEnabled }) : [];
+  const merged = sortGallery([...filterVisibleGallery(gallery), ...vaultItems]).filter((item) => {
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
     return item.status !== "canceled";
@@ -474,6 +477,40 @@ app.get("/api/vault/export", (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename="jai-private-vault-${new Date().toISOString().slice(0, 10)}.backup"`);
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.send(backup);
+});
+
+app.get("/api/loras/library", (_req, res) => {
+  const library = loadLoraLibrary();
+  res.json({ found: library !== null, library: library || { strengths: {}, snapshots: {} } });
+});
+
+app.put("/api/loras/library", (req, res) => {
+  res.json({ ok: true, library: saveLoraLibrary(req.body?.library) });
+});
+
+app.get("/api/loras/:workflowId", (req, res) => {
+  const loras = loadLoraStack(req.params.workflowId);
+  res.json({ found: loras !== null, loras: loras || [] });
+});
+
+app.put("/api/loras/:workflowId", (req, res) => {
+  try {
+    res.json({ ok: true, loras: saveLoraStack(req.params.workflowId, req.body?.loras) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/gallery/export", (req, res) => {
+  if (isPrivacyEnabled() && !encryptionKeyFromRequest(req)) {
+    res.status(401).json({ ok: false, error: "Unlock privacy before exporting the gallery." });
+    return;
+  }
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="jai-gallery-${date}.zip"`);
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  sendGalleryExport(res, isPrivacyEnabled() ? vaultAssetsForExport(req) : []);
 });
 
 app.post("/api/gallery/recover", async (req, res) => {

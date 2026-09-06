@@ -62,6 +62,16 @@ export function useViewerControls(view: any) {
     showToast("All settings applied", "success");
   }
 
+  function applyLoras(item: GalleryItem) {
+    const loras = normalizeLoras(item.settings?.loras);
+    if (!loras.length) {
+      showToast("This output has no LoRAs", "error");
+      return;
+    }
+    setLoras(loras);
+    showToast("LoRAs applied", "success");
+  }
+
   function moveZen(direction: 1 | -1) {
     if (!doneGallery.length) return;
     const currentIndex = Math.max(0, doneGallery.findIndex((item: GalleryItem) => item.id === zenItem?.id));
@@ -279,5 +289,5 @@ export function useViewerControls(view: any) {
     if (viewerZoom <= 1) setViewerPan({ x: 0, y: 0 });
     touchGestureRef.current = null;
   }
-  return { resetViewer, openItem, applyAllSettings, moveZen, moveViewer, goLatestZen, submitZenPrompt, startZenStripDrag, dragZenStrip, stopZenStripDrag, selectZenItem, zoomViewer, wheelViewer, clickViewer, startViewerDrag, dragViewer, stopViewerDrag, startViewerTouch, moveViewerTouch, endViewerTouch };
+  return { resetViewer, openItem, applyAllSettings, applyLoras, moveZen, moveViewer, goLatestZen, submitZenPrompt, startZenStripDrag, dragZenStrip, stopZenStripDrag, selectZenItem, zoomViewer, wheelViewer, clickViewer, startViewerDrag, dragViewer, stopViewerDrag, startViewerTouch, moveViewerTouch, endViewerTouch };
 }

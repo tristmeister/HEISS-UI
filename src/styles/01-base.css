@@ -523,6 +523,22 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   flex-direction: column;
   gap: 10px;
 }
+.lora-snapshots { display: flex; position: relative; gap: 6px; }
+.lora-snapshot-save, .lora-snapshot-trigger { height: 32px; border: 1px solid hsl(var(--border)); border-radius: var(--radius); background: hsl(var(--input)); color: hsl(var(--foreground)); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 5px; cursor: pointer; }
+.lora-snapshot-save { flex: 1; }
+.lora-snapshot-trigger { padding: 0 9px; color: hsl(var(--muted-foreground)); }
+.lora-snapshot-save:hover, .lora-snapshot-trigger:hover { border-color: hsl(var(--border-strong)); color: hsl(var(--foreground)); }
+.lora-snapshot-menu { position: absolute; z-index: 19; top: calc(100% + 4px); left: 0; right: 0; border: 1px solid hsl(var(--border)); border-radius: calc(var(--radius) + 2px); background: hsl(var(--popover)); box-shadow: var(--shadow-lg); overflow: hidden; }
+.lora-snapshot-row { display: flex; align-items: center; gap: 2px; padding: 3px; }
+.lora-snapshot-load { flex: 1; min-width: 0; border: 0; border-radius: calc(var(--radius) - 2px); background: transparent; color: hsl(var(--foreground)); padding: 6px 7px; text-align: left; cursor: pointer; }
+.lora-snapshot-load:hover { background: hsl(var(--accent)); }
+.lora-snapshot-load span, .lora-snapshot-load small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lora-snapshot-load span { font-size: 12px; }
+.lora-snapshot-load small { margin-top: 2px; color: hsl(var(--muted-foreground)); font-size: 10px; }
+.lora-snapshot-action { width: 27px; height: 27px; border: 0; border-radius: 6px; background: transparent; color: hsl(var(--muted-foreground)); display: grid; place-items: center; cursor: pointer; }
+.lora-snapshot-action:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); }
+.lora-snapshot-action.danger:hover { background: hsl(0 40% 15%); color: hsl(0 80% 70%); }
+.lora-snapshot-empty { padding: 14px; color: hsl(var(--muted-foreground)); font-size: 12px; text-align: center; }
 .lora-list {
   display: flex;
   flex-direction: column;

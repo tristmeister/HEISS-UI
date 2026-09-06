@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, GalleryHorizontalEnd, Minus, Plus, Search, Trash2, Wand2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, GalleryHorizontalEnd, Minus, Pencil, Plus, Save, Search, Trash2, Wand2 } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
 import { defaultLoraStrength, maxLoras, rankedLoras, recommendedLoras } from './loras';
 import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import type { LoraSelection, Profile, WorkflowSummary } from './types';
+import type { LoraSnapshot } from './lora-storage';
 
 const LORA_COLORS = [
   "hsl(280 60% 60%)",
@@ -127,6 +128,46 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
   );
 }
 
+function LoraSnapshots({ snapshots, onLoad, onSave, onRename, onDelete }: {
+  snapshots: LoraSnapshot[];
+  onLoad: (snapshot: LoraSnapshot) => void;
+  onSave: () => void;
+  onRename: (snapshot: LoraSnapshot) => void;
+  onDelete: (snapshot: LoraSnapshot) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClickOutside = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, [open]);
+
+  return (
+    <div className="lora-snapshots" ref={containerRef} data-open-surface={open || undefined}>
+      <button type="button" className="lora-snapshot-save" onClick={onSave}><Save size={13} /> Save snapshot</button>
+      <button type="button" className="lora-snapshot-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
+        Load snapshot <ChevronDown size={13} />
+      </button>
+      {open ? <div className="lora-snapshot-menu">
+        {snapshots.length ? snapshots.map((snapshot) => (
+          <div className="lora-snapshot-row" key={snapshot.id}>
+            <button type="button" className="lora-snapshot-load" onClick={() => { onLoad(snapshot); setOpen(false); }}>
+              <span>{snapshot.name}</span><small>{snapshot.loras.length} LoRA{snapshot.loras.length === 1 ? '' : 's'}</small>
+            </button>
+            <Tip content="Rename snapshot"><button type="button" className="lora-snapshot-action" onClick={() => onRename(snapshot)}><Pencil size={12} /></button></Tip>
+            <Tip content="Delete snapshot"><button type="button" className="lora-snapshot-action danger" onClick={() => onDelete(snapshot)}><Trash2 size={12} /></button></Tip>
+          </div>
+        )) : <div className="lora-snapshot-empty">No snapshots for this workflow</div>}
+      </div> : null}
+    </div>
+  );
+}
+
 type SidebarTab = "basics" | "advanced" | "loras";
 
 export function SidebarControls({ view }: { view: any }) {
@@ -137,7 +178,8 @@ export function SidebarControls({ view }: { view: any }) {
     setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras, setSampler,
     setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae,
     setWeightDtype, setWidth, startImageName, steps, stepsMeta, textEncoder, vae, weightDtype,
-    width, widthMeta, confirmAction, setWorkflowGalleryOpen
+    width, widthMeta, confirmAction, setWorkflowGalleryOpen, loraSnapshots, loadLoraSnapshot,
+    saveLoraSnapshot, renameLoraSnapshot, deleteLoraSnapshot, rememberedLoraStrength
   } = view;
 
   const [tab, setTab] = useState<SidebarTab>("basics");
@@ -157,7 +199,7 @@ export function SidebarControls({ view }: { view: any }) {
     setLoras((current: LoraSelection[]) => {
       if (current.length >= maxLoras) return current;
       const first = recommendedLoras(loraOptions, currentProfile)[0] || rankedLoras(loraOptions, currentProfile)[0] || "";
-      return [...current, { name: first, enabled: true, strength: defaultLoraStrength }];
+      return [...current, { name: first, enabled: true, strength: rememberedLoraStrength(first, defaultLoraStrength) }];
     });
   };
 
@@ -239,6 +281,7 @@ export function SidebarControls({ view }: { view: any }) {
 
         {tab === "loras" && canUseLora ? (
           <div className="lora-tab">
+            <LoraSnapshots snapshots={loraSnapshots} onLoad={loadLoraSnapshot} onSave={saveLoraSnapshot} onRename={renameLoraSnapshot} onDelete={deleteLoraSnapshot} />
             <div className="lora-list">
               {loras.length ? loras.map((item: LoraSelection, index: number) => (
                 <div className={cn("lora-card", !item.enabled && "is-disabled")} key={index}>
@@ -257,7 +300,7 @@ export function SidebarControls({ view }: { view: any }) {
                     </div>
                     <Tip content="Remove LoRA"><button type="button" className="lora-del" onClick={() => removeLora(index)}><Trash2 size={12} /></button></Tip>
                   </div>
-                  <LoraSelect value={item.name} options={loraOptions} profile={currentProfile} onChange={(name) => updateLora(index, { name })} />
+                  <LoraSelect value={item.name} options={loraOptions} profile={currentProfile} onChange={(name) => updateLora(index, { name, strength: rememberedLoraStrength(name, item.strength) })} />
                 </div>
               )) : (
                 <div className="lora-list-empty">No LoRAs added yet</div>

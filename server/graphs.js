@@ -71,9 +71,11 @@ async function applyMappedInputs(graph, workflow, body) {
   }
 }
 
-function enabledLoras(body) {
+const maxLoras = 8;
+
+function enabledLoras(body, limit = maxLoras) {
   return Array.isArray(body.loras)
-    ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 4)
+    ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, limit)
     : [];
 }
 
@@ -105,11 +107,31 @@ function applyLoraStack(graph, body, { startId, modelSource, clipSource, modelTa
   }
 }
 
+function applyPowerLoraStack(graph, body, config) {
+  if (!config) return;
+  const node = graph[config.node];
+  if (node?.class_type !== "Power Lora Loader (rgthree)") {
+    throw new Error("The configured Power LoRA Loader is missing from this workflow.");
+  }
+  const inputs = node.inputs ||= {};
+  for (const key of Object.keys(inputs)) {
+    if (/^lora_\d+$/i.test(key)) delete inputs[key];
+  }
+  for (const [index, lora] of enabledLoras(body, config.max).entries()) {
+    inputs[`lora_${index + 1}`] = {
+      on: true,
+      lora: lora.name,
+      strength: Number(lora.strength ?? 0.7)
+    };
+  }
+}
+
 export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
   if (!workflow) throw new Error("Custom workflow is not installed.");
   const graph = cloneGraph(workflow.graph);
   await applyMappedInputs(graph, workflow, body);
+  applyPowerLoraStack(graph, body, workflow.loraStack);
   return graph;
 }
 

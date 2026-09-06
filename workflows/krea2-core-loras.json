@@ -1,0 +1,132 @@
+{
+  "jAiStudio": {
+    "id": "krea2-core-loras",
+    "name": "Krea 2 — Core LoRA Stack",
+    "description": "Single-pass Krea 2 generation with the Krea enhancer and the installed realism LoRA stack.",
+    "kind": "image",
+    "family": "krea2",
+    "controls": {
+      "model": { "node": "1", "input": "unet_name" },
+      "weightDtype": { "node": "1", "input": "weight_dtype" },
+      "textEncoder": { "node": "3", "input": "clip_name" },
+      "clipType": { "node": "3", "input": "type" },
+      "vae": { "node": "5", "input": "vae_name" },
+      "prompt": { "node": "6", "input": "text" },
+      "negative": { "node": "7", "input": "text" },
+      "width": { "node": "8", "input": "width" },
+      "height": { "node": "8", "input": "height" },
+      "count": { "node": "8", "input": "batch_size" },
+      "seed": { "node": "9", "input": "seed" },
+      "steps": { "node": "9", "input": "steps" },
+      "cfg": { "node": "9", "input": "cfg" },
+      "sampler": { "node": "9", "input": "sampler_name" },
+      "scheduler": { "node": "9", "input": "scheduler" },
+      "denoise": { "node": "9", "input": "denoise" }
+    },
+    "defaults": {
+      "width": 1024,
+      "height": 1024,
+      "steps": 8,
+      "cfg": 1,
+      "sampler": "euler",
+      "scheduler": "simple"
+    },
+    "aspectRatios": [["1:1", 1, 1], ["16:9", 16, 9], ["9:16", 9, 16], ["4:3", 4, 3], ["3:4", 3, 4]],
+    "capabilities": {
+      "lora": true
+    },
+    "loraStack": {
+      "adapter": "rgthree-power-v1",
+      "node": "4",
+      "max": 8
+    }
+  },
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2TurboFP8_krea2TURBO.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "ComfyUI-Krea2T-Enhancer",
+    "inputs": {
+      "model": ["1", 0],
+      "enabled": true,
+      "strength": 1.5,
+      "debug": false
+    }
+  },
+  "3": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3VL4BAbliteratedComfyui_v10.safetensors",
+      "type": "krea2",
+      "device": "default"
+    }
+  },
+  "4": {
+    "class_type": "Power Lora Loader (rgthree)",
+    "inputs": {
+      "model": ["2", 0],
+      "clip": ["3", 0]
+    }
+  },
+  "5": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "6": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["4", 1]
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "",
+      "clip": ["4", 1]
+    }
+  },
+  "8": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "9": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": ["4", 0],
+      "seed": 1,
+      "steps": 8,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": ["6", 0],
+      "negative": ["7", 0],
+      "latent_image": ["8", 0],
+      "denoise": 1.0
+    }
+  },
+  "10": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": ["9", 0],
+      "vae": ["5", 0]
+    }
+  },
+  "11": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "JAI/Krea2",
+      "images": ["10", 0]
+    }
+  }
+}

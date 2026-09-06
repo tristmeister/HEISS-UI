@@ -66,6 +66,7 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
   const [pixelFailed, setPixelFailed] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const advanced = mode === 'advanced' && !reducedMotion;
+  const deferMosaicUntilFinal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent) && /Chrome\//i.test(navigator.userAgent) && !/Edg\//i.test(navigator.userAgent);
   const frameWidth = fit === 'contain' ? Math.min(size.width, size.height * aspectRatio) : size.width;
   const frameHeight = fit === 'contain' ? frameWidth / aspectRatio : size.height;
 
@@ -119,7 +120,7 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
       <div className="generation-frame" style={{ width: frameWidth, height: frameHeight }}>
       {preview && (!advanced || pixelFailed) ? <img className="generate-preview" src={preview} alt="" draggable={false} /> : null}
       {advanced ? <canvas ref={canvas} className="generation-pixels" /> : null}
-      {advanced && visible && foreground ? (
+      {advanced && (!deferMosaicUntilFinal || finalSource) && visible && foreground ? (
         <EffectBoundary>
           <Suspense fallback={null}>
             <Mosaic finalSource={finalSource} hasPreview={!!preview} onResolved={() => complete.current?.()} />

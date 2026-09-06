@@ -30,3 +30,22 @@ Use ComfyUI's API workflow JSON format, then add a `jAiStudio` block that tells 
 ```
 
 Only mapped controls are changed by J AI Studio. Everything else stays exactly as it was in the exported ComfyUI API workflow.
+
+## Power LoRA Loader
+
+An API workflow can opt in to J AI Studio's LoRA picker with an existing rgthree Power LoRA Loader:
+
+```json
+{
+  "jAiStudio": {
+    "capabilities": { "lora": true },
+    "loraStack": {
+      "adapter": "rgthree-power-v1",
+      "node": "4",
+      "max": 8
+    }
+  }
+}
+```
+
+The referenced node must be `Power Lora Loader (rgthree)` and already have its model and CLIP wiring connected. J AI Studio replaces only its `lora_` inputs using the selected LoRAs, in sidebar order.

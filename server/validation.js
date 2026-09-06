@@ -38,14 +38,14 @@ export function ensureOption(info, node, key, value, label) {
   }
 }
 
-function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image") {
+function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", maxLoras = 8) {
   if (kind !== "image" || !profile?.capabilities?.lora) return [];
   const installed = optionsFor(info, "LoraLoader", "lora_name");
   if (!installed.length) return [];
   const strengthRange = nodeRange(info, "LoraLoader", "strength_model", { default: 0.7, min: -100, max: 100, step: 0.01 });
   const raw = Array.isArray(input.loras) ? input.loras : [];
   const sanitized = [];
-  for (const item of raw.slice(0, 4)) {
+  for (const item of raw.slice(0, maxLoras)) {
     if (!item || item.enabled === false) continue;
     const name = String(item.name || "").trim();
     if (!name) continue;
@@ -105,7 +105,7 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
   const cfgRange = nodeRange(info, "KSampler", "cfg", { default: kind === "video" ? 5 : 1, min: 0, max: 100 });
   const denoiseRange = nodeRange(info, "KSampler", "denoise", { default: 1, min: 0, max: 1 });
 
-  const loras = sanitizeLoras(input, info, profile, kind);
+  const loras = sanitizeLoras(input, info, profile, kind, customWorkflow?.loraStack?.max || 8);
   return {
     ...input,
     kind,

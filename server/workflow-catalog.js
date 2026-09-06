@@ -73,6 +73,11 @@ function validateWorkflow(workflow, info = {}, profile = null) {
   } catch (error) {
     issues.push(error.message);
   }
+  if (workflow.loraStack) {
+    const node = workflow.graph?.[workflow.loraStack.node];
+    if (!node) issues.push(`Configured Power LoRA Loader node is missing: ${workflow.loraStack.node}`);
+    else if (node.class_type !== "Power Lora Loader (rgthree)") issues.push(`Configured LoRA node is not a Power LoRA Loader: ${workflow.loraStack.node}`);
+  }
   for (const classType of workflow.requiredNodes || []) {
     if (classType && !info[classType]) issues.push(`Missing node class: ${classType}`);
   }

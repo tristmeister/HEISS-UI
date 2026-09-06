@@ -1,0 +1,32 @@
+{
+  "jAiStudio": {
+    "id": "krea2-jai-lora",
+    "name": "Krea 2 — DarkBeast",
+    "description": "Krea 2 workflow with Turbo and Filter Bypass LoRAs and the original two-pass sampler.",
+    "kind": "image",
+    "family": "krea2",
+    "controls": {
+      "model": { "node": "1", "input": "unet_name" }, "weightDtype": { "node": "1", "input": "weight_dtype" },
+      "textEncoder": { "node": "2", "input": "clip_name" }, "clipType": { "node": "2", "input": "type" }, "vae": { "node": "4", "input": "vae_name" },
+      "prompt": { "node": "5", "input": "text" }, "negative": { "node": "6", "input": "text" },
+      "width": { "node": "7", "input": "width" }, "height": { "node": "7", "input": "height" }, "count": { "node": "7", "input": "batch_size" },
+      "seed": { "node": "10", "input": "value" }, "cfg": { "node": "11", "input": "value" },
+      "steps": { "node": "8", "input": "steps" }, "sampler": { "node": "8", "input": "sampler_name" }, "scheduler": { "node": "8", "input": "scheduler" }, "denoise": { "node": "8", "input": "denoise" }
+    },
+    "defaults": { "width": 1040, "height": 1040, "steps": 6, "cfg": 1, "sampler": "exponential/res_2s", "scheduler": "beta" },
+    "aspectRatios": [["1:1", 1, 1], ["16:9", 16, 9], ["9:16", 9, 16], ["4:3", 4, 3], ["3:4", 3, 4]]
+  },
+  "1": { "class_type": "UNETLoader", "inputs": { "unet_name": "darkBeastH3Director_darkBeastKREA2FP8.safetensors", "weight_dtype": "default" } },
+  "2": { "class_type": "CLIPLoader", "inputs": { "clip_name": "qwen3vl_4b_bf16.safetensors", "type": "krea2", "device": "default" } },
+  "3": { "class_type": "Power Lora Loader (rgthree)", "inputs": { "model": ["1", 0], "clip": ["2", 0], "lora_1": { "on": true, "lora": "krea2_turbo_lora_rank_64_bf16.safetensors", "strength": 0.6 }, "lora_2": { "on": true, "lora": "Krea2FilterBypass_2vector_KREA2_%5BS1LV3RC01N%5D.safetensors", "strength": 1.0 } } },
+  "4": { "class_type": "VAELoader", "inputs": { "vae_name": "Wan2_1_VAE_fp32.safetensors" } },
+  "5": { "class_type": "CLIPTextEncode", "inputs": { "text": "", "clip": ["3", 1] } },
+  "6": { "class_type": "CLIPTextEncode", "inputs": { "text": "", "clip": ["3", 1] } },
+  "7": { "class_type": "EmptyLatentImage", "inputs": { "width": 1040, "height": 1040, "batch_size": 1 } },
+  "8": { "class_type": "ClownsharKSampler_Beta", "inputs": { "eta": 0.5, "sampler_name": "exponential/res_2s", "scheduler": "beta", "steps": 6, "steps_to_run": -1, "denoise": 1.0, "cfg": ["11", 0], "seed": ["10", 0], "sampler_mode": "standard", "bongmath": true, "model": ["3", 0], "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0] } },
+  "9": { "class_type": "ClownsharKSampler_Beta", "inputs": { "eta": 0.5, "sampler_name": "multistep/deis_3m", "scheduler": "bong_tangent", "steps": 2, "steps_to_run": -1, "denoise": 0.2, "cfg": ["11", 0], "seed": ["10", 0], "sampler_mode": "standard", "bongmath": true, "model": ["3", 0], "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["8", 0] } },
+  "10": { "class_type": "PrimitiveInt", "inputs": { "value": 1 } },
+  "11": { "class_type": "PrimitiveFloat", "inputs": { "value": 1.0 } },
+  "12": { "class_type": "VAEDecode", "inputs": { "samples": ["9", 0], "vae": ["4", 0] } },
+  "13": { "class_type": "SaveImage", "inputs": { "filename_prefix": "JAI/Krea2", "images": ["12", 0] } }
+}

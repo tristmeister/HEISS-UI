@@ -261,6 +261,23 @@ export function readVaultAsset(req, id) {
   } catch { return null; }
 }
 
+export function* vaultAssetsForExport(req) {
+  const key = encryptionKeyFromRequest(req);
+  if (!key) return;
+  try {
+    const manifest = readManifest(key);
+    for (const item of manifest.items) {
+      try {
+        yield { item, buffer: decrypt(fs.readFileSync(path.join(assetsDir, item.assetFile)), fromB64(item.assetKey)) };
+      } catch {
+        // A missing or damaged vault asset should not prevent exporting the rest.
+      }
+    }
+  } catch {
+    // The caller already checked authentication. A bad manifest produces no vault entries.
+  }
+}
+
 export function deleteVaultItem(req, id) {
   const key = encryptionKeyFromRequest(req);
   if (!key) return { locked: true, removed: 0 };

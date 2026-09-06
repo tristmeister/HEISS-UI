@@ -1,6 +1,6 @@
 import type { LoraSelection, Profile } from './types';
 
-export const maxLoras = 4;
+export const maxLoras = 8;
 export const defaultLoraStrength = 0.7;
 
 export function normalizeLoras(value: unknown): LoraSelection[] {

@@ -43,7 +43,7 @@ const SETTINGS_TABS = [
 ] as const;
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
   const [settingsTab, setSettingsTab] = React.useState<string>("general");
@@ -694,6 +694,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         <Tip content="Refresh privacy status"><button onClick={view.refreshPrivacyStatus} disabled={privacyBusy}>Refresh</button></Tip>
                       </div>
                     </section>
+                    <section>
+                      <h3>Gallery export</h3>
+                      {privacyStatus?.enabled && !privacyStatus.unlocked ? (
+                        <span className="field-meta">Unlock privacy to export normal and private gallery items together.</span>
+                      ) : (
+                        <div className="setting-actions">
+                          <Tip content="Downloads normal and private gallery items in one ZIP file"><a className="ghost-button" href="/api/gallery/export" download><Download size={14} /> Export gallery</a></Tip>
+                        </div>
+                      )}
+                    </section>
                     {privacyStatus?.vault?.assetCount ? (
                       <section>
                         <details className="settings-disclosure">
@@ -751,13 +761,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </div>
         </div>
       ) : null}
-      {privacyStatus?.enabled && !privacyStatus.unlocked && !settings ? (
+      {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
         <div className="scrim modal-scrim privacy-lock">
           <div data-open-surface className="privacy-lock-card">
             <header>
               <div>
                 <h2>Unlock J AI Studio</h2>
-                <p>Enter the privacy password to decrypt prompts and authorize this browser.</p>
+                <p>Enter the privacy password to decrypt prompts and private items, or continue to the normal gallery.</p>
               </div>
             </header>
             <input
@@ -771,6 +781,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             />
             <div className="setting-actions single">
               <button onClick={unlockPrivacy} disabled={privacyBusy}>{privacyBusy ? "Unlocking..." : "Unlock"}</button>
+              <button onClick={view.continueWithoutPrivacy} disabled={privacyBusy}>View normal gallery</button>
             </div>
           </div>
         </div>
@@ -867,6 +878,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         </div>
                       ) : null}
                       <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy All Settings</button></Tip>
+                      <Tip content="Copy this output's LoRA stack into the generator"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Copy LoRAs</button></Tip>
                       {canUseStartImage && active.type === "image" && active.url ? (
                         <Tip content="Use this output as the next start image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as Start Image</button></Tip>
                       ) : null}

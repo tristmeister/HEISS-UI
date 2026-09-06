@@ -1,6 +1,7 @@
 import { apiJson } from './api';
 import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
+import { clearLoraLibrary } from './lora-storage';
 import type { GalleryItem, Job } from './types';
 
 type GalleryPayload = { items?: GalleryItem[]; outputs?: GalleryItem[] };
@@ -220,9 +221,10 @@ export function useGenerationActions(view: any) {
   }
 
   async function resetAllSettings() {
-    if (!await confirmAction({"title": "Reset settings?", "description": "Your saved preferences and prompt drafts will be cleared. The app will reload.", "action": "Reset settings", "destructive": true})) return;
+    if (!await confirmAction({"title": "Reset settings?", "description": "Your saved preferences, prompt drafts, LoRA strengths, and snapshots will be cleared. The app will reload.", "action": "Reset settings", "destructive": true})) return;
     localStorage.removeItem("j-ai-studio-draft");
     localStorage.removeItem("j-ai-studio-prefs");
+    clearLoraLibrary();
     if ("caches" in window) {
       await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => null);
     }
