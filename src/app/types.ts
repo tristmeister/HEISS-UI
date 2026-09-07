@@ -191,6 +191,7 @@ export type UpscaleStatus = {
   quality: UpscaleQuality;
   nodesInstalled: boolean;
   missingNodes: string[];
+  detectedNodes?: string[];
   modelDir: string;
   canDownload: boolean;
   models: UpscaleModelInfo[];

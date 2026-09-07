@@ -197,3 +197,29 @@
   .upscale-setup-body { padding: 20px; }
   .upscale-setup-body .confirmation-actions button { min-height: 44px; }
 }
+
+/* Model list inside the smart upscale install dialog. */
+.upscale-model-list {
+  list-style: none;
+  margin: 16px 0 12px;
+  padding: 0;
+  display: grid; gap: 1px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-control);
+  overflow: hidden;
+  background: var(--brand-border);
+}
+.upscale-model-list li {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px;
+  background: hsl(var(--input));
+  font-size: 12.5px;
+}
+.upscale-model-list li span { color: hsl(var(--foreground)); }
+.upscale-model-list li em {
+  font-style: normal;
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+}
+.upscale-setup-url.is-path { padding: 10px 12px; }
+.upscale-setup-url.is-path code { font-size: 11px; color: hsl(var(--muted-foreground)); }

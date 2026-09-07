@@ -48,6 +48,22 @@ export function seedvr2ModelDir() {
   const comfyRoot = String(process.env.JAI_COMFY_ROOT || "").trim();
   if (comfyRoot) return path.join(path.resolve(comfyRoot), "models", "SEEDVR2");
   if (!comfyOutputDir) return "";
+  // The output folder is not always a direct child of the ComfyUI root, so walk
+  // up until a real models/ folder turns up rather than assuming one level.
+  let current = path.resolve(comfyOutputDir);
+  for (let depth = 0; depth < 4; depth += 1) {
+    const parent = path.dirname(current);
+    if (!parent || parent === current) break;
+    try {
+      const models = path.join(parent, "models");
+      if (fs.existsSync(models) && fs.statSync(models).isDirectory()) {
+        return path.join(models, "SEEDVR2");
+      }
+    } catch {
+      // Keep walking; an unreadable level is not fatal.
+    }
+    current = parent;
+  }
   return path.join(path.dirname(path.resolve(comfyOutputDir)), "models", "SEEDVR2");
 }
 
@@ -109,6 +125,15 @@ function missingNodeClasses(info, classes) {
   return classes.filter((className) => !info?.[className]);
 }
 
+/**
+ * Several packs ship nodes called SeedVR2-something with entirely different
+ * class names. Reporting what is actually loaded turns "nodes missing" on a
+ * machine that visibly has SeedVR2 into a diagnosis the user can act on.
+ */
+function detectedSeedVR2Nodes(info) {
+  return Object.keys(info || {}).filter((name) => /seedvr2/i.test(name)).sort();
+}
+
 export function upscaleStatus(info = {}, quality = "balanced") {
   const normalized = normalizeQuality(quality);
   const missingNodes = missingNodeClasses(info, upscaleNodeClasses);
@@ -124,6 +149,7 @@ export function upscaleStatus(info = {}, quality = "balanced") {
     quality: normalized,
     nodesInstalled: missingNodes.length === 0,
     missingNodes,
+    detectedNodes: detectedSeedVR2Nodes(info),
     modelDir,
     canDownload: Boolean(modelDir),
     models: models.map(({ key, file, label, approxBytes, present }) => ({ key, file, label, approxBytes, present })),

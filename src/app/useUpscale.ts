@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiJson } from './api';
-import type { ConfirmAction } from './useConfirmation';
 import type { GalleryItem, Preferences, UpscaleDownloadPreview, UpscaleInstall, UpscaleStatus } from './types';
 
 /** The gallery keeps the original as the record; only the view swaps. */
@@ -41,17 +40,18 @@ export function upscaleQualityLabel(quality = "balanced") {
 
 type UpscaleOptions = {
   prefs: Preferences;
-  confirmAction: ConfirmAction;
   showToast: (message: string, tone?: "default" | "success" | "error") => void;
   loadGalleryDelta: () => void;
 };
 
-export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }: UpscaleOptions) {
+export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOptions) {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [install, setInstall] = useState<UpscaleInstall>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
   const [reason, setReason] = useState("");
   const [setupOpen, setSetupOpen] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState<UpscaleDownloadPreview | null>(null);
+  const [promptQuality, setPromptQuality] = useState("balanced");
   const installingRef = useRef(false);
   // Callers need the reason in the same tick they call refreshStatus.
   const reasonRef = useRef("");
@@ -144,13 +144,16 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
       showToast(error instanceof Error ? error.message : "Could not check the SeedVR2 download", "error");
       return false;
     }
-    const list = preview.files.map((file) => `${file.label} (${formatBytes(file.bytes)})`).join(", ");
-    const accepted = await confirmAction({
-      title: "Install the smart upscale models?",
-      description: `${upscaleQualityLabel(quality)} upscaling needs ${list}. That is about ${formatBytes(preview.totalBytes)} downloaded once into ${preview.modelDir}. ComfyUI may need a restart afterwards before the models appear.`,
-      action: "Download"
-    });
-    if (!accepted) return false;
+    setPromptQuality(quality);
+    setInstallPrompt(preview);
+    return false;
+  }, [refreshStatus, showToast]);
+
+  /** Runs only after the install dialog is explicitly confirmed. */
+  const confirmInstall = useCallback(async () => {
+    const quality = promptQuality;
+    setInstallPrompt(null);
+    if (installingRef.current) return;
     installingRef.current = true;
     try {
       const started = await apiJson<{ install: UpscaleInstall }>("/api/upscale/install", {
@@ -165,8 +168,7 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
     } finally {
       installingRef.current = false;
     }
-    return false;
-  }, [confirmAction, refreshStatus, showToast]);
+  }, [promptQuality, showToast]);
 
   const cancelInstall = useCallback(async () => {
     try {
@@ -224,6 +226,10 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
     upscaleUnavailableReason: reason,
     upscaleSetupOpen: setupOpen,
     setUpscaleSetupOpen: setSetupOpen,
+    upscaleInstallPrompt: installPrompt,
+    upscaleInstallQuality: promptQuality,
+    dismissUpscaleInstallPrompt: () => setInstallPrompt(null),
+    confirmUpscaleInstall: confirmInstall,
     upscaleInstall: install,
     upscaleBusyIds: busyIds,
     refreshUpscaleStatus: refreshStatus,

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ArrowUp, Copy, Download, LockKeyhole, Loader2, Trash2 } from 'lucide-react';
+import { Copy, Download, LockKeyhole, Loader2, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
@@ -7,6 +7,7 @@ import { GenerationMedia } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
 import type { GalleryItem } from './types';
 import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
+import { UpscaleArrow } from './UpscaleArrow';
 
 type GalleryTileProps = {
   item: GalleryItem;
@@ -61,7 +62,7 @@ function UpscaleButton({ item, busy, onUpscale }: { item: GalleryItem; busy: boo
         }}
         onClick={(event) => { event.stopPropagation(); if (!running && !busy) onUpscale(item); }}
       >
-        {running || busy ? <Loader2 size={13} className="spin" /> : <ArrowUp size={14} />}
+        {running || busy ? <Loader2 size={14} className="spin" /> : <UpscaleArrow size={15} />}
         {running ? <span className="tile-upscale-ring" /> : null}
       </span>
     </Tip>
