@@ -83,7 +83,7 @@ function LoraSelect({
           <div className="lora-select-list">
             {recommended.length ? (
               <div className="lora-select-group">
-                <span>Recommended</span>
+                <span title="LoRAs ranked by filename matches to the active model">Matches this model</span>
                 {recommended.map((name) => (
                   <button key={`r-${name}`} type="button" className={cn(name === value && "active")} onClick={() => choose(name)}>
                     {displayName(name)}
