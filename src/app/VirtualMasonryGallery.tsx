@@ -21,6 +21,9 @@ type VirtualMasonryGalleryProps = {
   toggleBundle: (bundleId: string) => void;
   setBundleCover: (domain: "gallery" | "vault", bundleId: string, itemId: string) => void;
   ungroupBundle: (domain: "gallery" | "vault", bundleId: string) => void;
+  smartUpscale?: boolean;
+  upscaleBusyIds?: Set<string>;
+  onUpscale?: (item: GalleryItem) => void;
 };
 
 function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set<string>) {
@@ -59,9 +62,12 @@ export function VirtualMasonryGallery({
   scrollRef,
   setBundleCover,
   settlingBundles,
+  smartUpscale = false,
   titleFromPrompt,
   toggleBundle,
   ungroupBundle,
+  upscaleBusyIds,
+  onUpscale,
 }: VirtualMasonryGalleryProps) {
   const [containerRef, containerWidth] = useElementWidth<HTMLElement>();
   const safeColumns = Math.max(1, columns);
@@ -100,6 +106,9 @@ export function VirtualMasonryGallery({
           scrollRef={scrollRef}
           setBundleCover={setBundleCover}
           settlingBundles={settlingBundles}
+          smartUpscale={smartUpscale}
+          upscaleBusyIds={upscaleBusyIds}
+          onUpscale={onUpscale}
           spacing={spacing}
           titleFromPrompt={titleFromPrompt}
           toggleBundle={toggleBundle}
@@ -123,10 +132,13 @@ function VirtualMasonryColumn({
   scrollRef,
   setBundleCover,
   settlingBundles,
+  smartUpscale = false,
   spacing,
   titleFromPrompt,
   toggleBundle,
   ungroupBundle,
+  upscaleBusyIds,
+  onUpscale,
   width,
 }: Omit<VirtualMasonryGalleryProps, "columns" | "items"> & { column: GalleryItem[]; spacing: number; width: number }) {
   const virtualizer = useVirtualizer({
@@ -176,6 +188,9 @@ function VirtualMasonryColumn({
                 height={height}
                 item={item}
                 openItem={openItem}
+                smartUpscale={smartUpscale}
+                upscaleBusy={Boolean(upscaleBusyIds?.has(item.id))}
+                onUpscale={onUpscale}
                 titleFromPrompt={titleFromPrompt}
                 width={width}
               />

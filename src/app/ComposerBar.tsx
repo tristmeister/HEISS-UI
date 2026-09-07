@@ -205,6 +205,7 @@ export type ComposerBarProps = {
   defaultAspectSize: string;
   applyAspect: (value: string) => void;
   customSize: boolean;
+  aspectLocked?: boolean;
   width: number;
   widthMeta: Record<string, number>;
   setWidth: (value: number) => void;
@@ -241,7 +242,7 @@ export function ComposerBar(props: ComposerBarProps) {
   const {
     models, model, modelProfiles, profileBadges, chooseModel, currentProfile, comfyOffline, mode,
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
-    customSize, width, widthMeta, setWidth, height, heightMeta, setHeight,
+    customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
     privateGeneration, privacyEnabled, setPrivateGeneration,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
@@ -252,7 +253,7 @@ export function ComposerBar(props: ComposerBarProps) {
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
   const displayCount = showVariants ? count : 1;
   const workflowName = currentProfile?.displayName || currentProfile?.label || "";
-  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", loraActiveCount, privacyEnabled, canUseNegativePrompt, Boolean(models)].join("|");
+  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, privacyEnabled, canUseNegativePrompt, Boolean(models)].join("|");
   const { rowRef, plan, level } = useDensityLevel(contentKey);
   useComposerHeightVar(rowRef);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -264,9 +265,9 @@ export function ComposerBar(props: ComposerBarProps) {
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
     ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} compact badges={profileBadges} density={density} />
-    : comfyOffline ? null : <Skeleton className="skeleton-control" />;
+    : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
-  const aspectPicker = (density: ControlDensity) => (
+  const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (
     <AspectPicker
       value={aspectPickerValue}
       onChange={(value) => applyAspect(value)}
@@ -277,7 +278,7 @@ export function ComposerBar(props: ComposerBarProps) {
     />
   );
 
-  const sizePickers = (density: ControlDensity) => customSize ? (
+  const sizePickers = (density: ControlDensity) => customSize && !aspectLocked ? (
     <>
       <NumberPicker label="Width" icon={<MoveHorizontal size={13} />} density={density} value={width} onChange={setWidth} min={widthMeta.min ?? 64} max={widthMeta.max ?? 4096} step={widthMeta.step || (mode === "video" ? 32 : 64)} size="sm" />
       <NumberPicker label="Height" icon={<MoveVertical size={13} />} density={density} value={height} onChange={setHeight} min={heightMeta.min ?? 64} max={heightMeta.max ?? 4096} step={heightMeta.step || (mode === "video" ? 32 : 64)} size="sm" />

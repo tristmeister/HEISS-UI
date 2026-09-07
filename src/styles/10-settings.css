@@ -394,3 +394,22 @@
   .settings-panel,
   .disclosure-body { animation: none; }
 }
+
+/* Smart upscale readiness and model download progress. */
+.settings-panel .field-meta.is-error { color: hsl(var(--destructive)); }
+.toggle-group .toggle-row.is-disabled { opacity: 0.55; cursor: not-allowed; }
+.upscale-install { display: grid; gap: 8px; margin-top: 10px; }
+.upscale-install-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; font-size: 12px; }
+.upscale-install-head span { color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
+.upscale-install-bar {
+  height: 5px;
+  border-radius: 999px;
+  background: hsl(var(--muted) / 0.5);
+  overflow: hidden;
+}
+.upscale-install-bar > div {
+  height: 100%;
+  border-radius: inherit;
+  background: hsl(var(--primary));
+  transition: width 320ms var(--ease-out);
+}

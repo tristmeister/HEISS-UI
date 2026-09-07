@@ -172,6 +172,7 @@ export function metadataFromJson(raw, file) {
       ...(meta.defaults || {})
     },
     aspectRatios: meta.aspectRatios || meta.aspects || [],
+    aspectPolicy: meta.aspectPolicy === "reference" ? "reference" : "manual",
     capabilities: {
       negativePrompt: Boolean(controls.negative),
       variations: Boolean(controls.count),
@@ -440,6 +441,7 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
     mediaInputs: Array.isArray(existing.mediaInputs) ? existing.mediaInputs : controls.startImage ? [{ id: "reference", kind: "image", label: "Reference image", required: false, min: 0, max: 1, control: controls.startImage }] : [],
     promptComposition: existing.promptComposition || null,
     aspectRatios: existing.aspectRatios || existing.aspects || [],
+    aspectPolicy: existing.aspectPolicy === "reference" ? "reference" : "manual",
     nodes: nodes.map((node) => ({
       id: node.id,
       classType: node.classType,

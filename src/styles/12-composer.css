@@ -11,6 +11,26 @@
 /* The row never wraps any more: the ladder is what makes it fit. */
 .zen-inline-settings { flex-wrap: nowrap; }
 
+/* Workflow picker placeholder while models load: match the real trigger's
+   footprint (40px pill) so the bar keeps its height, and lift the shimmer
+   clear of the near-black composer ground so it does not read as empty. */
+.zen-inline-settings .composer-skeleton {
+  width: 168px;
+  height: 40px;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background:
+    linear-gradient(110deg, hsl(0 0% 11%) 8%, hsl(0 0% 20%) 44%, hsl(0 0% 11%) 80%),
+    hsl(0 0% 11%);
+  background-size: 260% 100%;
+  /* .zen-inline-settings > * assigns the controlIn entrance here; restore the
+     shimmer (this selector outranks it) so the placeholder reads as loading. */
+  animation: skeletonShimmer 1.8s var(--ease-soft) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zen-inline-settings .composer-skeleton { animation: none; }
+}
+
 /* --- Number pickers: label -> icon -> icon + value ------------------------ */
 
 .number-picker-icon {

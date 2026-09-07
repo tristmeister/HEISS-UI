@@ -219,6 +219,8 @@ npm install
 npm run dev
 ```
 
+`npm run dev` and `npm start` repair missing runtime packages automatically. This protects local installs that have an incomplete `node_modules` folder (for example, a missing `busboy` package); a normal startup does not reinstall anything.
+
 The dev command starts Vite and the local API server together.
 
 ## Contributing

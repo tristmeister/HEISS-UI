@@ -196,7 +196,7 @@ type SidebarTab = "basics" | "advanced" | "loras";
 export function SidebarControls({ view }: { view: any }) {
   const {
     canUseStartImage, cfg, cfgMeta, changeMode, count, countMeta, currentProfile, currentWorkflow,
-    customSize, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras,
+    customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras,
     loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed,
     setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras, setSampler,
     setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae,
@@ -262,11 +262,14 @@ export function SidebarControls({ view }: { view: any }) {
               ) : null}
             </div>
             <Field label="Seed"><input value={seed} placeholder="Random" onChange={(event) => setSeed(event.target.value)} /></Field>
-            {customSize ? (
+            {customSize && !aspectLocked ? (
               <div className="number-row">
                 <NumberPicker label="Width" value={width} onChange={setWidth} min={widthMeta.min ?? 64} max={widthMeta.max ?? 4096} step={widthMeta.step || (mode === "video" ? 32 : 64)} fill />
                 <NumberPicker label="Height" value={height} onChange={setHeight} min={heightMeta.min ?? 64} max={heightMeta.max ?? 4096} step={heightMeta.step || (mode === "video" ? 32 : 64)} fill />
               </div>
+            ) : null}
+            {aspectLocked ? (
+              <p className="sidebar-hint">Output size follows the reference image ({width}&times;{height}).</p>
             ) : null}
             <Field label="Sampler"><Select value={sampler} onChange={setSampler} options={profileOptions.samplers?.length ? profileOptions.samplers : models?.samplers?.length ? models.samplers : fallbackSamplers} /></Field>
             <Field label="Scheduler"><Select value={scheduler} onChange={setScheduler} options={profileOptions.schedulers?.length ? profileOptions.schedulers : models?.schedulers?.length ? models.schedulers : fallbackSchedulers} /></Field>

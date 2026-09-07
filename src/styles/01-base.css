@@ -518,6 +518,13 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   padding: 2px 1px;
 }
 
+.sidebar-hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.6;
+}
+
 .lora-tab {
   display: flex;
   flex-direction: column;

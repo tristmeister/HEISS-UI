@@ -42,8 +42,60 @@ const SETTINGS_TABS = [
   { id: "advanced", label: "Advanced", icon: Wrench }
 ] as const;
 
+
+function formatInstallBytes(bytes = 0) {
+  if (!bytes) return "0 MB";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+}
+
+/** Says exactly what is missing, what is downloading, and what to do next. */
+function UpscaleReadiness({ status, install, onRefresh, onCancel }: { status: any; install: any; onRefresh: () => void; onCancel: () => void }) {
+  if (install?.status === "running") {
+    const ratio = install.totalBytes ? Math.min(1, install.receivedBytes / install.totalBytes) : 0;
+    return (
+      <div className="upscale-install">
+        <div className="upscale-install-head">
+          <strong>Downloading {install.current}</strong>
+          <span>{formatInstallBytes(install.receivedBytes)} / {formatInstallBytes(install.totalBytes)}</span>
+        </div>
+        <div className="upscale-install-bar"><div style={{ width: `${Math.round(ratio * 100)}%` }} /></div>
+        <div className="setting-actions"><button onClick={onCancel}>Cancel download</button></div>
+      </div>
+    );
+  }
+  if (install?.status === "error" && install.error) {
+    return <p className="field-meta is-error">{install.error}</p>;
+  }
+  if (install?.status === "done" && install.restartHint) {
+    return (
+      <div className="upscale-install">
+        <p className="field-meta">Models installed. Restart ComfyUI if the upscale still reports them as missing.</p>
+        <div className="setting-actions"><button onClick={() => onRefresh()}>Re-check</button></div>
+      </div>
+    );
+  }
+  if (!status || typeof status.nodesInstalled !== "boolean") return <p className="field-meta">ComfyUI is offline, so smart upscale is unavailable.</p>;
+  if (!status.nodesInstalled) {
+    return <p className="field-meta is-error">ComfyUI is missing the SeedVR2 nodes: {(status.missingNodes || []).join(", ")}. Install the SeedVR2 VideoUpscaler custom nodes, then re-check.</p>;
+  }
+  if (status.needsDownload) {
+    return <p className="field-meta">The first upscale at this effort asks to download {(status.models || []).filter((model: any) => !model.present).map((model: any) => model.label).join(" and ")} into {status.modelDir || "the ComfyUI models folder"}.</p>;
+  }
+  if (status.substituting) {
+    return <p className="field-meta">Using the SeedVR2 weights already installed rather than downloading this tier's preferred model.</p>;
+  }
+  return <p className="field-meta">Ready. Hover a finished image and click the arrow in its top-left corner.</p>;
+}
+
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs, upscaleStatus, upscaleInstall, upscaleBusyIds, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
@@ -216,6 +268,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               defaultAspectSize={defaultAspectSize}
               applyAspect={applyAspect}
               customSize={Boolean(customSize)}
+              aspectLocked={Boolean(aspectLocked)}
               width={width}
               widthMeta={widthMeta}
               setWidth={setWidth}
@@ -306,6 +359,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               items={renderedGallery}
               openItem={openItem}
               scrollRef={galleryStageRef}
+              smartUpscale={prefs.smartUpscale !== false}
+              upscaleBusyIds={upscaleBusyIds}
+              onUpscale={activateUpscale}
               titleFromPrompt={titleFromPrompt}
             />
           ) : comfyOffline ? (
@@ -387,6 +443,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               defaultAspectSize={defaultAspectSize}
               applyAspect={applyAspect}
               customSize={Boolean(customSize)}
+              aspectLocked={Boolean(aspectLocked)}
               width={width}
               widthMeta={widthMeta}
               setWidth={setWidth}
@@ -519,6 +576,50 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           ]}
                         />
                       </Field>
+                    </section>
+                    <section>
+                      <h3>Smart upscale <InfoTip content="A one-click SeedVR2 restore pass behind the arrow on each gallery image. The original is never replaced on disk - the arrow just switches which version the gallery shows." /></h3>
+                      <div className="toggle-group">
+                        <label className="toggle-row">
+                          <span>
+                            <strong>Smart upscale</strong>
+                            <em>Show an upscale arrow on finished images</em>
+                          </span>
+                          <input type="checkbox" checked={prefs.smartUpscale !== false} onChange={(event) => setPrefs({ smartUpscale: event.target.checked })} />
+                        </label>
+                      </div>
+                      {prefs.smartUpscale !== false ? (
+                        <>
+                          <Field label={<>Effort <InfoTip content="Higher effort uses a larger SeedVR2 model and a bigger target resolution, so it takes longer and needs more VRAM." /></>}>
+                            <Select
+                              value={prefs.upscaleQuality || "balanced"}
+                              onChange={(value) => setPrefs({ upscaleQuality: value === "fast" || value === "high" ? value : "balanced" })}
+                              options={[
+                                { label: "Fast - 1.5x, 3B model, lowest VRAM", value: "fast" },
+                                { label: "Balanced - 2x, 7B fp8 model", value: "balanced" },
+                                { label: "High - 3x, 7B fp16 model, slowest", value: "high" }
+                              ]}
+                            />
+                          </Field>
+                          <div className="toggle-group">
+                            <label className={cn("toggle-row", !upscaleStatus?.faceDetail?.nodesInstalled && "is-disabled")}>
+                              <span>
+                                <strong>Face detail pass</strong>
+                                <em>{upscaleStatus?.faceDetail?.nodesInstalled
+                                  ? "Run the Impact Pack FaceDetailer after the upscale"
+                                  : "Needs the ComfyUI Impact Pack and Impact Subpack nodes"}</em>
+                              </span>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(prefs.upscaleFaceDetail) && Boolean(upscaleStatus?.faceDetail?.nodesInstalled)}
+                                disabled={!upscaleStatus?.faceDetail?.nodesInstalled}
+                                onChange={(event) => setPrefs({ upscaleFaceDetail: event.target.checked })}
+                              />
+                            </label>
+                          </div>
+                          <UpscaleReadiness status={upscaleStatus} install={upscaleInstall} onRefresh={refreshUpscaleStatus} onCancel={cancelUpscaleInstall} />
+                        </>
+                      ) : null}
                     </section>
                   </>
                 ) : null}
@@ -921,7 +1022,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <span className="viewer-divider" />
                   <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => copyImageAndToast(active)}><Copy size={15} /></button></Tip>
                   {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
-                  {active.url ? <Tip content="Download file"><a className="icon-button" aria-label="Download file" href={active.url} download><Download size={15} /></a></Tip> : null}
+                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download file"}><a className="icon-button" aria-label="Download file" href={upscaleDisplayUrl(active)} download><Download size={15} /></a></Tip> : null}
                   <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label="Delete from gallery" onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />
                   <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>

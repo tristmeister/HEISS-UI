@@ -3,6 +3,7 @@ import { useReducedMotion } from 'framer-motion';
 import { Media } from './components';
 import type { GalleryItem } from './types';
 import { generationGridCount } from './generationEffect';
+import { upscaleDisplayThumbnail, upscaleDisplayUrl } from './useUpscale';
 
 export function generationIdentity(item: GalleryItem) {
   return !item.bundle && item.jobId && Number.isInteger(item.index)
@@ -29,9 +30,11 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
     if (pending || resolved || !advanced || item.status !== 'done') lastPending.current = item;
   }, [item, pending, resolved, advanced]);
   const resolving = item.status === 'done' && item.type === 'image' && beganPending.current && advanced && !resolved;
-  useEffect(() => setUseFullImage(false), [item.url, item.thumbnailUrl]);
-  const isThumbnail = muted && Boolean(item.thumbnailUrl) && !useFullImage;
-  const source = isThumbnail ? item.thumbnailUrl! : item.url;
+  const displayUrl = upscaleDisplayUrl(item);
+  const displayThumbnail = upscaleDisplayThumbnail(item);
+  useEffect(() => setUseFullImage(false), [displayUrl, displayThumbnail]);
+  const isThumbnail = muted && Boolean(displayThumbnail) && !useFullImage;
+  const source = isThumbnail ? displayThumbnail! : displayUrl;
   const previewItem = pending ? item : lastPending.current;
   return (
     <div className={`generation-surface${pending ? ' is-pending' : ''}${resolving ? ' is-resolving' : ''}`}>
