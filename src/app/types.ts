@@ -2,6 +2,31 @@ export type Mode = "image" | "video";
 export type Progress = { value: number; max: number; node?: string };
 export type Output = { url: string; filename: string; type: "image" | "video"; prompt?: string; negative?: string; outputName?: string };
 export type LoraSelection = { name: string; enabled: boolean; strength: number };
+export type MediaInput = {
+  id: string;
+  kind: "image";
+  required?: boolean;
+  min?: number;
+  max?: number;
+  label?: string;
+  control?: { node: string; input: string };
+};
+export type ReferenceAsset = {
+  id: string;
+  source: "upload" | "generation" | "vault";
+  name: string;
+  mime: string;
+  width: number;
+  height: number;
+  size: number;
+  createdAt: string;
+  thumbnailUrl: string;
+  url?: string;
+  privacyDomain?: "gallery" | "vault";
+  galleryItemId?: string;
+};
+export type SelectedReferenceAsset = { slot: string; asset: ReferenceAsset };
+export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
 export type GalleryItem = Output & { id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; bundle?: GalleryBundle };
 export type GalleryBundle = {
@@ -42,6 +67,7 @@ export type Profile = {
     loras?: string[];
   };
   capabilities: Record<string, boolean>;
+  mediaInputs?: MediaInput[];
 };
 export type Models = {
   imageModels: SelectOption[];
@@ -76,6 +102,7 @@ export type WorkflowSummary = {
   deleteId?: string;
   controls?: string[];
   capabilities?: Record<string, boolean>;
+  mediaInputs?: MediaInput[];
   defaults?: Record<string, string | number | boolean | null | undefined>;
   path?: string;
   favorite?: boolean;
@@ -98,6 +125,8 @@ export type WorkflowImportPreview = {
     controls: Record<string, { node: string; input: string }>;
     defaults?: Record<string, unknown>;
     capabilities?: Record<string, boolean>;
+    mediaInputs?: MediaInput[];
+    promptComposition?: PromptComposition | null;
     aspectRatios?: unknown[];
     nodes: Array<{ id: string; classType: string; inputs: string[]; suggestedInputs: string[] }>;
   };

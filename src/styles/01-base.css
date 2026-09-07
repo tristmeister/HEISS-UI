@@ -715,15 +715,30 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   display: grid;
   gap: 1px;
 }
-.lora-select-group > span {
+.lora-select-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  background: transparent;
   padding: 6px 8px 3px;
   color: hsl(var(--muted-foreground));
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  cursor: pointer;
 }
-.lora-select-group button {
+.lora-select-group-heading:hover { color: hsl(var(--foreground)); }
+.lora-select-group-heading svg { transition: transform 140ms var(--ease-out); }
+.lora-select-group-heading svg.is-collapsed { transform: rotate(-90deg); }
+.lora-select-group-heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lora-select-option {
   width: 100%;
   min-height: 30px;
   border: 0;
@@ -738,8 +753,8 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   font-size: 12px;
   cursor: pointer;
 }
-.lora-select-group button:hover,
-.lora-select-group button.active {
+.lora-select-option:hover,
+.lora-select-option.active {
   background: hsl(var(--accent));
 }
 .lora-select-empty {

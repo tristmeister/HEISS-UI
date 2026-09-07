@@ -87,6 +87,25 @@ Current mapped control keys are:
 - `fps`
 - `startImage`
 
+## Reference Media And Image Editing
+
+Image-to-image workflows use `capabilities.imageToImage` plus a `mediaInputs`
+array. Each media slot declares its stable id, whether it is required, its
+cardinality, and the graph node/input that receives the ComfyUI upload name.
+`controls.startImage` remains a backwards-compatible single-image alias.
+
+`server/reference-assets.js` owns uploaded reference images and exposes
+paginated upload/generation sources. Uploads are decoded with Sharp, bounded by
+file size and pixel count, indexed by content hash, and served through thumbnail
+and media URLs. Gallery and unlocked-vault items are logical reference assets;
+the server resolves them and stages their bytes directly into ComfyUI before a
+job is queued.
+
+Workflow `promptComposition` keeps the user's edit separate from a workflow's
+versioned prefix/suffix policy. The gallery persists the user prompt and policy
+identifier, while `server/graphs.js` composes the effective prompt only when it
+binds the graph.
+
 There is no current custom control mechanism for arbitrary node inputs.
 
 ## Current LoRA State

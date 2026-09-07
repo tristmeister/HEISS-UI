@@ -469,7 +469,9 @@ export function generationSettings(body) {
     vae: body.vae || "",
     clipType: body.clipType || "",
     weightDtype: body.weightDtype || "",
-    referenceImageName: body.startImageName || ""
+    referenceImageName: body.startImageName || "",
+    referenceAssets: Array.isArray(body.referenceAssets) ? body.referenceAssets.map(({ slot, assetId, source, name }) => ({ slot, assetId, source, name })) : [],
+    promptPolicy: body.promptPolicy || null
   };
   if (body.kind === "image") {
     settings.count = Number(body.count || 1);

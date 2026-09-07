@@ -4,7 +4,8 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
-import type { AspectPreset, Profile } from './types';
+import { ReferenceMediaControl, ReferenceMediaPicker } from './ReferenceMediaPicker';
+import type { AspectPreset, MediaInput, Profile, ReferenceAsset, SelectedReferenceAsset } from './types';
 
 /* ---------------------------------------------------------------------------
    The density ladder
@@ -224,8 +225,16 @@ export type ComposerBarProps = {
   setShowNegativePrompt: (updater: (value: boolean) => boolean) => void;
   canUseNegativePrompt: boolean;
   runningCount: number;
+  generateDisabled: boolean;
+  generateDisabledReason?: string;
   generate: () => void;
   refreshComfyStatus: () => void;
+  referenceInputs?: MediaInput[];
+  referenceAssets?: SelectedReferenceAsset[];
+  onReferenceSelect: (slot: string, asset: ReferenceAsset) => void;
+  onReferenceRemove: (slot: string) => void;
+  onReferenceDeleteRequest: (asset: ReferenceAsset) => Promise<boolean>;
+  onReferenceError: (message: string) => void;
 };
 
 export function ComposerBar(props: ComposerBarProps) {
@@ -236,15 +245,20 @@ export function ComposerBar(props: ComposerBarProps) {
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
     privateGeneration, privacyEnabled, setPrivateGeneration,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
-    runningCount, generate, refreshComfyStatus
+    runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
+    referenceInputs = [], referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
   } = props;
 
-  const showVariants = mode === "image";
+  const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
+  const displayCount = showVariants ? count : 1;
   const workflowName = currentProfile?.displayName || currentProfile?.label || "";
   const contentKey = [workflowName, mode, customSize ? "custom" : "preset", loraActiveCount, privacyEnabled, canUseNegativePrompt, Boolean(models)].join("|");
   const { rowRef, plan, level } = useDensityLevel(contentKey);
   useComposerHeightVar(rowRef);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const [referencePickerSlot, setReferencePickerSlot] = React.useState("");
+  const pickerInput = referenceInputs.find((input) => input.id === referencePickerSlot) || null;
+  const pickerAsset = pickerInput ? referenceAssets.find((item) => item.slot === pickerInput.id)?.asset || null : null;
 
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
@@ -315,6 +329,14 @@ export function ComposerBar(props: ComposerBarProps) {
 
   return (
     <>
+      {referenceInputs.length ? (
+        <>
+          <div className="composer-reference-list">
+            {referenceInputs.map((input) => <ReferenceMediaControl key={input.id} input={input} selected={referenceAssets.find((item) => item.slot === input.id)?.asset || null} onOpen={() => setReferencePickerSlot(input.id)} onRemove={() => onReferenceRemove(input.id)} />)}
+          </div>
+          {pickerInput ? <ReferenceMediaPicker open input={pickerInput} selected={pickerAsset} onOpenChange={(open) => { if (!open) setReferencePickerSlot(""); }} onSelect={(asset) => onReferenceSelect(pickerInput.id, asset)} onRemoveSelected={() => onReferenceRemove(pickerInput.id)} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} /> : null}
+        </>
+      ) : null}
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (
         <motion.div
@@ -377,12 +399,12 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyOffline ? "ComfyUI is offline" : mode === "image" ? `Generate ${count} image${count === 1 ? "" : "s"}` : "Generate video"}>
+        <Tip content={comfyOffline ? "ComfyUI is offline" : generateDisabledReason || (mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video")}>
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && "is-working", comfyOffline && "is-offline")}
             onClick={comfyOffline ? refreshComfyStatus : generate}
-            disabled={!currentProfile && !comfyOffline}
-            aria-label={comfyOffline ? "ComfyUI is offline" : "Generate"}
+            disabled={!comfyOffline && generateDisabled}
+            aria-label={comfyOffline ? "ComfyUI is offline" : generateDisabledReason || "Generate"}
           >
             {comfyOffline ? <WifiOff size={16} /> : <ArrowUp size={18} strokeWidth={2.4} />}
           </GenerateButton>

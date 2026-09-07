@@ -6,7 +6,7 @@ import "@fontsource/inter/latin-500.css";
 import "@fontsource/inter/latin-600.css";
 import "./styles.css";
 
-import type { ComfyStatus, GalleryItem, Health, LoraSelection, Mode, Models, Paths, Preferences, PrivacyStatus, Profile, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
+import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, Paths, Preferences, PrivacyStatus, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
 import { apiJson, copyImage, copyText, loadDraft, loadPrefs } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
@@ -20,6 +20,16 @@ import { useGenerationActions } from './app/useGenerationActions';
 import { useViewerControls } from './app/useViewerControls';
 import { useGalleryBundles } from './app/useGalleryBundles';
 import { useGalleryStore } from './app/useGalleryStore';
+
+function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[] {
+  if (!profile || profile.kind !== "image") return [];
+  const declared = (profile.mediaInputs || []).filter((input) => input.kind === "image");
+  if (declared.length) return declared;
+  if (profile.capabilities.imageToImage || profile.capabilities.startImage) {
+    return [{ id: "reference", kind: "image", required: Boolean(profile.capabilities.imageToImage), min: profile.capabilities.imageToImage ? 1 : 0, max: 1, label: "Reference image" }];
+  }
+  return [];
+}
 
 
 function App() {
@@ -82,6 +92,7 @@ function App() {
   const [startImage, setStartImage] = useState("");
   const [startImageId, setStartImageId] = useState(String(initialDraft.startImageId || ""));
   const [startImageName, setStartImageName] = useState(String(initialDraft.startImageName || ""));
+  const [referenceAssets, setReferenceAssets] = useState<SelectedReferenceAsset[]>(() => Array.isArray(initialDraft.referenceAssets) ? initialDraft.referenceAssets : []);
   const generatePostingRef = useRef(false);
   const viewerDragRef = useRef<{ id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
   const viewerDragEndRef = useRef<number>(0);
@@ -284,6 +295,7 @@ function App() {
       customSize,
       startImageId,
       startImageName,
+      referenceAssets: referenceAssets.filter(({ asset }) => asset.privacyDomain !== "vault" && asset.source !== "vault"),
       advanced,
       showDetails,
       showGenerationSettings,
@@ -298,7 +310,7 @@ function App() {
     } catch {
       localStorage.setItem("j-ai-studio-draft", JSON.stringify({ ...draft, startImage: "", startImageId }));
     }
-  }, [mode, prompt, negative, model, textEncoder, vae, clipType, weightDtype, width, height, steps, cfg, denoise, seed, count, frames, fps, sampler, scheduler, loras, customSize, startImageId, startImageName, advanced, showDetails, showGenerationSettings, showNegativePrompt, zenGalleryOpen, zenControls, zenSelectedId, privateGeneration, privacyStatus?.enabled]);
+  }, [mode, prompt, negative, model, textEncoder, vae, clipType, weightDtype, width, height, steps, cfg, denoise, seed, count, frames, fps, sampler, scheduler, loras, customSize, startImageId, startImageName, referenceAssets, advanced, showDetails, showGenerationSettings, showNegativePrompt, zenGalleryOpen, zenControls, zenSelectedId, privateGeneration, privacyStatus?.enabled]);
 
   useEffect(() => {
     if (!active) return;
@@ -585,6 +597,7 @@ function App() {
   }
 
   function applyProfile(profile: Profile, setModelId = true) {
+    const nextReferenceInput = imageInputsForProfile(profile)[0];
     if (setModelId) setModel(profile.id);
     setCustomSize(false);
     setTextEncoder(String(profile.defaults.textEncoder || ""));
@@ -602,9 +615,18 @@ function App() {
       setFrames(Number(profile.defaults.frames || prefs.defaultVideoFrames));
       setFps(Number(profile.defaults.fps || profile.constraints?.fps?.default || prefs.defaultFps));
     }
-    setStartImage("");
-    setStartImageId("");
-    setStartImageName("");
+    if (!nextReferenceInput) {
+      setReferenceAssets([]);
+      setStartImage("");
+      setStartImageId("");
+      setStartImageName("");
+    } else {
+      const nextInputs = imageInputsForProfile(profile);
+      setReferenceAssets((current) => nextInputs.flatMap((input, index) => {
+        const compatible = current.find((item) => item.slot === input.id) || (nextInputs.length === 1 && index === 0 ? current[0] : undefined);
+        return compatible ? [{ slot: input.id, asset: compatible.asset }] : [];
+      }));
+    }
   }
 
   function setLorasWithMemory(update: React.SetStateAction<LoraSelection[]>) {
@@ -704,7 +726,24 @@ function App() {
     ]).filter(([, badge]) => badge));
   }, [models, workflowPreferences]);
   const aspectOptions = currentProfile?.aspectPresets?.length ? currentProfile.aspectPresets : fallbackAspectPresets[mode];
-  const canUseStartImage = mode === "image" && Boolean(currentProfile?.capabilities.startImage);
+  const referenceInputs = imageInputsForProfile(currentProfile);
+  const referenceInput = referenceInputs[0] || null;
+  const storedReferenceAsset = referenceInput ? referenceAssets.find((item) => item.slot === referenceInput.id)?.asset || referenceAssets[0]?.asset || null : null;
+  const referenceAsset: ReferenceAsset | null = storedReferenceAsset || (referenceInput && startImageId ? {
+    id: startImageId,
+    source: "upload",
+    name: startImageName || "Reference image",
+    mime: "",
+    width: 0,
+    height: 0,
+    size: 0,
+    createdAt: "",
+    thumbnailUrl: ""
+  } : null);
+  const composerReferenceAssets = referenceAsset && referenceInput && !referenceAssets.some((item) => item.slot === referenceInput.id)
+    ? [{ slot: referenceInput.id, asset: referenceAsset }, ...referenceAssets]
+    : referenceAssets;
+  const canUseStartImage = Boolean(referenceInput);
   const widthMeta = currentProfile?.constraints?.width || {};
   const heightMeta = currentProfile?.constraints?.height || {};
   const frameMeta = currentProfile?.constraints?.frames || {};
@@ -726,7 +765,11 @@ function App() {
   const zenGallery = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
   const zenItem = zenGallery.find((item) => item.id === zenSelectedId) || zenGallery[0] || null;
   const zenDisplayItem = zenItem;
-  const generateDisabled = !currentProfile || (currentProfile.capabilities.textEncoder && !textEncoder) || (currentProfile.capabilities.vae && !vae);
+  const missingReferenceInput = referenceInputs.find((input) => (input.required || (input.min || 0) > 0) && !composerReferenceAssets.some((item) => item.slot === input.id));
+  const missingRequiredReference = Boolean(missingReferenceInput);
+  const modelSetupMissing = Boolean(currentProfile && ((currentProfile.capabilities.textEncoder && !textEncoder) || (currentProfile.capabilities.vae && !vae)));
+  const generateDisabled = !currentProfile || modelSetupMissing || missingRequiredReference;
+  const generateDisabledReason = missingRequiredReference ? `${missingReferenceInput?.label || "Reference image"} is required` : modelSetupMissing ? "Model setup is missing required files" : !currentProfile ? "Choose a workflow" : undefined;
   const loraActiveCount = mode === "image" && currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
@@ -772,33 +815,40 @@ function App() {
     setStartImageName(file.name);
   }
 
+  function selectReferenceAsset(slot: string, asset: ReferenceAsset) {
+    if (!referenceInputs.some((input) => input.id === slot)) return;
+    setReferenceAssets((current) => [{ slot, asset }, ...current.filter((item) => item.slot !== slot)]);
+    setStartImage("");
+    if (slot === referenceInput?.id) {
+      setStartImageId(asset.id);
+      setStartImageName(asset.name);
+    }
+  }
+
+  function removeReferenceAsset(slot: string) {
+    setReferenceAssets((current) => current.filter((item) => item.slot !== slot));
+    if (slot === referenceInput?.id) {
+      setStartImage("");
+      setStartImageId("");
+      setStartImageName("");
+    }
+  }
+
   async function useOutputAsStartImage(item: GalleryItem) {
-    if (!canUseStartImage || item.type !== "image" || !item.url) {
-      showToast("The selected model cannot use a start image", "error");
+    if (!canUseStartImage || item.status !== "done" || item.type !== "image" || !item.url || item.vaultLocked) {
+      showToast("The selected workflow cannot use this image as a reference", "error");
       return;
     }
     try {
-      const response = await fetch(item.url);
-      if (!response.ok) throw new Error("Could not read output image");
-      const blob = await response.blob();
-      const data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result || ""));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-      const outputName = item.outputName || item.filename || "output.png";
-      const uploaded = await apiJson<{ startImageId: string }>("/api/start-image", {
+      const data = await apiJson<{ asset: ReferenceAsset }>("/api/reference-assets/from-gallery", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ dataUrl: data, name: outputName })
+        body: JSON.stringify({ galleryItemId: item.id })
       });
       setMode("image");
-      setStartImage("");
-      setStartImageId(uploaded.startImageId);
-      setStartImageName(outputName);
+      selectReferenceAsset(referenceInput!.id, data.asset);
       setActive(null);
-      showToast("Start image set", "success");
+      showToast("Reference image set", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not use this image", "error");
     }
@@ -825,7 +875,7 @@ function App() {
 
 
   const generationActions = useGenerationActions({
-    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, mode, model, negative, prefs, privateGeneration, prompt, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, vae, clipType, weightDtype, width
+    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, privateGeneration, prompt, referenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, vae, clipType, weightDtype, width
   });
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem } = generationActions;
 
@@ -837,8 +887,9 @@ function App() {
   const currentWorkflow = useMemo(() => workflows.find((w) => w.profileId === model) || null, [workflows, model]);
   const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, vae, weightDtype, width, widthMeta, workflowPreferences, loraSnapshots: workflowLoraSnapshots, loadLoraSnapshot: (snapshot: { loras: LoraSelection[] }) => setLorasWithMemory(snapshot.loras), saveLoraSnapshot: saveCurrentLoraSnapshot, renameLoraSnapshot: renameCurrentLoraSnapshot, deleteLoraSnapshot: deleteCurrentLoraSnapshot, rememberedLoraStrength: loraStrengthForCurrentWorkflow }} />;
 
-  const view = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectWorkflow, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); } };
+  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); } };
 
+  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs };
   return <><StudioView view={view} />{confirmationDialog}</>;
 }
 

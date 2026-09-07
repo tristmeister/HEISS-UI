@@ -24,13 +24,51 @@ function readJson(file) {
   }
 }
 
-function powerLoraStack(meta = {}) {
+function loraStackConfig(meta = {}) {
   const stack = meta.loraStack;
-  if (!stack || stack.adapter !== "rgthree-power-v1" || !stack.node) return null;
+  if (!stack || !["rgthree-power-v1", "rgthree-stack-v1"].includes(stack.adapter) || !stack.node) return null;
   return {
     adapter: stack.adapter,
     node: String(stack.node),
-    max: Math.max(1, Math.min(8, Number(stack.max) || 8))
+    max: Math.max(1, Math.min(8, Number(stack.max) || (stack.adapter === "rgthree-stack-v1" ? 4 : 8)))
+  };
+}
+
+function mediaInputsConfig(meta = {}, controls = {}) {
+  const raw = Array.isArray(meta.mediaInputs) ? meta.mediaInputs : [];
+  const normalized = raw.map((item, index) => ({
+    id: safeId(item?.id || `reference-${index + 1}`),
+    kind: item?.kind === "image" ? "image" : "image",
+    label: String(item?.label || (index ? `Reference ${index + 1}` : "Reference image")),
+    required: Boolean(item?.required),
+    min: Math.max(0, Number(item?.min ?? (item?.required ? 1 : 0)) || 0),
+    max: Math.max(1, Math.min(8, Number(item?.max || 1))),
+    control: item?.control?.node && item?.control?.input
+      ? { node: String(item.control.node), input: String(item.control.input) }
+      : null
+  })).filter((item) => item.control);
+  if (!normalized.length && controls.startImage?.node && controls.startImage?.input) {
+    normalized.push({
+      id: "reference",
+      kind: "image",
+      label: "Reference image",
+      required: Boolean(meta.capabilities?.startImageRequired),
+      min: meta.capabilities?.startImageRequired ? 1 : 0,
+      max: 1,
+      control: { node: String(controls.startImage.node), input: String(controls.startImage.input) }
+    });
+  }
+  return normalized;
+}
+
+function promptCompositionConfig(meta = {}) {
+  const value = meta.promptComposition;
+  if (!value || typeof value !== "object") return null;
+  return {
+    prefix: String(value.prefix || "").slice(0, 1000),
+    suffix: String(value.suffix || "").slice(0, 8000),
+    policy: String(value.policy || "custom").slice(0, 120),
+    version: Math.max(1, Number(value.version || 1))
   };
 }
 
@@ -67,9 +105,16 @@ function visualWorkflowToApi(raw, info = {}) {
     const names = schemaInputNames(info, classType);
     const linked = new Set(Object.keys(inputs));
     const widgetNames = names.filter((name) => !linked.has(name));
-    const widgets = Array.isArray(node.widgets_values) ? node.widgets_values : [];
-    if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than its ComfyUI schema. Reconnect ComfyUI before importing.`);
-    widgets.forEach((value, index) => { inputs[widgetNames[index]] = value; });
+    const namedWidgets = node.widgets_values_named && typeof node.widgets_values_named === "object" ? node.widgets_values_named : null;
+    if (namedWidgets) {
+      for (const name of widgetNames) {
+        if (Object.prototype.hasOwnProperty.call(namedWidgets, name)) inputs[name] = namedWidgets[name];
+      }
+    } else {
+      const widgets = Array.isArray(node.widgets_values) ? node.widgets_values : [];
+      if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than its ComfyUI schema. Re-export the workflow with named widget values or reconnect ComfyUI before importing.`);
+      widgets.forEach((value, index) => { inputs[widgetNames[index]] = value; });
+    }
     graph[id] = { class_type: classType, inputs, ...(node._meta ? { _meta: node._meta } : {}) };
   }
   return graph;
@@ -87,7 +132,9 @@ export function metadataFromJson(raw, file) {
   const id = safeId(meta.id || path.basename(file || "", path.extname(file || "")));
   const graph = graphFromJson(raw);
   const controls = meta.controls || {};
-  const loraStack = powerLoraStack(meta);
+  const loraStack = loraStackConfig(meta);
+  const mediaInputs = mediaInputsConfig(meta, controls);
+  const promptComposition = promptCompositionConfig(meta);
   const graphDefault = (key) => {
     const mapping = controls[key];
     return mapping?.node && mapping?.input ? graph?.[mapping.node]?.inputs?.[mapping.input] : undefined;
@@ -103,6 +150,8 @@ export function metadataFromJson(raw, file) {
     graph,
     controls,
     loraStack,
+    mediaInputs,
+    promptComposition,
     requiredNodes: Array.isArray(meta.requiredNodes) && meta.requiredNodes.length ? meta.requiredNodes : classes,
     defaults: {
       model: graphDefault("model") || "",
@@ -128,7 +177,9 @@ export function metadataFromJson(raw, file) {
       variations: Boolean(controls.count),
       frames: Boolean(controls.frames),
       fps: Boolean(controls.fps),
-      startImage: Boolean(controls.startImage),
+      startImage: mediaInputs.length > 0 || Boolean(controls.startImage),
+      startImageRequired: mediaInputs.some((item) => item.required || item.min > 0),
+      imageToImage: meta.capabilities?.imageToImage === true || mediaInputs.length > 0,
       denoise: Boolean(controls.denoise),
       textEncoder: Boolean(controls.textEncoder),
       vae: Boolean(controls.vae),
@@ -150,6 +201,37 @@ export function validateGraph(graph) {
       }
     }
   }
+}
+
+const loaderOptionKeys = {
+  UNETLoader: ["unet_name"],
+  CheckpointLoaderSimple: ["ckpt_name"],
+  CLIPLoader: ["clip_name"],
+  VAELoader: ["vae_name"],
+  UpscaleModelLoader: ["model_name"]
+};
+
+function schemaOptions(info, classType, input) {
+  const definition = info?.[classType]?.input?.required?.[input];
+  if (!Array.isArray(definition)) return [];
+  if (Array.isArray(definition[0])) return definition[0];
+  if (Array.isArray(definition[1]?.options)) return definition[1].options;
+  return [];
+}
+
+export function workflowOptionIssues(workflow, info = {}) {
+  const issues = [];
+  for (const [id, node] of Object.entries(workflow?.graph || {})) {
+    const keys = loaderOptionKeys[node?.class_type] || [];
+    if (!keys.length || !info?.[node.class_type]) continue;
+    for (const key of keys) {
+      const selected = node.inputs?.[key];
+      if (!selected) continue;
+      const options = schemaOptions(info, node.class_type, key);
+      if (!options.includes(selected)) issues.push(`${node.class_type} ${id} cannot find ${selected}`);
+    }
+  }
+  return issues;
 }
 
 export function allCustomWorkflowRecords({ dedupe = true } = {}) {
@@ -316,18 +398,19 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
   const existing = raw?.jAiStudio || raw?.j_ai_studio || {};
   const graph = graphFromJson(raw);
   const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", inputs: node?.inputs || {} }));
-  const textNodes = nodes.filter((node) => /TextEncode/i.test(node.classType) && "text" in node.inputs);
+  const textNodes = nodes.filter((node) => /TextEncode/i.test(node.classType) && ("text" in node.inputs || "prompt" in node.inputs));
   const latentNode = nodes.find((node) => /Latent/i.test(node.classType) && ("width" in node.inputs || "height" in node.inputs));
   const samplerNode = nodes.find((node) => /Sampler/i.test(node.classType));
   const videoNode = nodes.find((node) => /Video/i.test(node.classType) && ("length" in node.inputs || "fps" in node.inputs));
+  const imageLoader = nodes.find((node) => node.classType === "LoadImage" && "image" in node.inputs);
   const controls = {
     ...(existing.controls || {})
   };
   const set = (key, node, input) => {
     if (!controls[key] && node && input && input in node.inputs) controls[key] = { node: node.id, input };
   };
-  set("prompt", textNodes[0], "text");
-  set("negative", textNodes[1], "text");
+  set("prompt", textNodes[0], "text" in (textNodes[0]?.inputs || {}) ? "text" : "prompt");
+  set("negative", textNodes[1], "text" in (textNodes[1]?.inputs || {}) ? "text" : "prompt");
   set("width", latentNode || videoNode, "width");
   set("height", latentNode || videoNode, "height");
   set("count", latentNode, "batch_size");
@@ -339,6 +422,7 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
   set("denoise", samplerNode, "denoise");
   set("frames", videoNode, "length");
   set("fps", videoNode, "fps");
+  set("startImage", imageLoader, "image");
   const hasVideo = nodes.some((node) => /Video|VHS|Wan/i.test(node.classType));
   const id = safeId(existing.id || fallbackName || "imported-workflow");
   return {
@@ -349,7 +433,12 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
     family: existing.family || "custom",
     controls,
     defaults: existing.defaults || {},
-    capabilities: existing.capabilities || {},
+    capabilities: {
+      ...(existing.capabilities || {}),
+      ...(controls.startImage ? { startImage: true, imageToImage: true } : {})
+    },
+    mediaInputs: Array.isArray(existing.mediaInputs) ? existing.mediaInputs : controls.startImage ? [{ id: "reference", kind: "image", label: "Reference image", required: false, min: 0, max: 1, control: controls.startImage }] : [],
+    promptComposition: existing.promptComposition || null,
     aspectRatios: existing.aspectRatios || existing.aspects || [],
     nodes: nodes.map((node) => ({
       id: node.id,

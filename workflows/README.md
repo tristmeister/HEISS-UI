@@ -31,6 +31,42 @@ Use ComfyUI's API workflow JSON format, then add a `jAiStudio` block that tells 
 
 Only mapped controls are changed by J AI Studio. Everything else stays exactly as it was in the exported ComfyUI API workflow.
 
+## Image-to-image inputs
+
+Declare image editing explicitly rather than relying only on a `LoadImage`
+node:
+
+```json
+{
+  "jAiStudio": {
+    "capabilities": { "imageToImage": true },
+    "mediaInputs": [{
+      "id": "reference",
+      "kind": "image",
+      "label": "Reference image",
+      "required": true,
+      "min": 1,
+      "max": 1,
+      "control": { "node": "369", "input": "image" }
+    }],
+    "promptComposition": {
+      "prefix": "Edit: ",
+      "suffix": "Keep everything else the same.",
+      "policy": "preserve-source-v1",
+      "version": 1
+    }
+  }
+}
+```
+
+The user prompt stays unchanged in gallery history. Prefix and suffix text are
+applied only to the graph input. Existing workflows with `controls.startImage`
+are automatically exposed as an optional single-image media input.
+
+Visual workflow imports prefer ComfyUI's `widgets_values_named` map when it is
+available. This avoids positional drift from UI-only widget values such as
+`control_after_generate` and upload controls.
+
 ## Power LoRA Loader
 
 An API workflow can opt in to J AI Studio's LoRA picker with an existing rgthree Power LoRA Loader:
@@ -49,3 +85,19 @@ An API workflow can opt in to J AI Studio's LoRA picker with an existing rgthree
 ```
 
 The referenced node must be `Power Lora Loader (rgthree)` and already have its model and CLIP wiring connected. J AI Studio replaces only its `lora_` inputs using the selected LoRAs, in sidebar order.
+
+The simpler rgthree stack used by the bundled Flux 2 edit workflow is also
+supported:
+
+```json
+{
+  "jAiStudio": {
+    "capabilities": { "lora": true },
+    "loraStack": {
+      "adapter": "rgthree-stack-v1",
+      "node": "374",
+      "max": 4
+    }
+  }
+}
+```

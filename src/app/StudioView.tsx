@@ -43,8 +43,9 @@ const SETTINGS_TABS = [
 ] as const;
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, refreshHealth, refreshModels, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
+  const { confirmAction, referenceAssets, referenceInputs } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
   const [settingsTab, setSettingsTab] = React.useState<string>("general");
   const [lanBusy, setLanBusy] = React.useState(false);
@@ -235,8 +236,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               setShowNegativePrompt={setShowNegativePrompt}
               canUseNegativePrompt={canUseNegativePrompt}
               runningCount={runningCount}
+              generateDisabled={Boolean(generateDisabled)}
+              generateDisabledReason={generateDisabledReason}
               generate={generate}
               refreshComfyStatus={refreshComfyStatus}
+              referenceInputs={referenceInputs}
+              referenceAssets={referenceAssets}
+              onReferenceSelect={selectReferenceAsset}
+              onReferenceRemove={removeReferenceAsset}
+              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "This removes the uploaded image from your reference library.", action: "Delete upload", destructive: true })}
+              onReferenceError={(message) => showToast(message, "error")}
             />
           </section>
           {zenGallery.length && zenGalleryOpen ? (
@@ -398,8 +407,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               setShowNegativePrompt={setShowNegativePrompt}
               canUseNegativePrompt={canUseNegativePrompt}
               runningCount={runningCount}
+              generateDisabled={Boolean(generateDisabled)}
+              generateDisabledReason={generateDisabledReason}
               generate={generate}
               refreshComfyStatus={refreshComfyStatus}
+              referenceInputs={referenceInputs}
+              referenceAssets={referenceAssets}
+              onReferenceSelect={selectReferenceAsset}
+              onReferenceRemove={removeReferenceAsset}
+              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "This removes the uploaded image from your reference library.", action: "Delete upload", destructive: true })}
+              onReferenceError={(message) => showToast(message, "error")}
             />
           </section>
         </>
@@ -879,8 +896,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       ) : null}
                       <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy All Settings</button></Tip>
                       <Tip content="Copy this output's LoRA stack into the generator"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Copy LoRAs</button></Tip>
-                      {canUseStartImage && active.type === "image" && active.url ? (
-                        <Tip content="Use this output as the next start image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as Start Image</button></Tip>
+                      {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? (
+                        <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as Reference</button></Tip>
                       ) : null}
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>
@@ -903,7 +920,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <Tip content="Zoom in (+)"><button className="icon-button" aria-label="Zoom in" onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
                   <span className="viewer-divider" />
                   <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => copyImageAndToast(active)}><Copy size={15} /></button></Tip>
-                  {canUseStartImage && active.type === "image" && active.url ? <Tip content="Use as start image"><button className="icon-button" aria-label="Use as start image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
+                  {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {active.url ? <Tip content="Download file"><a className="icon-button" aria-label="Download file" href={active.url} download><Download size={15} /></a></Tip> : null}
                   <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label="Delete from gallery" onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />

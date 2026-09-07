@@ -70,6 +70,21 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
   if (!workflowInfo) throw new Error("This model does not have a supported workflow.");
   if (!customWorkflow && !workflowIds().includes(workflow)) throw new Error("This model does not have a supported workflow.");
   if (kind !== workflowInfo.kind) throw new Error(`The selected model is not a ${kind} workflow.`);
+  const referenceAssets = Array.isArray(input.referenceAssets)
+    ? input.referenceAssets.slice(0, 8).map((item) => ({
+      slot: String(item?.slot || "reference").replace(/[^a-z0-9._-]/gi, "").slice(0, 80) || "reference",
+      assetId: String(item?.assetId || "").slice(0, 2048),
+      source: String(item?.source || "").slice(0, 40)
+    })).filter((item) => item.assetId)
+    : [];
+  for (const mediaInput of workflowInfo.mediaInputs || []) {
+    const supplied = referenceAssets.filter((item) => item.slot === mediaInput.id).length;
+    const legacySupplied = mediaInput.id === (workflowInfo.mediaInputs?.[0]?.id || "reference") && Boolean(input.startImage || input.startImageId);
+    if ((mediaInput.required || Number(mediaInput.min || 0) > 0) && supplied < Number(mediaInput.min || 1) && !legacySupplied) {
+      throw new Error(`${mediaInput.label || "Reference image"} is required for this workflow.`);
+    }
+    if (supplied > Number(mediaInput.max || 1)) throw new Error(`${mediaInput.label || "Reference image"} accepts at most ${mediaInput.max || 1} image.`);
+  }
   const missing = missingNodes(info, workflowInfo.requiredNodes);
   if (missing.length) throw new Error(`ComfyUI is missing required nodes for this model: ${missing.join(", ")}`);
   const profiles = inferModels(info, stats).profiles || [];
@@ -126,12 +141,17 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     sampler: String(input.sampler || ""),
     scheduler: String(input.scheduler || ""),
     seed: String(input.seed || ""),
-    count: snapInteger(input.count, countRange.default, countRange),
+    count: workflowInfo.capabilities?.variations === false ? 1 : snapInteger(input.count, countRange.default, countRange),
     frames: snapInteger(input.frames, frameRange.default, frameRange),
     fps: snapInteger(input.fps, fpsRange.default, fpsRange),
     startImage: String(input.startImage || ""),
     startImageId: String(input.startImageId || ""),
     startImageName: String(input.startImageName || ""),
+    referenceAssets,
+    promptPolicy: workflowInfo.promptComposition ? {
+      policy: workflowInfo.promptComposition.policy,
+      version: workflowInfo.promptComposition.version
+    } : null,
     loras
   };
 }

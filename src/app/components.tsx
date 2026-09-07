@@ -21,11 +21,13 @@ export function Field({ label, children }: { label: React.ReactNode; children: R
 function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl?: string }; muted?: boolean }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [useFullImage, setUseFullImage] = useState(false);
   const rafRef = useRef(0);
   useEffect(() => {
     setLoaded(false);
     setFailed(false);
-  }, [item.url]);
+    setUseFullImage(false);
+  }, [item.url, item.thumbnailUrl]);
   // Reveal on the next frame so the blurred/faded start state always paints
   // once before the "unblur" transition runs — even for cache-hot images.
   const reveal = () => {
@@ -35,7 +37,8 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
     });
   };
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
-  const source = muted && item.thumbnailUrl ? item.thumbnailUrl : item.url;
+  const isThumbnail = muted && Boolean(item.thumbnailUrl) && !useFullImage;
+  const source = isThumbnail ? item.thumbnailUrl : item.url;
   if (!source || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || "Output unavailable"}</span></div>;
   if (item.type === "video") {
     return (
@@ -49,7 +52,7 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
         preload="metadata"
         draggable={false}
         onLoadedData={reveal}
-        onError={() => setFailed(true)}
+        onError={() => isThumbnail ? setUseFullImage(true) : setFailed(true)}
       />
     );
   }
@@ -62,7 +65,7 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
       decoding="async"
       draggable={false}
       onLoad={reveal}
-      onError={() => setFailed(true)}
+      onError={() => isThumbnail ? setUseFullImage(true) : setFailed(true)}
       onDragStart={(event) => event.preventDefault()}
     />
   );

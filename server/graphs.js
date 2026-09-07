@@ -23,6 +23,15 @@ async function uploadBodyStartImage(body) {
   return dataUrl ? uploadReferenceImage(dataUrl) : "";
 }
 
+export function composeWorkflowPrompt(workflow, userPrompt = "") {
+  const composition = workflow?.promptComposition;
+  const prompt = String(userPrompt || "").trim();
+  if (!composition) return prompt;
+  const prefix = String(composition.prefix || "");
+  const suffix = String(composition.suffix || "").trim();
+  return `${prefix}${prompt}${suffix ? `\n\n${suffix}` : ""}`.trim();
+}
+
 export async function imageGraph(body) {
   if (body.workflow?.startsWith("custom:")) return customWorkflowGraph(body);
   if (body.workflow === "checkpoint-image") return checkpointImageGraph(body);
@@ -43,7 +52,7 @@ async function applyMappedInputs(graph, workflow, body) {
   const controls = workflow.controls || {};
   const defaults = workflow.defaults || {};
   const values = {
-    prompt: body.prompt || "",
+    prompt: composeWorkflowPrompt(workflow, body.prompt),
     negative: body.negative || "",
     model: body.modelName || defaults.model || "",
     textEncoder: body.textEncoder || defaults.textEncoder || "",
@@ -65,7 +74,15 @@ async function applyMappedInputs(graph, workflow, body) {
   for (const [key, value] of Object.entries(values)) {
     if (value !== "" && value !== undefined && value !== null) setMappedInput(graph, controls[key], value);
   }
-  if ((body.startImage || body.startImageId) && controls.startImage) {
+  let mappedReference = false;
+  for (const mediaInput of workflow.mediaInputs || []) {
+    const reference = (body.referenceAssets || []).find((item) => item?.slot === mediaInput.id);
+    if (reference?.comfyName && mediaInput.control) {
+      setMappedInput(graph, mediaInput.control, reference.comfyName);
+      mappedReference = true;
+    }
+  }
+  if (!mappedReference && (body.startImage || body.startImageId) && controls.startImage) {
     const imageName = await uploadBodyStartImage(body);
     if (imageName) setMappedInput(graph, controls.startImage, imageName);
   }
@@ -126,12 +143,32 @@ function applyPowerLoraStack(graph, body, config) {
   }
 }
 
+function applyRgthreeLoraStack(graph, body, config) {
+  if (!config || config.adapter !== "rgthree-stack-v1") return;
+  const node = graph[config.node];
+  if (node?.class_type !== "Lora Loader Stack (rgthree)") {
+    throw new Error("The configured rgthree LoRA Stack is missing from this workflow.");
+  }
+  const inputs = node.inputs ||= {};
+  for (let index = 1; index <= config.max; index += 1) {
+    const suffix = String(index).padStart(2, "0");
+    inputs[`lora_${suffix}`] = "None";
+    inputs[`strength_${suffix}`] = 1;
+  }
+  for (const [index, lora] of enabledLoras(body, config.max).entries()) {
+    const suffix = String(index + 1).padStart(2, "0");
+    inputs[`lora_${suffix}`] = lora.name;
+    inputs[`strength_${suffix}`] = Number(lora.strength ?? 0.7);
+  }
+}
+
 export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
   if (!workflow) throw new Error("Custom workflow is not installed.");
   const graph = cloneGraph(workflow.graph);
   await applyMappedInputs(graph, workflow, body);
-  applyPowerLoraStack(graph, body, workflow.loraStack);
+  if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);
+  else applyPowerLoraStack(graph, body, workflow.loraStack);
   return graph;
 }
 

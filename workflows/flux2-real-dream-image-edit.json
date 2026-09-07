@@ -1,0 +1,98 @@
+{
+  "jAiStudio": {
+    "id": "flux2-real-dream-image-edit",
+    "name": "Flux 2 Real Dream Image Edit",
+    "description": "Precise one-image edits with Flux 2 and Qwen image-edit conditioning.",
+    "kind": "image",
+    "family": "flux2-edit",
+    "controls": {
+      "prompt": { "node": "372", "input": "prompt" },
+      "startImage": { "node": "369", "input": "image" },
+      "model": { "node": "365", "input": "unet_name" },
+      "textEncoder": { "node": "360", "input": "clip_name" },
+      "clipType": { "node": "360", "input": "type" },
+      "weightDtype": { "node": "365", "input": "weight_dtype" },
+      "vae": { "node": "359", "input": "vae_name" },
+      "width": { "node": "366", "input": "width" },
+      "height": { "node": "366", "input": "height" },
+      "seed": { "node": "373", "input": "seed" },
+      "steps": { "node": "373", "input": "steps" },
+      "cfg": { "node": "373", "input": "cfg" },
+      "sampler": { "node": "373", "input": "sampler_name" },
+      "scheduler": { "node": "373", "input": "scheduler" },
+      "denoise": { "node": "373", "input": "denoise" }
+    },
+    "mediaInputs": [
+      {
+        "id": "reference",
+        "kind": "image",
+        "label": "Reference image",
+        "required": true,
+        "min": 1,
+        "max": 1,
+        "control": { "node": "369", "input": "image" }
+      }
+    ],
+    "promptComposition": {
+      "prefix": "Edit: ",
+      "suffix": "Keep the rest of the image exactly the same: composition, setting, lighting, mood, point of view, and camera. Do not alter the subject except where the requested edit requires it. Preserve all other existing details, including face, hair, skin, expression, eyes, body shape, body marks, and bruises.",
+      "policy": "preserve-source-v1",
+      "version": 1
+    },
+    "loraStack": {
+      "adapter": "rgthree-stack-v1",
+      "node": "374",
+      "max": 4
+    },
+    "capabilities": {
+      "imageToImage": true,
+      "startImage": true,
+      "startImageRequired": true,
+      "negativePrompt": false,
+      "variations": false,
+      "denoise": true,
+      "textEncoder": true,
+      "vae": true,
+      "clipType": true,
+      "weightDtype": true,
+      "lora": true
+    },
+    "defaults": {
+      "model": "real-dream-klein9b-1-fp8.safetensors",
+      "textEncoder": "qwen_3_8b_fp8mixed.safetensors",
+      "clipType": "flux2",
+      "weightDtype": "default",
+      "vae": "flux2-vae.safetensors",
+      "width": 1216,
+      "height": 1536,
+      "steps": 2,
+      "cfg": 1,
+      "sampler": "euler",
+      "scheduler": "simple",
+      "denoise": 1
+    },
+    "aspectRatios": [
+      ["19:24", 19, 24],
+      ["1:1", 1, 1],
+      ["4:3", 4, 3],
+      ["3:4", 3, 4],
+      ["16:9", 16, 9],
+      ["9:16", 9, 16]
+    ]
+  },
+  "357": { "class_type": "VAEDecode", "inputs": { "samples": ["373", 0], "vae": ["359", 0] } },
+  "358": { "class_type": "ConditioningZeroOut", "inputs": { "conditioning": ["372", 0] } },
+  "359": { "class_type": "VAELoader", "inputs": { "vae_name": "flux2-vae.safetensors" } },
+  "360": { "class_type": "CLIPLoader", "inputs": { "clip_name": "qwen_3_8b_fp8mixed.safetensors", "type": "flux2", "device": "default" } },
+  "361": { "class_type": "UpscaleModelLoader", "inputs": { "model_name": "4x-ClearRealityV1.pth" } },
+  "362": { "class_type": "FluxGuidance", "inputs": { "conditioning": ["372", 0], "guidance": 5 } },
+  "363": { "class_type": "VAEEncode", "inputs": { "pixels": ["366", 0], "vae": ["359", 0] } },
+  "364": { "class_type": "ImageUpscaleWithModel", "inputs": { "upscale_model": ["361", 0], "image": ["369", 0] } },
+  "365": { "class_type": "UNETLoader", "inputs": { "unet_name": "real-dream-klein9b-1-fp8.safetensors", "weight_dtype": "default" } },
+  "366": { "class_type": "Image Resize (rgthree)", "inputs": { "image": ["364", 0], "measurement": "pixels", "width": 1216, "height": 1536, "fit": "pad", "method": "nearest-exact" } },
+  "369": { "class_type": "LoadImage", "inputs": { "image": "example.png" } },
+  "372": { "class_type": "TextEncodeQwenImageEditPlus", "inputs": { "clip": ["374", 1], "vae": ["359", 0], "image1": ["366", 0], "prompt": "" } },
+  "373": { "class_type": "KSampler", "inputs": { "model": ["374", 0], "positive": ["362", 0], "negative": ["358", 0], "latent_image": ["363", 0], "seed": 173141862397738, "steps": 2, "cfg": 1, "sampler_name": "euler", "scheduler": "simple", "denoise": 1 } },
+  "374": { "class_type": "Lora Loader Stack (rgthree)", "inputs": { "model": ["365", 0], "clip": ["360", 0], "lora_01": "None", "strength_01": 1.3, "lora_02": "None", "strength_02": 0.65, "lora_03": "None", "strength_03": 1, "lora_04": "None", "strength_04": 1 } },
+  "375": { "class_type": "SaveImage", "inputs": { "images": ["357", 0], "filename_prefix": "Flux2_dev" } }
+}

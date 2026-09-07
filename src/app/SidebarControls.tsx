@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, GalleryHorizontalEnd, Minus, Pencil, Plus, Save, Search, Trash2, Wand2 } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
-import { defaultLoraStrength, maxLoras, rankedLoras, recommendedLoras } from './loras';
+import { defaultLoraStrength, loraGroups, maxLoras, rankedLoras, recommendedLoras } from './loras';
 import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import type { LoraSelection, Profile, WorkflowSummary } from './types';
 import type { LoraSnapshot } from './lora-storage';
@@ -34,7 +34,8 @@ function LoraSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recommended = useMemo(() => recommendedLoras(options, profile, query).slice(0, 8), [options, profile, query]);
-  const ranked = useMemo(() => rankedLoras(options, profile, query).slice(0, 24), [options, profile, query]);
+  const groups = useMemo(() => loraGroups(options, profile, query), [options, profile, query]);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -52,6 +53,15 @@ function LoraSelect({
     onChange(name);
     setQuery("");
     setOpen(false);
+  };
+
+  const toggleGroup = (id: string) => {
+    setCollapsedGroups((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const displayName = (name: string) => {
@@ -81,15 +91,28 @@ function LoraSelect({
                 ))}
               </div>
             ) : null}
-            <div className="lora-select-group">
-              <span>All</span>
-              {ranked.map((name) => (
-                <button key={`a-${name}`} type="button" className={cn(name === value && "active")} onClick={() => choose(name)}>
-                  {displayName(name)}
-                </button>
-              ))}
-              {!ranked.length ? <div className="lora-select-empty">No LoRAs match "{query}"</div> : null}
-            </div>
+            {groups.map((group) => {
+              const collapsed = collapsedGroups.has(group.id);
+              return (
+                <div className="lora-select-group" key={group.id}>
+                  <button
+                    type="button"
+                    className="lora-select-group-heading"
+                    onClick={() => toggleGroup(group.id)}
+                    aria-expanded={!collapsed}
+                  >
+                    <span>{group.label}</span>
+                    <ChevronDown size={12} className={cn(collapsed && "is-collapsed")} />
+                  </button>
+                  {!collapsed ? group.loras.map((name) => (
+                    <button key={`a-${name}`} type="button" className={cn("lora-select-option", name === value && "active")} onClick={() => choose(name)}>
+                      {displayName(name)}
+                    </button>
+                  )) : null}
+                </div>
+              );
+            })}
+            {!groups.length ? <div className="lora-select-empty">No LoRAs match "{query}"</div> : null}
           </div>
         </div>
       ) : null}
@@ -264,17 +287,8 @@ export function SidebarControls({ view }: { view: any }) {
               {currentProfile?.capabilities.weightDtype ? <Field label="Weight dtype"><Select value={weightDtype} onChange={setWeightDtype} options={profileOptions.weightDtypes || models?.weightDtypes || []} /></Field> : null}
               <NumberPicker label="CFG" value={cfg} onChange={setCfg} min={cfgMeta.min ?? 0} max={cfgMeta.max ?? 30} step={cfgMeta.step || 0.5} precision={1} fill />
             </div>
-            {canUseStartImage ? (
-              <Field label="Start image">
-                <label className="file-pick">
-                  <input type="file" accept="image/*" onChange={(event) => readStartImage(event.target.files?.[0])} />
-                  <span>{startImageName || "Choose image"}</span>
-                  {startImageName ? <Tip content="Clear start image"><button type="button" onClick={async (event) => { event.preventDefault(); if (await confirmAction({ title: "Clear start image?", description: "Remove the selected image from this generation’s inputs.", action: "Clear image" })) { setStartImage(""); setStartImageId(""); setStartImageName(""); } }}>Clear</button></Tip> : null}
-                </label>
-                {currentProfile?.capabilities.denoise ? (
-                  <NumberPicker label="Denoise" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
-                ) : null}
-              </Field>
+            {canUseStartImage && currentProfile?.capabilities.denoise ? (
+              <NumberPicker label="Denoise" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
             ) : null}
           </>
         ) : null}

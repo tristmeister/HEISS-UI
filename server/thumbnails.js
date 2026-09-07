@@ -18,23 +18,21 @@ function cacheKey(filename, subfolder, type) {
   return crypto.createHash("sha1").update(`${type}:${subfolder}:${filename}:${longestEdge}:${quality}`).digest("hex");
 }
 
-function cachePath(key, etag) {
-  const etagPart = crypto.createHash("sha1").update(etag || "").digest("hex").slice(0, 16);
-  return path.join(thumbnailDir, `${key}-${etagPart}.webp`);
+function cachePath(key, sourceHash) {
+  return path.join(thumbnailDir, `${key}-${sourceHash}.webp`);
 }
 
 async function build(filename, subfolder, type) {
   const params = new URLSearchParams({ filename, subfolder, type });
-  const head = await fetch(`${comfyUrl}/view?${params}`, { method: "HEAD" });
-  if (!head.ok) return null;
-  const etag = head.headers.get("etag") || "";
-  const key = cacheKey(filename, subfolder, type);
-  const file = cachePath(key, etag);
-  if (fs.existsSync(file)) return { file, etag };
-
+  // ComfyUI installations do not consistently provide a useful ETag, and a
+  // reused filename can therefore otherwise receive an unrelated old preview.
   const response = await fetch(`${comfyUrl}/view?${params}`);
   if (!response.ok) return null;
   const source = Buffer.from(await response.arrayBuffer());
+  const sourceHash = crypto.createHash("sha256").update(source).digest("hex");
+  const key = cacheKey(filename, subfolder, type);
+  const file = cachePath(key, sourceHash);
+  if (fs.existsSync(file)) return { file, etag: `\"${sourceHash}\"` };
   const resized = await sharp(source)
     .resize({ width: longestEdge, height: longestEdge, fit: "inside", withoutEnlargement: true })
     .webp({ quality })
@@ -50,7 +48,7 @@ async function build(filename, subfolder, type) {
       fs.unlink(path.join(thumbnailDir, entry), () => {});
     }
   }
-  return { file, etag };
+  return { file, etag: `\"${sourceHash}\"` };
 }
 
 // Concurrent requests for the same not-yet-cached image share one build instead of

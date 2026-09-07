@@ -22,19 +22,22 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   const lastPending = useRef(item);
   const [resolved, setResolved] = useState(false);
   const [loadedSource, setLoadedSource] = useState('');
+  const [useFullImage, setUseFullImage] = useState(false);
   const pending = item.status === 'pending';
   const advanced = mode === 'advanced' && !reducedMotion;
   useEffect(() => {
     if (pending || resolved || !advanced || item.status !== 'done') lastPending.current = item;
   }, [item, pending, resolved, advanced]);
   const resolving = item.status === 'done' && item.type === 'image' && beganPending.current && advanced && !resolved;
-  const source = (muted && item.thumbnailUrl) || item.url;
+  useEffect(() => setUseFullImage(false), [item.url, item.thumbnailUrl]);
+  const isThumbnail = muted && Boolean(item.thumbnailUrl) && !useFullImage;
+  const source = isThumbnail ? item.thumbnailUrl! : item.url;
   const previewItem = pending ? item : lastPending.current;
   return (
     <div className={`generation-surface${pending ? ' is-pending' : ''}${resolving ? ' is-resolving' : ''}`}>
       {item.status === 'done' && item.type === 'image' ? (
         <img src={source} alt={item.filename} draggable={false} className="generation-result"
-          onLoad={() => setLoadedSource(source)} onError={() => setResolved(true)} />
+          onLoad={() => setLoadedSource(source)} onError={() => isThumbnail ? setUseFullImage(true) : setResolved(true)} />
       ) : !pending ? <Media item={item} muted={muted} /> : null}
       {pending || resolving ? <GenerationPreview preview={previewItem.preview} fit={fit} aspectRatio={(item.width || 1) / (item.height || 1)}
         finalSource={resolving && loadedSource === source ? source : undefined}

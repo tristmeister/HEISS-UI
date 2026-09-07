@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataDir, gallery } from './gallery-store.js';
-import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph } from './custom-workflows.js';
+import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph, workflowOptionIssues } from './custom-workflows.js';
 
 const preferencesPath = path.join(dataDir, "workflow-preferences.json");
 let preferencesCache = null;
@@ -75,12 +75,21 @@ function validateWorkflow(workflow, info = {}, profile = null) {
   }
   if (workflow.loraStack) {
     const node = workflow.graph?.[workflow.loraStack.node];
-    if (!node) issues.push(`Configured Power LoRA Loader node is missing: ${workflow.loraStack.node}`);
-    else if (node.class_type !== "Power Lora Loader (rgthree)") issues.push(`Configured LoRA node is not a Power LoRA Loader: ${workflow.loraStack.node}`);
+    const expected = workflow.loraStack.adapter === "rgthree-stack-v1" ? "Lora Loader Stack (rgthree)" : "Power Lora Loader (rgthree)";
+    if (!node) issues.push(`Configured LoRA loader node is missing: ${workflow.loraStack.node}`);
+    else if (node.class_type !== expected) issues.push(`Configured LoRA node must be ${expected}: ${workflow.loraStack.node}`);
+  }
+  for (const mediaInput of workflow.mediaInputs || []) {
+    const mapping = mediaInput.control;
+    const node = mapping?.node ? workflow.graph?.[mapping.node] : null;
+    if (!mapping?.node || !mapping?.input) issues.push(`Media input ${mediaInput.id} does not have a graph mapping.`);
+    else if (!node) issues.push(`Mapped media input node is missing: ${mapping.node}`);
+    else if (!(mapping.input in (node.inputs || {}))) issues.push(`Mapped media input is missing: ${mapping.node}.${mapping.input}`);
   }
   for (const classType of workflow.requiredNodes || []) {
     if (classType && !info[classType]) issues.push(`Missing node class: ${classType}`);
   }
+  issues.push(...workflowOptionIssues(workflow, info));
   const graph = workflow.graph || {};
   for (const [key, mapping] of Object.entries(workflow.controls || {})) {
     if (!mapping?.node || !mapping?.input) continue;
@@ -115,6 +124,7 @@ function automaticTags(item, prefs) {
   if (prefs.lastUsed[item.id]) tags.push("Recent");
   tags.push(item.source === "builtin" ? "Built-in" : "Custom");
   tags.push(item.kind === "video" ? "Video" : "Image");
+  if (item.capabilities?.imageToImage) tags.push("Image edit");
   tags.push(item.validation.ok ? "Ready" : "Broken");
   if (item.family) tags.push(item.family);
   return [...new Set(tags)];
@@ -142,6 +152,7 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       deleteId: custom?.id || (isCustom ? profile.id.replace(/^custom:/, "") : ""),
       controls: [],
       capabilities: profile.capabilities || {},
+      mediaInputs: profile.mediaInputs || custom?.mediaInputs || [],
       defaults: profile.defaults || {},
       path: custom?.path || "",
       favorite: preferences.favorites.includes(id),
@@ -169,6 +180,7 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       deleteId: workflow.source === "bundled" ? "" : workflow.id,
       controls: controlsList(workflow.controls),
       capabilities: workflow.capabilities || {},
+      mediaInputs: workflow.mediaInputs || [],
       defaults: workflow.defaults || {},
       path: workflow.path || "",
       favorite: preferences.favorites.includes(workflow.profileId),
@@ -205,7 +217,7 @@ export function previewWorkflowImport(raw, filename = "", info = {}) {
     controls: detected.controls,
     requiredNodes: [...new Set(Object.values(graph || {}).map((node) => node?.class_type).filter(Boolean))],
     capabilities: detected.capabilities
-  }, {}, null);
+  }, info, null);
   return {
     filename,
     graph,

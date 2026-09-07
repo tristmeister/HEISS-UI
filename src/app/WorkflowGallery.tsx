@@ -21,6 +21,7 @@ const controlLabels: Record<string, string> = {
   sampler: "Sampler",
   scheduler: "Scheduler",
   denoise: "Denoise",
+  startImage: "Reference image",
   frames: "Frames",
   fps: "FPS"
 };
@@ -213,7 +214,12 @@ export function WorkflowGallery({ view }: { view: any }) {
         const controls = { ...item.metadata.controls };
         if (node && input) controls[key] = { node, input };
         else delete controls[key];
-        return { ...item.metadata, controls };
+        const mediaInputs = key === "startImage"
+          ? node && input
+            ? [{ ...(item.metadata.mediaInputs?.[0] || { id: "reference", kind: "image" as const, label: "Reference image", required: false, min: 0, max: 1 }), control: { node, input } }, ...(item.metadata.mediaInputs || []).slice(1)]
+            : []
+          : item.metadata.mediaInputs;
+        return { ...item.metadata, controls, mediaInputs };
       })()
     } : item));
   };

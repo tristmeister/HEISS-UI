@@ -47,6 +47,25 @@ body {
 .workflow-mobile-back { display: none; }
 
 @media (max-width: 760px) {
+  .reference-media-dialog {
+    width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)));
+    height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
+    border-radius: 24px;
+  }
+  .reference-media-head { min-height: 70px; padding: 11px 10px 11px 16px; }
+  .reference-media-head p { display: none; }
+  .reference-upload-button { width: 44px; padding: 0; }
+  .reference-upload-button span { display: none; }
+  .reference-media-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .reference-media-tabs { flex-direction: row; gap: 4px; padding: 8px; overflow-x: auto; box-shadow: inset 0 -1px rgb(255 255 255 / .07); }
+  .reference-media-tabs button { min-width: max-content; min-height: 44px; padding: 0 13px; border-radius: 14px; }
+  .reference-media-tabs .reference-mobile-upload { display: none; }
+  .reference-media-panel { padding: 12px; }
+  .reference-media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .reference-media-tile { border-radius: 14px; }
+  .reference-media-tile-name { display: none; }
+  .reference-media-delete { opacity: 1; }
+
   .modal-scrim {
     padding:
       max(6px, env(safe-area-inset-top))
@@ -225,6 +244,11 @@ body {
 }
 
 @media (max-width: 480px) {
+  .composer-reference-selected { grid-template-columns: minmax(0, 1fr) 40px; }
+  .composer-reference-change { display: none; }
+  .reference-media-head h2 { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
+  .reference-media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
   .studio-nav-actions { gap: 1px; padding: 3px; }
   .studio-nav-actions .queue-button { max-width: 88px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .stage-gallery {

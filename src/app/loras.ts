@@ -3,6 +3,12 @@ import type { LoraSelection, Profile } from './types';
 export const maxLoras = 8;
 export const defaultLoraStrength = 0.7;
 
+export type LoraGroup = {
+  id: string;
+  label: string;
+  loras: string[];
+};
+
 export function normalizeLoras(value: unknown): LoraSelection[] {
   if (!Array.isArray(value)) return [];
   return value.slice(0, maxLoras).map((item) => ({
@@ -56,7 +62,35 @@ export function rankedLoras(options: string[] = [], profile: Profile | null, que
   });
 }
 
+function folderName(name: string) {
+  const parts = name.split(/[\\/]/).filter(Boolean);
+  return parts.length > 1 ? parts[parts.length - 2] : null;
+}
+
+function folderLabel(folder: string) {
+  return folder.replace(/[-_]+/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+}
+
+/** Groups LoRAs by their immediate ComfyUI subfolder; root-level files stay in All. */
+export function loraGroups(options: string[] = [], profile: Profile | null, query = ""): LoraGroup[] {
+  const groups = new Map<string, string[]>();
+  for (const name of rankedLoras(options, profile, query)) {
+    const folder = folderName(name);
+    const id = folder ? `folder:${folder}` : "root";
+    const existing = groups.get(id) || [];
+    existing.push(name);
+    groups.set(id, existing);
+  }
+
+  return [...groups.entries()]
+    .map(([id, loras]) => ({
+      id,
+      label: id === "root" ? "All" : folderLabel(id.slice("folder:".length)),
+      loras
+    }))
+    .sort((a, b) => (a.id === "root" ? 1 : b.id === "root" ? -1 : a.label.localeCompare(b.label)));
+}
+
 export function recommendedLoras(options: string[] = [], profile: Profile | null, query = "") {
   return rankedLoras(options, profile, query).filter((name) => loraScore(name, profile) > 0);
 }
-

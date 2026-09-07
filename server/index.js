@@ -21,6 +21,7 @@ import { clearUnlockCookie, encryptionKeyFromRequest, isPrivacyEnabled, privacyS
 import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, exportVaultBackup, readVaultAsset, setVaultBundleCover, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultGalleryItemsForRequest, vaultStatusFor } from './vault.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
+import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -529,6 +530,62 @@ app.post("/api/start-image", (req, res) => {
   }
 });
 
+app.get("/api/reference-assets", (req, res) => {
+  try {
+    res.json(listReferenceAssets(req, {
+      source: req.query.source === "generation" ? "generation" : "upload",
+      cursor: String(req.query.cursor || ""),
+      limit: Number(req.query.limit || 60)
+    }));
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/reference-assets/upload", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    const upload = await readMultipartImage(req);
+    const asset = await saveUploadedReference(upload);
+    res.status(201).json({ ok: true, asset });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/reference-assets/from-gallery", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    const asset = referenceAssetFromGallery(req, String(req.body?.galleryItemId || ""));
+    res.json({ ok: true, asset });
+  } catch (error) {
+    res.status(404).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/reference-assets/:id/media", (req, res) => {
+  const asset = readUploadedReference(req.params.id, "media");
+  if (!asset) return res.status(404).json({ ok: false, error: "Reference image was not found." });
+  res.type(asset.mime).setHeader("Cache-Control", "private, max-age=3600");
+  res.sendFile(asset.file);
+});
+
+app.get("/api/reference-assets/:id/thumbnail", (req, res) => {
+  const asset = readUploadedReference(req.params.id, "thumbnail");
+  if (!asset) return res.status(404).json({ ok: false, error: "Reference thumbnail was not found." });
+  res.type(asset.mime).setHeader("Cache-Control", "private, max-age=86400");
+  res.sendFile(asset.file);
+});
+
+app.delete("/api/reference-assets/:id", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    res.json(deleteUploadedReference(req.params.id));
+  } catch (error) {
+    res.status(404).json({ ok: false, error: error.message });
+  }
+});
+
 app.post("/api/generate", async (req, res) => {
   const requestKey = encryptionKeyFromRequest(req);
   if (isPrivacyEnabled() && !requestKey) {
@@ -565,6 +622,16 @@ app.post("/api/generate", async (req, res) => {
     };
   }
   body.privateVault = Boolean(req.body?.privateVault);
+  if (!isMockJob && body.referenceAssets?.length) {
+    try {
+      body.referenceAssets = await stageReferenceAssets(req, body.referenceAssets);
+      body.startImageId ||= body.referenceAssets[0]?.assetId || "";
+      body.startImageName ||= body.referenceAssets[0]?.name || "";
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message });
+      return;
+    }
+  }
   if (body.privateVault && !isPrivacyEnabled()) {
     res.status(400).json({ ok: false, error: "Create a privacy password before using Private Vault." });
     return;
@@ -760,7 +827,9 @@ app.get("/comfy/thumb", async (req, res) => {
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
-    res.setHeader("Cache-Control", "private, max-age=31536000, immutable");
+    // This URL identifies an output filename, not immutable image bytes. Its
+    // ETag is a source-content hash, so revalidation safely handles reuse.
+    res.setHeader("Cache-Control", "private, no-cache");
     res.type("image/webp");
     await pipeline(fs.createReadStream(thumbnail.file), res);
   } catch (error) {

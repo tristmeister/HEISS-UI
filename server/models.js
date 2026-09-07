@@ -1,6 +1,6 @@
 import { missingNodes, nodeRange, optionsFor, textRange } from './comfy.js';
 import { workflowFor } from './workflow-registry.js';
-import { loadCustomWorkflows } from './custom-workflows.js';
+import { loadCustomWorkflows, workflowOptionIssues } from './custom-workflows.js';
 
 export function modelBasename(name = "") {
   return String(name).split(/[\\/]/).pop() || name;
@@ -88,7 +88,7 @@ function customAspectSet(defaults, ratios = [], ranges = {}) {
   }).length ? aspectSet(defaults, ratios.map((item) => Array.isArray(item) ? item : [item.label || item.value || "Custom", Number(item.w || 1), Number(item.h || 1)]), ranges) : [];
 }
 
-export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {} }) {
+export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [] }) {
   return {
     id,
     kind,
@@ -102,6 +102,7 @@ export function buildProfile({ id, kind, label, displayName, description, model,
     aspectPresets: aspects,
     options,
     constraints,
+    mediaInputs,
     capabilities: {
       prompt: true,
       negativePrompt: kind === "image",
@@ -281,7 +282,7 @@ export function inferModels(info, stats = {}) {
 
   for (const workflow of loadCustomWorkflows()) {
     const missing = missingNodes(info, workflow.requiredNodes);
-    if (missing.length) continue;
+    if (missing.length || workflowOptionIssues(workflow, info).length) continue;
     const defaults = workflow.defaults || {};
     const controls = workflow.controls || {};
     const widthRange = controls.width ? nodeRange(info, workflow.graph?.[controls.width.node]?.class_type, controls.width.input, { default: Number(defaults.width || 1024), min: 16, max: 16384, step: 8 }) : {};
@@ -321,7 +322,8 @@ export function inferModels(info, stats = {}) {
       aspects: customAspectSet({ width: detectedDefault(widthRange, Number(defaults.width || 1024)), height: detectedDefault(heightRange, Number(defaults.height || 1024)) }, workflow.aspectRatios, { width: widthRange, height: heightRange }),
       options: { textEncoders: clips, vaes, clipTypes, weightDtypes, samplers, schedulers },
       constraints: { prompt: textMeta, negative: textMeta, width: widthRange, height: heightRange, count: countRange, frames: frameRange, fps: fpsRange, ...samplerRange },
-      capabilities: workflow.capabilities
+      capabilities: workflow.capabilities,
+      mediaInputs: workflow.mediaInputs || []
     }));
   }
 

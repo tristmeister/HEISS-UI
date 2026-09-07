@@ -13,10 +13,10 @@ function payloadItems(data: GalleryPayload | null | undefined) {
 export function useGenerationActions(view: any) {
   const {
     active, canUseStartImage, confirmAction, count, currentProfile, denoise,
-    frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, mode,
+    frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, privateGeneration, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    textEncoder, vae, clipType, weightDtype, width
+    referenceAssets, textEncoder, vae, clipType, weightDtype, width
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -42,9 +42,9 @@ export function useGenerationActions(view: any) {
       width: Number(body.width || 0),
       height: Number(body.height || 0),
       model: body.model || "",
-      referenceImage: body.startImageId || "",
+      referenceImage: body.referenceAssets?.[0]?.assetId || body.startImageId || "",
       referenceImageName: body.startImageName || "",
-      startImageId: body.startImageId || "",
+      startImageId: body.referenceAssets?.[0]?.assetId || body.startImageId || "",
       settings: { workflow: body.workflow || "", profileId: body.profileId || "", count: itemCount }
     }));
   }
@@ -63,6 +63,10 @@ export function useGenerationActions(view: any) {
       showToast("Choose a supported model first", "error");
       return;
     }
+    if (missingRequiredReference) {
+      showToast("Add the required reference image", "error");
+      return;
+    }
     if (generateDisabled) {
       showToast("Model setup is missing required files", "error");
       return;
@@ -70,12 +74,13 @@ export function useGenerationActions(view: any) {
     generatePostingRef.current = true;
     const optimisticJobIds: string[] = [];
     try {
-      const imageRuns = mode === "image" && prefs.variationQueueMode === "separate" ? count : 1;
-      const requestCount = mode === "image" && prefs.variationQueueMode === "separate" ? 1 : count;
+      const effectiveCount = mode === "image" && currentProfile?.capabilities?.variations === false ? 1 : count;
+      const imageRuns = mode === "image" && prefs.variationQueueMode === "separate" ? effectiveCount : 1;
+      const requestCount = mode === "image" && prefs.variationQueueMode === "separate" ? 1 : effectiveCount;
       const startMessage = mode === "image"
-        ? prefs.variationQueueMode === "separate" && count > 1
-          ? `Started ${count} separate generations`
-          : `Started ${count} image${count === 1 ? "" : "s"}`
+        ? prefs.variationQueueMode === "separate" && effectiveCount > 1
+          ? `Started ${effectiveCount} separate generations`
+          : `Started ${effectiveCount} image${effectiveCount === 1 ? "" : "s"}`
         : "Started video";
       setStatus(startMessage);
 
@@ -98,10 +103,11 @@ export function useGenerationActions(view: any) {
         sampler,
         scheduler,
         seed,
-        count,
+        count: effectiveCount,
         frames,
         fps,
         loras,
+        referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
         privateVault: Boolean(privateGeneration)

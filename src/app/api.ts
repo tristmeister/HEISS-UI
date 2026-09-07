@@ -1,4 +1,4 @@
-import type { GalleryItem, Preferences } from './types';
+import type { GalleryItem, Preferences, ReferenceAsset } from './types';
 import { defaultPrefs } from './constants';
 import { fullGenerationText } from './format';
 
@@ -48,6 +48,48 @@ export async function apiJson<T>(url: string, options?: RequestInit): Promise<T>
     throw new Error(message);
   }
   return data as T;
+}
+
+export type ReferenceAssetPage = { items: ReferenceAsset[]; nextCursor?: string; hasMore?: boolean };
+
+export function listReferenceAssets(source: "upload" | "generation", cursor = "", limit = 30, signal?: AbortSignal) {
+  const search = new URLSearchParams({ source, limit: String(limit) });
+  if (cursor) search.set("cursor", cursor);
+  return apiJson<ReferenceAssetPage>(`/api/reference-assets?${search}`, { signal });
+}
+
+export function uploadReferenceAsset(file: File, onProgress?: (progress: number) => void) {
+  return new Promise<ReferenceAsset>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    const form = new FormData();
+    form.append("image", file);
+    request.open("POST", "/api/reference-assets/upload");
+    request.responseType = "json";
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    });
+    request.addEventListener("load", () => {
+      const data = request.response || {};
+      if (request.status >= 200 && request.status < 300 && data.asset) resolve(data.asset as ReferenceAsset);
+      else reject(new Error(typeof data.error === "string" ? data.error : request.statusText || "Upload failed"));
+    });
+    request.addEventListener("error", () => reject(new Error("Upload failed")));
+    request.addEventListener("abort", () => reject(new Error("Upload canceled")));
+    request.send(form);
+  });
+}
+
+export async function referenceAssetFromGallery(galleryItemId: string) {
+  const data = await apiJson<{ asset: ReferenceAsset }>("/api/reference-assets/from-gallery", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ galleryItemId })
+  });
+  return data.asset;
+}
+
+export function deleteReferenceAsset(assetId: string) {
+  return apiJson<{ ok?: boolean }>(`/api/reference-assets/${encodeURIComponent(assetId)}`, { method: "DELETE" });
 }
 
 const prefsMigrationKey = "j-ai-studio-prefs-migrated";
