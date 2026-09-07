@@ -50,24 +50,36 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [install, setInstall] = useState<UpscaleInstall>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const [reason, setReason] = useState("");
+  const [setupOpen, setSetupOpen] = useState(false);
   const installingRef = useRef(false);
+  // Callers need the reason in the same tick they call refreshStatus.
+  const reasonRef = useRef("");
+
+  const failStatus = useCallback((message: string) => {
+    setStatus(null);
+    reasonRef.current = message;
+    setReason(message);
+    return null;
+  }, []);
 
   const refreshStatus = useCallback(async (quality = prefs.upscaleQuality) => {
     try {
       const next = await apiJson<UpscaleStatus>(`/api/upscale/status?quality=${encodeURIComponent(quality)}`);
       // An older server answers this route with the SPA shell, not a status.
       if (typeof next?.nodesInstalled !== "boolean") {
-        setStatus(null);
-        return null;
+        return failStatus("Smart upscale needs a J AI Studio restart before it can load.");
       }
       setStatus(next);
       setInstall(next.install);
+      reasonRef.current = "";
+      setReason("");
       return next;
-    } catch {
-      setStatus(null);
-      return null;
+    } catch (error) {
+      // The server says why - ComfyUI offline is only one of the reasons.
+      return failStatus(error instanceof Error && error.message ? error.message : "Smart upscale is unavailable right now.");
     }
-  }, [prefs.upscaleQuality]);
+  }, [failStatus, prefs.upscaleQuality]);
 
   useEffect(() => {
     if (!prefs.smartUpscale) return;
@@ -93,11 +105,11 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
   const ensureModels = useCallback(async (quality: string) => {
     const current = await refreshStatus(quality as Preferences["upscaleQuality"]);
     if (!current) {
-      showToast("ComfyUI is offline, so smart upscale is unavailable", "error");
+      showToast(reasonRef.current || "Smart upscale is unavailable right now", "error");
       return false;
     }
     if (!current.nodesInstalled) {
-      showToast(`ComfyUI is missing the SeedVR2 nodes: ${(current.missingNodes || []).join(", ")}`, "error");
+      setSetupOpen(true);
       return false;
     }
     if (current.ready) return true;
@@ -194,6 +206,9 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
 
   return {
     upscaleStatus: status,
+    upscaleUnavailableReason: reason,
+    upscaleSetupOpen: setupOpen,
+    setUpscaleSetupOpen: setSetupOpen,
     upscaleInstall: install,
     upscaleBusyIds: busyIds,
     refreshUpscaleStatus: refreshStatus,

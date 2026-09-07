@@ -267,8 +267,10 @@ body {
 
   .tile:hover { transform: none; box-shadow: none; }
   .tile-hover-actions { top: 5px; right: 5px; gap: 4px; }
+  .tile-upscale { top: 5px; left: 5px; }
   .tile-hover-actions .tile-icon,
-  .tile-hover-actions .tile-delete {
+  .tile-hover-actions .tile-delete,
+  .tile-upscale {
     width: 34px;
     height: 34px;
     border-radius: 10px;

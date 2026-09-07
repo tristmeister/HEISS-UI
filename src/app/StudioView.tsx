@@ -56,7 +56,7 @@ function formatInstallBytes(bytes = 0) {
 }
 
 /** Says exactly what is missing, what is downloading, and what to do next. */
-function UpscaleReadiness({ status, install, onRefresh, onCancel }: { status: any; install: any; onRefresh: () => void; onCancel: () => void }) {
+function UpscaleReadiness({ status, reason, install, onRefresh, onCancel, onSetup }: { status: any; reason?: string; install: any; onRefresh: () => void; onCancel: () => void; onSetup: () => void }) {
   if (install?.status === "running") {
     const ratio = install.totalBytes ? Math.min(1, install.receivedBytes / install.totalBytes) : 0;
     return (
@@ -81,9 +81,24 @@ function UpscaleReadiness({ status, install, onRefresh, onCancel }: { status: an
       </div>
     );
   }
-  if (!status || typeof status.nodesInstalled !== "boolean") return <p className="field-meta">ComfyUI is offline, so smart upscale is unavailable.</p>;
+  if (!status || typeof status.nodesInstalled !== "boolean") {
+    return (
+      <div className="upscale-install">
+        <p className="field-meta">{reason || "Smart upscale is unavailable right now."}</p>
+        <div className="setting-actions"><button onClick={() => onRefresh()}>Re-check</button></div>
+      </div>
+    );
+  }
   if (!status.nodesInstalled) {
-    return <p className="field-meta is-error">ComfyUI is missing the SeedVR2 nodes: {(status.missingNodes || []).join(", ")}. Install the SeedVR2 VideoUpscaler custom nodes, then re-check.</p>;
+    return (
+      <div className="upscale-install">
+        <p className="field-meta">ComfyUI does not have the SeedVR2 nodes installed yet.</p>
+        <div className="setting-actions">
+          <button onClick={onSetup}>How to install</button>
+          <button onClick={() => onRefresh()}>Re-check</button>
+        </div>
+      </div>
+    );
   }
   if (status.needsDownload) {
     return <p className="field-meta">The first upscale at this effort asks to download {(status.models || []).filter((model: any) => !model.present).map((model: any) => model.label).join(" and ")} into {status.modelDir || "the ComfyUI models folder"}.</p>;
@@ -95,7 +110,7 @@ function UpscaleReadiness({ status, install, onRefresh, onCancel }: { status: an
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs, upscaleStatus, upscaleInstall, upscaleBusyIds, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs, upscaleStatus, upscaleUnavailableReason, setUpscaleSetupOpen, upscaleInstall, upscaleBusyIds, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
@@ -617,7 +632,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                               />
                             </label>
                           </div>
-                          <UpscaleReadiness status={upscaleStatus} install={upscaleInstall} onRefresh={refreshUpscaleStatus} onCancel={cancelUpscaleInstall} />
+                          <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onRefresh={refreshUpscaleStatus} onCancel={cancelUpscaleInstall} onSetup={() => setUpscaleSetupOpen(true)} />
                         </>
                       ) : null}
                     </section>

@@ -96,3 +96,104 @@
   .confirmation-dialog { padding: 22px; }
 }
 @media (prefers-reduced-motion: reduce) { .confirmation-overlay, .confirmation-dialog { animation: none; } }
+
+/* Smart upscale setup: full-bleed hero, rounded at the top, flat where content begins. */
+.upscale-setup-dialog {
+  position: fixed; z-index: 201;
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  border-radius: var(--brand-radius-card);
+  background: var(--brand-surface-raised);
+  color: hsl(var(--foreground));
+  border: 1px solid var(--brand-border);
+  box-shadow: var(--shadow-float);
+  outline: none;
+  animation: confirmation-fade 140ms ease-out;
+  font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+}
+.upscale-setup-hero {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1082 / 526;
+  object-fit: cover;
+  border-radius: calc(var(--brand-radius-card) - 1px) calc(var(--brand-radius-card) - 1px) 0 0;
+  box-shadow: inset 0 -1px 0 var(--brand-border);
+}
+.upscale-setup-close {
+  position: absolute; top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 9px;
+  background: rgb(0 0 0 / 0.42);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  color: #fff;
+  cursor: pointer;
+  transition: background 140ms var(--ease-out), border-color 140ms var(--ease-out);
+}
+.upscale-setup-close:hover { background: rgb(0 0 0 / 0.62); border-color: rgb(255 255 255 / 0.24); }
+.upscale-setup-body { padding: 22px 24px 24px; }
+.upscale-setup-body h2 {
+  font-size: 17px; line-height: 1.25; letter-spacing: -.02em; font-weight: 600;
+  margin: 0 0 10px; overflow-wrap: anywhere;
+}
+.upscale-setup-body > p { font-size: 13px; line-height: 1.55; color: hsl(var(--muted-foreground)); margin: 0; }
+.upscale-setup-steps {
+  margin: 16px 0 12px;
+  /* Tailwind preflight strips list markers; the steps are ordered on purpose. */
+  list-style: decimal;
+  padding-left: 18px;
+  display: grid; gap: 6px;
+  font-size: 13px; line-height: 1.5;
+  color: hsl(var(--muted-foreground));
+}
+.upscale-setup-steps li { padding-left: 2px; }
+.upscale-setup-steps li::marker { color: hsl(var(--muted-foreground) / 0.65); font-variant-numeric: tabular-nums; }
+.upscale-setup-steps strong { color: hsl(var(--foreground)); font-weight: 550; }
+.upscale-setup-url {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius-control);
+  background: hsl(var(--input));
+}
+.upscale-setup-url code {
+  flex: 1; min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px; line-height: 1.45;
+  color: hsl(var(--foreground));
+  overflow-wrap: anywhere;
+}
+.upscale-setup-url button {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 32px; padding: 0 11px;
+  border: 1px solid var(--brand-border);
+  border-radius: 10px;
+  background: rgb(255 255 255 / .06);
+  color: #ccc;
+  font-size: 12px; cursor: pointer;
+  transition: background 140ms, color 140ms;
+}
+.upscale-setup-url button:hover { background: #ffffff10; }
+.upscale-setup-url button.is-copied { color: #8fce9b; }
+.upscale-setup-note { font-size: 12.5px; line-height: 1.55; color: hsl(var(--muted-foreground)); margin: 14px 0 0; }
+.upscale-setup-missing {
+  font-size: 11.5px; line-height: 1.5;
+  color: hsl(var(--muted-foreground) / 0.75);
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--brand-border);
+  overflow-wrap: anywhere;
+}
+.upscale-setup-body .confirmation-actions { margin-top: 22px; }
+.upscale-setup-body .confirmation-actions button { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 760px) {
+  .upscale-setup-body { padding: 20px; }
+  .upscale-setup-body .confirmation-actions button { min-height: 44px; }
+}
