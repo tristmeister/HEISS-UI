@@ -88,7 +88,7 @@ function customAspectSet(defaults, ratios = [], ranges = {}) {
   }).length ? aspectSet(defaults, ratios.map((item) => Array.isArray(item) ? item : [item.label || item.value || "Custom", Number(item.w || 1), Number(item.h || 1)]), ranges) : [];
 }
 
-export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [] }) {
+export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual" }) {
   return {
     id,
     kind,
@@ -103,6 +103,7 @@ export function buildProfile({ id, kind, label, displayName, description, model,
     options,
     constraints,
     mediaInputs,
+    aspectPolicy: aspectPolicy === "reference" ? "reference" : "manual",
     capabilities: {
       prompt: true,
       negativePrompt: kind === "image",
@@ -323,7 +324,8 @@ export function inferModels(info, stats = {}) {
       options: { textEncoders: clips, vaes, clipTypes, weightDtypes, samplers, schedulers },
       constraints: { prompt: textMeta, negative: textMeta, width: widthRange, height: heightRange, count: countRange, frames: frameRange, fps: fpsRange, ...samplerRange },
       capabilities: workflow.capabilities,
-      mediaInputs: workflow.mediaInputs || []
+      mediaInputs: workflow.mediaInputs || [],
+      aspectPolicy: workflow.aspectPolicy
     }));
   }
 

@@ -250,19 +250,59 @@
 }
 .tile-hover-actions .tile-delete:hover { background: hsl(var(--destructive) / 0.78); }
 
+.tile-upscale {
+  position: absolute; top: 6px; left: 6px;
+  width: 32px; height: 30px;
+  display: grid; place-items: center;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 7px;
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+  opacity: 0;
+  transform: translateY(2px);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  transition: opacity 220ms var(--ease-out), background 160ms var(--ease-out), border-color 160ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.tile-upscale:hover { border-color: rgb(255 255 255 / 0.2); background: rgb(0 0 0 / 0.72); transform: translateY(-1px); }
+.tile-upscale.is-active { background: hsl(var(--primary) / 0.85); border-color: hsl(var(--primary) / 0.6); }
+.tile-upscale.is-active:hover { background: hsl(var(--primary)); }
+.tile-upscale.is-busy { cursor: progress; }
+/* A running upscale stays visible without a hover, so progress is never hidden. */
+.tile-upscale.is-running, .tile-upscale.is-active { opacity: 1; transform: translateY(0); }
+.tile-upscale svg { display: block; }
+.tile-upscale .tile-upscale-ring {
+  position: absolute; inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(hsl(var(--primary)) calc(var(--upscale-ratio, 0) * 360deg), transparent 0);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  mask: radial-gradient(closest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+  pointer-events: none;
+}
+.tile-upscale.is-indeterminate .tile-upscale-ring { animation: upscale-ring-spin 1.1s linear infinite; }
+@keyframes upscale-ring-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .tile-upscale.is-indeterminate .tile-upscale-ring { animation: none; opacity: 0.5; }
+}
+
 @media (hover: hover) {
   .tile:hover .tile-action,
   .tile:hover .tile-delete,
   .tile:hover .tile-hover-actions,
+  .tile:hover .tile-upscale,
   .tile:focus-within .tile-action,
   .tile:focus-within .tile-delete,
-  .tile:focus-within .tile-hover-actions {
+  .tile:focus-within .tile-hover-actions,
+  .tile:focus-within .tile-upscale {
     opacity: 1;
     transform: translateY(0);
   }
 }
 @media (hover: none) {
-  .tile-action, .tile-delete, .tile-hover-actions { opacity: 1; transform: translateY(0); }
+  .tile-action, .tile-delete, .tile-hover-actions, .tile-upscale { opacity: 1; transform: translateY(0); }
 }
 .tile.pending .tile-action { opacity: 1; }
 .tile.pending .tile-caption { display: none; }

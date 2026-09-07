@@ -15,7 +15,10 @@ export const defaultPrefs: Preferences = {
   showFailedItems: true,
   groupRuns: true,
   runGroupingMode: "smart",
-  runCooldownMinutes: 1
+  runCooldownMinutes: 1,
+  smartUpscale: true,
+  upscaleQuality: "balanced",
+  upscaleFaceDetail: false
 };
 
 export const galleryInitialBatch = 72;

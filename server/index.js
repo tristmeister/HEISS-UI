@@ -22,6 +22,8 @@ import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, 
 import { sendGalleryExport } from './gallery-export.js';
 import { loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
+import { cancelModelInstall, normalizeQuality, probeDownloadSizes, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
+import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -658,6 +660,114 @@ app.post("/api/generate", async (req, res) => {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
     setTimeout(() => runJob(id, body), 0);
+  }
+});
+
+async function upscaleContext(res) {
+  try {
+    const { info } = await loadComfyContext();
+    return info;
+  } catch {
+    res.status(503).json({ ok: false, error: "ComfyUI is offline, so smart upscale is unavailable." });
+    return null;
+  }
+}
+
+app.get("/api/upscale/status", async (req, res) => {
+  const info = await upscaleContext(res);
+  if (!info) return;
+  res.json({ ok: true, ...upscaleStatus(info, req.query.quality) });
+});
+
+app.post("/api/upscale/install/preview", async (req, res) => {
+  const info = await upscaleContext(res);
+  if (!info) return;
+  const quality = normalizeQuality(req.body?.quality);
+  const status = upscaleStatus(info, quality);
+  if (!status.nodesInstalled) {
+    res.status(400).json({ ok: false, error: `ComfyUI is missing the SeedVR2 nodes: ${status.missingNodes.join(", ")}. Install the SeedVR2 VideoUpscaler custom nodes first.` });
+    return;
+  }
+  const probe = await probeDownloadSizes(quality, info);
+  res.json({ ok: true, quality, modelDir: status.modelDir, ...probe });
+});
+
+app.post("/api/upscale/install", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const info = await upscaleContext(res);
+  if (!info) return;
+  try {
+    res.json({ ok: true, install: startModelInstall(normalizeQuality(req.body?.quality), info) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/upscale/install/cancel", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  res.json({ ok: true, install: cancelModelInstall() });
+});
+
+app.post("/api/upscale", async (req, res) => {
+  const info = await upscaleContext(res);
+  if (!info) return;
+  const quality = normalizeQuality(req.body?.quality);
+  const faceDetail = Boolean(req.body?.faceDetail);
+  const status = upscaleStatus(info, quality);
+  if (!status.ready) {
+    res.status(400).json({ ok: false, error: status.nodesInstalled ? "The SeedVR2 models are not installed yet." : `ComfyUI is missing the SeedVR2 nodes: ${status.missingNodes.join(", ")}.`, status });
+    return;
+  }
+  if (faceDetail && !status.faceDetail.nodesInstalled) {
+    res.status(400).json({ ok: false, error: `Face detail needs the Impact Pack nodes: ${status.faceDetail.missingNodes.join(", ")}.` });
+    return;
+  }
+  const item = findUpscaleTarget(String(req.body?.galleryItemId || ""));
+  if (!item || item.type !== "image" || item.status !== "done") {
+    res.status(404).json({ ok: false, error: "That image is not available to upscale." });
+    return;
+  }
+  if (item.upscale?.status === "running") {
+    res.status(409).json({ ok: false, error: "This image is already being upscaled." });
+    return;
+  }
+  let imageName = "";
+  try {
+    const asset = referenceAssetFromGallery(req, item.id);
+    const [staged] = await stageReferenceAssets(req, [{ assetId: asset.id, slot: "upscale", source: asset.source }]);
+    imageName = staged?.comfyName || "";
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+    return;
+  }
+  if (!imageName) {
+    res.status(400).json({ ok: false, error: "Could not hand this image to ComfyUI." });
+    return;
+  }
+  const jobId = crypto.randomUUID();
+  const body = {
+    galleryItemId: item.id,
+    imageName,
+    quality,
+    faceDetail,
+    width: Number(item.width || 0),
+    height: Number(item.height || 0),
+    prompt: item.prompt || "",
+    sourceModel: item.model || "",
+    sourceSettings: item.settings || {}
+  };
+  const plan = upscalePlan(body);
+  jobs.set(jobId, { status: "queued", kind: "upscale", galleryItemId: item.id, startedAt: Date.now(), outputs: [] });
+  res.json({ ok: true, jobId, plan, revision: galleryRevisionValue() });
+  setTimeout(() => runUpscaleJob(jobId, body, info), 0);
+});
+
+app.post("/api/upscale/toggle", (req, res) => {
+  try {
+    const item = toggleUpscaleView(String(req.body?.galleryItemId || ""), req.body?.active);
+    res.json({ ok: true, upscaleActive: Boolean(item.upscaleActive), revision: galleryRevisionValue() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
   }
 });
 

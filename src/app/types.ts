@@ -28,7 +28,24 @@ export type ReferenceAsset = {
 export type SelectedReferenceAsset = { slot: string; asset: ReferenceAsset };
 export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
-export type GalleryItem = Output & { id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; bundle?: GalleryBundle };
+export type UpscaleQuality = "fast" | "balanced" | "high";
+export type UpscaleState = {
+  status: "running" | "done" | "error" | "canceled";
+  jobId?: string;
+  quality?: UpscaleQuality;
+  faceDetail?: boolean;
+  progress?: Progress | null;
+  url?: string;
+  thumbnailUrl?: string;
+  outputName?: string;
+  width?: number;
+  height?: number;
+  scale?: number;
+  error?: string;
+  startedAt?: string;
+  completedAt?: string;
+};
+export type GalleryItem = Output & { id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle };
 export type GalleryBundle = {
   id: string;
   domain: "gallery" | "vault";
@@ -68,6 +85,7 @@ export type Profile = {
   };
   capabilities: Record<string, boolean>;
   mediaInputs?: MediaInput[];
+  aspectPolicy?: "manual" | "reference";
 };
 export type Models = {
   imageModels: SelectOption[];
@@ -103,6 +121,7 @@ export type WorkflowSummary = {
   controls?: string[];
   capabilities?: Record<string, boolean>;
   mediaInputs?: MediaInput[];
+  aspectPolicy?: "manual" | "reference";
   defaults?: Record<string, string | number | boolean | null | undefined>;
   path?: string;
   favorite?: boolean;
@@ -128,6 +147,7 @@ export type WorkflowImportPreview = {
     mediaInputs?: MediaInput[];
     promptComposition?: PromptComposition | null;
     aspectRatios?: unknown[];
+    aspectPolicy?: "manual" | "reference";
     nodes: Array<{ id: string; classType: string; inputs: string[]; suggestedInputs: string[] }>;
   };
   validation: WorkflowValidation;
@@ -149,7 +169,38 @@ export type Preferences = {
   groupRuns: boolean;
   runGroupingMode: "smart" | "job";
   runCooldownMinutes: number;
+  smartUpscale: boolean;
+  upscaleQuality: UpscaleQuality;
+  upscaleFaceDetail: boolean;
   mobileZenDefaulted?: boolean;
 };
+
+export type UpscaleModelInfo = { key: string; file: string; label: string; approxBytes: number; present: boolean };
+export type UpscaleInstall = {
+  status: "running" | "done" | "error" | "canceled";
+  dir?: string;
+  current?: string;
+  files?: Array<{ file: string; label: string; bytes: number; totalBytes: number; done: boolean }>;
+  receivedBytes?: number;
+  totalBytes?: number;
+  error?: string;
+  restartHint?: boolean;
+} | null;
+export type UpscaleStatus = {
+  ok?: boolean;
+  quality: UpscaleQuality;
+  nodesInstalled: boolean;
+  missingNodes: string[];
+  modelDir: string;
+  canDownload: boolean;
+  models: UpscaleModelInfo[];
+  missingModels: string[];
+  needsDownload: boolean;
+  substituting: boolean;
+  ready: boolean;
+  faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
+  install: UpscaleInstall;
+};
+export type UpscaleDownloadPreview = { quality: UpscaleQuality; modelDir: string; totalBytes: number; files: Array<{ key: string; file: string; label: string; bytes: number; exact: boolean }> };
 
 export type PrivacyStatus = { enabled: boolean; unlocked: boolean; cookieName?: string; vault?: { enabled: boolean; unlocked: boolean; assetCount: number } };
