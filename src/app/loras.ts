@@ -62,20 +62,34 @@ export function rankedLoras(options: string[] = [], profile: Profile | null, que
   });
 }
 
-function folderName(name: string) {
+/** Max folder depth kept when grouping (e.g. krea2/characters/woman). Deeper paths collapse into this. */
+export const maxLoraFolderDepth = 3;
+
+/** Returns the nested folder path (up to maxLoraFolderDepth segments), or null for root-level files. */
+function folderPath(name: string) {
   const parts = name.split(/[\\/]/).filter(Boolean);
-  return parts.length > 1 ? parts[parts.length - 2] : null;
+  const folders = parts.slice(0, -1);
+  if (!folders.length) return null;
+  return folders.slice(0, maxLoraFolderDepth).join("/");
 }
 
-function folderLabel(folder: string) {
-  return folder.replace(/[-_]+/g, " ").replace(/^./, (letter) => letter.toUpperCase());
+function segmentLabel(segment: string) {
+  return segment.replace(/[-_]+/g, " ").replace(/^./, (letter) => letter.toUpperCase());
 }
 
-/** Groups LoRAs by their immediate ComfyUI subfolder; root-level files stay in All. */
+function folderLabel(path: string) {
+  return path.split("/").map(segmentLabel).join(" / ");
+}
+
+/**
+ * Groups LoRAs by their ComfyUI subfolder path, up to maxLoraFolderDepth levels deep
+ * (e.g. krea2/characters/woman). Deeper folders collapse into their level-3 ancestor so
+ * they still list under the folder above. Root-level files stay in "All".
+ */
 export function loraGroups(options: string[] = [], profile: Profile | null, query = ""): LoraGroup[] {
   const groups = new Map<string, string[]>();
   for (const name of rankedLoras(options, profile, query)) {
-    const folder = folderName(name);
+    const folder = folderPath(name);
     const id = folder ? `folder:${folder}` : "root";
     const existing = groups.get(id) || [];
     existing.push(name);
