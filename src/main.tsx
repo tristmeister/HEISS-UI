@@ -93,6 +93,7 @@ function App() {
   const latestZenIdRef = useRef("");
   const privacyInitializedRef = useRef(false);
   const loraSaveTimer = useRef<number | null>(null);
+  const comfyStatusRequestRef = useRef(false);
   const touchGestureRef = useRef<TouchGesture | null>(null);
   const lastTapRef = useRef(0);
   const {
@@ -443,10 +444,13 @@ function App() {
   }
 
   function refreshComfyStatus() {
+    if (comfyStatusRequestRef.current) return;
+    comfyStatusRequestRef.current = true;
     setComfyStatus((current) => ({ ...current, checking: true }));
     apiJson<ComfyStatus>("/api/comfy/status")
       .then((data) => setComfyStatus({ ...data, checking: false }))
-      .catch((error) => setComfyStatus({ connected: false, checking: false, error: error instanceof Error ? error.message : "Connection failed" }));
+      .catch((error) => setComfyStatus({ connected: false, checking: false, error: error instanceof Error ? error.message : "Connection failed" }))
+      .finally(() => { comfyStatusRequestRef.current = false; });
   }
 
   function refreshPaths() {

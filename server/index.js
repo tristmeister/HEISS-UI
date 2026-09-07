@@ -172,7 +172,7 @@ app.get("/api/health", async (_req, res) => {
 app.get("/api/comfy/status", async (_req, res) => {
   const startedAt = performance.now();
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2000);
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(`${comfyUrl}/system_stats`, { signal: controller.signal });
     const latencyMs = Math.round(performance.now() - startedAt);
@@ -591,7 +591,6 @@ app.post("/api/generate", async (req, res) => {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
     setTimeout(() => runJob(id, body), 0);
-    refreshComfyContextSoon();
   }
 });
 
