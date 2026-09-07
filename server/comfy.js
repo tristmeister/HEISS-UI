@@ -81,9 +81,10 @@ export function normalizeComfyError(message = "") {
 }
 
 export function optionsFor(info, node, key) {
-  const value = info?.[node]?.input?.required?.[key]?.[0];
-  if (Array.isArray(value)) return value;
-  if (value?.options) return value.options;
+  const input = info?.[node]?.input?.required?.[key];
+  if (!Array.isArray(input)) return [];
+  if (Array.isArray(input[0])) return input[0];
+  if (Array.isArray(input[1]?.options)) return input[1].options;
   return [];
 }
 

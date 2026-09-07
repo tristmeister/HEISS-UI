@@ -362,7 +362,7 @@ export function upscaleGraph(body, info = {}) {
   if (dit.missing || vae.missing) throw new Error("SeedVR2 models are not installed yet.");
   const graph = {
     "1": { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } },
-    "2": { class_type: "ImageScaleBy", inputs: { image: ["1", 0], upscale_method: "lanczos", scale_by: plan.preScale } },
+    "2": { class_type: "ImageScaleBy", inputs: { image: ["1", 0], upscale_method: "bicubic", scale_by: plan.preScale } },
     "3": {
       class_type: "SeedVR2LoadDiTModel",
       inputs: {
