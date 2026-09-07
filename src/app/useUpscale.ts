@@ -64,21 +64,36 @@ export function useUpscale({ prefs, confirmAction, showToast, loadGalleryDelta }
   }, []);
 
   const refreshStatus = useCallback(async (quality = prefs.upscaleQuality) => {
+    const url = `/api/upscale/status?quality=${encodeURIComponent(quality)}`;
+    let response: Response;
     try {
-      const next = await apiJson<UpscaleStatus>(`/api/upscale/status?quality=${encodeURIComponent(quality)}`);
-      // An older server answers this route with the SPA shell, not a status.
-      if (typeof next?.nodesInstalled !== "boolean") {
-        return failStatus("Smart upscale needs a J AI Studio restart before it can load.");
-      }
-      setStatus(next);
-      setInstall(next.install);
-      reasonRef.current = "";
-      setReason("");
-      return next;
-    } catch (error) {
-      // The server says why - ComfyUI offline is only one of the reasons.
-      return failStatus(error instanceof Error && error.message ? error.message : "Smart upscale is unavailable right now.");
+      response = await fetch(url);
+    } catch {
+      return failStatus("Could not reach the J AI Studio server.");
     }
+    // Report what actually came back rather than guessing at a cause: a non-JSON
+    // body means something other than this route answered (SPA shell, proxy).
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      return failStatus(`The smart upscale status route answered with ${contentType || "an unknown type"} (HTTP ${response.status}) instead of JSON. The server process is serving older code - restart it from this checkout.`);
+    }
+    let payload: UpscaleStatus & { error?: string };
+    try {
+      payload = await response.json();
+    } catch {
+      return failStatus(`Could not read the smart upscale status (HTTP ${response.status}).`);
+    }
+    if (!response.ok) {
+      return failStatus(payload?.error || `Smart upscale status failed (HTTP ${response.status}).`);
+    }
+    if (typeof payload?.nodesInstalled !== "boolean") {
+      return failStatus(`The smart upscale status was missing its node report (HTTP ${response.status}).`);
+    }
+    setStatus(payload);
+    setInstall(payload.install);
+    reasonRef.current = "";
+    setReason("");
+    return payload;
   }, [failStatus, prefs.upscaleQuality]);
 
   useEffect(() => {
