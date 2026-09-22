@@ -40,8 +40,6 @@
   .model-copy em { -webkit-line-clamp: 1; }
   .model-badge { display: none !important; }
   .aspect-option { min-height: 44px; }
-  .setting-row { grid-template-columns: 1fr; gap: 4px; }
-  .setting-row strong { text-align: left; white-space: normal; }
   .setting-actions { grid-template-columns: 1fr; }
   /* Phone placement for the zen chrome lives at the end of 12-composer.css,
      where it can win over the shared dock styling in 08-overhaul.css. */

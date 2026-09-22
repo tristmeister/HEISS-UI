@@ -1,10 +1,9 @@
 import React from 'react';
 import { Toaster } from 'sonner';
-import { ArrowUp, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, Github, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, WifiOff, Wrench, X, ZoomIn, ZoomOut } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { githubUrl } from './constants';
+import { BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
-import { AspectPicker, Field, GallerySkeleton, InfoTip, Media, ModelPicker, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
+import { GallerySkeleton, Media, Skeleton, Tip } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
@@ -15,6 +14,7 @@ import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
+import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import type { GalleryItem } from './types';
 
 function comfyStatusLabel(status: any) {
@@ -37,105 +37,16 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
   );
 }
 
-const SETTINGS_TABS = [
-  { id: "general", label: "General", icon: SlidersHorizontal },
-  { id: "connection", label: "Connection", icon: Plug },
-  { id: "workflows", label: "Workflows", icon: Layers },
-  { id: "gallery", label: "Gallery", icon: GalleryHorizontalEnd },
-  { id: "privacy", label: "Privacy", icon: LockKeyhole },
-  { id: "advanced", label: "Advanced", icon: Wrench }
-] as const;
-
-
-function formatInstallBytes(bytes = 0) {
-  if (!bytes) return "0 MB";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
-}
-
-/** Says exactly what is missing, what is downloading, and what to do next. */
-function UpscaleReadiness({ status, reason, install, onRefresh, onCancel, onSetup }: { status: any; reason?: string; install: any; onRefresh: () => void; onCancel: () => void; onSetup: () => void }) {
-  if (install?.status === "running") {
-    const ratio = install.totalBytes ? Math.min(1, install.receivedBytes / install.totalBytes) : 0;
-    return (
-      <div className="upscale-install">
-        <div className="upscale-install-head">
-          <strong>Downloading {install.current}</strong>
-          <span>{formatInstallBytes(install.receivedBytes)} / {formatInstallBytes(install.totalBytes)}</span>
-        </div>
-        <div className="upscale-install-bar"><div style={{ width: `${Math.round(ratio * 100)}%` }} /></div>
-        <div className="setting-actions"><button onClick={onCancel}>Cancel download</button></div>
-      </div>
-    );
-  }
-  if (install?.status === "error" && install.error) {
-    return <p className="field-meta is-error">{install.error}</p>;
-  }
-  if (install?.status === "done" && install.restartHint) {
-    return (
-      <div className="upscale-install">
-        <p className="field-meta">Models installed. Restart ComfyUI if the upscale still reports them as missing.</p>
-        <div className="setting-actions"><button onClick={() => onRefresh()}>Re-check</button></div>
-      </div>
-    );
-  }
-  if (!status || typeof status.nodesInstalled !== "boolean") {
-    return (
-      <div className="upscale-install">
-        <p className="field-meta">{reason || "Smart upscale is unavailable right now."}</p>
-        <div className="setting-actions"><button onClick={() => onRefresh()}>Re-check</button></div>
-      </div>
-    );
-  }
-  if (!status.nodesInstalled) {
-    return (
-      <div className="upscale-install">
-        <p className="field-meta">ComfyUI does not have the SeedVR2 nodes installed yet.</p>
-        <div className="setting-actions">
-          <button onClick={onSetup}>How to install</button>
-          <button onClick={() => onRefresh()}>Re-check</button>
-        </div>
-      </div>
-    );
-  }
-  if (status.needsDownload) {
-    return <p className="field-meta">The first upscale at this effort asks to download {(status.models || []).filter((model: any) => !model.present).map((model: any) => model.label).join(" and ")} into {status.modelDir || "the ComfyUI models folder"}.</p>;
-  }
-  if (status.substituting) {
-    return <p className="field-meta">Using the SeedVR2 weights already installed rather than downloading this tier's preferred model.</p>;
-  }
-  return <p className="field-meta">Ready. Hover a finished image and click the arrow in its top-left corner.</p>;
-}
-
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, checkForUpdates, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, gallery, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, setPrefs, upscaleStatus, upscaleUnavailableReason, setUpscaleSetupOpen, upscaleInstall, upscaleBusyIds, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
-  const [settingsTab, setSettingsTab] = React.useState<string>("general");
-  const [lanBusy, setLanBusy] = React.useState(false);
-  const openLanUrl = React.useCallback(async () => {
-    setLanBusy(true);
-    try {
-      const response = await fetch("/api/network");
-      if (!response.ok) throw new Error("LAN address unavailable");
-      const data = await response.json();
-      const address = data.addresses?.[0];
-      if (!address) throw new Error("No local network address found");
-      const url = `${window.location.protocol}//${address}:${window.location.port || 5173}`;
-      copyAndToast(url, "LAN URL copied");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not find LAN address", "error");
-    } finally {
-      setLanBusy(false);
-    }
-  }, [copyAndToast, showToast]);
+  const [settingsSection, setSettingsSection] = React.useState<SettingsSection>("general");
+  const openSettings = React.useCallback((section?: SettingsSection) => {
+    if (section) setSettingsSection(section);
+    setSettings(true);
+  }, [setSettings]);
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
@@ -340,6 +251,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               setCount={setCount}
               loraActiveCount={loraActiveCount}
               privateGeneration={privateGeneration}
+              onPrivacySetup={() => openSettings("privacy")}
               privacyEnabled={Boolean(privacyStatus?.enabled)}
               setPrivateGeneration={setPrivateGeneration}
               showNegativePrompt={showNegativePrompt}
@@ -411,7 +323,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <p>Start ComfyUI to connect your studio.</p>
               <div className="empty-actions">
                 <button className="reconnect-btn primary" onClick={refreshComfyStatus}><RefreshCw size={13} /> Retry connection</button>
-                <button className="reconnect-btn" onClick={() => setSettings(true)}><Settings size={13} /> Open settings</button>
+                <button className="reconnect-btn" onClick={() => openSettings("connection")}><Plug size={13} /> Connection settings</button>
               </div>
             </div></section>
           ) : (
@@ -476,6 +388,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               setCount={setCount}
               loraActiveCount={loraActiveCount}
               privateGeneration={privateGeneration}
+              onPrivacySetup={() => openSettings("privacy")}
               privacyEnabled={Boolean(privacyStatus?.enabled)}
               setPrivateGeneration={setPrivateGeneration}
               showNegativePrompt={showNegativePrompt}
@@ -496,401 +409,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </section>
         </>
       )}
-      <Modal
-        open={Boolean(settings)}
-        onOpenChange={(open) => { if (!open) setSettings(false); }}
-        size="sheet"
-        className="settings-card"
-        bodyClassName="settings-body"
-        title="Settings"
-      >
-              <nav className="settings-nav" aria-label="Settings sections">
-                {SETTINGS_TABS.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      className={cn("settings-nav-item", settingsTab === tab.id && "active")}
-                      aria-current={settingsTab === tab.id ? "page" : undefined}
-                      onClick={() => setSettingsTab(tab.id)}
-                    >
-                      <Icon size={15} />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-              <div className="settings-panel" key={settingsTab}>
-                {settingsTab === "general" ? (
-                  <>
-                    <section>
-                      <h3>Project</h3>
-                      <div className="project-card">
-                        <img src="/heiss-mark-white.svg" alt="HEISS UI" />
-                        <div>
-                          <strong>HEISS UI</strong>
-                          <span>Local image and video studio</span>
-                        </div>
-                        <Tip content="Open the public GitHub repo"><a className="ghost-button" href={githubUrl} target="_blank" rel="noreferrer"><Github size={14} /> GitHub</a></Tip>
-                      </div>
-                    </section>
-                    <section>
-                      <h3>Experience</h3>
-                      <div className="toggle-group">
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Zen mode</strong>
-                            <em>Prompt-first fullscreen layout</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.zenMode} onChange={(event) => setZenMode(event.target.checked)} />
-                        </label>
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Confirm actions</strong>
-                            <em>Ask before delete, cancel, reset, and cache clearing</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.confirmActions} onChange={(event) => setPrefs({ confirmActions: event.target.checked })} />
-                        </label>
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Follow latest output</strong>
-                            <em>Jump to the newest finished item while generating</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.followLatest} onChange={(event) => setPrefs({ followLatest: event.target.checked })} />
-                        </label>
-                      </div>
-                    </section>
-                    <section>
-                      <h3>Generation</h3>
-                      <div className="toggle-group">
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Enter to generate</strong>
-                            <em>Press Enter to submit, Shift+Enter for a new line</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.enterToGenerate} onChange={(event) => setPrefs({ enterToGenerate: event.target.checked })} />
-                        </label>
-                      </div>
-                      <Field label="Generation previews">
-                        <Select value={prefs.generationPreviewMode === "simple" ? "Simple · step previews" : "Advanced · pixel mosaic"}
-                          onChange={(value) => setPrefs({ generationPreviewMode: value === "Simple · step previews" ? "simple" : "advanced" })}
-                          options={[
-                            "Advanced · pixel mosaic",
-                            "Simple · step previews",
-                          ]} />
-                      </Field>
-                      <p className="generation-preview-help">Advanced adds animated pixels over early previews. Simple shows each step directly and uses less graphics power. Reduced motion uses simple previews.</p>
-                      <Field label={<>Multiple images <InfoTip content="Batch runs one Comfy prompt with a larger latent batch. Separate jobs queue one prompt per image, which is easier to cancel individually." /></>}>
-                        <Select
-                          value={prefs.variationQueueMode}
-                          onChange={(value) => setPrefs({ variationQueueMode: value === "separate" ? "separate" : "batch" })}
-                          options={[
-                            { label: "One Comfy batch", value: "batch" },
-                            { label: "Queue them as separate jobs", value: "separate" }
-                          ]}
-                        />
-                      </Field>
-                    </section>
-                    <section>
-                      <h3>Smart upscale <InfoTip content="A one-click SeedVR2 restore pass behind the arrow on each gallery image. The original is never replaced on disk - the arrow just switches which version the gallery shows." /></h3>
-                      <div className="toggle-group">
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Smart upscale</strong>
-                            <em>Show an upscale arrow on finished images</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.smartUpscale !== false} onChange={(event) => setPrefs({ smartUpscale: event.target.checked })} />
-                        </label>
-                      </div>
-                      {prefs.smartUpscale !== false ? (
-                        <>
-                          <Field label={<>Effort <InfoTip content="Higher effort uses a larger SeedVR2 model and a bigger target resolution, so it takes longer and needs more VRAM." /></>}>
-                            <Select
-                              value={prefs.upscaleQuality || "balanced"}
-                              onChange={(value) => setPrefs({ upscaleQuality: value === "fast" || value === "high" ? value : "balanced" })}
-                              options={[
-                                { label: "Fast - 1.5x, 3B model, lowest VRAM", value: "fast" },
-                                { label: "Balanced - 2x, 7B fp8 model", value: "balanced" },
-                                { label: "High - 3x, 7B fp16 model, slowest", value: "high" }
-                              ]}
-                            />
-                          </Field>
-                          <div className="toggle-group">
-                            <label className={cn("toggle-row", !upscaleStatus?.faceDetail?.nodesInstalled && "is-disabled")}>
-                              <span>
-                                <strong>Face detail pass</strong>
-                                <em>{upscaleStatus?.faceDetail?.nodesInstalled
-                                  ? "Run the Impact Pack FaceDetailer after the upscale"
-                                  : "Needs the ComfyUI Impact Pack and Impact Subpack nodes"}</em>
-                              </span>
-                              <input
-                                type="checkbox"
-                                checked={Boolean(prefs.upscaleFaceDetail) && Boolean(upscaleStatus?.faceDetail?.nodesInstalled)}
-                                disabled={!upscaleStatus?.faceDetail?.nodesInstalled}
-                                onChange={(event) => setPrefs({ upscaleFaceDetail: event.target.checked })}
-                              />
-                            </label>
-                          </div>
-                          <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onRefresh={refreshUpscaleStatus} onCancel={cancelUpscaleInstall} onSetup={() => setUpscaleSetupOpen(true)} />
-                        </>
-                      ) : null}
-                    </section>
-                  </>
-                ) : null}
-
-                {settingsTab === "connection" ? (
-                  <>
-                    <section>
-                      <h3>ComfyUI</h3>
-                      <div className="setting-rows">
-                        <div className="setting-row"><span>Studio</span><strong>{window.location.host || "Localhost"}</strong></div>
-                        <div className="setting-row"><span>ComfyUI</span><strong>{health ? health.comfyUrl || "Not connected" : <Skeleton className="skeleton-text short" />}</strong></div>
-                        <div className="setting-row"><span>Status</span><strong className={cn("status-value", health && (health.ok ? "is-ok" : "is-bad"))}>{health ? health.ok ? "Connected" : health.error || "Disconnected" : <Skeleton className="skeleton-text tiny" />}</strong></div>
-                      </div>
-                      <div className="setting-actions">
-                        <Tip content="Check the local ComfyUI connection"><button className="is-primary" onClick={refreshHealth}>Check connection</button></Tip>
-                        <Tip content="Rescan local models"><button onClick={() => refreshModels()}>Refresh models</button></Tip>
-                        <Tip content="Open ComfyUI in a new tab"><button onClick={() => { window.open(health?.comfyUrl || "http://127.0.0.1:8188", "_blank"); }}>Open ComfyUI</button></Tip>
-                        <Tip content="Copy the address for another device when LAN mode is enabled"><button onClick={openLanUrl} disabled={lanBusy}>{lanBusy ? "Finding LAN address..." : "Copy LAN URL"}</button></Tip>
-                      </div>
-                      <p className="field-meta">Start with <code>npm run dev:lan</code> before opening this address on another device.</p>
-                    </section>
-                    <section>
-                      <details className="settings-disclosure">
-                        <summary>What is installed</summary>
-                        <div className="disclosure-body">
-                          <div className="setting-rows">
-                            <div className="setting-row"><span>Image models</span><strong>{models ? models.imageModels.length : <Skeleton className="skeleton-text tiny" />}</strong></div>
-                            <div className="setting-row"><span>Video models</span><strong>{models ? models.videoModels.length : <Skeleton className="skeleton-text tiny" />}</strong></div>
-                            <div className="setting-row"><span>Active workflow</span><strong>{models ? currentProfile?.family || "None" : <Skeleton className="skeleton-text short" />}</strong></div>
-                            <div className="setting-row"><span>Start image</span><strong>{canUseStartImage ? "Available" : "Hidden for this model"}</strong></div>
-                            {(models?.unsupportedModels?.length || 0) > 0 ? <div className="setting-row"><span>Unsupported</span><strong>{models?.unsupportedModels?.length || 0}</strong></div> : null}
-                          </div>
-                        </div>
-                      </details>
-                    </section>
-                  </>
-                ) : null}
-
-                {settingsTab === "workflows" ? (
-                  <section>
-                    <h3>Workflows <InfoTip content="Imported workflows only appear once their required ComfyUI nodes are installed." /></h3>
-                    <div className="setting-rows">
-                      <div className="setting-row"><span>Folder</span><strong>{paths.workflowsDir || <Skeleton className="skeleton-text path" />}</strong></div>
-                    </div>
-                    <label className="file-drop">
-                      <input
-                        type="file"
-                        accept="application/json,.json"
-                        onChange={(event) => {
-                          importWorkflowFile(event.target.files?.[0]);
-                          event.currentTarget.value = "";
-                        }}
-                      />
-                      <ImagePlus size={15} />
-                      <span>Import ComfyUI API workflow</span>
-                    </label>
-                    <div className="setting-actions">
-                      <Tip content="Browse and manage workflow templates"><button className="is-primary" onClick={() => { setSettings(false); setWorkflowGalleryOpen(true); }}>Open workflow gallery</button></Tip>
-                      <Tip content="Reload workflow templates from disk"><button onClick={() => { refreshModels(); view.refreshWorkflows(); }}>Refresh workflows</button></Tip>
-                    </div>
-                  </section>
-                ) : null}
-
-                {settingsTab === "gallery" ? (
-                  <>
-                    <section>
-                      <h3>Library</h3>
-                      <div className="setting-rows">
-                        <div className="setting-row"><span>Total items</span><strong>{galleryLoaded ? gallery.length : <Skeleton className="skeleton-text tiny" />}</strong></div>
-                        <div className="setting-row"><span>Current tab</span><strong>{galleryLoaded ? `${visibleGallery.length} ${mode === "image" ? "images" : "videos"}` : <Skeleton className="skeleton-text short" />}</strong></div>
-                      </div>
-                      <Field label={<>Output folder <InfoTip content="Required for Private Vault. HEISS UI only ingests and removes completed outputs from this exact folder." /></>}>
-                        <div className="inline-form">
-                          <input value={outputDirDraft} placeholder="ComfyUI output folder" onChange={(event) => setOutputDirDraft(event.target.value)} />
-                          <button onClick={saveOutputDirectory} disabled={!outputDirDraft.trim()}>Save</button>
-                        </div>
-                      </Field>
-                      <div className="setting-actions">
-                        <Tip content="Copy the output folder path"><button onClick={() => copyAndToast(paths.outputDir || "", "Output path copied")}>Copy path</button></Tip>
-                        <Tip content="Open the output folder"><button onClick={openOutputFolder} disabled={!paths.outputDir}>Open folder</button></Tip>
-                      </div>
-                    </section>
-                    <section>
-                      <h3>Runs <InfoTip content="A burst of related generations - same job, or the same prompt repeated - collapses into one stack once it has been quiet for the chosen time. Grouping is exact and local: no similarity matching. Private Vault outputs group only among themselves, in their own record inside the encrypted vault - never mixed with the regular gallery, and invisible while the vault is locked." /></h3>
-                      <div className="toggle-group">
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Group generation runs</strong>
-                            <em>Offer to collapse finished runs into stacks you can open in place</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.groupRuns !== false} onChange={(event) => setPrefs({ groupRuns: event.target.checked })} />
-                        </label>
-                      </div>
-                      {prefs.groupRuns !== false ? (
-                        <>
-                          <Field label="Group by">
-                            <Select
-                              value={prefs.runGroupingMode || "smart"}
-                              onChange={(value) => setPrefs({ runGroupingMode: value === "job" ? "job" : "smart" })}
-                              options={[
-                                { label: "Smart - same prompt, or one batch", value: "smart" },
-                                { label: "Batches only - one generation job", value: "job" }
-                              ]}
-                            />
-                          </Field>
-                          <Field label={<>Close a run after <InfoTip content="A run ends when nothing matching finishes for this long. A later generation starts a new run rather than reopening an old one." /></>}>
-                            <NumberPicker
-                              label="Minutes"
-                              value={Number(prefs.runCooldownMinutes ?? 5)}
-                              onChange={(next) => setPrefs({ runCooldownMinutes: next })}
-                              min={1}
-                              max={240}
-                              step={1}
-                              fill
-                            />
-                          </Field>
-                        </>
-                      ) : null}
-                    </section>
-                    <section>
-                      <h3>Display</h3>
-                      <div className="toggle-group">
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Show failed items</strong>
-                            <em>Keep interrupted or failed generations visible in the gallery</em>
-                          </span>
-                          <input type="checkbox" checked={prefs.showFailedItems} onChange={(event) => setPrefs({ showFailedItems: event.target.checked })} />
-                        </label>
-                        <label className="toggle-row">
-                          <span>
-                            <strong>Zen gallery strip</strong>
-                            <em>Show the small gallery across the top in zen mode</em>
-                          </span>
-                          <input type="checkbox" checked={zenGalleryOpen} onChange={(event) => setZenGalleryOpen(event.target.checked)} />
-                        </label>
-                      </div>
-                    </section>
-                    <section>
-                      <details className="settings-disclosure">
-                        <summary>Clean up the gallery</summary>
-                        <div className="disclosure-body">
-                          <div className="setting-actions">
-                            <Tip content="Remove failed and interrupted cards"><button onClick={clearFailedItems}>Clear failed items</button></Tip>
-                            <Tip content="Remove finished items from this gallery"><button className="subtle-danger" onClick={clearGallery}>Clear finished gallery</button></Tip>
-                          </div>
-                          <span className="field-meta">Files on disk are not deleted. This only clears what HEISS UI shows.</span>
-                        </div>
-                      </details>
-                    </section>
-                  </>
-                ) : null}
-
-                {settingsTab === "privacy" ? (
-                  <>
-                    <section>
-                      <h3>Private Vault</h3>
-                      <div className="setting-rows">
-                        <div className="setting-row">
-                          <span>Password <InfoTip content="Private Vault keeps opted-in originals, previews, prompts, and settings encrypted. Private outputs are only served after unlock; the normal gallery is unchanged." /></span>
-                          <strong className={cn("status-value", privacyStatus?.enabled && (privacyStatus.unlocked ? "is-ok" : "is-bad"))}>{privacyStatus?.enabled ? privacyStatus.unlocked ? "Unlocked" : "Locked" : "Not set"}</strong>
-                        </div>
-                      </div>
-                      <div className="privacy-form">
-                        <input
-                          type="password"
-                          autoComplete={privacyStatus?.enabled ? "current-password" : "new-password"}
-                          value={privacyPassword}
-                          placeholder={privacyStatus?.enabled ? "Privacy password" : "Create password"}
-                          onChange={(event) => setPrivacyPassword(event.target.value)}
-                        />
-                        {!privacyStatus?.enabled ? (
-                          <input
-                            type="password"
-                            autoComplete="new-password"
-                            value={privacyConfirmPassword}
-                            placeholder="Confirm password"
-                            onChange={(event) => setPrivacyConfirmPassword(event.target.value)}
-                          />
-                        ) : null}
-                      </div>
-                      <div className="setting-actions">
-                        {!privacyStatus?.enabled ? (
-                          <Tip content="Enable encrypted prompts, Private Vault, and password-protected LAN access"><button className="is-primary" onClick={setupPrivacyPassword} disabled={privacyBusy}>{privacyBusy ? "Saving..." : "Enable password"}</button></Tip>
-                        ) : privacyStatus.unlocked ? (
-                          <Tip content="Hide encrypted prompts until the password is entered again"><button className="is-primary" onClick={lockPrivacy} disabled={privacyBusy}>{privacyBusy ? "Locking..." : "Lock prompts"}</button></Tip>
-                        ) : (
-                          <Tip content="Decrypt prompts and save the LAN unlock cookie"><button className="is-primary" onClick={unlockPrivacy} disabled={privacyBusy}>{privacyBusy ? "Unlocking..." : "Unlock"}</button></Tip>
-                        )}
-                        <Tip content="Refresh privacy status"><button onClick={view.refreshPrivacyStatus} disabled={privacyBusy}>Refresh</button></Tip>
-                      </div>
-                    </section>
-                    <section>
-                      <h3>Gallery export</h3>
-                      {privacyStatus?.enabled && !privacyStatus.unlocked ? (
-                        <span className="field-meta">Unlock privacy to export normal and private gallery items together.</span>
-                      ) : (
-                        <div className="setting-actions">
-                          <Tip content="Downloads normal and private gallery items in one ZIP file"><a className="ghost-button" href="/api/gallery/export" download><Download size={14} /> Export gallery</a></Tip>
-                        </div>
-                      )}
-                    </section>
-                    {privacyStatus?.vault?.assetCount ? (
-                      <section>
-                        <details className="settings-disclosure">
-                          <summary>Vault backup</summary>
-                          <div className="disclosure-body">
-                            <div className="setting-actions">
-                              <Tip content="Downloads an encrypted archive; it contains no plaintext originals"><a className="ghost-button" href="/api/vault/export" download><Download size={14} /> Export encrypted vault</a></Tip>
-                            </div>
-                            <span className="field-meta">The archive can only be read with this privacy password.</span>
-                          </div>
-                        </details>
-                      </section>
-                    ) : null}
-                  </>
-                ) : null}
-
-                {settingsTab === "advanced" ? (
-                  <>
-                    <section>
-                      <h3>Updates</h3>
-                      <div className="setting-rows">
-                        <div className="setting-row"><span>Status</span><strong className={cn("status-value", updateStatus && !updateStatus.error && (updateStatus.available ? "is-bad" : updateStatus.ok && "is-ok"))}>{updateStatus?.error || (updateStatus?.available ? `${updateStatus.behind || 1} update${updateStatus.behind === 1 ? "" : "s"} available` : updateStatus?.ok ? "Up to date" : "Not checked")}</strong></div>
-                      </div>
-                      <div className="setting-actions">
-                        <Tip content="Check GitHub for a newer commit"><button className="is-primary" onClick={() => checkForUpdates()} disabled={updateBusy}>{updateBusy ? "Checking..." : "Check for updates"}</button></Tip>
-                        <Tip content="Pull latest code, install packages, and rebuild"><button onClick={installUpdate} disabled={updateBusy || !updateStatus?.available}>{updateBusy ? "Working..." : "Install update"}</button></Tip>
-                      </div>
-                      {updateStatus?.restartRequired ? <span className="field-meta">Restart the local server to finish updating.</span> : null}
-                      <details className="settings-disclosure">
-                        <summary>Build details</summary>
-                        <div className="disclosure-body">
-                          <div className="setting-rows">
-                            <div className="setting-row"><span>Branch</span><strong>{updateStatus?.branch || "Unknown"}</strong></div>
-                            <div className="setting-row"><span>Commit</span><strong>{updateStatus?.current || "Unknown"}</strong></div>
-                          </div>
-                        </div>
-                      </details>
-                    </section>
-                    <section>
-                      <details className="settings-disclosure">
-                        <summary>Reset and cache</summary>
-                        <div className="disclosure-body">
-                          <div className="setting-actions">
-                            <Tip content="Clear browser cache, stale queue state, and free ComfyUI memory"><button onClick={clearAllCache}>Clear all cache</button></Tip>
-                            <Tip content="Reset prompts, layout, model choices, and saved settings"><button className="subtle-danger" onClick={resetAllSettings}>Reset all settings</button></Tip>
-                          </div>
-                          <span className="field-meta">Generated files are never touched by either action.</span>
-                        </div>
-                      </details>
-                    </section>
-                  </>
-                ) : null}
-              </div>
-      </Modal>
+      <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
       {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
         <Modal
           open

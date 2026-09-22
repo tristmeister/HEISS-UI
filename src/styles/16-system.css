@@ -146,8 +146,8 @@
 
 .zen-controls input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .zen-controls .number-picker,
-.settings-card input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.settings-card .number-picker,
+.settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.settings-modal .number-picker,
 .workflow-search {
   height: var(--control-h);
   min-height: var(--control-h);
@@ -157,20 +157,20 @@
   font-size: 13px;
 }
 .zen-controls input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.settings-card input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { padding: 0 16px; }
+.settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { padding: 0 16px; }
 .workflow-search { margin-bottom: 18px; }
 .zen-controls input:focus-visible,
-.settings-card input:focus-visible,
+.settings-modal input:focus-visible,
 .fluid-select-trigger:focus-visible {
   border-color: rgb(255 255 255 / .22);
   box-shadow: 0 0 0 3px rgb(255 255 255 / .06);
 }
 .zen-controls .number-picker .number-picker-btn,
-.settings-card .number-picker .number-picker-btn { height: calc(var(--control-h) - 2px); border-radius: var(--r-pill); }
+.settings-modal .number-picker .number-picker-btn { height: calc(var(--control-h) - 2px); border-radius: var(--r-pill); }
 .zen-controls .number-picker-value,
 .zen-controls .number-picker-input,
-.settings-card .number-picker-value,
-.settings-card .number-picker-input { height: calc(var(--control-h) - 2px); }
+.settings-modal .number-picker-value,
+.settings-modal .number-picker-input { height: calc(var(--control-h) - 2px); }
 
 /* -------------------------------------------------------------- 5. Buttons
    Primary is white, secondary is a soft fill, both 40px pills. List rows
@@ -180,7 +180,6 @@
 .setting-actions a,
 .wide-button,
 .reconnect-btn,
-.ghost-button,
 .workflow-actions button,
 .workflow-empty button {
   min-height: var(--control-h) !important;
@@ -194,12 +193,10 @@
 }
 .setting-actions button:not(.single *),
 .wide-button,
-.ghost-button,
 .reconnect-btn:not(.primary),
 .workflow-actions button:not(:first-child) { background: var(--control-fill) !important; color: hsl(var(--foreground)) !important; }
 .setting-actions button:not(.single *):hover:not(:disabled),
 .wide-button:hover:not(:disabled),
-.ghost-button:hover:not(:disabled),
 .reconnect-btn:not(.primary):hover,
 .workflow-actions button:not(:first-child):hover:not(:disabled) { background: var(--control-hover) !important; }
 .setting-actions.single button,
@@ -207,7 +204,6 @@
 .reconnect-btn.primary,
 .workflow-actions button:first-child { background: var(--action) !important; color: var(--action-ink) !important; }
 
-.settings-nav button,
 .sidebar-subtab,
 .zen-controls .mode-tabs button { min-height: var(--control-h); border-radius: var(--r-item); }
 .zen-controls .mode-tabs { padding: 4px; border-radius: calc(var(--r-item) + 4px); background: var(--well); }

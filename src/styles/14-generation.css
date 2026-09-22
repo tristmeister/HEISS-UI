@@ -77,7 +77,6 @@
   -webkit-text-fill-color: currentColor;
   animation: none;
 }
-.generation-preview-help { font-size: 12px; color: hsl(var(--muted-foreground)); line-height: 1.5; }
 .generation-mosaic > .image-gen-child { height: 100%; }
 /* img-fx owns shader opacity during reveal. Apply the preview strength as a
    separate multiplier so beginning the reveal cannot jump back to full opacity. */

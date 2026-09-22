@@ -191,17 +191,10 @@ button:not(:disabled):active { scale: .96; }
   color: rgb(255 255 255 / .78);
 }
 .aspect-option em { color: rgb(255 255 255 / .5); }
-.settings-card h3 { margin-bottom: 18px; font-size: 15px; }
-.project-card,
-.toggle-row,
 .workflow-detail-grid,
 .workflow-import-card { border-color: rgb(255 255 255 / .08); border-radius: 18px; background: #1b1b1b; }
-.setting-row { padding: 13px 0; border-color: rgb(255 255 255 / .07); }
 .setting-actions.single button,
 .setting-actions.single a { border-color: transparent; }
-.toggle-row input { width: 48px; height: 28px; padding: 3px; background: #3b3b3b; }
-.toggle-row input::before { width: 22px; height: 22px; background: #111; }
-.toggle-row input:checked::before { transform: translateX(20px); }
 .workflow-gallery-body { grid-template-columns: minmax(430px, .82fr) minmax(420px, 1.18fr); }
 .workflow-gallery-list { padding: 18px; }
 .workflow-search { padding: 0 14px; }

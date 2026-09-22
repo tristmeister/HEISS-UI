@@ -30,7 +30,6 @@ body {
 .stage-gallery,
 .workflow-gallery-list,
 .workflow-details,
-.settings-panel,
 .bundle-sheet {
   -webkit-overflow-scrolling: touch;
 }
@@ -103,18 +102,6 @@ body {
     max-width: none;
     transform: none;
   }
-
-  .settings-nav {
-    scroll-snap-type: x proximity;
-    overscroll-behavior-x: contain;
-  }
-  .settings-nav-item {
-    min-height: 44px;
-    scroll-snap-align: start;
-  }
-  .settings-panel {
-    padding: 18px 14px calc(24px + env(safe-area-inset-bottom));
-  }
   .workflow-gallery-list {
     padding: 12px 12px calc(20px + env(safe-area-inset-bottom));
     border-right: 0;
@@ -145,8 +132,6 @@ body {
   textarea,
   select,
   .workflow-search input,
-  .inline-form input,
-  .privacy-form input,
   .number-picker-input {
     font-size: 16px;
   }
@@ -188,21 +173,6 @@ body {
   .prompt-left-actions,
   .zen-inline-settings { gap: 4px; }
   .composer-drawer { left: 0; right: 0; }
-  .settings-nav { padding: 8px; }
-  .settings-nav-item { padding-inline: 11px; }
-  .setting-rows { padding-inline: 12px; }
-  .setting-row { grid-template-columns: 1fr; gap: 5px; }
-  .setting-row strong,
-  .status-value { justify-content: flex-start; text-align: start; }
-  .settings-panel .setting-actions,
-  .disclosure-body .setting-actions { display: grid; grid-template-columns: 1fr; }
-  .settings-panel .setting-actions > *,
-  .disclosure-body .setting-actions > * { width: 100%; }
-  .inline-form,
-  .privacy-form { display: grid; grid-template-columns: 1fr; }
-  .inline-form input,
-  .privacy-form input,
-  .inline-form button { width: 100%; }
 
   .workflow-tile-grid { grid-template-columns: 1fr; }
   .workflow-tile {

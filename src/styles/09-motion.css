@@ -60,7 +60,7 @@ button:not(:disabled):active {
   .zen-prompt-actions .model-trigger:hover,
   .zen-prompt-actions .aspect-picker > button:hover,
   .zen-prompt-actions .negative-toggle:hover,
-  .zen-prompt-actions .private-toggle:not(:disabled):hover,
+  .zen-prompt-actions .private-toggle:not([aria-disabled="true"]):hover,
   .zen-prompt-actions .number-picker:hover {
     background: #161616;
     border-color: transparent;
@@ -208,8 +208,7 @@ button:not(:disabled):active {
 .workflow-detail-hero h3 {
   text-wrap: balance;
 }
-.empty p,
-.field-meta {
+.empty p {
   text-wrap: pretty;
 }
 

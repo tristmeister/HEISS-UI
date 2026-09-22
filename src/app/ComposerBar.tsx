@@ -167,18 +167,18 @@ function GenerateButton({ children, className, disabled, onClick, "aria-label": 
   );
 }
 
-function PrivateToggle({ active, enabled, onChange, density = "full" }: { active: boolean; enabled: boolean; onChange: () => void; density?: ControlDensity }) {
+function PrivateToggle({ active, enabled, onChange, onSetup, density = "full" }: { active: boolean; enabled: boolean; onChange: () => void; onSetup?: () => void; density?: ControlDensity }) {
   const isActive = active && enabled;
   const label = isActive ? "Private mode on" : "Private mode off";
   return (
-    <Tip content={enabled ? active ? "This generation will be encrypted in Private Vault" : "Store this generation normally" : "Set a privacy password in Settings to enable Private Vault"}>
+    <Tip content={enabled ? active ? "This generation will be encrypted in Private Vault" : "Store this generation normally" : "Set up Private Vault in Settings"}>
       <button
         type="button"
         className={cn("private-toggle", isActive && "is-private", density !== "full" && `is-density-${density}`)}
         aria-label={label}
         aria-pressed={isActive}
-        disabled={!enabled}
-        onClick={onChange}
+        aria-disabled={!enabled || undefined}
+        onClick={enabled ? onChange : onSetup}
       >
         <span className="private-toggle-indicator" aria-hidden="true">
           <LockKeyhole size={13} strokeWidth={2} />
@@ -221,6 +221,7 @@ export type ComposerBarProps = {
   loraActiveCount: number;
   privateGeneration: boolean;
   privacyEnabled: boolean;
+  onPrivacySetup?: () => void;
   setPrivateGeneration: (updater: (value: boolean) => boolean) => void;
   showNegativePrompt: boolean;
   setShowNegativePrompt: (updater: (value: boolean) => boolean) => void;
@@ -244,7 +245,7 @@ export function ComposerBar(props: ComposerBarProps) {
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
-    privateGeneration, privacyEnabled, setPrivateGeneration,
+    privateGeneration, privacyEnabled, onPrivacySetup, setPrivateGeneration,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
     referenceInputs = [], referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
@@ -307,6 +308,7 @@ export function ComposerBar(props: ComposerBarProps) {
       active={privateGeneration}
       enabled={privacyEnabled}
       onChange={() => setPrivateGeneration((value: boolean) => !value)}
+      onSetup={onPrivacySetup}
       density={density}
     />
   );

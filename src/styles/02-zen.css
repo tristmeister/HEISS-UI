@@ -327,13 +327,13 @@
   transform: rotate(-45deg) scaleX(0.2);
   opacity: 0;
 }
-.private-toggle:disabled {
+/* Not set up yet: dimmed, but clicking opens Settings > Privacy. */
+.private-toggle[aria-disabled="true"] {
   opacity: 0.46;
-  cursor: not-allowed;
   transform: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .private-toggle:not(:disabled):hover {
+  .private-toggle:not([aria-disabled="true"]):hover {
     color: hsl(var(--foreground));
     border-color: hsl(var(--border-strong));
   }

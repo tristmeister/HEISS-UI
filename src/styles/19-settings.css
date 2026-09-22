@@ -1,0 +1,220 @@
+/* ---------------------------------------------------------------------------
+   Settings (src/app/SettingsDialog.tsx)
+
+   A sheet Modal with a section rail and one scrolling page. Each page is a
+   stack of groups; a group is a card of rows, label on the left and control
+   on the right, the way the composer lays out its own controls.
+--------------------------------------------------------------------------- */
+
+.set-layout { grid-template-columns: 208px minmax(0, 1fr); }
+
+/* ------------------------------------------------------------------ Rail */
+
+.set-nav {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px;
+  border-right: 1px solid var(--surface-border);
+}
+.set-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-h);
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-item);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.set-nav-item svg { flex: none; opacity: .75; }
+.set-nav-item:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+.set-nav-item.active { background: var(--selected); color: #fff; }
+.set-nav-item.active svg { opacity: 1; }
+/* The website's square marker, as the one warm note on the active section. */
+.set-nav-item.active::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  width: 6px;
+  height: 6px;
+  background: var(--ember);
+  box-shadow: var(--ember-glow);
+}
+
+/* ------------------------------------------------------------------ Page */
+
+.set-panel {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 26px 28px 36px;
+  animation: set-page-in var(--dur-base) var(--ease-out);
+}
+@keyframes set-page-in { from { opacity: 0; transform: translateY(4px); } }
+.set-page-head h3 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.025em; }
+.set-page-head p { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: hsl(var(--muted-foreground)); }
+
+.set-group { display: grid; gap: 8px; }
+.set-group-title {
+  margin: 0 0 2px 4px;
+  font-size: 11.5px;
+  font-weight: 550;
+  letter-spacing: .02em;
+  color: hsl(var(--muted-foreground));
+}
+.set-card {
+  border-radius: calc(var(--r-item) + 4px);
+  background: rgb(255 255 255 / .025);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+}
+.set-card.is-danger { background: rgb(255 120 100 / .035); box-shadow: inset 0 0 0 1px rgb(255 120 100 / .16); }
+.set-note { margin: 0 4px; font-size: 12px; line-height: 1.55; color: hsl(var(--muted-foreground) / .85); }
+.set-note code,
+.set-path { font: 500 11.5px/1.5 "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+.set-note code { padding: 1px 5px; border-radius: 6px; background: var(--control-fill); color: hsl(var(--foreground)); }
+
+/* ------------------------------------------------------------------- Row */
+
+.set-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 60px;
+  padding: 12px 14px 12px 18px;
+}
+.set-row + .set-row { box-shadow: inset 0 1px 0 var(--surface-border); }
+.set-row-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.set-row-text strong { font-size: 13.5px; font-weight: 550; color: hsl(var(--foreground)); }
+.set-row-text > span { font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.set-row-control { flex: none; display: flex; align-items: center; gap: 8px; }
+.set-row.is-disabled .set-row-text strong { color: hsl(var(--muted-foreground)); }
+
+.set-row.is-stacked { flex-direction: column; align-items: stretch; gap: 12px; }
+.set-row.is-stacked .set-row-control { flex-direction: column; align-items: stretch; }
+
+.set-inline-form { display: flex; gap: 8px; }
+.set-inline-form .modal-input { flex: 1; min-width: 0; }
+.set-stack { display: grid; gap: 8px; }
+.set-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.set-stack .set-actions { margin-top: 4px; }
+.set-value { font-size: 13px; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); padding-right: 6px; }
+
+.set-progress { height: 6px; border-radius: var(--r-pill); background: var(--well); overflow: hidden; }
+.set-progress > div { height: 100%; border-radius: inherit; background: var(--ember); transition: width 300ms var(--ease-out); }
+.set-row.is-stacked .set-row-control > .btn { align-self: flex-start; }
+
+/* Status: a square dot and a word, never colour alone. */
+.set-status { display: inline-flex; align-items: center; gap: 8px; }
+.set-status i { width: 7px; height: 7px; flex: none; background: hsl(var(--muted-foreground) / .6); }
+.set-status.is-ok i { background: #7fd49a; }
+.set-status.is-warn i { background: var(--ember); }
+.set-status.is-bad i { background: #ff7b66; }
+
+.set-about { display: flex; align-items: center; gap: 16px; padding: 18px; }
+.set-about img { width: 40px; height: 40px; flex: none; }
+.set-about > div { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.set-about strong { font-size: 15px; font-weight: 600; }
+.set-about span { font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.set-about a:not(.btn) { color: hsl(var(--foreground)); text-decoration: underline; text-decoration-color: rgb(255 255 255 / .25); text-underline-offset: 3px; }
+.set-about a:not(.btn):hover { text-decoration-color: var(--ember); }
+
+.btn.is-danger-soft { background: var(--danger-fill); color: var(--danger-ink); }
+.btn.is-danger-soft:hover:not(:disabled) { background: rgb(255 120 100 / .22); }
+
+/* ---------------------------------------------------------------- Switch */
+
+.switch {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--well);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out), box-shadow var(--dur-base);
+}
+.switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #8a8a8a;
+  transition: transform var(--dur-base) var(--ease-out), background var(--dur-base);
+}
+.switch[aria-checked="true"] { background: var(--action); box-shadow: none; }
+.switch[aria-checked="true"] .switch-thumb { transform: translateX(16px); background: var(--action-ink); }
+.switch:disabled { opacity: .4; cursor: default; }
+.switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ------------------------------------------------------------- Segmented */
+
+.segmented {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--well);
+}
+.segmented button {
+  min-height: calc(var(--control-h) - 6px);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.segmented button:hover { color: hsl(var(--foreground)); }
+.segmented button.active { background: var(--selected); color: #fff; }
+.segmented button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ----------------------------------------------------------------- Phone */
+
+@media (max-width: 760px) {
+  .set-layout { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .set-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid var(--surface-border);
+  }
+  .set-nav::-webkit-scrollbar { display: none; }
+  .set-nav-item { flex: none; min-height: 40px; }
+  .set-nav-item.active::after { display: none; }
+  .set-panel { padding: 20px 14px 28px; gap: 22px; }
+  .set-row { flex-wrap: wrap; padding: 12px 12px 12px 14px; }
+  .set-row-control { flex-wrap: wrap; }
+  .set-row:has(.segmented) .set-row-control,
+  .set-row:has(.number-picker) .set-row-control { width: 100%; }
+  .set-row .segmented { width: 100%; }
+  .set-row .segmented button { flex: 1; }
+  .set-about { flex-wrap: wrap; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-panel { animation: none; }
+}
