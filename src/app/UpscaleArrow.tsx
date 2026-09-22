@@ -15,12 +15,12 @@ export function UpscaleArrow({ size = 15 }: { size?: number }) {
       viewBox="0 0 24 24"
       fill="currentColor"
       stroke="currentColor"
-      strokeWidth="1.4"
+      strokeWidth="1.2"
       strokeLinejoin="round"
       aria-hidden="true"
       focusable="false"
     >
-      <path d="M12 3.4 21.4 12.6H16.6V20.6H7.4V12.6H2.6Z" />
+      <path d="M12 3.6 20.6 12.4H15.8V20.4H8.2V12.4H3.4Z" />
     </svg>
   );
 }
