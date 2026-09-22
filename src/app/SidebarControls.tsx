@@ -1,116 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useDismiss } from './useDismiss';
-import { ChevronDown, ChevronRight, GalleryHorizontalEnd, Minus, Pencil, Plus, Save, Search, Trash2, Wand2 } from 'lucide-react';
+import { ChevronRight, GalleryHorizontalEnd, Wand2 } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
-import { defaultLoraStrength, loraGroups, maxLoras, rankedLoras, recommendedLoras } from './loras';
+import { maxLoras } from './loras';
 import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
-import type { LoraSelection, Profile, WorkflowSummary } from './types';
-import type { LoraSnapshot } from './lora-storage';
-
-const LORA_COLORS = [
-  "hsl(280 60% 60%)",
-  "hsl(45 80% 55%)",
-  "hsl(190 70% 50%)",
-  "hsl(0 70% 55%)",
-  "hsl(150 60% 50%)",
-  "hsl(30 80% 55%)",
-  "hsl(220 70% 60%)",
-  "hsl(340 65% 55%)",
-];
-
-function LoraSelect({
-  value,
-  options,
-  profile,
-  onChange
-}: {
-  value: string;
-  options: string[];
-  profile: Profile | null;
-  onChange: (value: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const recommended = useMemo(() => recommendedLoras(options, profile, query).slice(0, 8), [options, profile, query]);
-  const groups = useMemo(() => loraGroups(options, profile, query), [options, profile, query]);
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
-
-  const close = useCallback(() => { setOpen(false); setQuery(""); }, []);
-  useDismiss(containerRef, open, close);
-
-  const choose = (name: string) => {
-    onChange(name);
-    setQuery("");
-    setOpen(false);
-  };
-
-  const toggleGroup = (id: string) => {
-    setCollapsedGroups((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const displayName = (name: string) => {
-    const parts = name.split(/[\\/]/);
-    return parts[parts.length - 1] || name;
-  };
-
-  return (
-    <div className="lora-select" ref={containerRef} data-open-surface={open || undefined}>
-      <button type="button" className="lora-select-trigger" onClick={() => { setOpen(!open); if (!open) setTimeout(() => inputRef.current?.focus(), 0); }}>
-        <span className={cn(!value && "placeholder")}>{value ? displayName(value) : "Choose LoRA"}</span>
-      </button>
-      {open ? (
-        <div className="lora-select-dropdown">
-          <div className="lora-select-search">
-            <Search size={13} />
-            <input ref={inputRef} value={query} placeholder="Search LoRAs..." onChange={(event) => setQuery(event.target.value)} />
-          </div>
-          <div className="lora-select-list">
-            {recommended.length ? (
-              <div className="lora-select-group">
-                <span title="LoRAs ranked by filename matches to the active model">Matches this model</span>
-                {recommended.map((name) => (
-                  <button key={`r-${name}`} type="button" className={cn(name === value && "active")} onClick={() => choose(name)}>
-                    {displayName(name)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-            {groups.map((group) => {
-              const collapsed = collapsedGroups.has(group.id);
-              return (
-                <div className="lora-select-group" key={group.id}>
-                  <button
-                    type="button"
-                    className="lora-select-group-heading"
-                    onClick={() => toggleGroup(group.id)}
-                    aria-expanded={!collapsed}
-                  >
-                    <span>{group.label}</span>
-                    <ChevronDown size={12} className={cn(collapsed && "is-collapsed")} />
-                  </button>
-                  {!collapsed ? group.loras.map((name) => (
-                    <button key={`a-${name}`} type="button" className={cn("lora-select-option", name === value && "active")} onClick={() => choose(name)}>
-                      {displayName(name)}
-                    </button>
-                  )) : null}
-                </div>
-              );
-            })}
-            {!groups.length ? <div className="lora-select-empty">No LoRAs match "{query}"</div> : null}
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
+import { LoraPanel } from './LoraPanel';
+import { workflowState } from './workflowStatus';
+import type { WorkflowSummary } from './types';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
   if (!workflow) return (
@@ -124,97 +19,51 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
     </button>
   );
 
-  const status = workflow.validation?.ok ? "Ready" : "Issues";
+  const status = workflowState(workflow.validation);
   return (
-    <button type="button" className={cn("workflow-card", !workflow.validation?.ok && "has-issues")} onClick={onOpen}>
-      <div className="workflow-card-thumb">
-        {workflow.thumbnail ? <img src={workflow.thumbnail} alt="" /> : <Wand2 size={18} />}
-      </div>
-      <div className="workflow-card-info">
-        <strong>{workflow.name}</strong>
-        <span>{workflow.source === "builtin" ? "Built-in" : "Custom"} workflow</span>
-      </div>
-      <div className="workflow-card-status">
-        <span className={cn("workflow-status-dot", workflow.validation?.ok ? "is-ok" : "is-warn")} />
-        {status}
-      </div>
-      <ChevronRight size={15} className="workflow-card-arrow" />
-    </button>
-  );
-}
-
-function LoraSnapshots({ snapshots, onLoad, onSave, onRename, onDelete }: {
-  snapshots: LoraSnapshot[];
-  onLoad: (snapshot: LoraSnapshot) => void;
-  onSave: () => void;
-  onRename: (snapshot: LoraSnapshot) => void;
-  onDelete: (snapshot: LoraSnapshot) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const close = useCallback(() => setOpen(false), []);
-  useDismiss(containerRef, open, close);
-
-  return (
-    <div className="lora-snapshots" ref={containerRef} data-open-surface={open || undefined}>
-      <button type="button" className="lora-snapshot-save" onClick={onSave}><Save size={13} /> Save snapshot</button>
-      <button type="button" className="lora-snapshot-trigger" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        Load snapshot <ChevronDown size={13} />
+    <Tip content="Change workflow">
+      <button type="button" className={cn("workflow-card", status.state !== "ready" && "has-issues")} onClick={onOpen}>
+        <div className="workflow-card-thumb">
+          {workflow.thumbnail ? <img src={workflow.thumbnail} alt="" /> : <Wand2 size={18} />}
+        </div>
+        <div className="workflow-card-info">
+          <strong>{workflow.name}</strong>
+          {status.state === "ready"
+            ? <span>{workflow.family || (workflow.source === "builtin" ? "Built in" : "Imported")}</span>
+            : <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>}
+        </div>
+        <ChevronRight size={15} className="workflow-card-arrow" />
       </button>
-      {open ? <div className="lora-snapshot-menu">
-        {snapshots.length ? snapshots.map((snapshot) => (
-          <div className="lora-snapshot-row" key={snapshot.id}>
-            <button type="button" className="lora-snapshot-load" onClick={() => { onLoad(snapshot); setOpen(false); }}>
-              <span>{snapshot.name}</span><small>{snapshot.loras.length} LoRA{snapshot.loras.length === 1 ? '' : 's'}</small>
-            </button>
-            <Tip content="Rename snapshot"><button type="button" className="lora-snapshot-action" onClick={() => onRename(snapshot)}><Pencil size={12} /></button></Tip>
-            <Tip content="Delete snapshot"><button type="button" className="lora-snapshot-action danger" onClick={() => onDelete(snapshot)}><Trash2 size={12} /></button></Tip>
-          </div>
-        )) : <div className="lora-snapshot-empty">No snapshots for this workflow</div>}
-      </div> : null}
-    </div>
+    </Tip>
   );
 }
 
-type SidebarTab = "basics" | "advanced" | "loras";
+export type SidebarTab = "basics" | "advanced" | "loras";
 
 export function SidebarControls({ view }: { view: any }) {
   const {
     canUseStartImage, cfg, cfgMeta, changeMode, count, countMeta, currentProfile, currentWorkflow,
     customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras,
-    loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed,
+    loraActiveCount, mode, models, profileOptions, sampler, scheduler, seed,
     setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras, setSampler,
-    setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae,
-    setWeightDtype, setWidth, startImageName, steps, stepsMeta, textEncoder, vae, weightDtype,
-    width, widthMeta, confirmAction, setWorkflowGalleryOpen, loraSnapshots, loadLoraSnapshot,
-    saveLoraSnapshot, renameLoraSnapshot, deleteLoraSnapshot, rememberedLoraStrength
-  } = view;
-
-  const [tab, setTab] = useState<SidebarTab>("basics");
+    setScheduler, setSeed, setSteps, setTextEncoder, setVae,
+    setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
+    width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
+    sidebarTab: tab, setSidebarTab: setTab
+  } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void };
 
   // Always file names; tolerate {name} entries so an odd server can't crash the picker.
   const loraOptions: string[] = (profileOptions.loras || models?.loras || [])
     .map((option: unknown) => typeof option === "string" ? option : String((option as { name?: string })?.name || ""))
     .filter(Boolean);
   const loraLimit = Math.min(maxLoras, currentProfile?.maxLoras || maxLoras);
-  const canUseLora = mode === "image" && Boolean(currentProfile?.capabilities.lora) && loraOptions.length > 0;
-
-  useEffect(() => {
-    if (!canUseLora && tab === "loras") setTab("basics");
-  }, [canUseLora, tab]);
-
-  const updateLora = (index: number, patch: Partial<LoraSelection>) => {
-    setLoras((current: LoraSelection[]) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
-  };
-  const removeLora = (index: number) => setLoras((current: LoraSelection[]) => current.filter((_, itemIndex) => itemIndex !== index));
-  const addLora = () => {
-    setLoras((current: LoraSelection[]) => {
-      if (current.length >= loraLimit) return current;
-      const first = recommendedLoras(loraOptions, currentProfile)[0] || rankedLoras(loraOptions, currentProfile)[0] || "";
-      return [...current, { name: first, enabled: true, strength: rememberedLoraStrength(first, defaultLoraStrength) }];
-    });
-  };
+  const loraUnavailable = mode !== "image"
+    ? "LoRAs work with image workflows. Switch to Image to use them."
+    : currentProfile && !currentProfile.capabilities.lora
+      ? "This workflow has no LoRA loader, so it can't take LoRAs. Pick one that does in the workflow gallery."
+      : !loraOptions.length
+        ? "No LoRAs found. Put .safetensors files in ComfyUI's models/loras folder, then rescan in Settings › Connection."
+        : "";
 
   return (
     <>
@@ -225,15 +74,13 @@ export function SidebarControls({ view }: { view: any }) {
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />
 
-      <div className="sidebar-subtabs">
-        <button className={cn("sidebar-subtab", tab === "basics" && "active")} onClick={() => setTab("basics")}>Basics</button>
-        <button className={cn("sidebar-subtab", tab === "advanced" && "active")} onClick={() => setTab("advanced")}>Advanced</button>
-        {canUseLora ? (
-          <button className={cn("sidebar-subtab", tab === "loras" && "active")} onClick={() => setTab("loras")}>
-            LoRAs
-            {loraActiveCount > 0 ? <span className="sidebar-subtab-count">{loraActiveCount}</span> : null}
+      <div className="sidebar-subtabs" role="tablist" aria-label="Sidebar sections">
+        {(["basics", "advanced", "loras"] as SidebarTab[]).map((id) => (
+          <button key={id} type="button" role="tab" aria-selected={tab === id} className={cn("sidebar-subtab", tab === id && "active")} onClick={() => setTab(id)}>
+            {id === "basics" ? "Basics" : id === "advanced" ? "Advanced" : "LoRAs"}
+            {id === "loras" && loraActiveCount > 0 ? <span className="sidebar-subtab-count">{loraActiveCount}</span> : null}
           </button>
-        ) : null}
+        ))}
       </div>
 
       <div className="sidebar-body">
@@ -286,40 +133,17 @@ export function SidebarControls({ view }: { view: any }) {
           </>
         ) : null}
 
-        {tab === "loras" && canUseLora ? (
-          <div className="lora-tab">
-            <LoraSnapshots snapshots={loraSnapshots} onLoad={loadLoraSnapshot} onSave={saveLoraSnapshot} onRename={renameLoraSnapshot} onDelete={deleteLoraSnapshot} />
-            <div className="lora-list">
-              {loras.length ? loras.map((item: LoraSelection, index: number) => (
-                <div className={cn("lora-card", !item.enabled && "is-disabled")} key={index}>
-                  <div className="lora-card-header">
-                    <div className="lora-swatch" style={{ background: LORA_COLORS[index % LORA_COLORS.length] }} />
-                    <button
-                      type="button"
-                      className={cn("lora-check", item.enabled && "on")}
-                      onClick={() => updateLora(index, { enabled: !item.enabled })}
-                      aria-label={item.enabled ? "Disable LoRA" : "Enable LoRA"}
-                    />
-                    <div className="lora-card-weight">
-                      <button type="button" onClick={() => updateLora(index, { strength: Math.round((item.strength - 0.05) * 100) / 100 })}><Minus size={11} /></button>
-                      <span>{item.strength.toFixed(2)}</span>
-                      <button type="button" onClick={() => updateLora(index, { strength: Math.round((item.strength + 0.05) * 100) / 100 })}><Plus size={11} /></button>
-                    </div>
-                    <Tip content="Remove LoRA"><button type="button" className="lora-del" onClick={() => removeLora(index)}><Trash2 size={12} /></button></Tip>
-                  </div>
-                  <LoraSelect value={item.name} options={loraOptions} profile={currentProfile} onChange={(name) => updateLora(index, { name, strength: rememberedLoraStrength(name, item.strength) })} />
-                </div>
-              )) : (
-                <div className="lora-list-empty">No LoRAs added yet</div>
-              )}
-            </div>
-            <Tip content={loras.length >= loraLimit ? `This workflow takes up to ${loraLimit} LoRAs` : "Add LoRA"}>
-              <button type="button" className="lora-add-btn" onClick={addLora} disabled={loras.length >= loraLimit}>
-                <Plus size={14} />
-                Add LoRA
-              </button>
-            </Tip>
-          </div>
+        {tab === "loras" ? (
+          <LoraPanel
+            loras={loras}
+            setLoras={setLoras}
+            options={loraOptions}
+            profile={currentProfile}
+            limit={loraLimit}
+            library={loraLibrary}
+            rememberedStrength={rememberedLoraStrength}
+            unavailableReason={loraUnavailable}
+          />
         ) : null}
       </div>
     </>

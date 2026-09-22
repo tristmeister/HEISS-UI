@@ -28,11 +28,18 @@ function cleanStack(value) {
   });
 }
 
+function cleanNames(value, limit = 500) {
+  return Array.isArray(value) ? value.map((item) => String(item || "").trim()).filter(Boolean).slice(0, limit) : [];
+}
+
 function cleanLibrary(value) {
   const source = value && typeof value === "object" ? value : {};
   return {
     strengths: source.strengths && typeof source.strengths === "object" ? source.strengths : {},
-    snapshots: source.snapshots && typeof source.snapshots === "object" ? source.snapshots : {}
+    // Stacks are keyed by model family ("family:z-image"); older builds keyed them by workflow id.
+    snapshots: source.snapshots && typeof source.snapshots === "object" ? source.snapshots : {},
+    favorites: cleanNames(source.favorites),
+    recents: cleanNames(source.recents, 12)
   };
 }
 

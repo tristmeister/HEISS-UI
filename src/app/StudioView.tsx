@@ -252,6 +252,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               loraActiveCount={loraActiveCount}
               privateGeneration={privateGeneration}
               onPrivacySetup={() => openSettings("privacy")}
+              onOpenLoras={view.openLoras}
               privacyEnabled={Boolean(privacyStatus?.enabled)}
               setPrivateGeneration={setPrivateGeneration}
               showNegativePrompt={showNegativePrompt}
@@ -389,6 +390,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               loraActiveCount={loraActiveCount}
               privateGeneration={privateGeneration}
               onPrivacySetup={() => openSettings("privacy")}
+              onOpenLoras={view.openLoras}
               privacyEnabled={Boolean(privacyStatus?.enabled)}
               setPrivateGeneration={setPrivateGeneration}
               showNegativePrompt={showNegativePrompt}

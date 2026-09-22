@@ -222,6 +222,7 @@ export type ComposerBarProps = {
   privateGeneration: boolean;
   privacyEnabled: boolean;
   onPrivacySetup?: () => void;
+  onOpenLoras?: () => void;
   setPrivateGeneration: (updater: (value: boolean) => boolean) => void;
   showNegativePrompt: boolean;
   setShowNegativePrompt: (updater: (value: boolean) => boolean) => void;
@@ -245,7 +246,7 @@ export function ComposerBar(props: ComposerBarProps) {
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
-    privateGeneration, privacyEnabled, onPrivacySetup, setPrivateGeneration,
+    privateGeneration, privacyEnabled, onPrivacySetup, onOpenLoras, setPrivateGeneration,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
     referenceInputs = [], referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
@@ -295,11 +296,11 @@ export function ComposerBar(props: ComposerBarProps) {
   ) : null;
 
   const loraPill = (density: ControlDensity) => loraActiveCount ? (
-    <Tip content={`${loraActiveCount} LoRA${loraActiveCount === 1 ? "" : "s"} active`}>
-      <span className={cn("lora-pill", density !== "full" && `is-density-${density}`)}>
+    <Tip content={`${loraActiveCount} LoRA${loraActiveCount === 1 ? "" : "s"} active. Click to edit`}>
+      <button type="button" className={cn("lora-pill", density !== "full" && `is-density-${density}`)} onClick={onOpenLoras} aria-label={`${loraActiveCount} LoRA${loraActiveCount === 1 ? "" : "s"} active, edit LoRAs`}>
         {density === "full" ? "LoRA" : <Layers size={13} />}
         <AnimatedNumber value={loraActiveCount} />
-      </span>
+      </button>
     </Tip>
   ) : null;
 

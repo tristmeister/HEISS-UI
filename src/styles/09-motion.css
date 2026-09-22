@@ -47,9 +47,7 @@ button:not(:disabled):active {
 .zen-prompt-actions .number-picker,
 .zen-prompt-actions .negative-toggle,
 .zen-prompt-actions .private-toggle,
-.lora-pill,
-.workflow-card,
-.sidebar-subtab {
+.lora-pill {
   transition-property: background-color, border-color, color, box-shadow, scale;
   transition-duration: var(--motion-base);
   transition-timing-function: var(--motion-ease);
@@ -193,8 +191,7 @@ button:not(:disabled):active {
   to { opacity: 1; transform: none; }
 }
 .model-menu,
-.aspect-menu,
-.lora-select-dropdown {
+.aspect-menu {
   animation: surfaceIn var(--motion-base) var(--motion-ease) both;
   transform-origin: bottom center;
 }
@@ -215,8 +212,7 @@ button:not(:disabled):active {
   .zen-inline-settings > *,
   .zen-prompt-actions > .generate,
   .model-menu,
-  .aspect-menu,
-  .lora-select-dropdown {
+  .aspect-menu {
     animation: none;
   }
   button:not(:disabled):active { scale: 1; }

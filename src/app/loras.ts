@@ -9,13 +9,15 @@ export type LoraGroup = {
   loras: string[];
 };
 
+/** Clean, capped and de-duplicated: the same LoRA twice in one stack is never intended. */
 export function normalizeLoras(value: unknown): LoraSelection[] {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, maxLoras).map((item) => ({
+  const seen = new Set<string>();
+  return value.map((item) => ({
     name: String(item?.name || ""),
     enabled: item?.enabled !== false,
     strength: Number.isFinite(Number(item?.strength)) ? Number(item.strength) : defaultLoraStrength
-  })).filter((item) => item.name);
+  })).filter((item) => item.name && !seen.has(item.name) && seen.add(item.name)).slice(0, maxLoras);
 }
 
 function tokensForProfile(profile: Profile | null) {

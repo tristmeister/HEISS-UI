@@ -35,6 +35,7 @@
 
   /* Deck geometry: a 40px control plus 4px of surface on each side. */
   --dock-h: 48px;
+  --sidebar-w: min(390px, calc(100vw - 36px));
 
   /* The one warm note, borrowed from the website: focus, live state, markers. Use sparingly. */
   --ember: #ff9a52;

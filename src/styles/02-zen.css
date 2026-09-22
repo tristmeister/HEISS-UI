@@ -67,7 +67,6 @@
   color: hsl(var(--foreground));
   transition: left 260ms var(--ease-out);
 }
-.zen-zoom-dock.with-side { left: calc(min(360px, 100vw - 24px) + 24px); }
 .zen-zoom-dock .icon-button:hover { background: hsl(var(--accent)); color: hsl(var(--foreground)); border: 0; }
 .zen-zoom-dock .icon-button:disabled { opacity: 0.35; cursor: not-allowed; background: transparent; }
 .zen-zoom-dock .viewer-zoom {
@@ -88,7 +87,6 @@
 
 .zen-controls {
   position: fixed; left: 12px; bottom: 70px; z-index: 11;
-  width: min(360px, calc(100vw - 24px));
   padding: 14px;
   overflow: hidden;
   overscroll-behavior: contain;
