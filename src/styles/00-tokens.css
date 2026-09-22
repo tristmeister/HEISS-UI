@@ -1,0 +1,38 @@
+/* ---------------------------------------------------------------------------
+   HEISS UI design tokens
+
+   The baseline is the generation composer: everything else takes its material,
+   control height and radius scale from it. Use these instead of raw values.
+--------------------------------------------------------------------------- */
+
+:root {
+  /* Material. Floating chrome over content, and solid modal sheets. */
+  --surface-float: rgb(22 22 22 / .92);
+  --surface-float-blur: blur(20px) saturate(1.4);
+  --surface-modal: #161616;
+  --surface-border: rgb(255 255 255 / .1);
+  --shadow-float: 0 24px 80px rgb(0 0 0 / .5), 0 2px 10px rgb(0 0 0 / .38), inset 0 1px 0 rgb(255 255 255 / .045);
+  --shadow-float-sm: 0 8px 26px rgb(0 0 0 / .36), inset 0 1px 0 rgb(255 255 255 / .06);
+
+  /* Controls. Values sit in a dark well; actions are ghost until hovered. */
+  --control-h: 40px;
+  --well: #090909;
+  --control-hover: rgb(255 255 255 / .09);
+  --control-fill: rgb(255 255 255 / .07);
+  --selected: #303030;
+  --action: #f4f4f4;
+  --action-ink: #0a0a0a;
+  --danger-ink: #ffc4b9;
+  --danger-fill: rgb(255 120 100 / .14);
+  --danger-ring: rgb(255 120 100 / .24);
+
+  /* Radius scale. Controls are pills; containers follow radius = inner + padding. */
+  --r-panel: 28px;   /* composer, sidebar, modals */
+  --r-menu: 22px;    /* menus, popovers */
+  --r-item: 14px;    /* rows and options inside a menu or list */
+  --r-media: 10px;   /* image tiles and thumbnails */
+  --r-pill: 999px;
+
+  /* Deck geometry: a 40px control plus 4px of surface on each side. */
+  --dock-h: 48px;
+}

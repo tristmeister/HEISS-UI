@@ -231,7 +231,6 @@
 .disclosure-body .setting-actions .subtle-danger:hover:not(:disabled) {
   background: rgb(214 78 78 / 0.22);
 }
-.ghost-button { height: 34px; min-height: 34px; padding: 0 13px; border-radius: 17px; font-size: 12px; }
 
 /* -------------------------------------------------------------------- Forms */
 

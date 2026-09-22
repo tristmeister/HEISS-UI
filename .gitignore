@@ -18,5 +18,5 @@ data
 /product-screenshots/
 /artifacts/
 
-# PP Neue Bit is a commercial font: keep it local, don't ship it with the app.
+# PP Neue Bit is a commercial font; the app doesn't use it, keep any local copy out of the repo.
 /public/fonts/PPNeueBit*

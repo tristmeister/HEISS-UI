@@ -2,54 +2,6 @@
    Uses the shared motion tokens and the same floating-dock surface as the rest
    of the app. */
 
-/* ------------------------------------------------------------- Tidy up dock */
-
-.gallery-tidy-dock {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 13;
-}
-.gallery-tidy {
-  height: 44px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  padding: 0 8px 0 16px;
-  border: 1px solid rgb(255 255 255 / 0.1);
-  border-radius: 22px;
-  background: rgb(30 30 30 / 0.9);
-  backdrop-filter: blur(22px) saturate(1.25);
-  -webkit-backdrop-filter: blur(22px) saturate(1.25);
-  box-shadow: 0 8px 26px rgb(0 0 0 / 0.36), inset 0 1px 0 rgb(255 255 255 / 0.06);
-  color: hsl(var(--foreground));
-  font-size: 13px;
-  font-weight: 550;
-  letter-spacing: -0.005em;
-  cursor: pointer;
-  transition-property: background-color, box-shadow, color, scale;
-  transition-duration: var(--motion-base);
-  transition-timing-function: var(--motion-ease);
-}
-.gallery-tidy:hover:not(:disabled) { background: rgb(42 42 42 / 0.94); }
-.gallery-tidy:disabled { opacity: 0.6; cursor: progress; }
-.gallery-tidy svg { flex: 0 0 auto; opacity: 0.8; }
-.gallery-tidy-count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  border-radius: 14px;
-  background: #f2f2f2;
-  color: #0b0b0b;
-  font-size: 12px;
-  font-style: normal;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-
 /* -------------------------------------------------------------- Stack card */
 
 .bundle { position: relative; }
@@ -398,11 +350,6 @@
 .zen-run-badge i::before { content: "·"; margin-right: 6px; opacity: 0.5; }
 /* The strip occupies the same top-centre slot, so drop below it when it is open. */
 .zen-shell:has(.zen-gallery-wrap) .zen-run-badge { top: 96px; }
-
-@media (max-width: 760px) {
-  .gallery-tidy-dock { right: 10px; bottom: calc(var(--zen-prompt-h, 96px) + 10px); }
-  .gallery-tidy { padding-left: 14px; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .bundle-stack-peek,

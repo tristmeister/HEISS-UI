@@ -59,6 +59,11 @@ export function characterMeta(text: string, limit?: number) {
   return `${length.toLocaleString()} / ${limit.toLocaleString()}`;
 }
 
+/** The counter only earns its space near the limit; an unlimited prompt never shows one. */
+export function nearTextLimit(text: string, limit?: number) {
+  return Boolean(limit) && textLength(text) >= (limit as number) * 0.8;
+}
+
 export function clampText(text: string, limit?: number) {
   return limit ? Array.from(text).slice(0, limit).join("") : text;
 }

@@ -33,12 +33,6 @@
   overflow: visible;
   will-change: transform;
 }
-.react-photo-album {
-  width: 100%;
-}
-.react-photo-album--track {
-  align-items: flex-start;
-}
 .gallery-load-more {
   display: flex;
   align-items: center;
@@ -202,7 +196,6 @@
 .tile-action {
   position: absolute; top: 8px; right: 8px;
   border: 1px solid rgb(255 255 255 / 0.12);
-  border-radius: 8px;
   background: rgb(0 0 0 / 0.55);
   backdrop-filter: blur(12px) saturate(1.4);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
@@ -323,20 +316,11 @@
   pointer-events: none;
   -webkit-user-drag: none;
 }
-.generating .noise-layer {
-  position: absolute; inset: 0; z-index: 0;
-  background:
-    radial-gradient(ellipse at 30% 26%, hsl(216 20% 50% / 0.035), transparent 40%),
-    radial-gradient(ellipse at 72% 70%, hsl(var(--muted-foreground) / 0.04), transparent 42%),
-    linear-gradient(155deg, hsl(var(--card)), hsl(var(--input)) 60%, hsl(var(--card)));
-  pointer-events: none;
-}
 
 .generating.stopped {
   background: hsl(var(--card));
   border-color: hsl(var(--border));
 }
-.generating.stopped .noise-layer,
 .generating.stopped .generate-bar,
 .generating.stopped .generate-overlay { display: none; }
 .generating.stopped span { position: relative; z-index: 2; color: hsl(var(--muted-foreground)); font-size: 12px; display: grid; place-items: center; height: 100%; }
@@ -455,15 +439,10 @@
   0% { left: -28%; }
   100% { left: 100%; }
 }
-@keyframes previewFade { from { opacity: 0; } to { opacity: 1; } }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pop {
   0% { opacity: 0; transform: translateY(-3px) scale(0.98); filter: blur(3px); }
-  100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-}
-@keyframes toastIn {
-  0% { opacity: 0; transform: translateY(6px) scale(0.97); filter: blur(2px); }
   100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
@@ -524,13 +503,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 16px;
-  border: 1px solid hsl(var(--border));
-  border-radius: var(--radius);
   background: hsl(var(--card));
   color: hsl(var(--foreground));
-  font-size: 12px;
-  font-weight: 500;
   cursor: pointer;
   transition: background 160ms var(--ease-out), border-color 160ms var(--ease-out);
 }
@@ -558,5 +532,3 @@
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }

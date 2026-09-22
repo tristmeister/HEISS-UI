@@ -3,15 +3,6 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-/* PP Neue Bit is commercial and not bundled: use an installed copy or public/fonts/, else fall back to monospace. */
-@font-face {
-  font-family: "PP Neue Bit";
-  src: local("PP Neue Bit Bold"), local("PPNeueBit-Bold"), url("/fonts/PPNeueBit-Bold.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -49,8 +40,8 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-soft: cubic-bezier(0.32, 0.72, 0, 1);
 
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
+  /* One typeface everywhere: Geist, same as the website. */
+  font-family: "Geist Variable", "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   --chart-1: oklch(0.87 0 0);
@@ -242,13 +233,11 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   padding: 14px;
   margin-bottom: 12px;
 }
-.compact-panel { padding-bottom: 10px; }
 
 .field { display: grid; gap: 6px; margin-bottom: 12px; min-width: 0; }
 .field:last-child { margin-bottom: 0; }
 .field > div, .field > label { min-width: 0; }
-.field > span,
-.section-title {
+.field > span {
   color: hsl(var(--muted-foreground));
   font-size: 12px; font-weight: 500;
   letter-spacing: -0.005em;
@@ -259,7 +248,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   color: hsl(var(--muted-foreground) / 0.7);
   font-size: 11px; font-weight: 500;
 }
-.section-title { margin-bottom: 10px; color: hsl(var(--foreground)); font-weight: 600; font-size: 12px; letter-spacing: -0.005em; }
 
 textarea, input, select {
   width: 100%;
@@ -298,16 +286,16 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
 .fluid-select-trigger {
   min-width: 0 !important;
   width: 100%;
-  height: 36px !important;
-  border: 1px solid hsl(var(--border)) !important;
-  background: hsl(var(--input)) !important;
-  border-radius: var(--radius) !important;
-  padding: 0 10px !important;
+  height: var(--control-h) !important;
+  border: 1px solid transparent !important;
+  background: var(--well) !important;
+  border-radius: var(--r-pill) !important;
+  padding: 0 14px 0 16px !important;
   font-size: 13px !important;
   color: hsl(var(--foreground)) !important;
-  transition: border-color 160ms var(--ease-out) !important;
+  transition: background-color 160ms var(--ease-out) !important;
 }
-.fluid-select-trigger:hover { border-color: hsl(var(--border-strong)) !important; background: hsl(var(--input)) !important; }
+.fluid-select-trigger:hover { background: #141414 !important; }
 .fluid-select-trigger > span { min-width: 0; }
 .fluid-select-content {
   border: 1px solid hsl(var(--border)) !important;
@@ -373,10 +361,6 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   top: calc(100% + 6px); left: 0; right: 0;
   display: grid; gap: 2px;
   padding: 4px;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 2px);
-  background: hsl(var(--popover));
-  box-shadow: var(--shadow-lg);
   animation: pop 180ms var(--spring);
 }
 .model-option { min-height: 54px; border-color: transparent; background: transparent; }
@@ -430,10 +414,6 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   width: max(100%, min(280px, calc(100vw - 32px)));
   display: grid; gap: 3px;
   padding: 6px;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 2px);
-  background: hsl(var(--popover));
-  box-shadow: var(--shadow-lg);
   animation: pop 180ms var(--spring);
 }
 .aspect-option { grid-template-columns: 30px minmax(44px, auto) minmax(80px, 1fr); border-color: transparent; background: transparent; }
@@ -447,30 +427,14 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
 .aspect-shape.default { width: 18px; height: 18px; }
 .aspect-shape.custom { width: 22px; height: 22px; border-style: dashed; }
 
-.split, .advanced-grid, .control-grid {
+.split, .advanced-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: start;
 }
-.control-grid .field { min-width: 0; }
 .advanced-grid { margin-top: 10px; }
-
-.advanced-toggle {
-  width: 100%; min-height: 34px;
-  display: flex; align-items: center; justify-content: space-between;
-  border: 0; background: transparent;
-  color: hsl(var(--muted-foreground));
-  font-size: 12px; font-weight: 500;
-  cursor: pointer;
-  padding: 0;
-  transition: color 160ms var(--ease-out);
-}
-.advanced-toggle:hover { color: hsl(var(--foreground)); }
-.advanced-toggle svg { transition: transform 220ms var(--spring); }
 .flip { transform: rotate(180deg); }
-
-.sidebar-section { margin-top: 12px; }
 
 .sidebar-subtabs {
   display: grid;
@@ -482,10 +446,8 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   background: hsl(var(--input));
 }
 .sidebar-subtab {
-  min-height: 32px;
   border: 0;
   background: transparent;
-  border-radius: calc(var(--radius) - 2px);
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 500;
@@ -693,10 +655,6 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   top: calc(100% - 2px);
   left: 0;
   right: 0;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) + 2px);
-  background: hsl(var(--popover));
-  box-shadow: var(--shadow-lg);
   animation: pop 180ms var(--spring);
   display: flex;
   flex-direction: column;
@@ -802,30 +760,6 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   text-align: center;
 }
 
-.file-pick {
-  display: flex; align-items: center; gap: 8px;
-  border: 1px dashed hsl(var(--border-strong));
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  color: hsl(var(--muted-foreground));
-  background: hsl(var(--input) / 0.4);
-  transition: border-color 160ms var(--ease-out), background 160ms var(--ease-out);
-}
-.file-pick:hover { border-color: hsl(var(--ring)); background: hsl(var(--accent)); }
-.file-pick input { display: none; }
-.file-pick span { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-pick button {
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: calc(var(--radius) - 2px);
-  font-size: 12px; font-weight: 500;
-  transition: background 160ms var(--ease-out);
-}
-.file-pick button:hover { background: hsl(var(--accent)); }
-
 .generate {
   position: relative;
   overflow: hidden;
@@ -883,5 +817,3 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   45% { transform: translateY(-1px) rotate(-6deg); }
   70% { transform: translateY(0) rotate(4deg); }
 }
-
-.status-row { color: hsl(var(--muted-foreground)); font-size: 12px; padding: 12px 2px 0; min-height: 28px; }

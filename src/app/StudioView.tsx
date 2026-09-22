@@ -1,9 +1,9 @@
 import React from 'react';
 import { Toaster } from 'sonner';
-import { ArrowUp, BrushCleaning, ChevronDown, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, Github, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, WifiOff, Wrench, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowUp, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, Github, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, WifiOff, Wrench, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { githubUrl } from './constants';
-import { cn } from './format';
+import { cn, nearTextLimit } from './format';
 import { AspectPicker, Field, GallerySkeleton, InfoTip, Media, ModelPicker, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
@@ -149,6 +149,47 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       return next;
     });
   }, []);
+  // One compact dock, bottom right, in both layouts. Transient actions (tidy up,
+  // cancel queue) rise above it as small chips, so the dock never changes size.
+  const dockChip = { initial: { opacity: 0, y: 8, scale: 0.94 }, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 0, y: 6, scale: 0.96 }, transition: { type: "spring" as const, duration: 0.34, bounce: 0 } };
+  const studioDock = (
+    <div className="studio-dock">
+      <div className="dock-transients">
+        <AnimatePresence initial={false}>
+          {!prefs.zenMode && pendingBundles.runs > 0 ? (
+            <motion.div key="tidy" {...dockChip}>
+              <Tip content={`Group ${pendingBundles.items} outputs from ${pendingBundles.runs} finished run${pendingBundles.runs === 1 ? "" : "s"} into stacks`} side="left">
+                <button type="button" className="dock-chip gallery-tidy" onClick={compactGallery} disabled={compactBusy}>
+                  <BrushCleaning size={14} />
+                  <span>{compactBusy ? "Grouping" : "Tidy up"}</span>
+                  <i className="dock-count"><AnimatedNumber value={pendingBundles.runs} /></i>
+                </button>
+              </Tip>
+            </motion.div>
+          ) : null}
+          {runningCount ? (
+            <motion.div key="cancel" {...dockChip}>
+              <Tip content="Cancel all running and queued generations" side="left">
+                <button type="button" className="dock-chip is-cancel" onClick={cancelQueue}>
+                  <CircleStop size={14} />
+                  <span>Cancel</span>
+                  <i className="dock-count"><AnimatedNumber value={runningCount} /></i>
+                </button>
+              </Tip>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+      <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
+      <Tip content="Workflow Gallery"><button className="icon-button" aria-label="Workflow Gallery" onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={16} /></button></Tip>
+      <Tip content="Settings"><button className="icon-button" aria-label="Settings" onClick={() => setSettings(true)}><Settings size={16} /></button></Tip>
+      {prefs.zenMode ? (
+        <Tip content="Exit zen (Esc)"><button className="icon-button" aria-label="Exit zen" onClick={() => setZenMode(false)}><Minimize2 size={16} /></button></Tip>
+      ) : (
+        <Tip content="Zen mode"><button className="icon-button" aria-label="Enter zen mode" onClick={() => setZenMode(true)}><Maximize2 size={16} /></button></Tip>
+      )}
+    </div>
+  );
   return (
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open")}>
@@ -220,7 +261,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               </div>
             ) : (
               <div className="zen-empty">
-                <img src="/heiss-mark-white.svg" alt="HEISS AI" />
+                <img src="/heiss-mark-white.svg" alt="HEISS UI" />
               </div>
             )}
             <div className="zen-fade" />
@@ -254,19 +295,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <ChevronDown size={16} />
             </button></Tip>
           ) : null}
-          <div className="zen-top-actions">
-            <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
-            <Tip content="Workflow Gallery"><button className="icon-button" aria-label="Workflow Gallery" onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={15} /></button></Tip>
-            <Tip content="Settings"><button className="icon-button" aria-label="Settings" onClick={() => setSettings(true)}><Settings size={15} /></button></Tip>
-            <Tip content="Exit zen"><button className="icon-button" aria-label="Exit zen" onClick={() => setZenMode(false)}><Minimize2 size={15} /></button></Tip>
-          </div>
+          {studioDock}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
           <aside data-open-surface className={cn("zen-controls", zenControls && "open")}>
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
             <textarea ref={zenPromptRef} value={prompt} placeholder="Describe what to make..." onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
-            <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span>
+            {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
@@ -346,23 +382,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </>
       ) : (
         <>
-          <header className="studio-nav">
-            <Tip content="Controls"><button className="studio-brand-lockup" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
-              <img src="/heiss-mark-black.svg" alt="HEISS AI" />
-              <div>
-                <strong>HEISS UI</strong>
-                <span>{mode === "image" ? "Image studio" : "Video studio"}</span>
-              </div>
-              <PanelLeft className="mobile-sidebar-icon" size={18} />
-            </button></Tip>
-            <div className="studio-nav-actions">
-              {runningCount ? <Tip content="Cancel all running and queued generations"><button className="queue-button" onClick={cancelQueue}>Cancel queue</button></Tip> : null}
-              <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
-              <Tip content="Workflow Gallery"><button className="nav-action" aria-label="Workflow Gallery" onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={16} /><span>Workflows</span></button></Tip>
-              <Tip content="Settings"><button className="nav-action" aria-label="Settings" onClick={() => setSettings(true)}><Settings size={16} /><span>Settings</span></button></Tip>
-              <Tip content="Zen mode"><button className="nav-action icon-only" aria-label="Enter zen mode" onClick={() => setZenMode(true)}><Maximize2 size={16} /></button></Tip>
-            </div>
-          </header>
           <main ref={galleryStageRef} className="stage-gallery" onScroll={onGalleryScroll}>
           {!galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
             <VirtualMasonryGallery
@@ -387,7 +406,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             />
           ) : comfyOffline ? (
             <section className="gallery"><div className="empty is-offline">
-              <img src="/heiss-mark-black.svg" alt="HEISS AI" />
+              <img src="/heiss-mark-black.svg" alt="HEISS UI" />
               <h2>ComfyUI is offline</h2>
               <p>Start ComfyUI to connect your studio.</p>
               <div className="empty-actions">
@@ -397,7 +416,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             </div></section>
           ) : (
             <section className="gallery"><div className="empty">
-              <img src="/heiss-mark-black.svg" alt="HEISS AI" />
+              <img src="/heiss-mark-black.svg" alt="HEISS UI" />
               <h2>No outputs yet</h2>
               <p>Start with a prompt. Your creations will appear here.</p>
             </div></section>
@@ -409,26 +428,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             ) : null}
             <div className="bottom-fade" />
           </main>
-          <AnimatePresence>
-            {pendingBundles.runs > 0 ? (
-              <motion.div
-                className="gallery-tidy-dock"
-                initial={{ opacity: 0, y: 10, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                transition={{ type: "spring", duration: 0.34, bounce: 0 }}
-              >
-                <Tip content={`Group ${pendingBundles.items} outputs from ${pendingBundles.runs} finished run${pendingBundles.runs === 1 ? "" : "s"} into stacks`} side="left">
-                  <button type="button" className="gallery-tidy" onClick={compactGallery} disabled={compactBusy}>
-                    <BrushCleaning size={16} />
-                    <span>{compactBusy ? "Grouping..." : "Tidy up"}</span>
-                    <i className="gallery-tidy-count"><AnimatedNumber value={pendingBundles.runs} /></i>
-                  </button>
-                </Tip>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-          <Tip content="Controls"><button data-open-trigger className="zen-control-button desktop-sidebar-trigger" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
+          {studioDock}
+          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
@@ -436,12 +437,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <div className="composer-kicker">
-              <span>{mode === "image" ? "Create image" : "Create video"}</span>
-              <span>{currentProfile?.displayName || currentProfile?.label || "Choose a workflow"}</span>
-            </div>
             <textarea ref={zenPromptRef} value={prompt} placeholder="Describe what to make..." onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
-            <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span>
+            {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
@@ -504,7 +501,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           <div data-open-surface className="settings-card" onClick={(event) => event.stopPropagation()}>
             <header>
               <div className="settings-brand">
-                <img src="/heiss-mark-white.svg" alt="HEISS AI" />
+                <img src="/heiss-mark-white.svg" alt="HEISS UI" />
                 <h2>Settings</h2>
               </div>
               <Tip content="Close (Esc)"><button className="icon-button" aria-label="Close settings" onClick={() => setSettings(false)}><X size={15} /></button></Tip>
@@ -533,7 +530,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                     <section>
                       <h3>Project</h3>
                       <div className="project-card">
-                        <img src="/heiss-mark-white.svg" alt="HEISS AI" />
+                        <img src="/heiss-mark-white.svg" alt="HEISS UI" />
                         <div>
                           <strong>HEISS UI</strong>
                           <span>Local image and video studio</span>

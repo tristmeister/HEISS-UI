@@ -74,35 +74,7 @@ body {
       max(6px, env(safe-area-inset-left));
   }
 
-  .studio-nav {
-    top: max(8px, env(safe-area-inset-top));
-    left: max(8px, env(safe-area-inset-left));
-    right: max(8px, env(safe-area-inset-right));
-    gap: 8px;
-  }
-
-  .studio-brand-lockup,
-  .studio-nav-actions {
-    min-height: 44px;
-    border-radius: 22px;
-  }
-
-  .studio-brand-lockup { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  .studio-brand-lockup img,
-  .studio-brand-lockup div { display: none; }
-  .studio-brand-lockup .mobile-sidebar-icon { display: block; }
-  .desktop-sidebar-trigger { display: none; }
-  .studio-nav-actions { flex: 0 0 auto; height: 44px; padding: 3px; gap: 1px; }
-  .nav-action,
-  .studio-nav-actions .comfy-status-dot,
-  .studio-nav-actions .queue-button {
-    min-width: 38px;
-    height: 38px;
-    padding-inline: 9px;
-  }
-
   .stage-gallery {
-    padding-top: calc(68px + env(safe-area-inset-top));
     padding-right: max(6px, env(safe-area-inset-right));
     padding-bottom: calc(var(--zen-prompt-h, 160px) + 28px + env(safe-area-inset-bottom));
     padding-left: max(6px, env(safe-area-inset-left));
@@ -130,29 +102,11 @@ body {
     padding-left: max(8px, env(safe-area-inset-left));
   }
 
-  .zen-control-button,
-  .zen-gallery-restore,
-  .zen-top-actions {
-    top: max(8px, env(safe-area-inset-top));
-  }
-  .zen-control-button { left: calc(max(8px, env(safe-area-inset-left)) + 52px); }
-  .zen-shell .zen-control-button { left: max(8px, env(safe-area-inset-left)); }
-  .zen-gallery-restore { left: max(8px, env(safe-area-inset-left)); }
-  .zen-shell .zen-gallery-restore { left: calc(max(8px, env(safe-area-inset-left)) + 52px); }
-  .zen-top-actions { right: max(8px, env(safe-area-inset-right)); }
-  .zen-zoom-dock {
-    left: max(8px, env(safe-area-inset-left));
-    bottom: calc(var(--zen-prompt-h, 160px) + 8px + env(safe-area-inset-bottom));
-  }
-  .gallery-tidy-dock {
-    right: max(8px, env(safe-area-inset-right));
-    bottom: calc(var(--zen-prompt-h, 160px) + 8px + env(safe-area-inset-bottom));
-  }
+  /* Bottom deck placement (controls button, zoom, dock) lives in 16-deck.css. */
 
   .zen-controls {
     left: max(8px, env(safe-area-inset-left));
     right: max(8px, env(safe-area-inset-right));
-    top: calc(58px + env(safe-area-inset-top));
     bottom: calc(var(--zen-prompt-h, 160px) + 16px + env(safe-area-inset-bottom));
     width: auto;
     max-height: none;
@@ -172,7 +126,6 @@ body {
     width: 100%;
     height: 100%;
     max-height: 100%;
-    border-radius: 22px;
   }
 
   .settings-card header,
@@ -193,12 +146,10 @@ body {
     padding: 18px 14px calc(24px + env(safe-area-inset-bottom));
   }
 
-  .workflow-gallery-head p,
-  .workflow-drop { display: none; }
+  .workflow-gallery-head p { display: none; }
   .workflow-import-button {
     width: 44px;
     min-width: 44px;
-    padding: 0;
     justify-content: center;
   }
   .workflow-import-button span { display: none; }
@@ -249,8 +200,6 @@ body {
   .reference-media-head h2 { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
   .reference-media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
-  .studio-nav-actions { gap: 1px; padding: 3px; }
-  .studio-nav-actions .queue-button { max-width: 88px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .stage-gallery {
     padding-right: max(5px, env(safe-area-inset-right));
     padding-left: max(5px, env(safe-area-inset-left));
@@ -276,7 +225,7 @@ body {
     border-radius: 10px;
   }
 
-  .zen-prompt { padding: 7px; border-radius: 22px; }
+  .zen-prompt { padding: 7px; }
   .zen-prompt textarea { min-height: 46px; max-height: 96px; padding-inline: 8px; }
   .zen-prompt-actions { gap: 5px; }
   .prompt-left-actions,
@@ -358,14 +307,6 @@ body {
   .zen-controls {
     bottom: calc(var(--zen-prompt-h, 160px) + 24px + env(safe-area-inset-bottom));
   }
-  .zen-zoom-dock,
-  .gallery-tidy-dock {
-    bottom: calc(var(--zen-prompt-h, 160px) + 18px + env(safe-area-inset-bottom));
-  }
-  .zen-top-actions {
-    top: max(14px, env(safe-area-inset-top));
-    bottom: auto;
-  }
 }
 
 @media (hover: none) and (pointer: coarse) {
@@ -380,26 +321,12 @@ body {
 }
 
 @media (orientation: landscape) and (max-height: 520px) {
-  .studio-nav { top: max(6px, env(safe-area-inset-top)); }
-  .stage-gallery { padding-top: calc(60px + env(safe-area-inset-top)); }
-  .composer-kicker { display: none; }
   .zen-prompt { bottom: max(6px, env(safe-area-inset-bottom)); }
   .zen-prompt textarea { min-height: 40px; max-height: 64px; font-size: 16px; }
   .zen-controls {
-    top: calc(54px + env(safe-area-inset-top));
     bottom: calc(var(--zen-prompt-h, 112px) + 14px + env(safe-area-inset-bottom));
   }
-  .zen-shell .zen-control-button,
-  .zen-top-actions { top: max(6px, env(safe-area-inset-top)); bottom: auto; }
-  .zen-shell .zen-control-button { left: max(6px, env(safe-area-inset-left)); }
-  .zen-top-actions { right: max(6px, env(safe-area-inset-right)); }
-  .zen-zoom-dock {
-    left: max(6px, env(safe-area-inset-left));
-    bottom: calc(var(--zen-prompt-h, 112px) + 6px + env(safe-area-inset-bottom));
-  }
   .zen-gallery-wrap { top: calc(54px + env(safe-area-inset-top)); }
-  .settings-card,
-  .workflow-gallery { border-radius: 18px; }
   .settings-card header,
   .workflow-gallery-head { min-height: 56px; }
 }

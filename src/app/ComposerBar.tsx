@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, ChevronUp, CircleDotDashed, Images, Layers, LockKeyhole, MoveHorizontal, MoveVertical, SlidersHorizontal, WifiOff, X } from 'lucide-react';
+import { ArrowUp, ChevronUp, CircleDotDashed, Images, Layers, LockKeyhole, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity } from './components';
@@ -400,14 +400,14 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyOffline ? "ComfyUI is offline" : generateDisabledReason || (mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video")}>
+        <Tip content={comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || (mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video")}>
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && "is-working", comfyOffline && "is-offline")}
             onClick={comfyOffline ? refreshComfyStatus : generate}
             disabled={!comfyOffline && generateDisabled}
-            aria-label={comfyOffline ? "ComfyUI is offline" : generateDisabledReason || "Generate"}
+            aria-label={comfyOffline ? "ComfyUI offline, retry connection" : generateDisabledReason || "Generate"}
           >
-            {comfyOffline ? <WifiOff size={16} /> : <ArrowUp size={18} strokeWidth={2.4} />}
+            {comfyOffline ? <><RefreshCw size={14} /><span>ComfyUI offline</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
           </GenerateButton>
         </Tip>
       </div>

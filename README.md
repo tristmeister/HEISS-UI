@@ -233,7 +233,7 @@ If HEISS UI is useful to you, go give the original a star too.
 
 Also standing on the shoulders of [ComfyUI](https://github.com/comfyanonymous/ComfyUI), which does all the heavy lifting.
 
-The pixel wordmark is set in PP Neue Bit by [Pangram Pangram](https://pangrampangram.com). It's a commercial font, so the app doesn't bundle it. If you own a license, drop `PPNeueBit-Bold.otf` into `public/fonts/`. Otherwise the app falls back to a monospace font and everything else works the same.
+The app is set in [Geist](https://vercel.com/font). The pixel wordmark on the website uses PP Neue Bit by [Pangram Pangram](https://pangrampangram.com), a commercial font that ships with the site only, not with the app.
 
 ## License
 

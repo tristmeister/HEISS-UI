@@ -26,7 +26,6 @@
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
-    "@fontsource/inter": "^5.2.8",
     "@hugeicons/core-free-icons": "^4.1.1",
     "@hugeicons/react": "^1.1.6",
     "@phosphor-icons/react": "^2.1.10",

@@ -111,7 +111,7 @@ export function StudioSelect({ value, onChange, options }: { value: string; onCh
 
 export function Tip({ content, side = "bottom", children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; children: React.ReactElement }) {
   return (
-    <FluidTooltip content={content} side={side} sideOffset={10} delayDuration={220} className="j-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
+    <FluidTooltip content={content} side={side} sideOffset={10} delayDuration={220} className="heiss-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
       {children}
     </FluidTooltip>
   );

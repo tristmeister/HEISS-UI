@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
-import "@fontsource/inter/latin-400.css";
-import "@fontsource/inter/latin-500.css";
-import "@fontsource/inter/latin-600.css";
 import "./styles.css";
 
 import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, Paths, Preferences, PrivacyStatus, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
@@ -261,11 +258,22 @@ function App() {
       if (zenControls) {
         event.preventDefault();
         setZenControls(false);
+        return;
+      }
+      if (prefs.zenMode) {
+        // First Escape only leaves the prompt, so it never exits zen mid-sentence.
+        const target = event.target instanceof HTMLElement ? event.target : null;
+        if (target?.closest("input, textarea, select, [contenteditable='true']")) {
+          target.blur();
+          return;
+        }
+        event.preventDefault();
+        setZenMode(false);
       }
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [settings, active, zenControls, workflowGalleryOpen]);
+  }, [settings, active, zenControls, workflowGalleryOpen, prefs.zenMode]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

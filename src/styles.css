@@ -1,3 +1,4 @@
+@import "./styles/00-tokens.css";
 @import "./styles/01-base.css";
 @import "./styles/02-zen.css";
 @import "./styles/03-controls.css";
@@ -14,3 +15,5 @@
 @import "./styles/14-generation.css";
 
 @import "./styles/15-workflows.css";
+@import "./styles/16-system.css";
+@import "./styles/17-deck.css";

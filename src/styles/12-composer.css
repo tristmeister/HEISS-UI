@@ -158,12 +158,6 @@
   display: grid;
   gap: 2px;
   padding: 8px;
-  border: 1px solid rgb(255 255 255 / .1);
-  border-radius: 24px;
-  background: rgb(22 22 22 / .96);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
-  box-shadow: var(--shadow-float, var(--shadow-lg));
 }
 .composer-drawer > header {
   display: flex;
@@ -516,46 +510,3 @@
   .composer-drawer-row { min-height: 48px; }
 }
 
-/* ---------------------------------------------------------------------------
-   Phone: the zen chrome moves to the top edge
-
-   The composer owns the bottom of a phone screen, and its height changes with
-   the ladder, so anything that used to float above it either moves up top or
-   clears the measured --zen-prompt-h. These rules land last on purpose: the
-   shared dock styling in 08-overhaul.css pins bottom: 18px on all three docks.
---------------------------------------------------------------------------- */
-
-@media (max-width: 620px) {
-  /* Clears the studio's brand pill; in zen mode the corner is free. */
-  .zen-control-button {
-    top: 10px;
-    bottom: auto;
-    left: 62px;
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
-  }
-  /* Zen has no brand pill, so the controls button takes the corner and the
-     gallery restore steps aside. */
-  .zen-shell .zen-control-button { left: 10px; }
-  .zen-shell .zen-gallery-restore { left: 62px; }
-  .zen-gallery-restore {
-    top: 10px;
-    left: 10px;
-    width: 40px;
-    height: 40px;
-    min-height: 40px;
-  }
-  .zen-top-actions { top: 10px; bottom: auto; right: 10px; height: 40px; min-height: 40px; }
-  .zen-zoom-dock {
-    top: auto;
-    bottom: calc(var(--zen-prompt-h, 160px) + 10px + env(safe-area-inset-bottom));
-    left: 10px;
-    height: 40px;
-    min-height: 40px;
-  }
-  .zen-zoom-dock .icon-button { width: 32px; height: 32px; }
-  .zen-zoom-dock .viewer-zoom { height: 32px; min-width: 52px; }
-  .zen-zoom-dock.with-side { display: none; }
-  .gallery-tidy-dock { bottom: calc(var(--zen-prompt-h, 160px) + 10px + env(safe-area-inset-bottom)); }
-}

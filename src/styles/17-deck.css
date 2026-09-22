@@ -1,0 +1,148 @@
+/* ---------------------------------------------------------------------------
+   The bottom deck
+
+   Everything you touch lives along the bottom edge; the canvas above is content
+   only. Left: the controls button (plus zoom in zen). Centre: the composer.
+   Right: one compact dock with status, workflows, settings and zen. Transient
+   actions (tidy up, cancel queue) rise above the dock as chips, so the dock
+   itself never changes size.
+
+   This file owns placement for all of it, in both layouts and at every width.
+   Material and size come from 16-system.css.
+--------------------------------------------------------------------------- */
+
+/* Scoped to the shell: the composer publishes --zen-prompt-h there. */
+.app-shell,
+.zen-shell {
+  --deck-gap: 18px;
+  --deck-h: var(--dock-h);
+  --deck-lift: calc(var(--zen-prompt-h, 160px) + var(--deck-gap) + 8px);
+}
+
+.stage-gallery { padding-top: 10px; }
+.zen-controls { top: var(--deck-gap); }
+
+.studio-dock {
+  position: fixed;
+  right: var(--deck-gap);
+  bottom: var(--deck-gap);
+  z-index: 13;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+}
+
+.app-shell .zen-control-button,
+.zen-shell .zen-control-button {
+  top: auto;
+  left: var(--deck-gap);
+  bottom: var(--deck-gap);
+}
+.zen-shell .zen-zoom-dock {
+  top: auto;
+  left: calc(var(--deck-gap) + var(--deck-h) + 8px);
+  bottom: var(--deck-gap);
+}
+
+/* Transient chips */
+
+.dock-transients {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+}
+.dock-transients > * { pointer-events: auto; }
+
+.dock-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 5px 0 13px;
+  border: 1px solid rgb(255 255 255 / .1);
+  border-radius: 18px;
+  background: rgb(30 30 30 / .9);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  box-shadow: 0 8px 26px rgb(0 0 0 / .36), inset 0 1px 0 rgb(255 255 255 / .06);
+  color: hsl(var(--foreground));
+  font-size: 12.5px;
+  font-weight: 550;
+  letter-spacing: -.005em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition-property: background-color, color, scale;
+  transition-duration: var(--motion-base, 180ms);
+  transition-timing-function: var(--motion-ease, cubic-bezier(.2, 0, 0, 1));
+}
+.dock-chip:hover:not(:disabled) { background: rgb(42 42 42 / .94); }
+.dock-chip:disabled { opacity: .6; cursor: progress; }
+.dock-chip svg { flex: none; opacity: .8; }
+.dock-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 7px;
+  border-radius: 13px;
+  background: #f2f2f2;
+  color: #0b0b0b;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.dock-chip.is-cancel { color: #ffc4b9; }
+.dock-chip.is-cancel .dock-count { background: rgb(255 120 100 / .2); color: #ffd6cf; }
+
+/* ---------------------------------------------------------------- Stacked
+   Below 900px the lanes beside the composer get too narrow, so the deck rides
+   just above the composer instead of beside it. */
+
+@media (max-width: 900px) {
+  .studio-dock,
+  .app-shell .zen-control-button,
+  .zen-shell .zen-control-button,
+  .zen-shell .zen-zoom-dock { bottom: var(--deck-lift); }
+  .zen-controls { bottom: calc(var(--deck-lift) + var(--deck-h) + 8px); }
+  .stage-gallery { padding-bottom: calc(var(--deck-lift) + var(--deck-h) + 16px); }
+}
+
+@media (max-width: 760px) {
+  .app-shell,
+  .zen-shell {
+    --deck-gap: 10px;
+    --deck-lift: calc(var(--zen-prompt-h, 160px) + 18px);
+  }
+}
+
+@media (max-width: 620px) {
+  .app-shell,
+  .zen-shell {
+    --deck-lift: calc(var(--zen-prompt-h, 160px) + max(8px, env(safe-area-inset-bottom)) + 8px);
+  }
+  .studio-dock { right: max(8px, env(safe-area-inset-right)); }
+  .app-shell .zen-control-button,
+  .zen-shell .zen-control-button { left: max(8px, env(safe-area-inset-left)); }
+  /* Pinch and double-tap zoom on touch; the zoom buttons would crowd the row. */
+  .zen-shell .zen-zoom-dock { display: none; }
+  .zen-controls {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: calc(var(--deck-lift) + var(--deck-h) + 8px);
+  }
+  .stage-gallery {
+    padding-top: max(6px, env(safe-area-inset-top));
+    padding-bottom: calc(var(--deck-lift) + var(--deck-h) + 16px + env(safe-area-inset-bottom));
+  }
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .zen-controls { top: max(6px, env(safe-area-inset-top)); }
+  .stage-gallery { padding-top: max(6px, env(safe-area-inset-top)); }
+}
