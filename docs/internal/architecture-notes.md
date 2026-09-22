@@ -2,7 +2,7 @@
 
 ## Runtime Shape
 
-J AI Studio is a React/Vite frontend with an Express server. The server talks to a local ComfyUI instance over HTTP and WebSocket.
+HEISS UI is a React/Vite frontend with an Express server. The server talks to a local ComfyUI instance over HTTP and WebSocket.
 
 Primary paths:
 
@@ -53,17 +53,17 @@ Graph generation in `server/graphs.js` creates ComfyUI API graph objects directl
 
 ## Custom Workflow Model
 
-Custom workflows are ComfyUI API graphs with a top-level `jAiStudio` metadata block.
+Custom workflows are ComfyUI API graphs with a top-level `heissUi` metadata block (`jAiStudio` still loads as legacy).
 
 The loader:
 
-- removes `jAiStudio` from the graph before execution
+- removes `heissUi` from the graph before execution
 - stores `controls`
 - derives defaults from mapped controls
 - infers required node classes from graph classes unless overridden
 - skips workflows whose required nodes are missing
 
-Only mapped controls are mutated by J AI Studio. Unmapped graph inputs stay as saved.
+Only mapped controls are mutated by HEISS UI. Unmapped graph inputs stay as saved.
 
 Current mapped control keys are:
 
@@ -116,7 +116,7 @@ The app cannot currently:
 
 - list installed LoRAs in the UI
 - select LoRAs from the UI
-- map LoRA node inputs through `jAiStudio.controls`
+- map LoRA node inputs through `heissUi.controls`
 - save LoRA settings in gallery metadata
 - restore LoRA settings from "Copy All Settings"
 
@@ -165,7 +165,7 @@ Built-in image workflows can insert `LoraLoader` between:
 - model loader and sampler
 - CLIP loader and text encoders
 
-Custom workflows can support LoRA through explicit mappings or a new `jAiStudio.loras` metadata block.
+Custom workflows can support LoRA through explicit mappings or a new `heissUi.loras` metadata block.
 
 ### Gallery Metadata
 

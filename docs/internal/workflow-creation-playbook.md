@@ -1,10 +1,10 @@
 # Personalized Workflow Creation Playbook
 
-This playbook is for this specific J AI Studio + ComfyUI setup: local Windows PC, RTX 3070-class VRAM constraints, Z-Image-first image generation, J AI Studio as the simple front end, and ComfyUI as the graph engine.
+This playbook is for this specific HEISS UI + ComfyUI setup: local Windows PC, RTX 3070-class VRAM constraints, Z-Image-first image generation, HEISS UI as the simple front end, and ComfyUI as the graph engine.
 
 ## North Star
 
-Build workflows that feel fast enough to explore with, pretty enough to keep using, and simple enough that J AI Studio can expose only the controls that matter.
+Build workflows that feel fast enough to explore with, pretty enough to keep using, and simple enough that HEISS UI can expose only the controls that matter.
 
 The preferred workflow style is:
 
@@ -86,7 +86,7 @@ Known key nodes:
 
 Use only as a simple fallback or reference.
 
-It maps prompt, sampler, scheduler, CFG, steps, and seed, but its current `jAiStudio.controls` block does not expose width/height. That is exactly the kind of omission that makes the front end fall back to weird size choices.
+It maps prompt, sampler, scheduler, CFG, steps, and seed, but its current `heissUi.controls` block does not expose width/height. That is exactly the kind of omission that makes the front end fall back to weird size choices.
 
 If reviving it, map:
 
@@ -117,15 +117,15 @@ Avoid by default:
 
 Treat as a separate heavy mode. The error `Allocation on device` means the GPU ran out of memory. Do not attach SeedVR2VideoUpscaler to the default image workflow.
 
-## J AI Studio Workflow Rules
+## HEISS UI Workflow Rules
 
-J AI Studio loads ComfyUI API workflow JSON. A workflow becomes friendly only when it has a top-level `jAiStudio` block.
+HEISS UI loads ComfyUI API workflow JSON. A workflow becomes friendly only when it has a top-level `heissUi` block.
 
 Minimum shape:
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "id": "z-image-my-workflow",
     "name": "Z Image My Workflow",
     "kind": "image",
@@ -143,7 +143,7 @@ Minimum shape:
 }
 ```
 
-Only mapped controls are changed by J AI Studio. Everything else stays as exported from ComfyUI.
+Only mapped controls are changed by HEISS UI. Everything else stays as exported from ComfyUI.
 
 Workflow authoring rule: if you expect to control it from the app, map it. If it should stay part of the preset identity, leave it unmapped.
 
@@ -200,14 +200,14 @@ Use `ae.safetensors` first for the Z-Image image path.
 
 ## LoRA Rule
 
-For J AI Studio built-in image workflows, use core ComfyUI `LoraLoader` for API reliability.
+For HEISS UI built-in image workflows, use core ComfyUI `LoraLoader` for API reliability.
 
 Core loader shape:
 
 - inputs: `model`, `clip`, `lora_name`, `strength_model`, `strength_clip`
 - outputs: patched `MODEL`, patched `CLIP`
 - chain multiple LoRAs in UI order
-- use one visible strength in J AI Studio v1 and apply it to both model and CLIP strength
+- use one visible strength in HEISS UI v1 and apply it to both model and CLIP strength
 
 Starting strength:
 
@@ -215,11 +215,11 @@ Starting strength:
 - `0.3-0.55` if the LoRA overpowers faces, composition, or texture
 - `0` for a placeholder node that exists only to keep graph paths stable
 
-For custom workflows, LoRA support is still intentionally conservative. Fixed LoRA nodes can live inside the graph, but J AI Studio v1 does not mutate arbitrary custom workflow LoRA stacks unless explicit metadata support is added later.
+For custom workflows, LoRA support is still intentionally conservative. Fixed LoRA nodes can live inside the graph, but HEISS UI v1 does not mutate arbitrary custom workflow LoRA stacks unless explicit metadata support is added later.
 
 ## Power LoRA Loader Rule
 
-Use Power LoRA Loader in hand-authored ComfyUI workflows when it improves graph ergonomics, especially for stack management. For J AI Studio API execution, prefer core `LoraLoader` unless the custom workflow is known to validate reliably through ComfyUI's API.
+Use Power LoRA Loader in hand-authored ComfyUI workflows when it improves graph ergonomics, especially for stack management. For HEISS UI API execution, prefer core `LoraLoader` unless the custom workflow is known to validate reliably through ComfyUI's API.
 
 Reason:
 
@@ -230,7 +230,7 @@ Reason:
 Best compromise:
 
 - use Power LoRA Loader while designing in ComfyUI
-- export a simpler API workflow path for J AI Studio when reliability matters
+- export a simpler API workflow path for HEISS UI when reliability matters
 
 ## Fast Polish Stack
 
@@ -250,7 +250,7 @@ Keep these subtle. The goal is a premium finishing texture, not crunchy sharpeni
 
 ## Grouping And Visual Hierarchy
 
-When creating or cleaning ComfyUI graphs, preserve visual hierarchy even if J AI Studio only needs API JSON.
+When creating or cleaning ComfyUI graphs, preserve visual hierarchy even if HEISS UI only needs API JSON.
 
 Preferred group layout:
 
@@ -268,11 +268,11 @@ Keep everyday graphs compact. Put heavy branches off to the side. Do not mix "fa
 
 ## Validation Checklist
 
-Before importing or saving a workflow for J AI Studio:
+Before importing or saving a workflow for HEISS UI:
 
 - Export as ComfyUI API workflow JSON.
 - Confirm the final output is `SaveImage` or another API-visible save/output node.
-- Add or verify `jAiStudio.id`, `name`, and `kind`.
+- Add or verify `heissUi.id`, `name`, and `kind`.
 - Map prompt.
 - Map width and height.
 - Map seed, steps, CFG, sampler, and scheduler where available.
@@ -285,9 +285,9 @@ Before importing or saving a workflow for J AI Studio:
 - Check custom node class names against the local ComfyUI install.
 - Remove or wire nodes with required passthrough inputs like `anything`.
 - Generate once in ComfyUI.
-- Import into J AI Studio.
+- Import into HEISS UI.
 - Revalidate in the Workflow Gallery.
-- Generate once from J AI Studio.
+- Generate once from HEISS UI.
 
 ## Error Decoder
 
@@ -313,7 +313,7 @@ GPU VRAM ran out. Lower resolution, remove heavy post-processing, avoid video up
 
 ### Weird front-end sizes
 
-Width and height are not mapped correctly in `jAiStudio.controls`, or they point to the wrong node/input.
+Width and height are not mapped correctly in `heissUi.controls`, or they point to the wrong node/input.
 
 ## Workflow Gallery Preferences
 
@@ -388,7 +388,7 @@ Use this shape for the next fast Z-Image workflow:
 11. Apply subtle sharpen.
 12. Apply subtle film grain.
 13. Save image.
-14. Add `jAiStudio.controls`.
+14. Add `heissUi.controls`.
 15. Import and validate through Workflow Gallery.
 
 ## Personal Defaults
@@ -412,10 +412,10 @@ Use these unless there is a specific reason not to:
 
 ## Definition Of Done
 
-A workflow is ready for J AI Studio when:
+A workflow is ready for HEISS UI when:
 
 - it runs in ComfyUI
-- it imports into J AI Studio
+- it imports into HEISS UI
 - it appears in Workflow Gallery
 - the size controls are correct
 - unsupported controls look unavailable rather than broken

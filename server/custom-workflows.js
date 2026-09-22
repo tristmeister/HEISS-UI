@@ -24,6 +24,10 @@ function readJson(file) {
   }
 }
 
+function workflowMeta(raw = {}) {
+  return raw?.heissUi || raw?.heiss_ui || raw?.jAiStudio || raw?.j_ai_studio || {};
+}
+
 function loraStackConfig(meta = {}) {
   const stack = meta.loraStack;
   if (!stack || !["rgthree-power-v1", "rgthree-stack-v1"].includes(stack.adapter) || !stack.node) return null;
@@ -76,6 +80,8 @@ export function graphFromJson(raw, info = {}) {
   if (raw?.graph && typeof raw.graph === "object") return raw.graph;
   if (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) return visualWorkflowToApi(raw, info);
   const copy = { ...raw };
+  delete copy.heissUi;
+  delete copy.heiss_ui;
   delete copy.jAiStudio;
   delete copy.j_ai_studio;
   delete copy.metadata;
@@ -128,7 +134,7 @@ export function detectWorkflowFormat(raw) {
 }
 
 export function metadataFromJson(raw, file) {
-  const meta = raw?.jAiStudio || raw?.j_ai_studio || {};
+  const meta = workflowMeta(raw);
   const id = safeId(meta.id || path.basename(file || "", path.extname(file || "")));
   const graph = graphFromJson(raw);
   const controls = meta.controls || {};
@@ -352,16 +358,16 @@ function unshadowedId(id) {
 
 export function saveImportedWorkflow(raw, meta = {}) {
   const mergedMeta = {
-    ...(raw?.jAiStudio || raw?.j_ai_studio || {}),
+    ...workflowMeta(raw),
     ...meta
   };
-  const workflow = metadataFromJson({ ...raw, jAiStudio: mergedMeta });
+  const workflow = metadataFromJson({ ...raw, heissUi: mergedMeta });
   workflow.id = unshadowedId(workflow.id);
   mergedMeta.id = workflow.id;
   workflow.profileId = `custom:${workflow.id}`;
   fs.mkdirSync(userWorkflowsDir, { recursive: true });
   const file = path.join(userWorkflowsDir, `${workflow.id}.json`);
-  fs.writeFileSync(file, JSON.stringify({ ...raw, jAiStudio: mergedMeta }, null, 2));
+  fs.writeFileSync(file, JSON.stringify({ ...raw, heissUi: mergedMeta }, null, 2));
   return { ...workflow, path: file };
 }
 
@@ -396,7 +402,7 @@ function nodeInputsForClass(classType = "") {
 }
 
 export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
-  const existing = raw?.jAiStudio || raw?.j_ai_studio || {};
+  const existing = workflowMeta(raw);
   const graph = graphFromJson(raw);
   const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", inputs: node?.inputs || {} }));
   const textNodes = nodes.filter((node) => /TextEncode/i.test(node.classType) && ("text" in node.inputs || "prompt" in node.inputs));

@@ -5,8 +5,8 @@ import path from "node:path";
 import test from "node:test";
 import sharp from "sharp";
 
-const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "jai-reference-assets-"));
-process.env.JAI_DATA_DIR = temporary;
+const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-reference-assets-"));
+process.env.HEISS_DATA_DIR = temporary;
 const referenceAssets = await import(`./reference-assets.js?test=${Date.now()}`);
 
 test("uploaded references are validated, indexed, thumbnailed, and deletable", async () => {

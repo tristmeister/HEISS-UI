@@ -9,7 +9,7 @@ export async function uploadReferenceImage(dataUrl) {
   const match = header.match(/data:(.*?);base64/);
   const type = match?.[1] || "image/png";
   const ext = type.includes("jpeg") ? "jpg" : "png";
-  const filename = `j-ai-studio-reference-${crypto.randomUUID()}.${ext}`;
+  const filename = `heiss-ui-reference-${crypto.randomUUID()}.${ext}`;
   const bytes = Buffer.from(data, "base64");
   const form = new FormData();
   form.append("image", new Blob([bytes], { type }), filename);
@@ -198,7 +198,7 @@ export async function unetImageGraph(body) {
       }
     },
     "8": { class_type: "VAEDecode", inputs: { samples: ["7", 0], vae: ["3", 0] } },
-    "9": { class_type: "SaveImage", inputs: { images: ["8", 0], filename_prefix: "j-ai-studio/image" } }
+    "9": { class_type: "SaveImage", inputs: { images: ["8", 0], filename_prefix: "heiss-ui/image" } }
   };
   applyLoraStack(graph, body, {
     startId: 10,
@@ -234,7 +234,7 @@ export async function checkpointImageGraph(body) {
       }
     },
     "6": { class_type: "VAEDecode", inputs: { samples: ["5", 0], vae: ["1", 2] } },
-    "7": { class_type: "SaveImage", inputs: { images: ["6", 0], filename_prefix: "j-ai-studio/image" } }
+    "7": { class_type: "SaveImage", inputs: { images: ["6", 0], filename_prefix: "heiss-ui/image" } }
   };
 
   if (body.startImage || body.startImageId) {
@@ -295,6 +295,6 @@ export function videoGraph(body) {
     },
     "8": { class_type: "VAEDecode", inputs: { samples: ["7", 0], vae: ["3", 0] } },
     "9": { class_type: "CreateVideo", inputs: { images: ["8", 0], fps: Number(body.fps || 16) } },
-    "10": { class_type: "SaveVideo", inputs: { video: ["9", 0], filename_prefix: "j-ai-studio/video", format: "mp4", codec: "h264" } }
+    "10": { class_type: "SaveVideo", inputs: { video: ["9", 0], filename_prefix: "heiss-ui/video", format: "mp4", codec: "h264" } }
   };
 }

@@ -81,7 +81,7 @@ function requireLanUnlock(req, res, next) {
     return;
   }
   if (!encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock J AI Studio with the LAN password." });
+    res.status(401).json({ ok: false, locked: true, error: "Unlock HEISS UI with the LAN password." });
     return;
   }
   next();
@@ -271,7 +271,7 @@ app.post("/api/workflows/import", async (req, res) => {
     const raw = req.body?.workflow || req.body;
     const { info } = await loadComfyContext().catch(() => ({ info: {} }));
     const normalized = (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) || raw?.prompt
-      ? { graph: previewWorkflowImport(raw, req.body?.filename || "", info).graph, jAiStudio: req.body?.metadata || {} }
+      ? { graph: previewWorkflowImport(raw, req.body?.filename || "", info).graph, heissUi: req.body?.metadata || {} }
       : raw;
     const workflow = saveImportedWorkflow(normalized, req.body?.metadata || {});
     const { graph, ...summary } = workflow;
@@ -477,7 +477,7 @@ app.get("/api/vault/export", (req, res) => {
     return;
   }
   res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="jai-private-vault-${new Date().toISOString().slice(0, 10)}.backup"`);
+  res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-private-vault-${new Date().toISOString().slice(0, 10)}.backup"`);
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.send(backup);
 });
@@ -511,7 +511,7 @@ app.get("/api/gallery/export", (req, res) => {
   }
   const date = new Date().toISOString().slice(0, 10);
   res.setHeader("Content-Type", "application/zip");
-  res.setHeader("Content-Disposition", `attachment; filename="jai-gallery-${date}.zip"`);
+  res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-gallery-${date}.zip"`);
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   sendGalleryExport(res, isPrivacyEnabled() ? vaultAssetsForExport(req) : []);
 });
@@ -643,7 +643,7 @@ app.post("/api/generate", async (req, res) => {
     return;
   }
   if (body.privateVault && !isMockJob && !comfyOutputDir) {
-    res.status(400).json({ ok: false, error: "Set COMFY_OUTPUT_DIR before using Private Vault so J AI can encrypt and remove Comfy output files." });
+    res.status(400).json({ ok: false, error: "Set COMFY_OUTPUT_DIR before using Private Vault so HEISS UI can encrypt and remove Comfy output files." });
     return;
   }
   const clientJobId = String(req.body?.clientJobId || "").replace(/[^\w-]/g, "");
@@ -988,5 +988,5 @@ if (fs.existsSync(dist)) {
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 
 app.listen(port, host, () => {
-  console.log(`J AI Studio listening on http://${host}:${port}`);
+  console.log(`HEISS UI listening on http://${host}:${port}`);
 });

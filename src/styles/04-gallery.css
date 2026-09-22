@@ -481,7 +481,6 @@
 .empty img {
   width: 38px;
   height: 38px;
-  filter: invert(1);
   opacity: 0.42;
   margin-bottom: 2px;
 }

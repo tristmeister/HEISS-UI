@@ -1,4 +1,4 @@
-# Design QA — J AI Studio UI overhaul
+# Design QA — HEISS UI overhaul
 
 ## Evidence
 
@@ -10,11 +10,11 @@
 - Mobile implementation: `artifacts/ui-overhaul/04-studio-mobile.png` at 390 × 844 pixels, 390 × 844 CSS pixels, device scale factor 1.
 - State: connected ComfyUI, populated gallery, selected checkpoint workflow, dark theme.
 
-The references are a design-language target rather than screenshots of J AI Studio itself. QA therefore compares surface language, hierarchy, density, control treatment, and interaction structure rather than exact app content.
+The references are a design-language target rather than screenshots of HEISS UI itself. QA therefore compares surface language, hierarchy, density, control treatment, and interaction structure rather than exact app content.
 
 ## Full-view comparison
 
-The implementation carries across the target's near-black canvas, layered charcoal surfaces, pill-shaped segmented controls, low-contrast dividers, generous modal radii, high-contrast white primary actions, restrained iconography, and large workspace-style overlays. J AI Studio-specific model, workflow, generation, and connection information remains intact.
+The implementation carries across the target's near-black canvas, layered charcoal surfaces, pill-shaped segmented controls, low-contrast dividers, generous modal radii, high-contrast white primary actions, restrained iconography, and large workspace-style overlays. HEISS UI-specific model, workflow, generation, and connection information remains intact.
 
 ## Focused comparison
 

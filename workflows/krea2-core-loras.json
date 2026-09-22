@@ -1,5 +1,5 @@
 {
-  "jAiStudio": {
+  "heissUi": {
     "id": "krea2-core-loras",
     "name": "Krea 2 — Core LoRA Stack",
     "description": "Single-pass Krea 2 generation with the Krea enhancer and the installed realism LoRA stack.",
@@ -125,7 +125,7 @@
   "11": {
     "class_type": "SaveImage",
     "inputs": {
-      "filename_prefix": "JAI/Krea2",
+      "filename_prefix": "HEISS/Krea2",
       "images": ["10", 0]
     }
   }

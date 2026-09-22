@@ -3,9 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { root } from './comfy.js';
 
-const dataDir = process.env.JAI_DATA_DIR ? path.resolve(process.env.JAI_DATA_DIR) : path.join(root, "data");
+const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
 const privacyPath = path.join(dataDir, "privacy.json");
-const cookieName = "jai_privacy_unlock";
+const cookieName = "heiss_privacy_unlock";
+const legacyCookieName = "jai_privacy_unlock";
 const cookieMaxAgeSeconds = 60 * 60 * 24 * 30;
 let activeEncryptionKey = null;
 
@@ -135,13 +136,14 @@ export function setUnlockCookie(res, key) {
 
 export function clearUnlockCookie(res) {
   activeEncryptionKey = null;
-  res.setHeader("Set-Cookie", `${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
+  res.setHeader("Set-Cookie", [`${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`, `${legacyCookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`]);
 }
 
 export function encryptionKeyFromRequest(req) {
   const config = readConfig();
   if (!config?.enabled) return null;
-  const cookieKey = unsealKey(parseCookies(req)[cookieName], config);
+  const cookies = parseCookies(req);
+  const cookieKey = unsealKey(cookies[cookieName] || cookies[legacyCookieName], config);
   if (cookieKey) {
     activeEncryptionKey = cookieKey;
     return cookieKey;

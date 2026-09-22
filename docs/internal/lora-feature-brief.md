@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add first-class LoRA support to J AI Studio so users can select installed LoRAs, tune strengths, generate with them, and reproduce or reuse LoRA settings from gallery outputs.
+Add first-class LoRA support to HEISS UI so users can select installed LoRAs, tune strengths, generate with them, and reproduce or reuse LoRA settings from gallery outputs.
 
 ## Non-Goals For First Pass
 
@@ -14,7 +14,7 @@ Add first-class LoRA support to J AI Studio so users can select installed LoRAs,
 
 ## Current Limitation
 
-Custom API workflows can contain fixed `LoraLoader` nodes, but J AI Studio has no LoRA-specific frontend state, payload fields, metadata support, or graph mutation.
+Custom API workflows can contain fixed `LoraLoader` nodes, but HEISS UI has no LoRA-specific frontend state, payload fields, metadata support, or graph mutation.
 
 ## MVP Scope
 
@@ -72,7 +72,7 @@ Recommended metadata shape:
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "controls": {
       "prompt": { "node": "4", "input": "text" }
     },
@@ -91,7 +91,7 @@ For multi-LoRA custom workflows, prefer a future stack format:
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "loras": {
       "mode": "chain",
       "insertAfter": {

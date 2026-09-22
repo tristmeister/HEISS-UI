@@ -1,5 +1,5 @@
 {
-  "jAiStudio": {
+  "heissUi": {
     "id": "flux2-real-dream-image-edit",
     "name": "Flux 2 Real Dream Image Edit",
     "description": "Precise one-image edits with Flux 2 and Qwen image-edit conditioning.",

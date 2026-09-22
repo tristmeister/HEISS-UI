@@ -1,94 +1,87 @@
 <p align="center">
-  <img src="./docs/screenshots/hero.jpg" alt="J AI Studio gallery view" width="1100" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./public/heiss-lockup-white.svg" />
+    <img src="./public/heiss-lockup-black.svg" alt="HEISS UI" width="260" />
+  </picture>
 </p>
 
-<h1 align="center">J AI Studio</h1>
-
-<p align="center">A simple local image and video UI for ComfyUI, without the graph editor.</p>
+<h3 align="center">ComfyUI, without the graph.</h3>
 
 <p align="center">
-  <a href="#quick-start">Quick start</a>
-  ·
-  <a href="#ai-install-prompt">AI install prompt</a>
-  ·
-  <a href="#update">Update</a>
-  ·
-  <a href="#features">Features</a>
-  ·
-  <a href="https://jasperdevs.github.io/J-AI-Studio/">Website</a>
-  ·
-  <a href="#comfyui">ComfyUI</a>
-  ·
-  <a href="#license">License</a>
+  A calm, local front end for ComfyUI.<br />
+  Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
 </p>
 
-## Preview
+<p align="center">
+  <a href="https://tristmeister.github.io/HEISS-UI/"><b>Website</b></a>
+  &nbsp;·&nbsp;
+  <a href="#quick-start">Quick start</a>
+  &nbsp;·&nbsp;
+  <a href="#paste-into-an-agent">Paste into an agent</a>
+  &nbsp;·&nbsp;
+  <a href="#bring-your-own-workflow">Your own workflows</a>
+  &nbsp;·&nbsp;
+  <a href="#faq">FAQ</a>
+</p>
 
-### Zen mode
+<p align="center">
+  <img src="./docs/screenshots/hero.jpg" alt="HEISS UI: a masonry gallery of generated images with the prompt composer floating at the bottom" width="1100" />
+</p>
 
-Fullscreen prompt-first generation.
+<p align="center">
+  <sub>Free and open source under MIT. Built on the great work of <a href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a> by Jasper. <a href="#credits">More on that below.</a></sub>
+</p>
 
-<img src="./docs/screenshots/zen.jpg" alt="Zen mode screenshot" width="100%" />
+---
 
-### Fullscreen details
+HEISS UI sits on top of the ComfyUI you already run. You get a prompt box, a gallery and only the settings that matter for the model you picked. ComfyUI still runs every job and stays the source of truth for your nodes, models and outputs.
 
-Inspect an output and copy its settings.
-
-<img src="./docs/screenshots/fullscreen.jpg" alt="Fullscreen details screenshot" width="100%" />
-
-### Realtime generation
-
-Live ComfyUI previews while an image is running.
-
-<a href="./docs/screenshots/realtime-generation.mp4"><img src="./docs/screenshots/realtime-generation.gif" alt="Realtime generation preview" width="100%" /></a>
+The node graph is great for building workflows and less great for the everyday loop of prompt, wait, look, tweak. HEISS UI is for that loop, and your workflows come along.
 
 ## Features
 
-- Prompt-first image and video generation
-- Model-aware controls from ComfyUI node metadata
-- Image and video galleries kept separate by mode
-- Zen mode for a cleaner fullscreen workflow
-- Live queue/progress cards with cancel controls
-- Persistent local gallery metadata
-- Optional Private Vault for encrypted, password-gated generations
-- Start-image reuse when the selected ComfyUI workflow supports it
-- Importable ComfyUI API workflow templates
+- **Bring your own workflow.** Export any ComfyUI API workflow, map the inputs you care about, and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
+- **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
+- **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works. Queue the next one, cancel any time.
+- **Image and video.** Separate galleries, plus start-image reuse wherever the workflow supports it.
+- **Private Vault.** An opt-in switch per generation that encrypts the output, prompt and settings behind a password.
+- **Upscale and compare.** Send an image through an upscale workflow, then drag a slider across it to see what changed.
+- **LoRA stacks.** Your LoRAs, grouped by folder, stackable per generation.
+- **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
 
-## Quick Start
+<p align="center">
+  <a href="./docs/screenshots/realtime-generation.mp4"><img src="./docs/screenshots/realtime-generation.gif" alt="Live ComfyUI previews while an image renders" width="100%" /></a>
+</p>
 
-J AI Studio expects ComfyUI to already be installed and running.
+## Quick start
+
+You need **Node.js 20+** and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
 
 ```bash
+git clone https://github.com/tristmeister/HEISS-UI.git heiss-ui
+cd heiss-ui
 npm install
 npm run build
 npm start
 ```
 
-Open:
+Then open **http://127.0.0.1:8787**. Your models, samplers and VAEs show up on their own.
+
+ComfyUI on another port or machine? Copy `.env.example` to `.env` and set `COMFY_URL`.
+
+## Paste into an agent
+
+Rather have Claude Code, Codex or another coding agent do the setup? Paste this in. It checks your setup, installs everything and confirms the app can reach ComfyUI. Model downloads only happen if you ask for them.
 
 ```text
-http://127.0.0.1:8787
-```
-
-By default, the app connects to ComfyUI at:
-
-```text
-http://127.0.0.1:8188
-```
-
-## AI Install Prompt
-
-Paste this into Codex, Claude Code, or another local coding agent:
-
-```text
-Install and run J AI Studio from GitHub: https://github.com/jasperdevs/J-AI-Studio
+Install and run HEISS UI from GitHub: https://github.com/tristmeister/HEISS-UI
 
 Please do the full local setup for me:
 
 1. Check whether Node.js 20+ is installed.
 2. Check whether ComfyUI is installed and running at http://127.0.0.1:8188.
 3. If ComfyUI is not running, help me start my existing ComfyUI install. Do not download models unless I explicitly ask.
-4. Clone https://github.com/jasperdevs/J-AI-Studio into a normal projects folder.
+4. Clone https://github.com/tristmeister/HEISS-UI into a normal projects folder.
 5. Run npm install.
 6. Copy .env.example to .env only if configuration changes are needed.
 7. Set COMFY_URL to my ComfyUI URL, usually http://127.0.0.1:8188.
@@ -100,17 +93,36 @@ Please do the full local setup for me:
 Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.
 ```
 
-## Requirements
+## Bring your own workflow
 
-- Node.js 20 or newer
-- A running ComfyUI server
-- Local ComfyUI model files
+For anything custom, this is the way to go.
 
-## Update
+1. Build and test the graph in ComfyUI.
+2. Export it in **API format**.
+3. Add a `heissUi` block that maps node inputs to the controls you want:
 
-From the app, open Settings -> Update to check GitHub and install the latest commit for a Git checkout. Restart the local server after an update.
+   ```json
+   {
+     "heissUi": {
+       "id": "my-workflow",
+       "name": "My Workflow",
+       "kind": "image",
+       "controls": {
+         "prompt": { "node": "4", "input": "text" },
+         "steps": { "node": "7", "input": "steps" },
+         "seed": { "node": "7", "input": "seed" }
+       }
+     }
+   }
+   ```
 
-CLI fallback:
+4. Import it under **Settings → Workflows**, or drop it into the `workflows/` folder.
+
+It shows up as soon as the nodes it needs are installed. Only the mapped inputs are touched. Everything else runs exactly as you exported it. The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
+
+## Updating
+
+Inside the app: **Settings → Update**, then restart the server. From the terminal:
 
 ```bash
 git pull
@@ -119,83 +131,53 @@ npm run build
 npm start
 ```
 
-To check dependency updates:
+`npm run check:updates` lists outdated dependencies.
 
-```bash
-npm run check:updates
-```
+## Configuration
 
-## ComfyUI
-
-J AI Studio runs on top of ComfyUI. It reads available models, samplers, schedulers, size limits, prompt limits, text encoders, and VAEs from your local ComfyUI server where ComfyUI exposes them.
-
-It does not replace ComfyUI, download models, train models, patch your ComfyUI install, or maintain a separate model runtime. ComfyUI remains the source of truth for installed nodes, model files, queue execution, previews, and output files.
-
-<details>
-<summary>Model support</summary>
-
-The app is meant to be a simpler front end for common ComfyUI image and video generation, not a replacement for the graph editor.
-
-Models appear when J AI Studio can detect enough ComfyUI metadata to build a generation workflow for them. If a model needs a custom graph, custom nodes, or special wiring, open it in ComfyUI first and confirm the required nodes are installed.
-
-Workflow support is template-based. Built-in defaults cover common image/checkpoint/video paths. For anything else, export a ComfyUI API workflow and import it in Settings -> Workflows. Imported workflows appear only when their required ComfyUI nodes are installed.
-
-For custom workflow files, see [`workflows/README.md`](./workflows/README.md).
-
-Start-image controls only appear when the selected workflow exposes the required image input path through ComfyUI.
-
-Generated files and model files stay local in your ComfyUI setup.
-
-</details>
-
-<details>
-<summary>Configuration</summary>
-
-Copy `.env.example` to `.env` if you need different ports or paths.
+Copy `.env.example` to `.env` when you need different ports or paths.
 
 ```bash
 COMFY_URL=http://127.0.0.1:8188
 HOST=127.0.0.1
 PORT=8787
-JAI_DATA_DIR=./data
+HEISS_DATA_DIR=./data
 COMFY_OUTPUT_DIR=
 ```
 
-`COMFY_OUTPUT_DIR` is optional for the normal gallery. It is required for **Private Vault**: J AI uses it to ingest a finished Comfy output into encrypted vault storage, then removes the ordinary Comfy output file.
+`COMFY_OUTPUT_DIR` is optional for the normal gallery and required for the Private Vault.
+
+<details>
+<summary><b>Private Vault</b></summary>
+
+<br />
+
+Set a privacy password in Settings, configure `COMFY_OUTPUT_DIR`, then use the **Private** switch next to the prompt.
+
+HEISS UI encrypts the original, the gallery preview, the prompt, the settings and the asset key in a hidden data directory. Locked browsers only see anonymous placeholders. After you enter the password, items are decrypted and streamed with no-store cache headers. Downloading is always an explicit action.
+
+ComfyUI necessarily writes a working file while it generates. HEISS UI encrypts and removes that file once the job completes. That keeps things out of casual view in Finder or Explorer, but it's not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
 
 </details>
 
 <details>
-<summary>Private Vault</summary>
+<summary><b>Phone and LAN access</b></summary>
 
-Private Vault is opt-in per generation. First set a privacy password in Settings, configure `COMFY_OUTPUT_DIR`, then use the **Private** switch beside the prompt.
+<br />
 
-J AI encrypts the original, gallery preview, prompt, settings, and asset key in a hidden data directory. Locked browsers receive anonymous private placeholders; after entering the password, J AI decrypts and streams the item with no-store cache headers. Download remains an explicit action.
-
-ComfyUI necessarily writes a working output while it generates. J AI encrypts and removes that working file after completion; this is a privacy boundary for ordinary Finder/Explorer browsing, not a forensic guarantee against an administrator, disk recovery, swap, or backups made while generation was running.
+Set `HOST=0.0.0.0`, allow the chosen `PORT` through your firewall and open your computer's IP from another device. Only do this on a network you trust.
 
 </details>
 
 <details>
-<summary>Local network hosting</summary>
+<summary><b>Windows shortcut</b></summary>
 
-For another device on your network, set:
+<br />
 
-```bash
-HOST=0.0.0.0
-```
-
-Then open the selected `PORT` in your firewall. Only do this on a trusted network.
-
-</details>
-
-<details>
-<summary>Windows shortcut example</summary>
-
-You can make a shortcut that starts ComfyUI, starts J AI Studio, and opens the browser.
+A shortcut that starts ComfyUI and HEISS UI if they aren't running, then opens the browser:
 
 ```powershell
-$appRoot = "C:\path\to\J-AI-Studio"
+$appRoot = "C:\path\to\heiss-ui"
 $comfyRoot = "C:\path\to\ComfyUI"
 $python = "C:\path\to\python.exe"
 
@@ -212,6 +194,26 @@ Start-Process "http://127.0.0.1:8787/"
 
 </details>
 
+## FAQ
+
+**Do I still need ComfyUI?**
+Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that.
+
+**Which models work?**
+The common image, checkpoint and video setups work out of the box. For a model that needs custom nodes or special wiring, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+
+**Where do my images go?**
+Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.
+
+**Why "HEISS"?**
+*Heiß* is German for hot. Hence the steaming cup.
+
+## Troubleshooting
+
+- **No models showing up?** Make sure ComfyUI is running and `COMFY_URL` points at it.
+- **A generation fails?** Check that the model works in ComfyUI itself and that any custom nodes it needs are installed.
+- **No video option?** Your ComfyUI needs video generation nodes and a matching workflow.
+
 ## Development
 
 ```bash
@@ -219,22 +221,20 @@ npm install
 npm run dev
 ```
 
-`npm run dev` and `npm start` repair missing runtime packages automatically. This protects local installs that have an incomplete `node_modules` folder (for example, a missing `busboy` package); a normal startup does not reinstall anything.
+`npm run dev` starts Vite and the local API server together. `npm test` runs the server tests. Both `npm run dev` and `npm start` repair missing runtime packages automatically, so an incomplete `node_modules` folder won't stop a normal start.
 
-The dev command starts Vite and the local API server together.
+Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md), and please don't commit generated media, model files, logs or `.env` files.
 
-## Contributing
+## Credits
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). Do not commit generated media, local model files, logs, or `.env` files.
+HEISS UI started as a fork of **[J-AI Studio](https://github.com/jasperdevs/J-AI-Studio)** by **[Jasper](https://github.com/jasperdevs)**. The core idea of a calm, prompt-first front end for ComfyUI, and a big part of the foundation this is built on, are his work. HEISS UI takes it in its own direction from there, with its own name, design and features.
 
-## Troubleshooting
+If HEISS UI is useful to you, go give the original a star too.
 
-If no models appear, make sure ComfyUI is running and that `COMFY_URL` points to the right server.
+Also standing on the shoulders of [ComfyUI](https://github.com/comfyanonymous/ComfyUI), which does all the heavy lifting.
 
-If generation fails, confirm the selected model works in ComfyUI and that any required custom nodes are installed.
-
-If video is missing, confirm your ComfyUI install has video generation nodes available.
+The pixel wordmark is set in PP Neue Bit by [Pangram Pangram](https://pangrampangram.com). It's a commercial font, so the app doesn't bundle it. If you own a license, drop `PPNeueBit-Bold.otf` into `public/fonts/`. Otherwise the app falls back to a monospace font and everything else works the same.
 
 ## License
 
-MIT
+[MIT](./LICENSE). The original J-AI Studio copyright notice is kept alongside HEISS UI's, as the license asks.

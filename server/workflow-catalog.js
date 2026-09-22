@@ -225,7 +225,7 @@ export function previewWorkflowImport(raw, filename = "", info = {}) {
     graph,
     detected,
     format,
-    hasJaiStudio: Boolean(raw?.jAiStudio || raw?.j_ai_studio),
+    hasHeissUi: Boolean(raw?.heissUi || raw?.heiss_ui || raw?.jAiStudio || raw?.j_ai_studio),
     validation
   };
 }

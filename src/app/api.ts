@@ -92,11 +92,30 @@ export function deleteReferenceAsset(assetId: string) {
   return apiJson<{ ok?: boolean }>(`/api/reference-assets/${encodeURIComponent(assetId)}`, { method: "DELETE" });
 }
 
-const prefsMigrationKey = "j-ai-studio-prefs-migrated";
+const prefsMigrationKey = "heiss-ui-prefs-migrated";
+const prefsKey = "heiss-ui-prefs";
+const draftKey = "heiss-ui-draft";
+const legacyPrefsKey = "j-ai-studio-prefs";
+const legacyDraftKey = "j-ai-studio-draft";
+
+function migratedGet(key: string, legacyKey: string) {
+  try {
+    const current = localStorage.getItem(key);
+    if (current != null) return current;
+    const legacy = localStorage.getItem(legacyKey);
+    if (legacy != null) {
+      localStorage.setItem(key, legacy);
+      return legacy;
+    }
+  } catch {
+    // Ignore storage errors and fall through.
+  }
+  return null;
+}
 
 export function loadPrefs(): Preferences {
   try {
-    const saved = localStorage.getItem("j-ai-studio-prefs");
+    const saved = migratedGet(prefsKey, legacyPrefsKey);
     if (!saved) return { ...defaultPrefs };
     const parsed = JSON.parse(saved);
     // The run cooldown shipped at 5 minutes and was lowered to 1 the same day;
@@ -113,7 +132,7 @@ export function loadPrefs(): Preferences {
 
 export function loadDraft() {
   try {
-    return JSON.parse(localStorage.getItem("j-ai-studio-draft") || "{}");
+    return JSON.parse(migratedGet(draftKey, legacyDraftKey) || "{}");
   } catch {
     return {};
   }

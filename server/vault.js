@@ -14,7 +14,7 @@ import {
   setBundleCover as setBundleCoverRecord
 } from "./bundle-runs.js";
 
-// A dot-directory keeps ciphertext out of ordinary Finder views as well as out of J AI's visible output paths.
+// A dot-directory keeps ciphertext out of ordinary Finder views as well as out of HEISS UI's visible output paths.
 const vaultDir = path.join(dataDir, ".private-vault");
 const assetsDir = path.join(vaultDir, "assets");
 const manifestPath = path.join(vaultDir, "manifest.enc");
@@ -89,8 +89,8 @@ function sourceFromOutput(output) {
     const data = isBase64 ? match[3] : decodeURIComponent(match[3]);
     return { buffer: Buffer.from(data, isBase64 ? "base64" : "utf8"), sourcePath: "", mime: match[1] || mimeFor(output.filename, output.type) };
   }
-  if (!comfyOutputDir) throw new Error("Private Vault needs COMFY_OUTPUT_DIR so J AI can encrypt and remove Comfy outputs.");
-  const parsed = new URL(source, "http://jai.local");
+  if (!comfyOutputDir) throw new Error("Private Vault needs COMFY_OUTPUT_DIR so HEISS UI can encrypt and remove Comfy outputs.");
+  const parsed = new URL(source, "http://heiss.local");
   const filename = String(parsed.searchParams.get("filename") || "");
   const subfolder = String(parsed.searchParams.get("subfolder") || "");
   const outputType = String(parsed.searchParams.get("type") || "output");
@@ -309,7 +309,9 @@ export function exportVaultBackup(req) {
   try {
     const manifest = readManifest(key);
     return Buffer.from(JSON.stringify({
-      format: "jai-private-vault-backup",
+      // Backups exported before the HEISS UI rebrand used "jai-private-vault-backup";
+      // there is no import/validation path today, so no fallback reader is needed.
+      format: "heiss-ui-private-vault-backup",
       version: 1,
       exportedAt: new Date().toISOString(),
       manifest: b64(fs.readFileSync(manifestPath)),

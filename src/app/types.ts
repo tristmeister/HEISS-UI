@@ -134,7 +134,7 @@ export type WorkflowPreferences = { favorites: string[]; lastUsed: Record<string
 export type WorkflowImportPreview = {
   filename?: string;
   format?: string;
-  hasJaiStudio: boolean;
+  hasHeissUi: boolean;
   detected: {
     id: string;
     name: string;

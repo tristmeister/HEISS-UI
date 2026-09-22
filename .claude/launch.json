@@ -4,8 +4,20 @@
     {
       "name": "vite",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 5173
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "-e",
+        "const h=require('http'),f=require('fs'),p=require('path');const r=p.resolve('docs');const t={'.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.otf':'font/otf','.gif':'image/gif','.mp4':'video/mp4'};h.createServer((q,s)=>{let u=decodeURIComponent(q.url.split('?')[0]);if(u.endsWith('/'))u+='index.html';const fp=p.join(r,u);if(!fp.startsWith(r))return s.writeHead(403).end();f.readFile(fp,(e,b)=>{if(e)return s.writeHead(404).end('404');s.writeHead(200,{'Content-Type':t[p.extname(fp)]||'application/octet-stream','Cache-Control':'no-store'});s.end(b)})}).listen(4173,'127.0.0.1')"
+      ],
+      "port": 4173
     }
   ]
 }

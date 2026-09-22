@@ -11,8 +11,8 @@ const assetsDir = path.join(dataDir, "reference-assets");
 const filesDir = path.join(assetsDir, "files");
 const thumbsDir = path.join(assetsDir, "thumbnails");
 const manifestPath = path.join(assetsDir, "index.json");
-const maxUploadBytes = Math.max(1024, Number(process.env.JAI_REFERENCE_MAX_BYTES || 25 * 1024 * 1024));
-const maxPixels = Math.max(1_000_000, Number(process.env.JAI_REFERENCE_MAX_PIXELS || 80_000_000));
+const maxUploadBytes = Math.max(1024, Number(process.env.HEISS_REFERENCE_MAX_BYTES || process.env.JAI_REFERENCE_MAX_BYTES || 25 * 1024 * 1024));
+const maxPixels = Math.max(1_000_000, Number(process.env.HEISS_REFERENCE_MAX_PIXELS || process.env.JAI_REFERENCE_MAX_PIXELS || 80_000_000));
 const acceptedMimes = new Set(["image/png", "image/jpeg", "image/webp"]);
 
 function safeName(value = "reference-image") {
@@ -282,7 +282,7 @@ async function bytesForReference(req, id) {
 async function uploadBufferToComfy({ buffer, mime, name }) {
   await inspectImage(buffer, mime);
   const hash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 32);
-  const filename = `j-ai-studio-reference-${hash}.${mimeExtension(mime)}`;
+  const filename = `heiss-ui-reference-${hash}.${mimeExtension(mime)}`;
   const form = new FormData();
   form.append("image", new Blob([buffer], { type: mime }), filename);
   form.append("type", "input");

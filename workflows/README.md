@@ -1,12 +1,12 @@
 # Custom Workflows
 
-J AI Studio can load ComfyUI API workflow templates from this folder or from the app data workflow folder shown in Settings.
+HEISS UI can load ComfyUI API workflow templates from this folder or from the app data workflow folder shown in Settings.
 
-Use ComfyUI's API workflow JSON format, then add a `jAiStudio` block that tells the simple UI which node inputs map to common controls.
+Use ComfyUI's API workflow JSON format, then add a `heissUi` block that tells the simple UI which node inputs map to common controls.
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "id": "my-workflow",
     "name": "My Workflow",
     "kind": "image",
@@ -29,7 +29,7 @@ Use ComfyUI's API workflow JSON format, then add a `jAiStudio` block that tells 
 }
 ```
 
-Only mapped controls are changed by J AI Studio. Everything else stays exactly as it was in the exported ComfyUI API workflow.
+Only mapped controls are changed by HEISS UI. Everything else stays exactly as it was in the exported ComfyUI API workflow.
 
 ## Image-to-image inputs
 
@@ -38,7 +38,7 @@ node:
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "capabilities": { "imageToImage": true },
     "mediaInputs": [{
       "id": "reference",
@@ -69,11 +69,11 @@ available. This avoids positional drift from UI-only widget values such as
 
 ## Power LoRA Loader
 
-An API workflow can opt in to J AI Studio's LoRA picker with an existing rgthree Power LoRA Loader:
+An API workflow can opt in to HEISS UI's LoRA picker with an existing rgthree Power LoRA Loader:
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "capabilities": { "lora": true },
     "loraStack": {
       "adapter": "rgthree-power-v1",
@@ -84,14 +84,14 @@ An API workflow can opt in to J AI Studio's LoRA picker with an existing rgthree
 }
 ```
 
-The referenced node must be `Power Lora Loader (rgthree)` and already have its model and CLIP wiring connected. J AI Studio replaces only its `lora_` inputs using the selected LoRAs, in sidebar order.
+The referenced node must be `Power Lora Loader (rgthree)` and already have its model and CLIP wiring connected. HEISS UI replaces only its `lora_` inputs using the selected LoRAs, in sidebar order.
 
 The simpler rgthree stack used by the bundled Flux 2 edit workflow is also
 supported:
 
 ```json
 {
-  "jAiStudio": {
+  "heissUi": {
     "capabilities": { "lora": true },
     "loraStack": {
       "adapter": "rgthree-stack-v1",

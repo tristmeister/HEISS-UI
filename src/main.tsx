@@ -318,9 +318,9 @@ function App() {
       privateGeneration
     };
     try {
-      localStorage.setItem("j-ai-studio-draft", JSON.stringify(draft));
+      localStorage.setItem("heiss-ui-draft", JSON.stringify(draft));
     } catch {
-      localStorage.setItem("j-ai-studio-draft", JSON.stringify({ ...draft, startImage: "", startImageId }));
+      localStorage.setItem("heiss-ui-draft", JSON.stringify({ ...draft, startImage: "", startImageId }));
     }
   }, [mode, prompt, negative, model, textEncoder, vae, clipType, weightDtype, width, height, steps, cfg, denoise, seed, count, frames, fps, sampler, scheduler, loras, customSize, startImageId, startImageName, referenceAssets, advanced, showDetails, showGenerationSettings, showNegativePrompt, zenGalleryOpen, zenControls, zenSelectedId, privateGeneration, privacyStatus?.enabled]);
 
@@ -398,7 +398,7 @@ function App() {
     const merged = { ...prefs, ...next };
     setPrefsState(merged);
     try {
-      localStorage.setItem("j-ai-studio-prefs", JSON.stringify(merged));
+      localStorage.setItem("heiss-ui-prefs", JSON.stringify(merged));
     } catch {
       showToast("Could not save settings", "error");
     }
@@ -601,7 +601,7 @@ function App() {
   }
 
   async function installUpdate() {
-    if (!await confirmAction({ title: "Update J AI Studio?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
+    if (!await confirmAction({ title: "Update HEISS UI?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });

@@ -1,7 +1,8 @@
 import { normalizeLoras } from './loras';
 import type { LoraSelection } from './types';
 
-const storageKey = 'j-ai-studio-lora-library';
+const storageKey = 'heiss-ui-lora-library';
+const legacyStorageKey = 'j-ai-studio-lora-library';
 
 export type LoraSnapshot = {
   id: string;
@@ -16,7 +17,15 @@ type LoraLibrary = {
 
 function library(): LoraLibrary {
   try {
-    const saved = JSON.parse(localStorage.getItem(storageKey) || '{}');
+    let saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+    if (!saved) {
+      const legacy = localStorage.getItem(legacyStorageKey);
+      if (legacy) {
+        saved = JSON.parse(legacy);
+        localStorage.setItem(storageKey, legacy);
+      }
+    }
+    saved = saved || {};
     return {
       strengths: saved?.strengths && typeof saved.strengths === 'object' ? saved.strengths : {},
       snapshots: saved?.snapshots && typeof saved.snapshots === 'object' ? saved.snapshots : {}
@@ -96,4 +105,5 @@ export function deleteLoraSnapshot(workflowId: string, id: string) {
 
 export function clearLoraLibrary() {
   localStorage.removeItem(storageKey);
+  localStorage.removeItem(legacyStorageKey);
 }

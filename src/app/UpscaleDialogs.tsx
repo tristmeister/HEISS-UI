@@ -92,7 +92,7 @@ export function UpscaleSetupDialog({
         </button>
       </div>
       <p className="upscale-setup-note">
-        Restart ComfyUI once it finishes installing. If smart upscale still reports the nodes as missing, reload J AI Studio too.
+        Restart ComfyUI once it finishes installing. If smart upscale still reports the nodes as missing, reload HEISS UI too.
       </p>
       {detectedNodes.length ? (
         <p className="upscale-setup-missing">

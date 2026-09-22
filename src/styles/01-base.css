@@ -3,6 +3,15 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/* PP Neue Bit is commercial and not bundled: use an installed copy or public/fonts/, else fall back to monospace. */
+@font-face {
+  font-family: "PP Neue Bit";
+  src: local("PP Neue Bit Bold"), local("PPNeueBit-Bold"), url("/fonts/PPNeueBit-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 :root {

@@ -45,4 +45,4 @@ export const fallbackAspectPresets: Record<Mode, AspectPreset[]> = {
 
 export const fallbackSamplers = ["euler_ancestral", "euler", "uni_pc", "dpmpp_2m", "dpmpp_sde"];
 export const fallbackSchedulers = ["beta", "simple", "normal", "karras", "sgm_uniform"];
-export const githubUrl = "https://github.com/jasperdevs/J-AI-Studio";
+export const githubUrl = "https://github.com/tristmeister/HEISS-UI";

@@ -228,6 +228,8 @@ export function useGenerationActions(view: any) {
 
   async function resetAllSettings() {
     if (!await confirmAction({"title": "Reset settings?", "description": "Your saved preferences, prompt drafts, LoRA strengths, and snapshots will be cleared. The app will reload.", "action": "Reset settings", "destructive": true})) return;
+    localStorage.removeItem("heiss-ui-draft");
+    localStorage.removeItem("heiss-ui-prefs");
     localStorage.removeItem("j-ai-studio-draft");
     localStorage.removeItem("j-ai-studio-prefs");
     clearLoraLibrary();

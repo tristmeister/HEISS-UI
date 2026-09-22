@@ -2,9 +2,9 @@
 
 ## Mission
 
-J AI Studio is a local-first creative surface for ComfyUI. It turns graph-based image and video generation into a prompt-first studio that is fast enough for repeated exploration, clear enough for non-graph workflows, and respectful of the user's existing local ComfyUI setup.
+HEISS UI is a local-first creative surface for ComfyUI. It turns graph-based image and video generation into a prompt-first studio that is fast enough for repeated exploration, clear enough for non-graph workflows, and respectful of the user's existing local ComfyUI setup.
 
-The app should feel like a quiet production tool: immediate, visual, inspectable, and private. ComfyUI remains the engine and source of truth. J AI Studio is the ergonomic layer for choosing a model, prompting, generating, reviewing, reusing, and iterating.
+The app should feel like a quiet production tool: immediate, visual, inspectable, and private. ComfyUI remains the engine and source of truth. HEISS UI is the ergonomic layer for choosing a model, prompting, generating, reviewing, reusing, and iterating.
 
 ## Product Promise
 
@@ -22,7 +22,7 @@ Secondary users are workflow builders who want to package a known ComfyUI API gr
 
 ## Current Product Shape
 
-J AI Studio currently provides:
+HEISS UI currently provides:
 
 - Prompt-first image and video generation.
 - A gallery-oriented output view with live progress and previews.
@@ -30,7 +30,7 @@ J AI Studio currently provides:
 - Model-aware controls based on ComfyUI node metadata.
 - Start image reuse when a workflow exposes that path.
 - Settings for connection, workflows, update, gallery, and maintenance.
-- Custom API workflow import with `jAiStudio.controls` metadata.
+- Custom API workflow import with `heissUi.controls` metadata.
 
 ## What The App Is Not
 

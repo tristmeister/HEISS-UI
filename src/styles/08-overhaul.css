@@ -1,4 +1,4 @@
-/* J AI Studio 2026 visual system: quiet canvas, tactile floating surfaces, clear primary actions. */
+/* HEISS UI 2026 visual system: quiet canvas, tactile floating surfaces, clear primary actions. */
 :root {
   /* One brand ladder: canvas -> surface -> raised -> selected -> action. */
   --brand-canvas: #0a0a0a;
@@ -70,27 +70,27 @@ button:not(:disabled):active { scale: .96; }
   box-shadow: 0 10px 36px rgb(0 0 0 / .3), inset 0 1px 0 rgb(255 255 255 / .045);
 }
 .studio-brand-lockup {
-  min-height: 40px;
+  min-height: 52px;
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 5px 12px 5px 6px;
-  border-radius: 20px;
+  gap: 10px;
+  padding: 6px 18px 6px 7px;
+  border-radius: 26px;
   color: hsl(var(--muted-foreground));
   cursor: pointer;
 }
 .studio-brand-lockup:hover { background: rgb(255 255 255 / .09); color: white; }
 .studio-brand-lockup img {
-  width: 28px;
-  height: 28px;
-  padding: 7px;
+  width: 42px;
+  height: 42px;
+  padding: 5px;
   border-radius: 50%;
   background: #f4f4f4;
   filter: none;
 }
 .studio-brand-lockup .mobile-sidebar-icon { display: none; }
 .studio-brand-lockup div { display: grid; gap: 1px; }
-.studio-brand-lockup strong { font-size: 12px; font-weight: 650; letter-spacing: -.015em; }
+.studio-brand-lockup strong { font-family: "PP Neue Bit", monospace; font-size: 19px; font-weight: 700; letter-spacing: .01em; line-height: 1; }
 .studio-brand-lockup span { display: none; }
 .studio-nav-actions {
   min-height: 40px;

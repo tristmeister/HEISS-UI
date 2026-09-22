@@ -69,7 +69,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     try {
       response = await fetch(url);
     } catch {
-      return failStatus("Could not reach the J AI Studio server.");
+      return failStatus("Could not reach the HEISS UI server.");
     }
     // Report what actually came back rather than guessing at a cause: a non-JSON
     // body means something other than this route answered (SPA shell, proxy).
@@ -129,7 +129,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     }
     if (current.ready) return true;
     if (!current.canDownload) {
-      showToast("Set the ComfyUI output folder in Settings so J AI knows where to install SeedVR2 models", "error");
+      showToast("Set the ComfyUI output folder in Settings so HEISS UI knows where to install SeedVR2 models", "error");
       return false;
     }
     if (installingRef.current) return false;

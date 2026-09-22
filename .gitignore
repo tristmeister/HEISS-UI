@@ -12,3 +12,11 @@ data
 *.log
 *.tsbuildinfo
 /private/cove/
+.DS_Store
+
+# Never publish product screenshots or design working files.
+/product-screenshots/
+/artifacts/
+
+# PP Neue Bit is a commercial font: keep it local, don't ship it with the app.
+/public/fonts/PPNeueBit*

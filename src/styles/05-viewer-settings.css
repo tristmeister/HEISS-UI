@@ -316,7 +316,6 @@
   width: 22px;
   height: 22px;
   display: block;
-  filter: invert(1);
   opacity: 0.9;
 }
 .settings-card h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
@@ -418,7 +417,6 @@
   width: 28px;
   height: 28px;
   display: block;
-  filter: invert(1);
 }
 .project-card div {
   min-width: 0;

@@ -3,12 +3,12 @@ import path from "node:path";
 import { comfyOutputDir, root } from './comfy.js';
 import { protectGalleryItemForStorage } from './privacy.js';
 
-export const dataDir = process.env.JAI_DATA_DIR ? path.resolve(process.env.JAI_DATA_DIR) : path.join(root, "data");
+export const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
 export const galleryPath = path.join(dataDir, "gallery.json");
 export const hiddenGalleryPath = path.join(dataDir, "gallery-hidden.json");
-export const galleryLimit = Number(process.env.JAI_GALLERY_LIMIT || 50000);
+export const galleryLimit = Number(process.env.HEISS_GALLERY_LIMIT || process.env.JAI_GALLERY_LIMIT || 50000);
 
-const changeLogLimit = Number(process.env.JAI_GALLERY_CHANGELOG_LIMIT || 10000);
+const changeLogLimit = Number(process.env.HEISS_GALLERY_CHANGELOG_LIMIT || process.env.JAI_GALLERY_CHANGELOG_LIMIT || 10000);
 let galleryRevision = Date.now();
 let saveTimer = null;
 const galleryChanges = [];

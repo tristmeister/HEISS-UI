@@ -1,6 +1,6 @@
 # Internal Documentation
 
-This folder captures product intent, UX principles, UI system rules, and implementation notes for J AI Studio.
+This folder captures product intent, UX principles, UI system rules, and implementation notes for HEISS UI.
 
 Start here:
 

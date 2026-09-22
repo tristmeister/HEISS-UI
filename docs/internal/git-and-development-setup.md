@@ -1,5 +1,9 @@
 # Git And Development Setup
 
+> Historical snapshot from a J-AI Studio era work session. HEISS UI now lives at
+> `https://github.com/tristmeister/HEISS-UI`; the original upstream project is
+> `https://github.com/jasperdevs/J-AI-Studio`.
+
 ## Current Repository State
 
 Repository:

@@ -26,7 +26,7 @@ const presets = {
 export const upscaleNodeClasses = ["SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler"];
 export const faceDetailNodeClasses = ["FaceDetailer", "UltralyticsDetectorProvider", "SAMLoader"];
 
-const hfRepo = process.env.JAI_SEEDVR2_HF_REPO || "numz/SeedVR2_comfyUI";
+const hfRepo = process.env.HEISS_SEEDVR2_HF_REPO || process.env.JAI_SEEDVR2_HF_REPO || "numz/SeedVR2_comfyUI";
 
 export function normalizeQuality(value = "") {
   const quality = String(value || "").toLowerCase();
@@ -39,13 +39,13 @@ function downloadUrl(file) {
 
 /**
  * SeedVR2 keeps its weights in ComfyUI/models/SEEDVR2. The output folder is the
- * only Comfy path J AI already knows, so derive the sibling models folder from
+ * only Comfy path HEISS UI already knows, so derive the sibling models folder from
  * it unless an explicit override is set.
  */
 export function seedvr2ModelDir() {
-  const override = String(process.env.JAI_SEEDVR2_MODEL_DIR || "").trim();
+  const override = String(process.env.HEISS_SEEDVR2_MODEL_DIR || process.env.JAI_SEEDVR2_MODEL_DIR || "").trim();
   if (override) return path.resolve(override);
-  const comfyRoot = String(process.env.JAI_COMFY_ROOT || "").trim();
+  const comfyRoot = String(process.env.HEISS_COMFY_ROOT || process.env.JAI_COMFY_ROOT || "").trim();
   if (comfyRoot) return path.join(path.resolve(comfyRoot), "models", "SEEDVR2");
   if (!comfyOutputDir) return "";
   // The output folder is not always a direct child of the ComfyUI root, so walk
@@ -224,7 +224,7 @@ async function downloadOne(file, dir, onProgress, signal) {
 export function startModelInstall(quality, info) {
   if (install?.status === "running") return installSnapshot();
   const dir = seedvr2ModelDir();
-  if (!dir) throw new Error("Set the ComfyUI output folder (or JAI_SEEDVR2_MODEL_DIR) so J AI knows where to install SeedVR2 models.");
+  if (!dir) throw new Error("Set the ComfyUI output folder (or HEISS_SEEDVR2_MODEL_DIR) so HEISS UI knows where to install SeedVR2 models.");
   const missing = requiredModelsFor(quality, info).filter((model) => !model.present);
   if (!missing.length) {
     install = { status: "done", files: [], receivedBytes: 0, totalBytes: 0, startedAt: Date.now(), finishedAt: Date.now() };
@@ -440,14 +440,14 @@ export function upscaleGraph(body, info = {}) {
   };
   let output = ["5", 0];
   if (body.faceDetail) output = faceDetailStack(graph, body, output, info);
-  graph["9"] = { class_type: "SaveImage", inputs: { images: output, filename_prefix: "j-ai-studio/upscale" } };
+  graph["9"] = { class_type: "SaveImage", inputs: { images: output, filename_prefix: "heiss-ui/upscale" } };
   return { graph, plan };
 }
 
 export async function uploadUpscaleSource({ buffer, mime = "image/png", name = "upscale-source.png" }) {
   const hash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 32);
   const extension = mime === "image/jpeg" ? "jpg" : mime === "image/webp" ? "webp" : "png";
-  const filename = `j-ai-studio-upscale-${hash}.${extension}`;
+  const filename = `heiss-ui-upscale-${hash}.${extension}`;
   const form = new FormData();
   form.append("image", new Blob([buffer], { type: mime }), filename);
   form.append("type", "input");

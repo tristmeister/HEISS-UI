@@ -220,7 +220,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               </div>
             ) : (
               <div className="zen-empty">
-                <img src="/j-ai-logo.png" alt="" />
+                <img src="/heiss-mark-white.svg" alt="HEISS AI" />
               </div>
             )}
             <div className="zen-fade" />
@@ -348,9 +348,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         <>
           <header className="studio-nav">
             <Tip content="Controls"><button className="studio-brand-lockup" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
-              <img src="/j-ai-logo.png" alt="" />
+              <img src="/heiss-mark-black.svg" alt="HEISS AI" />
               <div>
-                <strong>J AI Studio</strong>
+                <strong>HEISS UI</strong>
                 <span>{mode === "image" ? "Image studio" : "Video studio"}</span>
               </div>
               <PanelLeft className="mobile-sidebar-icon" size={18} />
@@ -387,7 +387,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             />
           ) : comfyOffline ? (
             <section className="gallery"><div className="empty is-offline">
-              <img src="/j-ai-logo.png" alt="" />
+              <img src="/heiss-mark-black.svg" alt="HEISS AI" />
               <h2>ComfyUI is offline</h2>
               <p>Start ComfyUI to connect your studio.</p>
               <div className="empty-actions">
@@ -397,7 +397,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             </div></section>
           ) : (
             <section className="gallery"><div className="empty">
-              <img src="/j-ai-logo.png" alt="" />
+              <img src="/heiss-mark-black.svg" alt="HEISS AI" />
               <h2>No outputs yet</h2>
               <p>Start with a prompt. Your creations will appear here.</p>
             </div></section>
@@ -504,7 +504,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           <div data-open-surface className="settings-card" onClick={(event) => event.stopPropagation()}>
             <header>
               <div className="settings-brand">
-                <img src="/j-ai-logo.png" alt="" />
+                <img src="/heiss-mark-white.svg" alt="HEISS AI" />
                 <h2>Settings</h2>
               </div>
               <Tip content="Close (Esc)"><button className="icon-button" aria-label="Close settings" onClick={() => setSettings(false)}><X size={15} /></button></Tip>
@@ -533,9 +533,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                     <section>
                       <h3>Project</h3>
                       <div className="project-card">
-                        <img src="/j-ai-logo.png" alt="" />
+                        <img src="/heiss-mark-white.svg" alt="HEISS AI" />
                         <div>
-                          <strong>J AI Studio</strong>
+                          <strong>HEISS UI</strong>
                           <span>Local image and video studio</span>
                         </div>
                         <Tip content="Open the public GitHub repo"><a className="ghost-button" href={githubUrl} target="_blank" rel="noreferrer"><Github size={14} /> GitHub</a></Tip>
@@ -712,7 +712,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         <div className="setting-row"><span>Total items</span><strong>{galleryLoaded ? gallery.length : <Skeleton className="skeleton-text tiny" />}</strong></div>
                         <div className="setting-row"><span>Current tab</span><strong>{galleryLoaded ? `${visibleGallery.length} ${mode === "image" ? "images" : "videos"}` : <Skeleton className="skeleton-text short" />}</strong></div>
                       </div>
-                      <Field label={<>Output folder <InfoTip content="Required for Private Vault. J AI only ingests and removes completed outputs from this exact folder." /></>}>
+                      <Field label={<>Output folder <InfoTip content="Required for Private Vault. HEISS UI only ingests and removes completed outputs from this exact folder." /></>}>
                         <div className="inline-form">
                           <input value={outputDirDraft} placeholder="ComfyUI output folder" onChange={(event) => setOutputDirDraft(event.target.value)} />
                           <button onClick={saveOutputDirectory} disabled={!outputDirDraft.trim()}>Save</button>
@@ -787,7 +787,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                             <Tip content="Remove failed and interrupted cards"><button onClick={clearFailedItems}>Clear failed items</button></Tip>
                             <Tip content="Remove finished items from this gallery"><button className="subtle-danger" onClick={clearGallery}>Clear finished gallery</button></Tip>
                           </div>
-                          <span className="field-meta">Files on disk are not deleted. This only clears what J AI shows.</span>
+                          <span className="field-meta">Files on disk are not deleted. This only clears what HEISS UI shows.</span>
                         </div>
                       </details>
                     </section>
@@ -905,7 +905,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           <div data-open-surface className="privacy-lock-card">
             <header>
               <div>
-                <h2>Unlock J AI Studio</h2>
+                <h2>Unlock HEISS UI</h2>
                 <p>Enter the privacy password to decrypt prompts and private items, or continue to the normal gallery.</p>
               </div>
             </header>
