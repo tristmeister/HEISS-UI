@@ -88,7 +88,7 @@ function customAspectSet(defaults, ratios = [], ranges = {}) {
   }).length ? aspectSet(defaults, ratios.map((item) => Array.isArray(item) ? item : [item.label || item.value || "Custom", Number(item.w || 1), Number(item.h || 1)]), ranges) : [];
 }
 
-export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual" }) {
+export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual", maxLoras = 8 }) {
   return {
     id,
     kind,
@@ -104,6 +104,8 @@ export function buildProfile({ id, kind, label, displayName, description, model,
     constraints,
     mediaInputs,
     aspectPolicy: aspectPolicy === "reference" ? "reference" : "manual",
+    // How many LoRAs the workflow's loader accepts (rgthree stacks take 4).
+    maxLoras: Math.max(1, Math.min(8, Number(maxLoras) || 8)),
     capabilities: {
       prompt: true,
       negativePrompt: kind === "image",
@@ -325,7 +327,8 @@ export function inferModels(info, stats = {}) {
       constraints: { prompt: textMeta, negative: textMeta, width: widthRange, height: heightRange, count: countRange, frames: frameRange, fps: fpsRange, ...samplerRange },
       capabilities: workflow.capabilities,
       mediaInputs: workflow.mediaInputs || [],
-      aspectPolicy: workflow.aspectPolicy
+      aspectPolicy: workflow.aspectPolicy,
+      maxLoras: workflow.loraStack?.max
     }));
   }
 
@@ -412,11 +415,8 @@ export function mockModelResult() {
     })
   ];
 
-  const loras = [
-    { label: "Cyberpunk Neon", name: "cyberpunk_neon_v1.safetensors" },
-    { label: "35mm Film Grain", name: "film_grain_35mm.safetensors" },
-    { label: "Anime Watercolor", name: "anime_watercolor.safetensors" }
-  ];
+  // File names, exactly like ComfyUI's LoraLoader list (objects here crashed the picker).
+  const loras = ["cyberpunk_neon_v1.safetensors", "film_grain_35mm.safetensors", "anime_watercolor.safetensors"];
 
   const samplers = ["euler", "euler_ancestral", "dpmpp_2m", "dpmpp_sde", "uni_pc"];
   const schedulers = ["normal", "karras", "exponential", "simple", "beta"];

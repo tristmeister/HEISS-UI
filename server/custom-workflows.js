@@ -380,9 +380,12 @@ export function saveImportedWorkflow(raw, meta = {}) {
  */
 export function deleteImportedWorkflow(id) {
   const safe = safeId(id);
-  const targets = allCustomWorkflowRecords({ dedupe: false })
+  const records = allCustomWorkflowRecords({ dedupe: false })
     .filter((record) => record.id === safe && record.path && withinWorkflowRoot(record.path));
-  if (!targets.length) throw new Error("Workflow file was not found.");
+  // Bundled templates live in the repo: never delete them. Removing a user copy
+  // that shadows a template simply brings the built-in version back.
+  const targets = records.filter((record) => record.source !== "bundled");
+  if (!targets.length) throw new Error(records.length ? "Built-in workflows can't be deleted." : "Workflow file was not found.");
   const removed = [];
   for (const record of targets) {
     if (!fs.existsSync(record.path)) continue;

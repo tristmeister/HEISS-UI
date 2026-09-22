@@ -207,7 +207,11 @@ export function SidebarControls({ view }: { view: any }) {
 
   const [tab, setTab] = useState<SidebarTab>("basics");
 
-  const loraOptions = profileOptions.loras || models?.loras || [];
+  // Always file names; tolerate {name} entries so an odd server can't crash the picker.
+  const loraOptions: string[] = (profileOptions.loras || models?.loras || [])
+    .map((option: unknown) => typeof option === "string" ? option : String((option as { name?: string })?.name || ""))
+    .filter(Boolean);
+  const loraLimit = Math.min(maxLoras, currentProfile?.maxLoras || maxLoras);
   const canUseLora = mode === "image" && Boolean(currentProfile?.capabilities.lora) && loraOptions.length > 0;
 
   useEffect(() => {
@@ -220,7 +224,7 @@ export function SidebarControls({ view }: { view: any }) {
   const removeLora = (index: number) => setLoras((current: LoraSelection[]) => current.filter((_, itemIndex) => itemIndex !== index));
   const addLora = () => {
     setLoras((current: LoraSelection[]) => {
-      if (current.length >= maxLoras) return current;
+      if (current.length >= loraLimit) return current;
       const first = recommendedLoras(loraOptions, currentProfile)[0] || rankedLoras(loraOptions, currentProfile)[0] || "";
       return [...current, { name: first, enabled: true, strength: rememberedLoraStrength(first, defaultLoraStrength) }];
     });
@@ -323,8 +327,8 @@ export function SidebarControls({ view }: { view: any }) {
                 <div className="lora-list-empty">No LoRAs added yet</div>
               )}
             </div>
-            <Tip content={loras.length >= maxLoras ? `Up to ${maxLoras} LoRAs` : "Add LoRA"}>
-              <button type="button" className="lora-add-btn" onClick={addLora} disabled={loras.length >= maxLoras}>
+            <Tip content={loras.length >= loraLimit ? `This workflow takes up to ${loraLimit} LoRAs` : "Add LoRA"}>
+              <button type="button" className="lora-add-btn" onClick={addLora} disabled={loras.length >= loraLimit}>
                 <Plus size={14} />
                 Add LoRA
               </button>

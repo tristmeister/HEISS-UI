@@ -128,14 +128,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       const address = data.addresses?.[0];
       if (!address) throw new Error("No local network address found");
       const url = `${window.location.protocol}//${address}:${window.location.port || 5173}`;
-      await navigator.clipboard?.writeText(url);
       copyAndToast(url, "LAN URL copied");
     } catch (error) {
-      copyAndToast(error instanceof Error ? error.message : "Could not find LAN address", "error");
+      showToast(error instanceof Error ? error.message : "Could not find LAN address", "error");
     } finally {
       setLanBusy(false);
     }
-  }, [copyAndToast]);
+  }, [copyAndToast, showToast]);
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
@@ -696,7 +695,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                     </label>
                     <div className="setting-actions">
                       <Tip content="Browse and manage workflow templates"><button className="is-primary" onClick={() => { setSettings(false); setWorkflowGalleryOpen(true); }}>Open workflow gallery</button></Tip>
-                      <Tip content="Reload workflow templates from disk"><button onClick={() => refreshModels()}>Refresh workflows</button></Tip>
+                      <Tip content="Reload workflow templates from disk"><button onClick={() => { refreshModels(); view.refreshWorkflows(); }}>Refresh workflows</button></Tip>
                     </div>
                   </section>
                 ) : null}

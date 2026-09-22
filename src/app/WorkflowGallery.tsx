@@ -285,7 +285,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                   <button onClick={() => useWorkflow(selected)} className="workflow-use" disabled={busy || !selected.validation.ok}><CheckCircle2 size={15} /> Use workflow</button>
                   <button disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Could not update favorites", "error"))}><Heart size={15} fill={selected.favorite ? "currentColor" : "none"} /> {selected.favorite ? "Favorited" : "Favorite"}</button>
                   {selected.deleteId ? <button className="subtle-danger" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={15} /> Delete</button> : null}
-                  <button disabled={busy} onClick={() => refreshWorkflows()}>Check status</button>
+                  <button disabled={busy} onClick={() => { refreshModels(false); refreshWorkflows(); }}>Check status</button>
                 </div>
                 <div className="workflow-detail-grid">
                   <span>Status</span><strong>{workflowStatus(selected)}</strong>

@@ -149,7 +149,8 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       // Every workflow-JSON profile is `custom:*`, bundled or not, so the id
       // prefix cannot tell them apart - use the record's actual folder.
       source: custom ? (custom.source === "bundled" ? "builtin" : "custom") : isCustom ? "custom" : "builtin",
-      deleteId: custom?.id || (isCustom ? profile.id.replace(/^custom:/, "") : ""),
+      // Only workflows you imported can be deleted; bundled templates are part of the repo.
+      deleteId: custom ? (custom.source === "bundled" ? "" : custom.id) : isCustom ? profile.id.replace(/^custom:/, "") : "",
       controls: [],
       capabilities: profile.capabilities || {},
       mediaInputs: profile.mediaInputs || custom?.mediaInputs || [],

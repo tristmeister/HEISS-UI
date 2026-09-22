@@ -61,3 +61,8 @@ export function saveLoraLibrary(library) {
   writeState(state);
   return state.library;
 }
+
+/** Forgets every saved stack and the strength/snapshot library (used by "Reset all settings"). */
+export function clearLoraState() {
+  writeState({ stacks: {}, library: null });
+}

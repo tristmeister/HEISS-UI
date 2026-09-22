@@ -20,7 +20,7 @@ import { saveStartImage } from './start-images.js';
 import { clearUnlockCookie, encryptionKeyFromRequest, isPrivacyEnabled, privacyStatusFor, revealGalleryItemsForRequest, setPrivacyPassword, setUnlockCookie, verifyPrivacyPassword } from './privacy.js';
 import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, exportVaultBackup, readVaultAsset, setVaultBundleCover, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultGalleryItemsForRequest, vaultStatusFor } from './vault.js';
 import { sendGalleryExport } from './gallery-export.js';
-import { loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
+import { clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { cancelModelInstall, normalizeQuality, probeDownloadSizes, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
@@ -480,6 +480,12 @@ app.get("/api/vault/export", (req, res) => {
   res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-private-vault-${new Date().toISOString().slice(0, 10)}.backup"`);
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.send(backup);
+});
+
+app.delete("/api/loras", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  clearLoraState();
+  res.json({ ok: true });
 });
 
 app.get("/api/loras/library", (_req, res) => {

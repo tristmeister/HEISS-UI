@@ -54,7 +54,8 @@ export function useViewerControls(view: any) {
     if (itemSettings.vae) setVae(String(itemSettings.vae));
     if (itemSettings.clipType) setClipType(String(itemSettings.clipType));
     if (itemSettings.weightDtype) setWeightDtype(String(itemSettings.weightDtype));
-    setLoras(normalizeLoras(itemSettings.loras));
+    // Save the stack under the workflow we're switching to, not the one we're leaving.
+    setLoras(normalizeLoras(itemSettings.loras), matchingProfile?.id);
     setStartImage(item.referenceImage || "");
     if (setStartImageId) setStartImageId(item.startImageId || item.referenceImage || "");
     setStartImageName(item.referenceImageName || String(itemSettings.referenceImageName || ""));

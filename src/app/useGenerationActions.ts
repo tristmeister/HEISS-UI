@@ -233,6 +233,9 @@ export function useGenerationActions(view: any) {
     localStorage.removeItem("j-ai-studio-draft");
     localStorage.removeItem("j-ai-studio-prefs");
     clearLoraLibrary();
+    // The server keeps its own copy of LoRA strengths and stacks; clear it too,
+    // or the next load would restore everything the dialog said was cleared.
+    await fetch("/api/loras", { method: "DELETE" }).catch(() => null);
     if ("caches" in window) {
       await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => null);
     }

@@ -113,6 +113,9 @@ function App() {
   const latestZenIdRef = useRef("");
   const privacyInitializedRef = useRef(false);
   const loraSaveTimer = useRef<number | null>(null);
+  // Set when LoRAs are applied for a workflow we're about to switch to (e.g. "Copy
+  // all settings"), so the switch doesn't load that workflow's saved stack over them.
+  const explicitLorasFor = useRef("");
   const comfyStatusRequestRef = useRef(false);
   const touchGestureRef = useRef<TouchGesture | null>(null);
   const lastTapRef = useRef(0);
@@ -164,6 +167,10 @@ function App() {
 
   useEffect(() => {
     if (!model) return;
+    if (explicitLorasFor.current === model) {
+      explicitLorasFor.current = "";
+      return;
+    }
     let current = true;
     apiJson<{ found: boolean; loras: LoraSelection[] }>(`/api/loras/${encodeURIComponent(model)}`)
       .then((data) => { if (current && data.found) setLoras(normalizeLoras(data.loras)); })
@@ -655,14 +662,17 @@ function App() {
     }
   }
 
-  function setLorasWithMemory(update: React.SetStateAction<LoraSelection[]>) {
+  /** Updates the LoRA stack and remembers it for a workflow: the current one by
+   *  default, or the one being switched to when settings are applied together. */
+  function setLorasWithMemory(update: React.SetStateAction<LoraSelection[]>, workflowId: string = model) {
+    if (workflowId && workflowId !== model) explicitLorasFor.current = workflowId;
     setLoras((current) => {
       const next = normalizeLoras(typeof update === 'function' ? update(current) : update);
-      rememberLoraStrengths(model, next);
-      if (model) {
+      rememberLoraStrengths(workflowId, next);
+      if (workflowId) {
         if (loraSaveTimer.current !== null) window.clearTimeout(loraSaveTimer.current);
         loraSaveTimer.current = window.setTimeout(() => {
-          apiJson(`/api/loras/${encodeURIComponent(model)}`, {
+          apiJson(`/api/loras/${encodeURIComponent(workflowId)}`, {
             method: "PUT",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ loras: next })
@@ -899,10 +909,17 @@ function App() {
     try {
       const text = await file.text();
       const workflow = JSON.parse(text);
+      // Same path as the gallery import: preview first, so the prompt and other
+      // controls get auto-mapped and the file name becomes the workflow name.
+      const { preview } = await apiJson<{ preview: { detected: Record<string, unknown> } }>("/api/workflows/import/preview", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ workflow, filename: file.name })
+      });
       await apiJson("/api/workflows/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ workflow })
+        body: JSON.stringify({ workflow, filename: file.name, metadata: preview.detected })
       });
       refreshModels(false);
       refreshWorkflows();

@@ -45,8 +45,8 @@ function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", ma
   const strengthRange = nodeRange(info, "LoraLoader", "strength_model", { default: 0.7, min: -100, max: 100, step: 0.01 });
   const raw = Array.isArray(input.loras) ? input.loras : [];
   const sanitized = [];
-  for (const item of raw.slice(0, maxLoras)) {
-    if (!item || item.enabled === false) continue;
+  // Disabled entries don't take a slot: apply the workflow's limit to enabled LoRAs only.
+  for (const item of raw.filter((entry) => entry && entry.enabled !== false).slice(0, maxLoras)) {
     const name = String(item.name || "").trim();
     if (!name) continue;
     if (!installed.includes(name)) throw new Error(`LoRA is not installed or ComfyUI cannot see it: ${name}`);

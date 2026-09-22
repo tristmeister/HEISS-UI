@@ -86,6 +86,8 @@ export type Profile = {
   capabilities: Record<string, boolean>;
   mediaInputs?: MediaInput[];
   aspectPolicy?: "manual" | "reference";
+  /** LoRAs the workflow's loader accepts; rgthree stacks take 4. */
+  maxLoras?: number;
 };
 export type Models = {
   imageModels: SelectOption[];
