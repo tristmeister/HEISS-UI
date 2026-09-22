@@ -275,8 +275,8 @@
   .tile-upscale { opacity: 1; }
 }
 
-/* The solid arrow's head carries its weight, so it sits half a pixel low to look centred. */
-.upscale-arrow { display: block; translate: 0 .5px; }
+/* Optical centring is built into the arrow's path (UpscaleArrow.tsx). */
+.upscale-arrow { display: block; }
 
 /* Progress: a ring drawn on the circle's edge. */
 .tile-upscale-ring {

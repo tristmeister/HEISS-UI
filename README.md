@@ -50,7 +50,7 @@ The node graph is great for building workflows and less great for the everyday l
 - **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
 
 <p align="center">
-  <a href="./docs/screenshots/realtime-generation.mp4"><img src="./docs/screenshots/realtime-generation.gif" alt="Live ComfyUI previews while an image renders" width="100%" /></a>
+  <a href="./docs/screenshots/realtime-generation.mp4"><img src="./docs/screenshots/realtime-generation.gif" alt="Two new images resolving live in the gallery, from pixel-mosaic step previews to the finished photograph" width="100%" /></a>
 </p>
 
 ## Quick start
