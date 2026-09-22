@@ -64,12 +64,12 @@ body { margin: 0; min-width: 320px; min-height: 100vh; background: hsl(var(--bac
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 button:not(:disabled) { transition-timing-function: var(--ease-out); transition-duration: 180ms; }
-button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+/* Buttons take the ember focus ring from 22-accents.css; fields brighten their edge. */
+input:focus-visible, textarea:focus-visible, select:focus-visible {
   outline: 0;
   border-color: hsl(var(--ring));
   box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18);
 }
-::selection { background: hsl(var(--primary) / 0.24); color: hsl(var(--foreground)); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

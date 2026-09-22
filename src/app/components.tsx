@@ -74,6 +74,11 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
 
 export const Media = memo(MediaComponent, (previous, next) => previous.item === next.item && previous.muted === next.muted);
 
+/** The website's design-tool selection handles: four small squares on the corners of whatever is selected. */
+export function Handles() {
+  return <span className="handles" aria-hidden="true"><i /><i /><i /><i /></span>;
+}
+
 export function Skeleton({ className = "" }: { className?: string }) {
   return <span className={cn("skeleton", className)} aria-hidden="true" />;
 }

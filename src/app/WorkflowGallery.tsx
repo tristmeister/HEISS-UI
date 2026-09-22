@@ -4,7 +4,7 @@ import { Modal } from './Modal';
 import type { ConfirmAction } from './useConfirmation';
 import { apiJson, copyText } from './api';
 import { cn } from './format';
-import { Field, StudioSelect as Select } from './components';
+import { Field, Handles, StudioSelect as Select } from './components';
 import { Segmented } from './SettingsDialog';
 import { workflowState } from './workflowStatus';
 import type { Mode, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
@@ -281,11 +281,11 @@ export function WorkflowGallery({ view }: { view: any }) {
                 key={workflow.id}
                 type="button"
                 aria-pressed={workflow.id === selected?.id}
-                className={cn("wf-card", workflow.id === selected?.id && "active", workflow.profileId === model && "is-current")}
+                className={cn("wf-card", workflow.id === selected?.id && "active")}
                 onClick={() => { setSelectedId(workflow.id); setMobileDetailsOpen(true); }}
                 onDoubleClick={() => useWorkflow(workflow)}
               >
-                <span className="wf-thumb"><WorkflowThumbnail key={workflow.thumbnail} src={workflow.thumbnail} /></span>
+                <span className="wf-thumb"><WorkflowThumbnail key={workflow.thumbnail} src={workflow.thumbnail} />{workflow.id === selected?.id ? <Handles /> : null}</span>
                 {workflow.favorite ? <span className="wf-fav" aria-label="Favorite"><Heart size={12} fill="currentColor" /></span> : null}
                 {workflow.profileId === model ? <span className="wf-current">In use</span> : null}
                 <span className="wf-card-copy">

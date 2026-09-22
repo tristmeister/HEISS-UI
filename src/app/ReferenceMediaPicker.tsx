@@ -162,7 +162,7 @@ export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSe
       description="Select a past generation or upload an image."
       headerActions={
         <>
-          <button className="btn is-primary reference-upload-button" type="button" onClick={() => uploadInput.current?.click()} disabled={uploading}>
+          <button className="btn is-primary" type="button" onClick={() => uploadInput.current?.click()} disabled={uploading}>
             {uploading ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}
             <span>{uploading ? `Uploading ${uploadProgress || ""}${uploadProgress ? "%" : ""}` : "Upload"}</span>
           </button>

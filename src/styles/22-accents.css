@@ -1,0 +1,97 @@
+/* ---------------------------------------------------------------------------
+   Website accents, kept quiet
+
+   Three things carried over from the HEISS UI site: the warm ember, square
+   markers instead of round dots, and design-tool selection handles. They mark
+   focus, selection and "something is happening", and nothing else.
+--------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------ Selection */
+
+::selection { background: rgb(255 154 82 / .28); color: #fff; }
+
+/* Keyboard focus: one ember ring everywhere. :where keeps it at zero
+   specificity so components with their own focus style still win. */
+:where(button, a, summary, [role="button"], [role="tab"], [role="switch"], [tabindex]):focus-visible {
+  outline: 2px solid rgb(255 154 82 / .8);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------- Handles */
+
+.handles {
+  position: absolute;
+  inset: 5px;
+  z-index: 3;
+  pointer-events: none;
+  --h: 6px;
+}
+.handles i {
+  position: absolute;
+  width: var(--h);
+  height: var(--h);
+  background: rgb(10 10 10 / .7);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .55);
+  transition: background var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+.handles i:nth-child(1) { left: 0; top: 0; }
+.handles i:nth-child(2) { right: 0; top: 0; }
+.handles i:nth-child(3) { left: 0; bottom: 0; }
+.handles i:nth-child(4) { right: 0; bottom: 0; }
+
+/* Workflow gallery: the selected card's thumbnail. */
+.wf-card.active .handles i { background: var(--ember); box-shadow: var(--ember-glow); }
+
+/* Zen strip: the image on stage. */
+.zen-gallery-strip button { position: relative; }
+.zen-gallery-strip button .handles { inset: 3px; --h: 4px; }
+.zen-gallery-strip button.active .handles i { background: var(--ember); box-shadow: none; }
+
+/* Gallery tiles show handles only when reached with the keyboard. */
+.tile > .handles { opacity: 0; transition: opacity var(--dur-fast); }
+.tile:focus-visible { outline: none; }
+.tile:focus-visible > .handles { opacity: 1; }
+.tile:focus-visible > .handles i { background: var(--ember); box-shadow: var(--ember-glow); }
+
+/* ---------------------------------------------------- Mosaic skeletons
+   Loading tiles resolve like the generation preview: a quiet pixel mosaic
+   instead of a shimmer sweep. */
+
+.skeleton-media {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--r-media);
+  background: rgb(255 255 255 / .025);
+  animation: none;
+}
+.skeleton-media::before,
+.skeleton-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: conic-gradient(rgb(255 255 255 / .05) 25%, transparent 0 50%, rgb(255 255 255 / .05) 0 75%, transparent 0);
+  background-size: 24px 24px;
+  animation: mosaic-flicker 2.4s steps(3, jump-none) infinite;
+}
+.skeleton-media::after {
+  background-size: 40px 40px;
+  background-position: 12px 12px;
+  animation-duration: 3.2s;
+  animation-delay: -1.1s;
+}
+@keyframes mosaic-flicker {
+  0%, 100% { opacity: .15; }
+  50% { opacity: 1; }
+}
+
+/* Text and control skeletons stay flat, squared to the same family. */
+.skeleton:not(.skeleton-media) { border-radius: 4px; }
+
+/* ------------------------------------------------------- Status marker */
+
+.comfy-status-dot span { width: 8px; height: 8px; border-radius: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-media::before,
+  .skeleton-media::after { animation: none; opacity: .6; }
+}
