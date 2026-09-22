@@ -25,7 +25,7 @@
 </p>
 
 <p align="center">
-  <img src="./docs/screenshots/hero.jpg" alt="HEISS UI: a masonry gallery of generated images with the prompt composer floating at the bottom" width="1100" />
+  <img src="./docs/screenshots/hero.jpg" alt="HEISS UI: a masonry gallery of generated photographs, two still resolving as pixel mosaics, with the prompt composer floating at the bottom" width="1100" />
 </p>
 
 <p align="center">
