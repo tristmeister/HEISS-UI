@@ -28,8 +28,6 @@ body {
 }
 
 .stage-gallery,
-.workflow-gallery-list,
-.workflow-details,
 .bundle-sheet {
   -webkit-overflow-scrolling: touch;
 }
@@ -42,8 +40,6 @@ body {
 .zen-controls {
   bottom: calc(var(--zen-prompt-h, 160px) + 24px + env(safe-area-inset-bottom));
 }
-
-.workflow-mobile-back { display: none; }
 
 @media (max-width: 760px) {
   .reference-media-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
@@ -102,36 +98,10 @@ body {
     max-width: none;
     transform: none;
   }
-  .workflow-gallery-list {
-    padding: 12px 12px calc(20px + env(safe-area-inset-bottom));
-    border-right: 0;
-  }
-  .workflow-search { position: sticky; top: 0; z-index: 2; }
-  .workflow-details {
-    display: none;
-    padding: 12px 14px calc(24px + env(safe-area-inset-bottom));
-  }
-  .workflow-gallery-body.is-detail-open .workflow-gallery-list { display: none; }
-  .workflow-gallery-body.is-detail-open .workflow-details { display: block; }
-  .workflow-mobile-back {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    margin: 0 0 16px;
-    padding: 0 13px;
-    border: 0;
-    border-radius: 20px;
-    background: #202020;
-    color: hsl(var(--foreground));
-    font-size: 12px;
-    font-weight: 600;
-  }
 
   input,
   textarea,
   select,
-  .workflow-search input,
   .number-picker-input {
     font-size: 16px;
   }
@@ -173,54 +143,10 @@ body {
   .prompt-left-actions,
   .zen-inline-settings { gap: 4px; }
   .composer-drawer { left: 0; right: 0; }
-
-  .workflow-tile-grid { grid-template-columns: 1fr; }
-  .workflow-tile {
-    min-height: 96px;
-    grid-template-columns: 76px minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    align-items: center;
-  }
-  .workflow-thumb { grid-row: 1 / 3; height: 76px; }
-  .workflow-tile-copy { align-self: end; }
-  .workflow-tile > em { align-self: start; }
-  .workflow-detail-hero { grid-template-columns: 1fr; }
-  .workflow-detail-thumb { width: min(148px, 45vw); }
-  .workflow-detail-hero h3 { font-size: 23px; text-wrap: balance; }
-  .workflow-detail-hero p { text-wrap: pretty; }
-  .workflow-actions,
-  .workflow-map-grid { grid-template-columns: 1fr; }
 }
 
 /* Compact tablets cannot support the gallery's 430px + 420px split. Keep the
    denser two-column cards, but use the same list -> detail navigation as phones. */
-@media (min-width: 761px) and (max-width: 900px) {
-  .workflow-gallery-body { grid-template-columns: 1fr; }
-  .workflow-gallery-list {
-    padding: 16px 18px calc(22px + env(safe-area-inset-bottom));
-    border-right: 0;
-  }
-  .workflow-details {
-    display: none;
-    padding: 20px 24px calc(28px + env(safe-area-inset-bottom));
-  }
-  .workflow-gallery-body.is-detail-open .workflow-gallery-list { display: none; }
-  .workflow-gallery-body.is-detail-open .workflow-details { display: block; }
-  .workflow-mobile-back {
-    min-height: 40px;
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    margin: 0 0 18px;
-    padding: 0 13px;
-    border: 0;
-    border-radius: 20px;
-    background: #202020;
-    color: hsl(var(--foreground));
-    font-size: 12px;
-    font-weight: 600;
-  }
-}
 
 @media (min-width: 621px) and (max-width: 980px) {
   .zen-controls {
@@ -233,7 +159,6 @@ body {
 
   button:hover,
   .tile:hover,
-  .workflow-tile:hover,
   .bundle-stack:hover {
     transform: none;
   }

@@ -147,8 +147,7 @@
 .zen-controls input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .zen-controls .number-picker,
 .settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.settings-modal .number-picker,
-.workflow-search {
+.settings-modal .number-picker {
   height: var(--control-h);
   min-height: var(--control-h);
   border: 1px solid transparent;
@@ -158,7 +157,6 @@
 }
 .zen-controls input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { padding: 0 16px; }
-.workflow-search { margin-bottom: 18px; }
 .zen-controls input:focus-visible,
 .settings-modal input:focus-visible,
 .fluid-select-trigger:focus-visible {
@@ -176,12 +174,7 @@
    Primary is white, secondary is a soft fill, both 40px pills. List rows
    (settings nav, sidebar tabs, options) share the item radius. */
 
-.setting-actions button,
-.setting-actions a,
-.wide-button,
-.reconnect-btn,
-.workflow-actions button,
-.workflow-empty button {
+.reconnect-btn {
   min-height: var(--control-h) !important;
   height: var(--control-h);
   padding: 0 18px !important;
@@ -191,23 +184,13 @@
   font-size: 13px;
   font-weight: 550;
 }
-.setting-actions button:not(.single *),
-.wide-button,
-.reconnect-btn:not(.primary),
-.workflow-actions button:not(:first-child) { background: var(--control-fill) !important; color: hsl(var(--foreground)) !important; }
-.setting-actions button:not(.single *):hover:not(:disabled),
-.wide-button:hover:not(:disabled),
-.reconnect-btn:not(.primary):hover,
-.workflow-actions button:not(:first-child):hover:not(:disabled) { background: var(--control-hover) !important; }
-.setting-actions.single button,
-.setting-actions.single a,
-.reconnect-btn.primary,
-.workflow-actions button:first-child { background: var(--action) !important; color: var(--action-ink) !important; }
+.reconnect-btn:not(.primary) { background: var(--control-fill) !important; color: hsl(var(--foreground)) !important; }
+.reconnect-btn:not(.primary):hover { background: var(--control-hover) !important; }
+.reconnect-btn.primary { background: var(--action) !important; color: var(--action-ink) !important; }
 
 .sidebar-subtab,
 .zen-controls .mode-tabs button { min-height: var(--control-h); border-radius: var(--r-item); }
 .zen-controls .mode-tabs { padding: 4px; border-radius: calc(var(--r-item) + 4px); background: var(--well); }
-.workflow-tags span { border-radius: var(--r-pill); }
 
 .tile-action,
 .tile-upscale { border-radius: var(--r-pill); }

@@ -65,6 +65,9 @@ function controlsList(controls = {}) {
 }
 
 function validateWorkflow(workflow, info = {}, profile = null) {
+  // Without ComfyUI's node list we can't tell a missing node from an offline server,
+  // so node checks are skipped and the result is marked unverified instead.
+  const online = Object.keys(info || {}).length > 0;
   const issues = [];
   const warnings = [];
   if (workflow.parseError) issues.push(workflow.parseError);
@@ -86,8 +89,10 @@ function validateWorkflow(workflow, info = {}, profile = null) {
     else if (!node) issues.push(`Mapped media input node is missing: ${mapping.node}`);
     else if (!(mapping.input in (node.inputs || {}))) issues.push(`Mapped media input is missing: ${mapping.node}.${mapping.input}`);
   }
-  for (const classType of workflow.requiredNodes || []) {
-    if (classType && !info[classType]) issues.push(`Missing node class: ${classType}`);
+  if (online) {
+    for (const classType of workflow.requiredNodes || []) {
+      if (classType && !info[classType]) issues.push(`Missing node class: ${classType}`);
+    }
   }
   issues.push(...workflowOptionIssues(workflow, info));
   const graph = workflow.graph || {};
@@ -106,6 +111,7 @@ function validateWorkflow(workflow, info = {}, profile = null) {
   }
   return {
     ok: issues.length === 0 && (profile ? true : !workflow.profileId || Boolean(profile)),
+    unverified: !online,
     issues,
     warnings,
     missingNodes: issues.filter((issue) => issue.startsWith("Missing node class:")).map((issue) => issue.replace("Missing node class:", "").trim())
@@ -125,13 +131,13 @@ function automaticTags(item, prefs) {
   tags.push(item.source === "builtin" ? "Built-in" : "Custom");
   tags.push(item.kind === "video" ? "Video" : "Image");
   if (item.capabilities?.imageToImage) tags.push("Image edit");
-  tags.push(item.validation.ok ? "Ready" : "Broken");
   if (item.family) tags.push(item.family);
   return [...new Set(tags)];
 }
 
 export function workflowSummaries({ info = {}, profiles = [], preferences = loadWorkflowPreferences() } = {}) {
   const summaries = [];
+  const online = Object.keys(info || {}).length > 0;
   const customRecords = allCustomWorkflowRecords();
   const customByProfile = new Map(customRecords.map((workflow) => [workflow.profileId, workflow]));
   for (const profile of profiles) {
@@ -160,7 +166,7 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       favorite: preferences.favorites.includes(id),
       lastUsedAt: preferences.lastUsed[id] || "",
       thumbnail: latestThumbnailFor(id, profile.workflow, preferences),
-      validation: { ok: true, issues: [], warnings: [], missingNodes: [] }
+      validation: { ok: true, unverified: !online, issues: [], warnings: [], missingNodes: [] }
     };
     summary.tags = automaticTags(summary, preferences);
     summaries.push(summary);

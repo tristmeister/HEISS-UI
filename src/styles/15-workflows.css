@@ -1,65 +1,12 @@
-/* Shared, quiet surfaces for workflows, empty states and confirmations. */
-.workflow-gallery-body { grid-template-columns: 330px minmax(0, 1fr); }
-.workflow-gallery-list { padding: 16px 12px; background: rgb(10 10 10 / .58); backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2); }
-.workflow-search { margin: 0 4px 22px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .04); }
-.workflow-group { margin-top: 18px; }
-.workflow-group h3 { display: flex; align-items: center; gap: 7px; padding: 0 10px; margin-bottom: 8px; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; color: #909090; }
-.workflow-group h3 span { color: #656565; font-variant-numeric: tabular-nums; }
-.workflow-tile-grid { grid-template-columns: 1fr; gap: 3px; }
-.workflow-tile { grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; gap: 10px; min-height: 64px; padding: 10px; border: 1px solid transparent; border-radius: 18px; background: transparent; transition: background 140ms, border-color 140ms; }
-.workflow-tile.is-broken { border-color: transparent; }
-.workflow-tile:hover { background: var(--brand-surface-hover); border-color: transparent; }
-.workflow-tile.active { background: var(--brand-surface-selected); border-color: transparent; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08); }
-.workflow-thumb { width: 36px; height: 36px; border-radius: 12px; background: #ffffff06; }
-.workflow-thumb svg { width: 17px; height: 17px; }
-.workflow-tile-copy, .workflow-tile > em { align-self: center; }
-.workflow-tile-copy strong { font-size: 13px; font-weight: 550; line-height: 1.5; }
-.workflow-tile-copy span { font-size: 11px; color: #858585; }
-.workflow-tile > em { font-size: 10px; font-style: normal; }
-.workflow-tile > em.is-ready { color: #83a99a; display: flex; }
-.workflow-tile > em.needs-setup { color: #b9a079; }
-.workflow-details { min-width: 0; padding: 30px; }
-.workflow-detail-hero { grid-template-columns: 1fr; gap: 18px; }
-.workflow-detail-thumb { width: 64px; height: 64px; border-radius: 20px; background: #ffffff06; }
-.workflow-detail-thumb svg { width: 23px; height: 23px; }
-.workflow-detail-hero h3 { font-size: 23px; font-weight: 550; letter-spacing: -.035em; line-height: 1.25; overflow-wrap: anywhere; }
-.workflow-detail-hero p { font-size: 13px; color: #939393; line-height: 1.7; max-width: 42ch; }
-.workflow-tags { gap: 5px; margin-top: 12px; }
-.workflow-tags span { font-size: 10px; padding: 5px 9px; background: #272727; color: #909090; border: 0; }
-.workflow-actions { gap: 7px; margin: 24px 0; }
-.workflow-actions button, .workflow-empty button { background: #ffffff08; color: #bdbdbd; }
-.workflow-actions .workflow-use { background: #ebebeb; color: #171717; border-color: transparent; }
-.workflow-actions .workflow-use:hover:not(:disabled) { background: #fff; }
-.workflow-actions .subtle-danger { color: #ba9393; }
-.workflow-detail-grid { grid-template-columns: 82px minmax(0, 1fr); border: 0; border-radius: 18px; padding: 20px; background: #191919; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06); gap: 14px 16px; }
-.workflow-detail-grid span, .workflow-detail-grid strong { font-size: 12px; line-height: 1.6; }
-.workflow-detail-grid strong { font-weight: 400; color: #b8b8b8; overflow-wrap: anywhere; }
-.workflow-issues { border-radius: 18px; background: #b9955a08; border: 1px solid #b9955a20; padding: 18px; }
-.workflow-issues h4 { color: #c0a57e; font-size: 12px; }
-.workflow-issues p { font-size: 11px; color: #9a9287; line-height: 1.6; overflow-wrap: anywhere; }
-.workflow-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 230px; padding: 28px 12px; text-align: center; color: #757575; }
-.workflow-empty h3 { margin: 0; color: #bdbdbd; font-size: 13px; font-weight: 500; }
-.workflow-empty p { margin: 0 0 8px; font-size: 12px; max-width: 26ch; line-height: 1.6; }
-.workflow-import-list { overflow: visible; }
-.workflow-import-card { padding: 16px; border-radius: 18px; background: #191919; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06); }
-.workflow-mapping summary { cursor: pointer; font-size: 12px; color: #929292; padding: 12px 0; }
+/* Empty states, and the content of the smart upscale dialogs (the dialogs themselves are Modal). */
 .empty { gap: 10px; }
 .empty > svg { color: #777; margin-bottom: 8px; }
 .empty h2 { margin: 0; font-size: 16px; font-weight: 500; letter-spacing: -.025em; color: #bfbfbf; }
 .empty p { margin: 0; font-size: 12px; line-height: 1.7; color: #737373; max-width: 32ch; }
 .empty-actions { margin-top: 8px; }
 .empty-actions .reconnect-btn { min-height: 36px; border-radius: 7px; font-size: 11px; }
-.workflow-mapping summary:focus-visible { outline: 2px solid #aaa; outline-offset: 3px; }
-@media (max-width: 760px) {
-  .workflow-gallery-body { grid-template-columns: 1fr; }
-  .workflow-details { display: none; padding: 20px; }
-  .workflow-gallery-list { padding: 16px 12px; }
-  .workflow-gallery-body.is-detail-open .workflow-gallery-list { display: none; }
-  .workflow-gallery-body.is-detail-open .workflow-details { display: block; }
-  .workflow-mobile-back { display: inline-flex; margin-bottom: 24px; }
-}
 
-/* Smart upscale setup: full-bleed hero, rounded at the top, flat where content begins. */
+/* Smart upscale setup steps and copyable URL. */
 .upscale-setup-steps {
   margin: 16px 0 12px;
   /* Tailwind preflight strips list markers; the steps are ordered on purpose. */

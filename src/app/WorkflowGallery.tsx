@@ -1,13 +1,16 @@
-import React, { useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, FileJson, Heart, Search, Trash2, Upload, Wand2 } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Check, ClipboardPaste, Copy, FileJson, Heart, RefreshCw, Search, Trash2, Upload, Wand2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import type { ConfirmAction } from './useConfirmation';
-import { apiJson } from './api';
+import { apiJson, copyText } from './api';
 import { cn } from './format';
 import { Field, StudioSelect as Select } from './components';
+import { Segmented } from './SettingsDialog';
+import { workflowState } from './workflowStatus';
 import type { Mode, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
+type Filter = "all" | "favorites" | "attention";
 
 const controlLabels: Record<string, string> = {
   prompt: "Prompt",
@@ -26,10 +29,6 @@ const controlLabels: Record<string, string> = {
   fps: "FPS"
 };
 
-function workflowStatus(workflow: WorkflowSummary) {
-  return workflow.validation?.ok ? "Ready" : "Needs setup";
-}
-
 function timeLabel(value = "") {
   if (!value) return "";
   const date = new Date(value);
@@ -43,7 +42,14 @@ function selectedNodeValue(mapping?: { node: string; input: string }) {
 
 function WorkflowThumbnail({ src }: { src?: string }) {
   const [failed, setFailed] = useState(false);
-  return src && !failed ? <img src={src} alt="" onError={() => setFailed(true)} /> : <Wand2 size={22} />;
+  return src && !failed
+    ? <img src={src} alt="" loading="lazy" draggable={false} onError={() => setFailed(true)} />
+    : <span className="wf-thumb-empty" aria-hidden="true"><i /><i /><i /><i /><Wand2 size={18} /></span>;
+}
+
+function StatusBadge({ validation }: { validation: WorkflowSummary["validation"] }) {
+  const status = workflowState(validation);
+  return <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>;
 }
 
 export function WorkflowGallery({ view }: { view: any }) {
@@ -66,35 +72,44 @@ export function WorkflowGallery({ view }: { view: any }) {
     chooseModel: (id: string) => void;
     models: { profiles: Array<{ id: string; kind: Mode }> } | null;
   };
+  const [kind, setKind] = useState<Mode>(mode);
+  const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(workflows.find((item) => item.kind === mode)?.id || workflows[0]?.id || "");
+  const [selectedId, setSelectedId] = useState(model || workflows.find((item) => item.kind === mode)?.id || "");
   const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState<"choose" | "review">("choose");
   const [pasteJson, setPasteJson] = useState("");
   const [imports, setImports] = useState<ImportDraft[]>([]);
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
+  const ofKind = useMemo(() => workflows.filter((item) => item.kind === kind), [kind, workflows]);
+  const attentionCount = ofKind.filter((item) => !item.validation.ok).length;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return workflows.filter((item) => {
-      if (item.kind !== mode) return false;
+    return ofKind.filter((item) => {
+      if (filter === "favorites" && !item.favorite) return false;
+      if (filter === "attention" && item.validation.ok) return false;
       if (!q) return true;
-      return [item.name, item.description, item.family, item.source, ...(item.tags || [])].join(" ").toLowerCase().includes(q);
+      return [item.name, item.description, item.family, ...(item.tags || [])].join(" ").toLowerCase().includes(q);
     });
-  }, [mode, query, workflows]);
+  }, [filter, ofKind, query]);
   const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
-  const grouped = useMemo(() => {
-    const favorites = filtered.filter((item) => item.favorite);
-    const recent = filtered.filter((item) => !item.favorite && item.lastUsedAt);
-    const ready = filtered.filter((item) => !item.favorite && !item.lastUsedAt && item.validation.ok);
-    const broken = filtered.filter((item) => !item.favorite && !item.lastUsedAt && !item.validation.ok);
-    return [
-      ["Favorites", favorites],
-      ["Recent", recent],
-      ["Ready", ready],
-      ["Needs setup", broken]
-    ].filter(([, items]) => (items as WorkflowSummary[]).length) as Array<[string, WorkflowSummary[]]>;
-  }, [filtered]);
+  const selectedStatus = selected ? workflowState(selected.validation) : null;
+
+  const openImport = () => { setImportStep(imports.length ? "review" : "choose"); setImportOpen(true); };
+  const closeImport = () => { setImportOpen(false); setImports([]); setImportStep("choose"); setPasteJson(""); };
+  const checkAgain = async () => {
+    setChecking(true);
+    try { refreshModels(false); await Promise.resolve(refreshWorkflows()); } finally { window.setTimeout(() => setChecking(false), 600); }
+  };
+  const copyMissing = async (nodes: string[]) => {
+    const ok = await copyText(nodes.join("\n"));
+    showToast(ok ? "Node names copied" : "Copy failed", ok ? "success" : "error");
+  };
 
   const updateFavorites = async (id: string) => {
     const favorites = workflowPreferences.favorites.includes(id)
@@ -160,6 +175,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         await previewRaw(JSON.parse(text), file.name);
       }
       setImportOpen(true);
+      setImportStep("review");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Workflow import preview failed", "error");
     } finally {
@@ -173,6 +189,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     try {
       await previewRaw(JSON.parse(pasteJson), "pasted-workflow.json");
       setPasteJson("");
+      setImportStep("review");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Paste is not valid workflow JSON", "error");
     } finally {
@@ -187,14 +204,15 @@ export function WorkflowGallery({ view }: { view: any }) {
         await apiJson("/api/workflows/import", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ workflow: item.raw, metadata: item.metadata })
+          body: JSON.stringify({ workflow: item.raw, filename: item.filename, metadata: item.metadata })
         });
       }
+      const count = imports.length;
       setImports([]);
       setImportOpen(false);
       refreshModels(false);
       refreshWorkflows();
-      showToast("Workflow imported", "success");
+      showToast(count === 1 ? "Workflow imported" : `${count} workflows imported`, "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Workflow import failed", "error");
     } finally {
@@ -231,130 +249,184 @@ export function WorkflowGallery({ view }: { view: any }) {
       size="wide"
       busy={busy}
       className="workflow-gallery"
-      bodyClassName="workflow-gallery-shell"
+      bodyClassName="wf-layout"
       title="Workflows"
-      description={`Choose a workflow for your next ${mode === "video" ? "video" : "image"}.`}
-      headerActions={<button className="btn is-primary workflow-import-button" onClick={() => setImportOpen(true)}><Upload size={15} /><span>Import workflow</span></button>}
+      description="Pick what your next generation runs on, or bring your own ComfyUI workflow."
+      headerActions={<button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button>}
+      contentProps={{
+        onDragEnter: (event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } },
+        onDragOver: (event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); },
+        onDragLeave: (event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false); },
+        onDrop: (event) => { event.preventDefault(); setDragging(false); const files = Array.from(event.dataTransfer.files).filter((file) => /json$/i.test(file.type) || /\.json$/i.test(file.name)); if (files.length) readFiles(files); }
+      }}
     >
-        <div className={cn("workflow-gallery-body", mobileDetailsOpen && "is-detail-open")}>
-          <aside className="workflow-gallery-list">
-            <div className="workflow-search">
-              <Search size={14} />
-              <input aria-label="Search workflows" value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
-            </div>
-            {!filtered.length ? <div className="workflow-empty"><Search size={22} /><h3>{query ? "No matching workflows" : "No workflows yet"}</h3><p>{query ? "Try a different name or clear your search." : "Import a workflow to get started."}</p><button onClick={() => query ? setQuery("") : setImportOpen(true)}>{query ? "Clear search" : "Import workflow"}</button></div> : null}
-            {grouped.map(([label, items]) => (
-              <section key={label} className="workflow-group">
-                <h3>{label}<span>{items.length}</span></h3>
-                <div className="workflow-tile-grid">
-                  {items.map((workflow) => (
-                    <button key={workflow.id} aria-pressed={workflow.id === selected?.id} className={cn("workflow-tile", workflow.id === selected?.id && "active", !workflow.validation.ok && "is-broken")} onClick={() => { setSelectedId(workflow.id); setMobileDetailsOpen(true); }}>
-                      <div className="workflow-thumb">
-                        <WorkflowThumbnail key={workflow.thumbnail} src={workflow.thumbnail} />
-                      </div>
-                      <div className="workflow-tile-copy">
-                        <strong>{workflow.name}</strong>
-                        <span>{workflow.source === "builtin" ? "Built-in" : "Custom"} · {workflow.family}</span>
-                      </div>
-                      <em className={workflow.validation.ok ? "is-ready" : "needs-setup"}>{workflow.validation.ok ? <CheckCircle2 size={13} /> : "Setup"}</em>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ))}
-          </aside>
-          <section className="workflow-details">
-            <button type="button" className="workflow-mobile-back" onClick={() => setMobileDetailsOpen(false)}>
-              <ArrowLeft size={15} /> All workflows
-            </button>
-            {selected ? (
-              <>
-                <div className="workflow-detail-hero">
-                  <div className="workflow-detail-thumb">
-                    <WorkflowThumbnail key={selected.thumbnail} src={selected.thumbnail} />
-                  </div>
-                  <div>
-                    <h3>{selected.name}</h3>
-                    {selected.description ? <p>{selected.description}</p> : null}
-                    <div className="workflow-tags">{(selected.tags || []).slice(0, 7).map((tag) => <span key={tag}>{tag}</span>)}</div>
-                  </div>
-                </div>
-                <div className="workflow-actions">
-                  <button onClick={() => useWorkflow(selected)} className="workflow-use" disabled={busy || !selected.validation.ok}><CheckCircle2 size={15} /> Use workflow</button>
-                  <button disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Could not update favorites", "error"))}><Heart size={15} fill={selected.favorite ? "currentColor" : "none"} /> {selected.favorite ? "Favorited" : "Favorite"}</button>
-                  {selected.deleteId ? <button className="subtle-danger" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={15} /> Delete</button> : null}
-                  <button disabled={busy} onClick={() => { refreshModels(false); refreshWorkflows(); }}>Check status</button>
-                </div>
-                <div className="workflow-detail-grid">
-                  <span>Status</span><strong>{workflowStatus(selected)}</strong>
-                  <span>Kind</span><strong>{selected.kind}</strong>
-                  <span>Source</span><strong>{selected.source}</strong>
-                  <span>Last used</span><strong>{timeLabel(selected.lastUsedAt) || "Never"}</strong>
-                  <span>Controls</span><strong>{selected.controls?.length ? selected.controls.map((key) => controlLabels[key] || key).join(", ") : "Detected from profile"}</strong>
-
-                </div>
-                {!selected.validation.ok || selected.validation.warnings?.length ? (
-                  <div className="workflow-issues">
-                    <h4>{selected.validation.ok ? "Warnings" : "Needs setup"}</h4>
-                    {[...(selected.validation.issues || []), ...(selected.validation.warnings || [])].map((issue) => <p key={issue}>{issue}</p>)}
-                  </div>
-                ) : null}
-              </>
-            ) : <div className="workflow-empty"><Wand2 size={24} /><h3>Your workflow library</h3><p>Choose a workflow to see its details.</p></div>}
-          </section>
+      <section className={cn("wf-browse", mobileDetailsOpen && "is-hidden-mobile")}>
+        <div className="wf-toolbar">
+          <label className="wf-search">
+            <Search size={14} />
+            <input aria-label="Search workflows" value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
+            {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X size={13} /></button> : null}
+          </label>
+          <Segmented label="Kind" value={kind} onChange={(next) => { setKind(next); setFilter("all"); }} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
         </div>
-        <Modal
-          open={importOpen}
-          onOpenChange={setImportOpen}
-          size="form"
-          busy={busy}
-          className="workflow-import-panel"
-          title="Import workflow"
-          description="Choose a ComfyUI JSON file or paste its contents."
-          footer={
-            <>
-              <button className="btn" disabled={busy} onClick={() => { setImports([]); setImportOpen(false); }}>Cancel</button>
-              <button className="btn is-primary" onClick={saveImports} disabled={busy || !imports.length}>{busy ? "Working…" : `Import${imports.length ? ` ${imports.length}` : ""} workflow${imports.length === 1 ? "" : "s"}`}</button>
-            </>
-          }
-        >
-          <Field label="Paste workflow JSON">
-            <textarea className="short" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ ... }" />
-          </Field>
-          <div className="setting-actions">
-            <button onClick={previewPaste} disabled={busy || !pasteJson.trim()}>Preview Paste</button>
-            <label className="wide-button">
-              Choose JSON
-              <input type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files) readFiles(event.target.files); event.currentTarget.value = ""; }} />
-            </label>
-          </div>
-          <div className="workflow-import-list">
-            {imports.map((item, index) => (
-              <div className="workflow-import-card" key={`${item.filename}-${index}`}>
-                <div className="workflow-import-format"><FileJson size={14} /> {item.preview.format === "comfyui-visual" ? "Visual workflow normalized via ComfyUI schema" : item.preview.format === "comfyui-api-wrapper" ? "API workflow wrapper detected" : "ComfyUI API workflow detected"}</div>
-                <Field label="Name"><input value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
-                <div className="split">
-                  <Field label="Kind"><Select value={item.metadata.kind} onChange={(value) => updateImport(index, { kind: value === "video" ? "video" : "image" })} options={["image", "video"]} /></Field>
-                  <Field label="Family"><input value={item.metadata.family} onChange={(event) => updateImport(index, { family: event.target.value })} /></Field>
-                </div>
-                <details className="workflow-mapping"><summary>Advanced control mapping</summary><div className="workflow-map-grid">
-                  {Object.keys(controlLabels).map((key) => (
-                    <Field key={key} label={controlLabels[key]}>
-                      <Select
-                        value={selectedNodeValue(item.metadata.controls[key])}
-                        onChange={(value) => updateImportControl(index, key, value === "__none" ? "" : value)}
-                        options={[
-                          { label: "Not mapped", value: "__none" },
-                          ...item.metadata.nodes.flatMap((node) => node.inputs.map((input) => ({ label: `${node.id} · ${node.classType}.${input}`, value: `${node.id}.${input}` })))
-                        ]}
-                      />
-                    </Field>
-                  ))}
-                </div></details>
-              </div>
+        <div className="wf-filters" role="radiogroup" aria-label="Filter workflows">
+          {([["all", `All ${ofKind.length}`], ["favorites", "Favorites"], ...(attentionCount ? [["attention", `Needs attention ${attentionCount}`]] : [])] as Array<[Filter, string]>).map(([value, label]) => (
+            <button key={value} type="button" role="radio" aria-checked={filter === value} className={cn(filter === value && "active")} onClick={() => setFilter(value)}>{label}</button>
+          ))}
+        </div>
+        {filtered.length ? (
+          <div className="wf-grid">
+            {filtered.map((workflow) => (
+              <button
+                key={workflow.id}
+                type="button"
+                aria-pressed={workflow.id === selected?.id}
+                className={cn("wf-card", workflow.id === selected?.id && "active", workflow.profileId === model && "is-current")}
+                onClick={() => { setSelectedId(workflow.id); setMobileDetailsOpen(true); }}
+                onDoubleClick={() => useWorkflow(workflow)}
+              >
+                <span className="wf-thumb"><WorkflowThumbnail key={workflow.thumbnail} src={workflow.thumbnail} /></span>
+                {workflow.favorite ? <span className="wf-fav" aria-label="Favorite"><Heart size={12} fill="currentColor" /></span> : null}
+                {workflow.profileId === model ? <span className="wf-current">In use</span> : null}
+                <span className="wf-card-copy">
+                  <strong>{workflow.name}</strong>
+                  <span>{workflow.family}{workflow.source === "custom" ? " · Imported" : ""}</span>
+                </span>
+                {workflow.validation.ok && !workflow.validation.unverified ? null : <StatusBadge validation={workflow.validation} />}
+              </button>
             ))}
           </div>
-        </Modal>
+        ) : (
+          <div className="wf-empty">
+            <Search size={20} />
+            <h3>{query ? "Nothing matches" : filter === "favorites" ? "No favorites yet" : `No ${kind} workflows yet`}</h3>
+            <p>{query ? "Try another name or clear the search." : filter === "favorites" ? "Heart a workflow to keep it at hand." : "Import a ComfyUI workflow to get started."}</p>
+            {query ? <button className="btn" onClick={() => setQuery("")}>Clear search</button> : filter === "favorites" ? <button className="btn" onClick={() => setFilter("all")}>Show all</button> : <button className="btn is-primary" onClick={openImport}><Upload size={14} /> Import workflow</button>}
+          </div>
+        )}
+      </section>
+
+      <aside className={cn("wf-detail", mobileDetailsOpen && "is-open-mobile")}>
+        {selected && selectedStatus ? (
+          <>
+            <button type="button" className="btn is-ghost wf-back" onClick={() => setMobileDetailsOpen(false)}><ArrowLeft size={15} /> All workflows</button>
+            <div className="wf-detail-thumb"><WorkflowThumbnail key={selected.thumbnail} src={selected.thumbnail} /></div>
+            <div className="wf-detail-head">
+              <h3>{selected.name}</h3>
+              <button type="button" className={cn("wf-heart", selected.favorite && "active")} aria-pressed={Boolean(selected.favorite)} aria-label={selected.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Could not update favorites", "error"))}>
+                <Heart size={16} fill={selected.favorite ? "currentColor" : "none"} />
+              </button>
+            </div>
+            {selected.description ? <p className="wf-detail-desc">{selected.description}</p> : null}
+
+            <div className={cn("wf-health", `is-${selectedStatus.state}`)}>
+              <StatusBadge validation={selected.validation} />
+              <p>{selectedStatus.detail}</p>
+              {selected.validation.missingNodes?.length ? (
+                <div className="wf-missing">
+                  <ul>{selected.validation.missingNodes.map((node) => <li key={node}><code>{node}</code></li>)}</ul>
+                  <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><Copy size={13} /> Copy names</button>
+                </div>
+              ) : null}
+              {[...(selected.validation.missingNodes?.length ? selected.validation.issues.filter((issue) => !issue.startsWith("Missing node class:")) : selected.validation.issues), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
+              {selectedStatus.state !== "ready" ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
+            </div>
+
+            <div className="wf-detail-actions">
+              <button className="btn is-primary" onClick={() => useWorkflow(selected)} disabled={busy || !selected.validation.ok || selected.profileId === model}>
+                {selected.profileId === model ? <><Check size={15} /> In use</> : "Use workflow"}
+              </button>
+              {selected.deleteId ? <button className="btn is-ghost is-danger-text" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={14} /> Delete</button> : null}
+            </div>
+
+            <dl className="wf-facts">
+              <dt>Source</dt><dd>{selected.source === "builtin" ? "Built in" : "Imported"}</dd>
+              <dt>Family</dt><dd>{selected.family || "Unknown"}</dd>
+              <dt>Last used</dt><dd>{timeLabel(selected.lastUsedAt) || "Never"}</dd>
+              {selected.controls?.length ? <><dt>Controls</dt><dd>{selected.controls.map((key) => controlLabels[key] || key).join(", ")}</dd></> : null}
+              {selected.mediaInputs?.length ? <><dt>Inputs</dt><dd>{selected.mediaInputs.map((input) => input.label || "Reference image").join(", ")}</dd></> : null}
+            </dl>
+          </>
+        ) : (
+          <div className="wf-empty"><Wand2 size={22} /><h3>No workflow selected</h3><p>Pick one on the left to see what it needs.</p></div>
+        )}
+      </aside>
+
+      {dragging ? <div className="wf-drop"><FileJson size={24} /><strong>Drop to import</strong><span>ComfyUI workflow JSON, API or visual format</span></div> : null}
+
+      <Modal
+        open={importOpen}
+        onOpenChange={(open) => { if (!open) closeImport(); }}
+        size="form"
+        busy={busy}
+        className="wf-import"
+        title={importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}
+        description={importStep === "choose" ? "API and visual ComfyUI JSON both work. Nothing is saved until you confirm." : "Check the name and kind. HEISS UI detected the controls; adjust them only if something looks off."}
+        footer={importStep === "choose" ? (
+          <>
+            <button className="btn" disabled={busy} onClick={closeImport}>Cancel</button>
+            <button className="btn is-primary" onClick={previewPaste} disabled={busy || !pasteJson.trim()}>{busy ? "Reading…" : "Review paste"}</button>
+          </>
+        ) : (
+          <>
+            <button className="btn" disabled={busy} onClick={() => setImportStep("choose")}><ArrowLeft size={14} /> Add more</button>
+            <button className="btn is-primary" onClick={saveImports} disabled={busy || !imports.length}>{busy ? "Importing…" : `Import ${imports.length === 1 ? "workflow" : `${imports.length} workflows`}`}</button>
+          </>
+        )}
+      >
+        {importStep === "choose" ? (
+          <>
+            <button type="button" className="wf-dropzone" onClick={() => fileInput.current?.click()} disabled={busy}>
+              <FileJson size={22} />
+              <strong>Choose JSON files</strong>
+              <span>or drop them anywhere on the workflow gallery</span>
+            </button>
+            <input ref={fileInput} hidden type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files?.length) readFiles(event.target.files); event.currentTarget.value = ""; }} />
+            <Field label={<><ClipboardPaste size={13} /> Or paste the JSON</>}>
+              <textarea className="wf-paste" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ ... }" spellCheck={false} />
+            </Field>
+          </>
+        ) : (
+          <div className="wf-review">
+            {imports.map((item, index) => {
+              const status = workflowState(item.preview.validation);
+              return (
+                <div className="wf-review-card" key={`${item.filename}-${index}`}>
+                  <div className="wf-review-head">
+                    <span className="wf-review-file"><FileJson size={14} /> {item.filename || "Pasted workflow"}</span>
+                    <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>
+                    <button type="button" className="modal-close" aria-label="Remove from import" onClick={() => setImports((current) => current.filter((_, i) => i !== index))}><X size={14} /></button>
+                  </div>
+                  {status.state === "missing-nodes" ? <p className="wf-issue">Imports fine, but it won't run until ComfyUI has: {item.preview.validation.missingNodes?.join(", ")}</p> : null}
+                  <Field label="Name"><input className="modal-input" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
+                  <div className="wf-review-row">
+                    <div className="field"><span>Kind</span><Segmented label="Kind" value={item.metadata.kind} onChange={(next) => updateImport(index, { kind: next })} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} /></div>
+                    <Field label="Family"><input className="modal-input" value={item.metadata.family} onChange={(event) => updateImport(index, { family: event.target.value })} /></Field>
+                  </div>
+                  <details className="wf-mapping">
+                    <summary>Control mapping <span>{Object.keys(item.metadata.controls || {}).length} detected</span></summary>
+                    <div className="wf-map-grid">
+                      {Object.keys(controlLabels).map((key) => (
+                        <Field key={key} label={controlLabels[key]}>
+                          <Select
+                            value={selectedNodeValue(item.metadata.controls[key])}
+                            onChange={(value) => updateImportControl(index, key, value === "__none" ? "" : value)}
+                            options={[
+                              { label: "Not mapped", value: "__none" },
+                              ...item.metadata.nodes.flatMap((node) => node.inputs.map((input) => ({ label: `${node.id} · ${node.classType}.${input}`, value: `${node.id}.${input}` })))
+                            ]}
+                          />
+                        </Field>
+                      ))}
+                    </div>
+                  </details>
+                </div>
+              );
+            })}
+            {!imports.length ? <div className="wf-empty"><FileJson size={20} /><h3>Nothing to import</h3><p>Go back and add a file or paste some JSON.</p></div> : null}
+          </div>
+        )}
+      </Modal>
     </Modal>
   );
 }

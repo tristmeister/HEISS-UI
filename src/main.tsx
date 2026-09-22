@@ -836,6 +836,9 @@ function App() {
   }
 
   function selectWorkflow(profileId: string) {
+    // Picking a video workflow from the image gallery (or the reverse) switches mode with it.
+    const profile = models?.profiles.find((item) => item.id === profileId);
+    if (profile && profile.kind !== mode) setMode(profile.kind);
     chooseModel(profileId);
     apiJson<{ preferences: WorkflowPreferences }>("/api/workflows/preferences", {
       method: "PUT",

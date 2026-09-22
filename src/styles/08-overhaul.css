@@ -191,32 +191,10 @@ button:not(:disabled):active { scale: .96; }
   color: rgb(255 255 255 / .78);
 }
 .aspect-option em { color: rgb(255 255 255 / .5); }
-.workflow-detail-grid,
-.workflow-import-card { border-color: rgb(255 255 255 / .08); border-radius: 18px; background: #1b1b1b; }
-.setting-actions.single button,
-.setting-actions.single a { border-color: transparent; }
-.workflow-gallery-body { grid-template-columns: minmax(430px, .82fr) minmax(420px, 1.18fr); }
-.workflow-gallery-list { padding: 18px; }
-.workflow-search { padding: 0 14px; }
-.workflow-tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.workflow-tile { min-height: 132px; padding: 10px; border-color: rgb(255 255 255 / .08); border-radius: 20px; background: #181818; }
-.workflow-tile:hover,
-.workflow-tile.active { border-color: rgb(255 255 255 / .18); background: #292929; }
-.workflow-thumb { border-radius: 14px; }
-.workflow-details { padding: 28px; }
-.workflow-detail-hero { grid-template-columns: 168px minmax(0, 1fr); gap: 22px; }
-.workflow-detail-thumb { width: 168px; border-radius: 20px; }
-.workflow-detail-hero h3 { font-size: 27px; letter-spacing: -.035em; }
-.workflow-tags span { border: 0; background: #272727; padding: 6px 10px; }
-.workflow-actions button:first-child { border-color: transparent; }
 
 @media (max-width: 760px) {
   .stage-gallery { padding-bottom: calc(var(--zen-prompt-h, 160px) + 34px); }
   .zen-prompt { width: calc(100vw - 20px); bottom: 10px; }
   .zen-prompt textarea { min-height: 48px; font-size: 16px; }
-
-  .workflow-gallery-body { grid-template-columns: 1fr; }
-  .workflow-details { display: none; }
-  .workflow-tile-grid { grid-template-columns: 1fr; }
 }
 

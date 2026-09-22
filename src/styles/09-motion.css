@@ -145,7 +145,6 @@ button:not(:disabled):active {
 
 /* Anything else that counts should not reflow while it counts. */
 .prompt-count,
-.workflow-tags span,
 .model-badge {
   font-variant-numeric: tabular-nums;
 }
@@ -204,8 +203,7 @@ button:not(:disabled):active {
    7. Typography niceties
 --------------------------------------------------------------------------- */
 
-.empty h2,
-.workflow-detail-hero h3 {
+.empty h2 {
   text-wrap: balance;
 }
 .empty p {

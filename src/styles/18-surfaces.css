@@ -215,8 +215,6 @@
 
 .upscale-modal .upscale-setup-steps:first-child,
 .upscale-modal .upscale-model-list:first-child { margin-top: 0; }
-.workflow-gallery .workflow-gallery-body { min-height: 0; }
-.workflow-import-panel .modal-body { display: flex; flex-direction: column; gap: 18px; padding-bottom: 4px; }
 .reference-media-dialog.is-dragging { box-shadow: var(--shadow-float), 0 0 0 2px var(--ember-soft); }
 
 /* --------------------------------------------------------------- Toasts

@@ -58,10 +58,6 @@
   font-size: 15px;
   line-height: 1;
 }
-@keyframes disclosureIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to { opacity: 1; transform: none; }
-}
 
 /* ---------------------------------------------------------------- Responsive */
 
