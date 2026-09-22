@@ -1,0 +1,274 @@
+/* ---------------------------------------------------------------------------
+   Shared surfaces: Modal, buttons, the prompt field and toasts
+
+   Every dialog in the app is <Modal> (src/app/Modal.tsx). It owns the scrim,
+   the sheet, the head/body/foot anatomy and the sizes; feature CSS only lays
+   out what goes inside the body.
+--------------------------------------------------------------------------- */
+
+/* ----------------------------------------------------------------- Scrim */
+
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--scrim);
+  backdrop-filter: var(--scrim-blur);
+  -webkit-backdrop-filter: var(--scrim-blur);
+  animation: modal-fade var(--dur-fast) ease-out;
+}
+
+/* ----------------------------------------------------------------- Sheet */
+
+.modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-modal);
+  background: var(--surface-modal);
+  box-shadow: var(--shadow-float);
+  color: hsl(var(--foreground));
+  outline: none;
+  -webkit-font-smoothing: antialiased;
+  animation: modal-in var(--dur-base) var(--ease-out);
+}
+.modal-alert { width: min(420px, 100%); }
+.modal-wide { width: min(1040px, 100%); height: min(720px, calc(100dvh - 48px)); }
+.modal-sheet { width: min(960px, 100%); height: min(664px, calc(100dvh - 48px)); }
+
+@keyframes modal-fade { from { opacity: 0; } }
+@keyframes modal-in { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+
+/* ------------------------------------------------------------------ Head */
+
+.modal-head {
+  flex: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 16px 0 24px;
+}
+.modal-titles { flex: 1; min-width: 0; padding-top: 2px; }
+.modal-titles h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -.02em;
+  overflow-wrap: anywhere;
+}
+.modal-titles p {
+  margin: 6px 0 0;
+  max-width: 60ch;
+  font-size: 13px;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+.modal-head-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+.modal-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-item);
+  background: var(--control-fill);
+  color: hsl(var(--muted-foreground));
+}
+.modal-icon.is-danger { background: var(--danger-fill); color: var(--danger-ink); }
+.modal-close {
+  flex: none;
+  width: var(--control-h);
+  height: var(--control-h);
+  display: grid;
+  place-items: center;
+  margin: -6px 0 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.modal-close:hover:not(:disabled) { background: var(--control-hover); color: #fff; }
+.modal-close:disabled { opacity: .4; cursor: default; }
+
+/* Alerts stack the icon above the title, like a note rather than a form. */
+.modal-alert > .modal-head { flex-direction: column; gap: 16px; padding-right: 24px; }
+
+/* Libraries and settings: a toolbar head over a full-bleed body. */
+.modal-wide > .modal-head,
+.modal-sheet > .modal-head {
+  align-items: center;
+  min-height: 76px;
+  padding: 16px 16px 16px 24px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.modal-wide > .modal-head .modal-close,
+.modal-sheet > .modal-head .modal-close { margin: 0; }
+
+/* A hero image sits flush on top; the close button floats over it. */
+.modal-hero {
+  display: block;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 1082 / 526;
+  object-fit: cover;
+  border-bottom: 1px solid var(--surface-border);
+}
+.modal.has-hero .modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  margin: 0;
+  border: 1px solid var(--surface-border);
+  background: var(--surface-float);
+  backdrop-filter: var(--surface-float-blur);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  color: hsl(var(--foreground));
+}
+
+/* ------------------------------------------------------------- Body, foot */
+
+.modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 24px 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.modal-body:empty { display: none; }
+.modal-wide > .modal-body,
+.modal-sheet > .modal-body {
+  display: grid;
+  padding: 0;
+  overflow: hidden;
+}
+.modal-foot {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 24px;
+}
+
+.modal :focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* --------------------------------------------------------------- Buttons
+   40px pills. Default is the soft fill; primary is the white action. */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: var(--control-h);
+  min-height: var(--control-h);
+  padding: 0 18px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--control-fill);
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), scale 100ms;
+}
+.btn:hover:not(:disabled) { background: var(--control-hover); }
+.btn:active:not(:disabled) { scale: .97; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.is-primary { background: var(--action); color: var(--action-ink); }
+.btn.is-primary:hover:not(:disabled) { background: #fff; }
+.btn.is-danger { background: #c4553f; color: #fff; }
+.btn.is-danger:hover:not(:disabled) { background: #d46149; }
+.btn.is-ghost { background: transparent; color: hsl(var(--muted-foreground)); }
+.btn.is-ghost:hover:not(:disabled) { background: var(--control-hover); color: #fff; }
+.btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ---------------------------------------------------------- Single field */
+
+.modal-input {
+  width: 100%;
+  height: var(--control-h);
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--well);
+  color: hsl(var(--foreground));
+  font-size: 13px;
+}
+.modal-input:focus-visible { border-color: rgb(255 255 255 / .16); }
+
+/* ------------------------------------------------ Dialog-specific layout */
+
+.upscale-modal .upscale-setup-steps:first-child,
+.upscale-modal .upscale-model-list:first-child { margin-top: 0; }
+.workflow-gallery .workflow-gallery-body { min-height: 0; }
+.workflow-import-panel .modal-body { display: flex; flex-direction: column; gap: 18px; padding-bottom: 4px; }
+.reference-media-dialog.is-dragging { box-shadow: var(--shadow-float), 0 0 0 2px var(--ember-soft); }
+
+/* --------------------------------------------------------------- Toasts
+   Top center, on the floating glass. Sonner reads these variables, so no
+   overrides are needed and its success/error colours keep working. */
+
+[data-sonner-toaster][data-theme="dark"] {
+  --normal-bg: var(--surface-float);
+  --normal-border: var(--surface-border);
+  --normal-text: hsl(var(--foreground));
+  --success-bg: rgb(28 38 31 / .94);
+  --success-border: rgb(120 200 140 / .22);
+  --success-text: #a9e2b8;
+  --error-bg: rgb(44 26 23 / .94);
+  --error-border: var(--danger-ring);
+  --error-text: var(--danger-ink);
+  --border-radius: var(--r-item);
+}
+[data-sonner-toaster] [data-sonner-toast].heiss-toast {
+  backdrop-filter: var(--surface-float-blur);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm);
+  font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- Phone */
+
+@media (max-width: 760px) {
+  .modal-scrim {
+    padding:
+      max(8px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom))
+      max(8px, env(safe-area-inset-left));
+  }
+  .modal { max-height: calc(100dvh - 16px); border-radius: 24px; }
+  .modal-wide,
+  .modal-sheet { height: calc(100dvh - 16px); }
+  .modal-wide > .modal-head,
+  .modal-sheet > .modal-head { min-height: 64px; padding: 10px 10px 10px 18px; }
+  .modal-wide > .modal-head .modal-titles p,
+  .modal-sheet > .modal-head .modal-titles p { display: none; }
+  .modal-head { padding: 20px 12px 0 20px; }
+  .modal-body { padding: 16px 20px 0; }
+  .modal-foot { padding: 20px; }
+  .modal-alert .modal-foot .btn,
+  .modal-form .modal-foot .btn { flex: 1; min-height: 44px; }
+  .modal-head-actions .btn span { display: none; }
+  .modal-head-actions .btn { width: var(--control-h); padding: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-scrim,
+  .modal { animation: none; }
+}

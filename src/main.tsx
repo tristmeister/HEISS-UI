@@ -428,7 +428,7 @@ function App() {
     setPrefs({ zenMode: enabled });
   }
 
-  const { confirmAction, confirmationDialog } = useConfirmation(prefs.confirmActions);
+  const { confirmAction, promptText, confirmationDialog } = useConfirmation(prefs.confirmActions);
 
   const { upscaleStatus, upscaleUnavailableReason, upscaleSetupOpen, setUpscaleSetupOpen, upscaleInstallPrompt, upscaleInstallQuality, dismissUpscaleInstallPrompt, confirmUpscaleInstall, upscaleInstall, upscaleBusyIds, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, toggleUpscale } = useUpscale({
     prefs,
@@ -686,16 +686,16 @@ function App() {
   const workflowLoraSnapshots = useMemo(() => loraSnapshots(model), [model, loraSnapshotRevision]);
   const loraStrengthForCurrentWorkflow = (name: string, fallback: number) => rememberedLoraStrength(model, name, fallback);
 
-  function saveCurrentLoraSnapshot() {
-    const name = window.prompt('Snapshot name', `LoRA stack ${workflowLoraSnapshots.length + 1}`);
+  async function saveCurrentLoraSnapshot() {
+    const name = await promptText({ title: 'Save LoRA snapshot', description: 'Name this stack so you can load it again later.', label: 'Snapshot name', initialValue: `LoRA stack ${workflowLoraSnapshots.length + 1}`, action: 'Save snapshot' });
     if (name === null) return;
     saveLoraSnapshot(model, name, loras);
     setLoraSnapshotRevision((value) => value + 1);
     showToast('LoRA snapshot saved', 'success');
   }
 
-  function renameCurrentLoraSnapshot(snapshot: { id: string; name: string }) {
-    const name = window.prompt('Snapshot name', snapshot.name);
+  async function renameCurrentLoraSnapshot(snapshot: { id: string; name: string }) {
+    const name = await promptText({ title: 'Rename snapshot', label: 'Snapshot name', initialValue: snapshot.name, action: 'Rename' });
     if (name === null) return;
     renameLoraSnapshot(model, snapshot.id, name);
     setLoraSnapshotRevision((value) => value + 1);

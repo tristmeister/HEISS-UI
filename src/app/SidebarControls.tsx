@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useDismiss } from './useDismiss';
 import { ChevronDown, ChevronRight, GalleryHorizontalEnd, Minus, Pencil, Plus, Save, Search, Trash2, Wand2 } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
@@ -37,17 +38,8 @@ function LoraSelect({
   const groups = useMemo(() => loraGroups(options, profile, query), [options, profile, query]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(() => new Set());
 
-  useEffect(() => {
-    if (!open) return;
-    function onClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
-        setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
+  const close = useCallback(() => { setOpen(false); setQuery(""); }, []);
+  useDismiss(containerRef, open, close);
 
   const choose = (name: string) => {
     onChange(name);
@@ -161,14 +153,8 @@ function LoraSnapshots({ snapshots, onLoad, onSave, onRename, onDelete }: {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const onClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(containerRef, open, close);
 
   return (
     <div className="lora-snapshots" ref={containerRef} data-open-surface={open || undefined}>

@@ -2,21 +2,6 @@
    Replaces the ten-section masonry sheet. Loaded after 08 so it can retune
    sizing, spacing and hierarchy in one place. */
 
-.settings-card {
-  width: min(960px, calc(100vw - 32px));
-  height: min(664px, calc(100vh - 40px));
-  max-height: none;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-}
-.settings-card header {
-  position: static;
-  padding: 16px 16px 16px 22px;
-  border-bottom: 1px solid rgb(255 255 255 / 0.07);
-}
-.settings-card h2 { font-size: 17px; font-weight: 650; letter-spacing: -0.02em; }
-
 /* --------------------------------------------------------------------- Rail */
 
 .settings-body {
@@ -371,10 +356,6 @@
 /* ---------------------------------------------------------------- Responsive */
 
 @media (max-width: 760px) {
-  .settings-card {
-    width: calc(100vw - 12px);
-    height: calc(100vh - 12px);
-  }
   .settings-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .settings-nav {
     flex-direction: row;

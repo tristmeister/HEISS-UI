@@ -524,11 +524,3 @@
   animation: scrimFade 180ms var(--ease-out);
 }
 @keyframes scrimFade { from { opacity: 0; } to { opacity: 1; } }
-
-.modal-scrim {
-  display: grid; place-items: center;
-  padding: 24px;
-  background: hsl(var(--background) / 0.72);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}

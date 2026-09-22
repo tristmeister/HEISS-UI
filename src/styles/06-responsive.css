@@ -40,8 +40,6 @@
   .model-copy em { -webkit-line-clamp: 1; }
   .model-badge { display: none !important; }
   .aspect-option { min-height: 44px; }
-  .settings-card { width: calc(100vw - 20px); max-height: calc(100vh - 20px); }
-  .settings-card header { padding: 14px; }
   .setting-row { grid-template-columns: 1fr; gap: 4px; }
   .setting-row strong { text-align: left; white-space: normal; }
   .setting-actions { grid-template-columns: 1fr; }
@@ -91,7 +89,6 @@
   .zen-gallery-wrap { top: 58px; max-width: calc(100vw - 16px); grid-template-columns: auto auto minmax(0, 1fr); }
   .zen-gallery-strip button { width: 46px; height: 46px; }
   .scrim { overflow: hidden; }
-  .modal-scrim { padding: 10px; }
   .viewer-shell { grid-template-rows: minmax(0, 1fr); }
   .viewer-stage.with-side { grid-template-columns: minmax(0, 1fr); }
   .viewer-canvas { padding: 8px 8px 80px; }

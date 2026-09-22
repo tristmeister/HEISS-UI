@@ -104,11 +104,7 @@
 .zen-zoom-dock .viewer-zoom,
 .viewer-dock .icon-button,
 .viewer-dock .text-button,
-.settings-card header .icon-button,
-.workflow-gallery .icon-button,
 .reference-media-panel .icon-button,
-.upscale-setup-dialog .icon-button,
-.upscale-setup-close,
 .composer-drawer .icon-button {
   width: var(--control-h);
   height: var(--control-h);
@@ -128,11 +124,7 @@
 .zen-zoom-dock .viewer-zoom:hover,
 .viewer-dock .icon-button:hover:not(:disabled),
 .viewer-dock .text-button:hover:not(:disabled),
-.settings-card header .icon-button:hover,
-.workflow-gallery .icon-button:hover:not(:disabled),
 .reference-media-panel .icon-button:hover:not(:disabled),
-.upscale-setup-dialog .icon-button:hover:not(:disabled),
-.upscale-setup-close:hover,
 .composer-drawer .icon-button:hover {
   background: var(--control-hover);
   color: #fff;
@@ -144,25 +136,9 @@
 .viewer-arrow:hover { background: rgb(36 36 36 / .94); transform: none; }
 
 /* --------------------------------------------------------------- 3. Modals
-   Solid sheets for things you open on purpose. */
+   Solid sheets for things you open on purpose. Dialogs are <Modal>, styled in
+   18-surfaces.css; the viewer's side panel uses the same material. */
 
-.settings-card,
-.workflow-gallery,
-.reference-media-panel,
-.upscale-setup-dialog,
-.workflow-import-panel,
-.confirmation-dialog {
-  border: 1px solid var(--surface-border);
-  background: var(--surface-modal);
-  box-shadow: var(--shadow-float);
-}
-.settings-card,
-.workflow-gallery,
-.reference-media-panel,
-.upscale-setup-dialog { border-radius: var(--r-panel); }
-.workflow-import-panel,
-.confirmation-dialog { border-radius: var(--r-menu); }
-.settings-card header { background: rgb(22 22 22 / .94); }
 .viewer-side { background: var(--surface-modal); box-shadow: inset 1px 0 0 var(--surface-border); }
 
 /* --------------------------------------------------------------- 4. Fields
@@ -172,7 +148,6 @@
 .zen-controls .number-picker,
 .settings-card input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .settings-card .number-picker,
-.privacy-lock-card input,
 .workflow-search {
   height: var(--control-h);
   min-height: var(--control-h);
@@ -182,8 +157,7 @@
   font-size: 13px;
 }
 .zen-controls input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.settings-card input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.privacy-lock-card input { padding: 0 16px; }
+.settings-card input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { padding: 0 16px; }
 .workflow-search { margin-bottom: 18px; }
 .zen-controls input:focus-visible,
 .settings-card input:focus-visible,
@@ -208,10 +182,7 @@
 .reconnect-btn,
 .ghost-button,
 .workflow-actions button,
-.workflow-import-button,
-.workflow-import-actions button,
-.workflow-empty button,
-.confirmation-actions button {
+.workflow-empty button {
   min-height: var(--control-h) !important;
   height: var(--control-h);
   padding: 0 18px !important;
@@ -234,7 +205,6 @@
 .setting-actions.single button,
 .setting-actions.single a,
 .reconnect-btn.primary,
-.workflow-import-button,
 .workflow-actions button:first-child { background: var(--action) !important; color: var(--action-ink) !important; }
 
 .settings-nav button,

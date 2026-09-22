@@ -226,44 +226,6 @@
 .viewer-arrow.prev { left: 16px; }
 .viewer-arrow.next { right: 16px; }
 .viewer-stage.with-side .viewer-arrow.next { right: calc(380px + 16px); }
-
-.sonner-toast {
-  border-color: hsl(var(--border)) !important;
-  background: hsl(var(--popover) / 0.92) !important;
-  backdrop-filter: blur(16px) saturate(1.3) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(1.3) !important;
-  color: hsl(var(--popover-foreground)) !important;
-  border-radius: calc(var(--radius) + 2px) !important;
-  box-shadow: 0 4px 20px rgb(0 0 0 / 0.3), 0 1px 4px rgb(0 0 0 / 0.2) !important;
-}
-
-.settings-card {
-  width: min(760px, calc(100vw - 40px));
-  max-height: min(86vh, 920px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-  padding: 0;
-  animation: pop 260ms var(--ease-out);
-}
-.settings-card header {
-  position: sticky; top: 0; z-index: 3;
-  display: flex; justify-content: space-between; align-items: center; gap: 12px;
-  padding: 18px 24px;
-  border-bottom: 1px solid hsl(var(--border));
-}
-.settings-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
-.settings-brand img {
-  width: 22px;
-  height: 22px;
-  display: block;
-  opacity: 0.9;
-}
-.settings-card h2 { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
 .settings-card h3 {
   margin: 0 0 16px;
   font-size: 13px; font-weight: 600;
@@ -278,8 +240,7 @@
   margin: 10px 0 12px;
 }
 
-.privacy-form input,
-.privacy-lock-card input {
+.privacy-form input {
   width: 100%;
   height: 38px;
   border-radius: 8px;
@@ -290,44 +251,10 @@
   font: inherit;
 }
 
-.privacy-form input:focus,
-.privacy-lock-card input:focus {
+.privacy-form input:focus {
   outline: none;
   border-color: hsl(var(--border-strong));
   box-shadow: 0 0 0 3px hsl(var(--ring) / 0.14);
-}
-
-.privacy-lock {
-  z-index: 90;
-}
-
-.privacy-lock-card {
-  width: min(420px, calc(100vw - 28px));
-  border: 1px solid hsl(var(--border));
-  border-radius: 12px;
-  background: hsl(var(--card));
-  box-shadow: 0 24px 70px hsl(0 0% 0% / 0.24);
-  padding: 18px;
-  display: grid;
-  gap: 14px;
-}
-
-.privacy-lock-card header {
-  display: block;
-  padding: 0;
-  border: 0;
-}
-
-.privacy-lock-card h2 {
-  margin: 0;
-  font-size: 18px;
-}
-
-.privacy-lock-card p {
-  margin: 6px 0 0;
-  color: hsl(var(--muted-foreground));
-  font-size: 13px;
-  line-height: 1.45;
 }
 
 .project-card {
@@ -448,40 +375,8 @@
 }
 .toggle-row input:checked { background: hsl(var(--primary)); }
 .toggle-row input:checked::before { transform: translateX(18px); background: hsl(var(--primary-foreground)); }
-
-.workflow-gallery {
-  position: relative;
-  width: min(1180px, calc(100vw - 32px));
-  height: min(840px, calc(100vh - 32px));
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  overflow: hidden;
-  animation: pop 280ms var(--ease-out);
-}
-
-.workflow-gallery-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 20px;
-  border-bottom: 1px solid hsl(var(--border));
-}
-.workflow-gallery-head h2,
-.workflow-gallery-head p,
-.workflow-gallery-head h3 { margin: 0; }
-.workflow-gallery-head h2 { font-size: 17px; font-weight: 650; }
-.workflow-gallery-head p { margin-top: 3px; color: hsl(var(--muted-foreground)); font-size: 12px; }
-.workflow-head-actions { display: flex; align-items: center; gap: 8px; }
-.workflow-import-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
 .workflow-import-button input,
 .wide-button input { display: none; }
-.workflow-import-button:hover { background: hsl(var(--accent)); border-color: hsl(var(--border-strong)); }
 
 .workflow-gallery-body {
   min-height: 0;
@@ -614,15 +509,13 @@
   font-size: 11px;
   font-weight: 600;
 }
-.workflow-actions,
-.workflow-import-actions {
+.workflow-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin: 18px 0;
 }
-.workflow-actions button,
-.workflow-import-actions button {
+.workflow-actions button {
   background: hsl(var(--secondary));
   color: hsl(var(--secondary-foreground));
   display: inline-flex;
@@ -631,13 +524,11 @@
   gap: 8px;
   cursor: pointer;
 }
-.workflow-actions button:hover:not(:disabled),
-.workflow-import-actions button:hover:not(:disabled) {
+.workflow-actions button:hover:not(:disabled) {
   background: hsl(var(--accent));
   border-color: hsl(var(--border-strong));
 }
-.workflow-actions button:disabled,
-.workflow-import-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
+.workflow-actions button:disabled { opacity: 0.45; cursor: not-allowed; }
 .workflow-detail-grid {
   display: grid;
   grid-template-columns: 108px minmax(0, 1fr);
@@ -678,36 +569,6 @@
   display: grid;
   place-items: center;
   color: hsl(var(--muted-foreground));
-}
-
-.workflow-import-panel {
-  position: absolute;
-  inset: 0 0 0 auto;
-  width: min(520px, 100%);
-  z-index: 4;
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
-  padding: 18px;
-  transform: translateX(100%);
-  opacity: 0;
-  pointer-events: none;
-  transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out);
-}
-.workflow-import-panel.open {
-  transform: translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-.workflow-import-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-.workflow-import-head h3 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 650;
 }
 .workflow-import-list {
   min-height: 0;

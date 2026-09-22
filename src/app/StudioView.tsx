@@ -14,6 +14,7 @@ import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
 import { WorkflowGallery } from './WorkflowGallery';
+import { Modal } from './Modal';
 import type { GalleryItem } from './types';
 
 function comfyStatusLabel(status: any) {
@@ -495,17 +496,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </section>
         </>
       )}
-      {settings ? (
-        <div className="scrim modal-scrim" onClick={() => setSettings(false)}>
-          <div data-open-surface className="settings-card" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <div className="settings-brand">
-                <img src="/heiss-mark-white.svg" alt="HEISS UI" />
-                <h2>Settings</h2>
-              </div>
-              <Tip content="Close (Esc)"><button className="icon-button" aria-label="Close settings" onClick={() => setSettings(false)}><X size={15} /></button></Tip>
-            </header>
-            <div className="settings-body">
+      <Modal
+        open={Boolean(settings)}
+        onOpenChange={(open) => { if (!open) setSettings(false); }}
+        size="sheet"
+        className="settings-card"
+        bodyClassName="settings-body"
+        title="Settings"
+      >
               <nav className="settings-nav" aria-label="Settings sections">
                 {SETTINGS_TABS.map((tab) => {
                   const Icon = tab.icon;
@@ -892,34 +890,36 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   </>
                 ) : null}
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      </Modal>
       {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
-        <div className="scrim modal-scrim privacy-lock">
-          <div data-open-surface className="privacy-lock-card">
-            <header>
-              <div>
-                <h2>Unlock HEISS UI</h2>
-                <p>Enter the privacy password to decrypt prompts and private items, or continue to the normal gallery.</p>
-              </div>
-            </header>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={privacyPassword}
-              placeholder="Privacy password"
-              onChange={(event) => setPrivacyPassword(event.target.value)}
-              onKeyDown={(event) => { if (event.key === "Enter") unlockPrivacy(); }}
-              autoFocus
-            />
-            <div className="setting-actions single">
-              <button onClick={unlockPrivacy} disabled={privacyBusy}>{privacyBusy ? "Unlocking..." : "Unlock"}</button>
-              <button onClick={view.continueWithoutPrivacy} disabled={privacyBusy}>View normal gallery</button>
-            </div>
-          </div>
-        </div>
+        <Modal
+          open
+          onOpenChange={(open) => { if (!open) view.continueWithoutPrivacy(); }}
+          size="alert"
+          busy={privacyBusy}
+          hideClose
+          icon={<LockKeyhole size={17} />}
+          title="Unlock HEISS UI"
+          description="Enter the privacy password to decrypt prompts and private items, or continue to the normal gallery."
+          footer={
+            <>
+              <button className="btn" onClick={view.continueWithoutPrivacy} disabled={privacyBusy}>View normal gallery</button>
+              <button className="btn is-primary" onClick={unlockPrivacy} disabled={privacyBusy || !privacyPassword}>{privacyBusy ? "Unlocking…" : "Unlock"}</button>
+            </>
+          }
+        >
+          <input
+            className="modal-input"
+            type="password"
+            autoComplete="current-password"
+            value={privacyPassword}
+            placeholder="Privacy password"
+            aria-label="Privacy password"
+            onChange={(event) => setPrivacyPassword(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter") unlockPrivacy(); }}
+            autoFocus
+          />
+        </Modal>
       ) : null}
       {active ? (() => {
         const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
@@ -1078,7 +1078,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         );
       })() : null}
       {workflowGalleryOpen ? <WorkflowGallery view={{ ...view, onClose: () => setWorkflowGalleryOpen(false) }} /> : null}
-      <Toaster theme="dark" position={isMobile ? "top-center" : "bottom-left"} richColors closeButton toastOptions={{ className: "sonner-toast" }} />
+      <Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} />
     </div>
     </GenerationPreviewMode.Provider>
   );

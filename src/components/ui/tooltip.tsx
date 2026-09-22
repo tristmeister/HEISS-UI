@@ -102,8 +102,7 @@ function Tooltip({
               sideOffset={sideOffset}
               collisionPadding={8}
               forceMount
-              className="z-50"
-              style={{ pointerEvents: "none" }}
+              style={{ pointerEvents: "none", zIndex: "var(--z-tooltip)" as unknown as number }}
             >
               <motion.div
                 className={cn(

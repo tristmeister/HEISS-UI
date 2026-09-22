@@ -191,14 +191,6 @@ button:not(:disabled):active { scale: .96; }
   color: rgb(255 255 255 / .78);
 }
 .aspect-option em { color: rgb(255 255 255 / .5); }
-
-.modal-scrim { background: rgb(0 0 0 / .74); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-.settings-card {
-  width: min(1080px, calc(100vw - 32px));
-  max-height: min(900px, calc(100vh - 32px));
-}
-.settings-card header { padding: 20px 24px; }
-.settings-card h2 { font-size: 21px; letter-spacing: -.025em; }
 .settings-card h3 { margin-bottom: 18px; font-size: 15px; }
 .project-card,
 .toggle-row,
@@ -210,14 +202,6 @@ button:not(:disabled):active { scale: .96; }
 .toggle-row input { width: 48px; height: 28px; padding: 3px; background: #3b3b3b; }
 .toggle-row input::before { width: 22px; height: 22px; background: #111; }
 .toggle-row input:checked::before { transform: translateX(20px); }
-
-.workflow-gallery {
-  width: min(1380px, calc(100vw - 24px));
-  height: min(920px, calc(100vh - 24px));
-}
-.workflow-gallery-head { min-height: 76px; padding: 18px 24px; }
-.workflow-gallery-head h2 { font-size: 21px; letter-spacing: -.025em; }
-.workflow-gallery-head p { font-size: 13px; }
 .workflow-gallery-body { grid-template-columns: minmax(430px, .82fr) minmax(420px, 1.18fr); }
 .workflow-gallery-list { padding: 18px; }
 .workflow-search { padding: 0 14px; }
@@ -232,13 +216,11 @@ button:not(:disabled):active { scale: .96; }
 .workflow-detail-hero h3 { font-size: 27px; letter-spacing: -.035em; }
 .workflow-tags span { border: 0; background: #272727; padding: 6px 10px; }
 .workflow-actions button:first-child { border-color: transparent; }
-.workflow-import-panel { width: min(620px, 100%); padding: 24px; }
 
 @media (max-width: 760px) {
   .stage-gallery { padding-bottom: calc(var(--zen-prompt-h, 160px) + 34px); }
   .zen-prompt { width: calc(100vw - 20px); bottom: 10px; }
   .zen-prompt textarea { min-height: 48px; font-size: 16px; }
-  .workflow-gallery { width: calc(100vw - 12px); height: calc(100vh - 12px); }
 
   .workflow-gallery-body { grid-template-columns: 1fr; }
   .workflow-details { display: none; }

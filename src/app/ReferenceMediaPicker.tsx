@@ -1,5 +1,5 @@
 import React from "react";
-import * as Dialog from "@radix-ui/react-dialog";
+import { Modal } from "./Modal";
 import { Check, Image as ImageIcon, Images, LoaderCircle, Plus, Trash2, Upload, X } from "lucide-react";
 import { cn } from "./format";
 import { deleteReferenceAsset, listReferenceAssets, referenceAssetFromGallery, uploadReferenceAsset } from "./api";
@@ -151,33 +151,32 @@ export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSe
   const label = input.label || "Reference image";
 
   return (
-    <Dialog.Root open={open} onOpenChange={(next) => { if (!uploading) onOpenChange(next); }}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="scrim modal-scrim reference-media-overlay" />
-        <Dialog.Content
-          data-open-surface
-          className={cn("reference-media-dialog", dragging && "is-dragging")}
-          aria-busy={uploading || selectingId ? "true" : undefined}
-          onDragEnter={(event) => { event.preventDefault(); setDragging(true); }}
-          onDragOver={(event) => event.preventDefault()}
-          onDragLeave={(event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false); }}
-          onDrop={(event) => { event.preventDefault(); setDragging(false); uploadFile(Array.from(event.dataTransfer.files).find((file) => file.type.startsWith("image/"))); }}
-        >
-          <header className="reference-media-head">
-            <div>
-              <Dialog.Title>Choose {label.toLowerCase()}</Dialog.Title>
-              <Dialog.Description>Select a past generation or upload an image.</Dialog.Description>
-            </div>
-            <div className="reference-media-head-actions">
-              <button className="reference-upload-button" type="button" onClick={() => uploadInput.current?.click()} disabled={uploading}>
-                {uploading ? <LoaderCircle className="spin" size={17} /> : <Plus size={18} />}
-                <span>{uploading ? `Uploading ${uploadProgress || ""}${uploadProgress ? "%" : ""}` : "Upload"}</span>
-              </button>
-              <Dialog.Close className="icon-button" aria-label="Close reference picker" disabled={uploading}><X size={16} /></Dialog.Close>
-              <input ref={uploadInput} className="reference-file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadFile(event.target.files?.[0])} />
-            </div>
-          </header>
-          <div className="reference-media-body">
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="wide"
+      busy={uploading}
+      className={cn("reference-media-dialog", dragging && "is-dragging")}
+      bodyClassName="reference-media-body"
+      title={`Choose ${label.toLowerCase()}`}
+      description="Select a past generation or upload an image."
+      headerActions={
+        <>
+          <button className="btn is-primary reference-upload-button" type="button" onClick={() => uploadInput.current?.click()} disabled={uploading}>
+            {uploading ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}
+            <span>{uploading ? `Uploading ${uploadProgress || ""}${uploadProgress ? "%" : ""}` : "Upload"}</span>
+          </button>
+          <input ref={uploadInput} className="reference-file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadFile(event.target.files?.[0])} />
+        </>
+      }
+      contentProps={{
+        "aria-busy": uploading || selectingId ? "true" : undefined,
+        onDragEnter: (event) => { event.preventDefault(); setDragging(true); },
+        onDragOver: (event) => event.preventDefault(),
+        onDragLeave: (event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false); },
+        onDrop: (event) => { event.preventDefault(); setDragging(false); uploadFile(Array.from(event.dataTransfer.files).find((file) => file.type.startsWith("image/"))); }
+      }}
+    >
             <nav className="reference-media-tabs" role="tablist" aria-label="Reference image sources">
               <button id="reference-tab-generation" role="tab" aria-selected={tab === "generation"} aria-controls="reference-panel" className={cn(tab === "generation" && "active")} onClick={() => setTab("generation")}>
                 <Images size={18} /><span>Generations</span>
@@ -195,9 +194,9 @@ export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSe
                   {Array.from({ length: 10 }, (_, index) => <div className="reference-media-skeleton" key={index} />)}
                 </div>
               ) : page.error && !page.items.length ? (
-                <div className="reference-media-empty is-error"><ImageIcon size={25} /><h3>Images unavailable</h3><p>{page.error}</p><button onClick={() => load(tab)}>Try again</button></div>
+                <div className="reference-media-empty is-error"><ImageIcon size={25} /><h3>Images unavailable</h3><p>{page.error}</p><button className="btn" onClick={() => load(tab)}>Try again</button></div>
               ) : !page.items.length ? (
-                <div className="reference-media-empty"><ImageIcon size={25} /><h3>{tab === "generation" ? "No generations yet" : "No uploads yet"}</h3><p>{tab === "generation" ? "Completed image generations will appear here." : "Drop, paste, or upload an image to get started."}</p>{tab === "upload" ? <button onClick={() => uploadInput.current?.click()}>Upload image</button> : null}</div>
+                <div className="reference-media-empty"><ImageIcon size={25} /><h3>{tab === "generation" ? "No generations yet" : "No uploads yet"}</h3><p>{tab === "generation" ? "Completed image generations will appear here." : "Drop, paste, or upload an image to get started."}</p>{tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}>Upload image</button> : null}</div>
               ) : (
                 <>
                   <div className="reference-media-grid" data-reference-grid>
@@ -232,11 +231,8 @@ export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSe
                 </>
               )}
             </section>
-          </div>
           {dragging ? <div className="reference-drop-overlay"><Upload size={24} /><strong>Drop image to upload</strong></div> : null}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    </Modal>
   );
 }
 

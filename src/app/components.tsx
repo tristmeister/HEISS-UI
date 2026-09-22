@@ -1,4 +1,5 @@
-import React, { memo, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { useDismiss } from './useDismiss';
 import { ChevronDown, Info, Minus, Plus } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
@@ -271,14 +272,8 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((item) => item.value === value);
   const isDefault = value === "default";
-  useEffect(() => {
-    if (!open) return;
-    function closeOnOutside(event: PointerEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    window.addEventListener("pointerdown", closeOnOutside, true);
-    return () => window.removeEventListener("pointerdown", closeOnOutside, true);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(pickerRef, open, close);
   const label = selected ? selected.label : isDefault ? "Default" : "Free";
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
@@ -335,14 +330,8 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = profiles.find((profile) => profile.id === value) || profiles[0] || null;
-  useEffect(() => {
-    if (!open) return;
-    function closeOnOutside(event: PointerEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    window.addEventListener("pointerdown", closeOnOutside, true);
-    return () => window.removeEventListener("pointerdown", closeOnOutside, true);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  useDismiss(pickerRef, open, close);
   return (
     <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
       <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button type="button" data-open-trigger className="model-trigger" onClick={() => setOpen((next) => !next)}>

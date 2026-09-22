@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, FileJson, Heart, Search, Trash2, Upload, Wand2, XCircle } from 'lucide-react';
-import * as Dialog from '@radix-ui/react-dialog';
+import { ArrowLeft, CheckCircle2, FileJson, Heart, Search, Trash2, Upload, Wand2 } from 'lucide-react';
+import { Modal } from './Modal';
 import type { ConfirmAction } from './useConfirmation';
 import { apiJson } from './api';
 import { cn } from './format';
-import { Field, StudioSelect as Select, Tip } from './components';
+import { Field, StudioSelect as Select } from './components';
 import type { Mode, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
@@ -225,19 +225,17 @@ export function WorkflowGallery({ view }: { view: any }) {
   };
 
   return (
-    <Dialog.Root open onOpenChange={(open) => { if (!open && !busy) onClose(); }}><Dialog.Portal>
-      <Dialog.Overlay className="scrim modal-scrim workflow-overlay" />
-      <Dialog.Content data-open-surface className="workflow-gallery" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}>
-        <header className="workflow-gallery-head">
-          <div>
-            <Dialog.Title>Workflows</Dialog.Title>
-            <Dialog.Description>Choose a workflow for your next {mode === "video" ? "video" : "image"}.</Dialog.Description>
-          </div>
-          <div className="workflow-head-actions">
-            <button className="workflow-import-button" onClick={() => setImportOpen(true)}><Upload size={15} /><span>Import workflow</span></button>
-            <Tip content="Close"><button className="icon-button" aria-label="Close workflows" onClick={onClose}>×</button></Tip>
-          </div>
-        </header>
+    <Modal
+      open
+      onOpenChange={(open) => { if (!open) onClose(); }}
+      size="wide"
+      busy={busy}
+      className="workflow-gallery"
+      bodyClassName="workflow-gallery-shell"
+      title="Workflows"
+      description={`Choose a workflow for your next ${mode === "video" ? "video" : "image"}.`}
+      headerActions={<button className="btn is-primary workflow-import-button" onClick={() => setImportOpen(true)}><Upload size={15} /><span>Import workflow</span></button>}
+    >
         <div className={cn("workflow-gallery-body", mobileDetailsOpen && "is-detail-open")}>
           <aside className="workflow-gallery-list">
             <div className="workflow-search">
@@ -305,11 +303,21 @@ export function WorkflowGallery({ view }: { view: any }) {
             ) : <div className="workflow-empty"><Wand2 size={24} /><h3>Your workflow library</h3><p>Choose a workflow to see its details.</p></div>}
           </section>
         </div>
-        <Dialog.Root open={importOpen} onOpenChange={(open) => { if (!busy) setImportOpen(open); }}><Dialog.Portal><Dialog.Overlay className="workflow-import-overlay" /><Dialog.Content className="workflow-import-panel open" onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}>
-          <div className="workflow-import-head">
-            <div><Dialog.Title>Import workflow</Dialog.Title><Dialog.Description>Choose a ComfyUI JSON file or paste its contents.</Dialog.Description></div>
-            <button className="icon-button" aria-label="Close import" disabled={busy} onClick={() => setImportOpen(false)}><XCircle size={15} /></button>
-          </div>
+        <Modal
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          size="form"
+          busy={busy}
+          className="workflow-import-panel"
+          title="Import workflow"
+          description="Choose a ComfyUI JSON file or paste its contents."
+          footer={
+            <>
+              <button className="btn" disabled={busy} onClick={() => { setImports([]); setImportOpen(false); }}>Cancel</button>
+              <button className="btn is-primary" onClick={saveImports} disabled={busy || !imports.length}>{busy ? "Working…" : `Import${imports.length ? ` ${imports.length}` : ""} workflow${imports.length === 1 ? "" : "s"}`}</button>
+            </>
+          }
+        >
           <Field label="Paste workflow JSON">
             <textarea className="short" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ ... }" />
           </Field>
@@ -346,12 +354,7 @@ export function WorkflowGallery({ view }: { view: any }) {
               </div>
             ))}
           </div>
-          <div className="workflow-import-actions">
-            <button disabled={busy} onClick={() => { setImports([]); setImportOpen(false); }}>Cancel</button>
-            <button onClick={saveImports} disabled={busy || !imports.length}>{busy ? "Working…" : `Import${imports.length ? ` ${imports.length}` : ""} workflow${imports.length === 1 ? "" : "s"}`}</button>
-          </div>
-        </Dialog.Content></Dialog.Portal></Dialog.Root>
-      </Dialog.Content>
-    </Dialog.Portal></Dialog.Root>
+        </Modal>
+    </Modal>
   );
 }

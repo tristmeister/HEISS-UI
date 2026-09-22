@@ -47,15 +47,6 @@ body {
 .workflow-mobile-back { display: none; }
 
 @media (max-width: 760px) {
-  .reference-media-dialog {
-    width: calc(100vw - max(12px, env(safe-area-inset-left)) - max(12px, env(safe-area-inset-right)));
-    height: calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)));
-    border-radius: 24px;
-  }
-  .reference-media-head { min-height: 70px; padding: 11px 10px 11px 16px; }
-  .reference-media-head p { display: none; }
-  .reference-upload-button { width: 44px; padding: 0; }
-  .reference-upload-button span { display: none; }
   .reference-media-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
   .reference-media-tabs { flex-direction: row; gap: 4px; padding: 8px; overflow-x: auto; box-shadow: inset 0 -1px rgb(255 255 255 / .07); }
   .reference-media-tabs button { min-width: max-content; min-height: 44px; padding: 0 13px; border-radius: 14px; }
@@ -65,14 +56,6 @@ body {
   .reference-media-tile { border-radius: 14px; }
   .reference-media-tile-name { display: none; }
   .reference-media-delete { opacity: 1; }
-
-  .modal-scrim {
-    padding:
-      max(6px, env(safe-area-inset-top))
-      max(6px, env(safe-area-inset-right))
-      max(6px, env(safe-area-inset-bottom))
-      max(6px, env(safe-area-inset-left));
-  }
 
   .stage-gallery {
     padding-right: max(6px, env(safe-area-inset-right));
@@ -121,19 +104,6 @@ body {
     transform: none;
   }
 
-  .settings-card,
-  .workflow-gallery {
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-  }
-
-  .settings-card header,
-  .workflow-gallery-head {
-    min-height: 64px;
-    padding: 12px 14px 12px 16px;
-  }
-
   .settings-nav {
     scroll-snap-type: x proximity;
     overscroll-behavior-x: contain;
@@ -145,14 +115,6 @@ body {
   .settings-panel {
     padding: 18px 14px calc(24px + env(safe-area-inset-bottom));
   }
-
-  .workflow-gallery-head p { display: none; }
-  .workflow-import-button {
-    width: 44px;
-    min-width: 44px;
-    justify-content: center;
-  }
-  .workflow-import-button span { display: none; }
   .workflow-gallery-list {
     padding: 12px 12px calc(20px + env(safe-area-inset-bottom));
     border-right: 0;
@@ -178,10 +140,6 @@ body {
     font-size: 12px;
     font-weight: 600;
   }
-  .workflow-import-panel {
-    width: 100%;
-    padding: 16px 14px calc(16px + env(safe-area-inset-bottom));
-  }
 
   input,
   textarea,
@@ -197,7 +155,6 @@ body {
 @media (max-width: 480px) {
   .composer-reference-selected { grid-template-columns: minmax(0, 1fr) 40px; }
   .composer-reference-change { display: none; }
-  .reference-media-head h2 { max-width: 48vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; }
   .reference-media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .stage-gallery {
@@ -231,9 +188,6 @@ body {
   .prompt-left-actions,
   .zen-inline-settings { gap: 4px; }
   .composer-drawer { left: 0; right: 0; }
-
-  .settings-card header h2,
-  .workflow-gallery-head h2 { font-size: 18px; }
   .settings-nav { padding: 8px; }
   .settings-nav-item { padding-inline: 11px; }
   .setting-rows { padding-inline: 12px; }
@@ -265,17 +219,12 @@ body {
   .workflow-detail-hero h3 { font-size: 23px; text-wrap: balance; }
   .workflow-detail-hero p { text-wrap: pretty; }
   .workflow-actions,
-  .workflow-import-actions,
   .workflow-map-grid { grid-template-columns: 1fr; }
 }
 
 /* Compact tablets cannot support the gallery's 430px + 420px split. Keep the
    denser two-column cards, but use the same list -> detail navigation as phones. */
 @media (min-width: 761px) and (max-width: 900px) {
-  .workflow-gallery {
-    width: calc(100vw - 24px);
-    height: calc(100dvh - 24px);
-  }
   .workflow-gallery-body { grid-template-columns: 1fr; }
   .workflow-gallery-list {
     padding: 16px 18px calc(22px + env(safe-area-inset-bottom));
@@ -327,6 +276,4 @@ body {
     bottom: calc(var(--zen-prompt-h, 112px) + 14px + env(safe-area-inset-bottom));
   }
   .zen-gallery-wrap { top: calc(54px + env(safe-area-inset-top)); }
-  .settings-card header,
-  .workflow-gallery-head { min-height: 56px; }
 }

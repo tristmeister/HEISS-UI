@@ -35,4 +35,28 @@
 
   /* Deck geometry: a 40px control plus 4px of surface on each side. */
   --dock-h: 48px;
+
+  /* The one warm note, borrowed from the website: focus, live state, markers. Use sparingly. */
+  --ember: #ff9a52;
+  --ember-soft: rgb(255 154 82 / .14);
+  --ember-glow: 0 0 10px rgb(255 154 82 / .6);
+  --focus-ring: 0 0 0 2px var(--surface-modal), 0 0 0 4px rgb(255 154 82 / .75);
+
+  /* Modals: one scrim, one sheet. */
+  --scrim: rgb(0 0 0 / .72);
+  --scrim-blur: blur(10px);
+  --r-modal: var(--r-panel);
+
+  /* Stacking. Everything that floats picks a layer from here, never a raw number. */
+  --z-content: 1;
+  --z-deck: 30;
+  --z-viewer: 40;
+  --z-modal: 100;
+  --z-popover: 150;
+  --z-toast: 200;
+  --z-tooltip: 250;
+
+  /* Motion */
+  --dur-fast: 140ms;
+  --dur-base: 220ms;  /* easing: --ease-out, defined in 01-base */
 }

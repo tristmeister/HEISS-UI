@@ -179,7 +179,7 @@ export const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(
             top: triggerRect.bottom + 6,
             left: triggerRect.left,
             minWidth: triggerRect.width,
-            zIndex: 50,
+            zIndex: "var(--z-popover)" as unknown as number,
           }}
         >
           <motion.div
@@ -310,7 +310,8 @@ export const SelectContent = forwardRef<HTMLDivElement, SelectContentProps>(
           </motion.div>
         </div>
       </SelectContentContext.Provider>,
-      document.body
+      // Inside a modal, portal into it so focus trapping and outside-click handling treat the list as part of the dialog.
+      triggerRef.current?.closest(".modal") ?? document.body
     );
   }
 );

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import * as Dialog from '@radix-ui/react-dialog';
-import { Check, Copy, RefreshCw, X } from 'lucide-react';
+import { Check, Copy, RefreshCw } from 'lucide-react';
+import { Modal } from './Modal';
 import { copyText } from './api';
 import { formatBytes, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleDownloadPreview } from './types';
 
 const repositoryUrl = "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git";
 
-/** One shell so every upscale dialog shares the hero, spacing and hierarchy. */
+/** Every upscale dialog is the shared Modal with the upscale hero on top. */
 function UpscaleDialogShell({
   open,
   onOpenChange,
@@ -23,21 +23,18 @@ function UpscaleDialogShell({
   actions: React.ReactNode;
 }>) {
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="confirmation-overlay" />
-        <Dialog.Content className="upscale-setup-dialog">
-          <img className="upscale-setup-hero" src="/upscale-hero.webp" alt="" aria-hidden="true" draggable={false} />
-          <Dialog.Close className="upscale-setup-close" aria-label="Close"><X size={15} /></Dialog.Close>
-          <div className="upscale-setup-body">
-            <Dialog.Title>{title}</Dialog.Title>
-            <Dialog.Description>{description}</Dialog.Description>
-            {children}
-            <div className="confirmation-actions">{actions}</div>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Modal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="form"
+      className="upscale-modal"
+      hero={<img className="modal-hero" src="/upscale-hero.webp" alt="" aria-hidden="true" draggable={false} />}
+      title={title}
+      description={description}
+      footer={actions}
+    >
+      {children}
+    </Modal>
   );
 }
 
@@ -74,8 +71,8 @@ export function UpscaleSetupDialog({
       description={`ComfyUI does not have ${missingNodes.length ? "some of " : ""}the SeedVR2 nodes installed yet, so there is nothing to upscale with.`}
       actions={
         <>
-          <button onClick={onRecheck}><RefreshCw size={13} /> Re-check</button>
-          <button className="is-primary" onClick={() => onOpenChange(false)}>Done</button>
+          <button className="btn" onClick={onRecheck}><RefreshCw size={13} /> Re-check</button>
+          <button className="btn is-primary" onClick={() => onOpenChange(false)}>Done</button>
         </>
       }
     >
@@ -124,8 +121,8 @@ export function UpscaleInstallDialog({
       description={`${upscaleQualityLabel(quality)} upscaling needs weights that are not on this machine yet. They download once and stay installed.`}
       actions={
         <>
-          <button onClick={() => onOpenChange(false)}>Cancel</button>
-          <button className="is-primary" onClick={onConfirm}>Download {preview ? formatBytes(preview.totalBytes) : ""}</button>
+          <button className="btn" onClick={() => onOpenChange(false)}>Cancel</button>
+          <button className="btn is-primary" onClick={onConfirm}>Download {preview ? formatBytes(preview.totalBytes) : ""}</button>
         </>
       }
     >
