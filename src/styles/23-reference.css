@@ -37,7 +37,11 @@
   padding: 0;
   overflow: hidden;
   border: 0;
-  background: var(--control-fill);
+  /* Frosted so prompt text running under the expanded chip stays out of the way.
+     -webkit- first: the CSS minifier keeps only the last of the pair. */
+  background: rgb(34 34 34 / .55);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
   box-shadow: inset 0 0 0 1px var(--surface-border);
   cursor: pointer;
   transition: max-width 480ms var(--ease-out), background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), scale 100ms;
@@ -65,7 +69,7 @@
   font-style: normal;
   font-weight: 600;
 }
-.ref-add:hover { background: var(--control-hover); }
+.ref-add:hover { background: rgb(52 52 52 / .6); }
 .ref-add:active { scale: .96; }
 .ref-add.is-open { background: var(--action); color: var(--action-ink); box-shadow: none; }
 
