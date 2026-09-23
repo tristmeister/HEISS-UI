@@ -11,6 +11,7 @@ import {
   reasonLabel,
   setBundleCover as setBundleCoverRecord
 } from './bundle-runs.js';
+import { readJsonFile, writeJsonFile } from './json-store.js';
 
 /**
  * Creative runs over the plaintext gallery. Bundle records live in their own
@@ -31,7 +32,7 @@ export { DEFAULT_COOLDOWN_MINUTES, reasonLabel };
 
 function readBundles() {
   try {
-    const raw = JSON.parse(fs.readFileSync(bundlesPath, "utf8"));
+    const raw = readJsonFile(bundlesPath);
     return Array.isArray(raw?.bundles) ? raw.bundles : [];
   } catch {
     return [];
@@ -42,7 +43,7 @@ let bundles = readBundles();
 
 function persist() {
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(bundlesPath, JSON.stringify({ bundles }, null, 2));
+  writeJsonFile(bundlesPath, { bundles });
 }
 
 export function bundleCandidate(item) {

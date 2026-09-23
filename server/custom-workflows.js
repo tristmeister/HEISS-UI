@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { dataDir } from './gallery-store.js';
 import { root } from './comfy.js';
 import { workflowIds } from './workflow-registry.js';
+import { writeJsonFile } from './json-store.js';
 
 export const bundledWorkflowsDir = path.join(root, "workflows");
 export const userWorkflowsDir = path.join(dataDir, "workflows");
@@ -332,7 +333,7 @@ export function saveCustomWorkflow(raw) {
   validateGraph(workflow.graph);
   fs.mkdirSync(userWorkflowsDir, { recursive: true });
   const file = path.join(userWorkflowsDir, `${workflow.id}.json`);
-  fs.writeFileSync(file, JSON.stringify(raw, null, 2));
+  writeJsonFile(file, raw);
   return { ...workflow, path: file };
 }
 
@@ -367,7 +368,7 @@ export function saveImportedWorkflow(raw, meta = {}) {
   workflow.profileId = `custom:${workflow.id}`;
   fs.mkdirSync(userWorkflowsDir, { recursive: true });
   const file = path.join(userWorkflowsDir, `${workflow.id}.json`);
-  fs.writeFileSync(file, JSON.stringify({ ...raw, heissUi: mergedMeta }, null, 2));
+  writeJsonFile(file, { ...raw, heissUi: mergedMeta });
   return { ...workflow, path: file };
 }
 

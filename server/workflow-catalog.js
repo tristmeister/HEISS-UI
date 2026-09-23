@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { dataDir, gallery } from './gallery-store.js';
 import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph, workflowOptionIssues } from './custom-workflows.js';
+import { readJsonFile, writeJsonFile } from './json-store.js';
 
 const preferencesPath = path.join(dataDir, "workflow-preferences.json");
 let preferencesCache = null;
@@ -10,7 +11,7 @@ let preferencesSaveTimer = null;
 export function loadWorkflowPreferences() {
   if (preferencesCache) return preferencesCache;
   try {
-    const raw = JSON.parse(fs.readFileSync(preferencesPath, "utf8"));
+    const raw = readJsonFile(preferencesPath);
     preferencesCache = {
       favorites: Array.isArray(raw.favorites) ? raw.favorites : [],
       lastUsed: raw.lastUsed && typeof raw.lastUsed === "object" ? raw.lastUsed : {},
@@ -39,7 +40,7 @@ export function saveWorkflowPreferences(preferences, { immediate = false } = {})
     preferencesSaveTimer = null;
   }
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(preferencesPath, JSON.stringify(preferences, null, 2));
+  writeJsonFile(preferencesPath, preferences);
 }
 
 export function updateWorkflowPreferencePatch(patch = {}) {

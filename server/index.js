@@ -24,7 +24,7 @@ import { saveStartImage } from './start-images.js';
 import { clearUnlockCookie, encryptionKeyFromRequest, isPrivacyEnabled, privacyStatusFor, revealGalleryItemsForRequest, setPrivacyPassword, setUnlockCookie, verifyPrivacyPassword } from './privacy.js';
 import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, exportVaultBackup, readVaultAsset, setVaultBundleCover, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultGalleryItemsForRequest, vaultStatusFor } from './vault.js';
 import { sendGalleryExport } from './gallery-export.js';
-import { clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
+import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
@@ -603,7 +603,20 @@ app.get("/api/loras/library", (_req, res) => {
 });
 
 app.put("/api/loras/library", (req, res) => {
-  res.json({ ok: true, library: saveLoraLibrary(req.body?.library) });
+  try {
+    res.json({ ok: true, library: saveLoraLibrary(req.body?.library) });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: `Could not save the LoRA library: ${error.message}` });
+  }
+});
+
+// Clients send edits, not whole copies, so two devices never overwrite each other.
+app.post("/api/loras/library/ops", (req, res) => {
+  try {
+    res.json({ ok: true, library: applyLoraOps(req.body?.ops) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
 });
 
 app.get("/api/loras/:workflowId", (req, res) => {

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfyOutputDir, root } from './comfy.js';
 import { protectGalleryItemForStorage } from './privacy.js';
+import { readJsonFile, writeJsonFile } from './json-store.js';
 
 export const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
 export const galleryPath = path.join(dataDir, "gallery.json");
@@ -16,7 +17,7 @@ const galleryChanges = [];
 function loadGallery() {
   try {
     const staleAfter = 30 * 60 * 1000;
-    return JSON.parse(fs.readFileSync(galleryPath, "utf8")).map((item) => {
+    return readJsonFile(galleryPath).map((item) => {
       let next = item;
       if (next.status === "pending" && Date.now() - Date.parse(next.createdAt || 0) > staleAfter) {
         next = { ...next, status: "canceled" };
@@ -37,10 +38,10 @@ export let hiddenGalleryIds = loadHiddenGalleryIds();
 
 function loadHiddenGalleryIds() {
   try {
-    const raw = JSON.parse(fs.readFileSync(hiddenGalleryPath, "utf8"));
+    const raw = readJsonFile(hiddenGalleryPath);
     if (Array.isArray(raw)) {
       const migrated = new Map(raw.filter((key) => !String(key).startsWith("/comfy/view?")).map((key) => [key, Date.now()]));
-      fs.writeFileSync(hiddenGalleryPath, JSON.stringify(Object.fromEntries(migrated), null, 2));
+      writeJsonFile(hiddenGalleryPath, Object.fromEntries(migrated));
       return migrated;
     }
     return new Map(Object.entries(raw).map(([key, value]) => [key, Number(value) || 0]));
@@ -325,13 +326,13 @@ export function writeGalleryNow() {
   // Private-vault jobs exist only while Comfy is rendering. Their finished records
   // live in the encrypted vault manifest, never in the ordinary gallery JSON.
   const persistable = gallery.filter((item) => !item.privateVault).slice(0, galleryLimit).map(({ preview, ...rest }) => protectGalleryItemForStorage(rest));
-  fs.writeFileSync(galleryPath, JSON.stringify(persistable, null, 2));
+  writeJsonFile(galleryPath, persistable);
 }
 
 export function saveHiddenGalleryIds() {
   fs.mkdirSync(dataDir, { recursive: true });
   const entries = [...hiddenGalleryIds.entries()].slice(-galleryLimit * 2);
-  fs.writeFileSync(hiddenGalleryPath, JSON.stringify(Object.fromEntries(entries), null, 2));
+  writeJsonFile(hiddenGalleryPath, Object.fromEntries(entries));
 }
 
 export function promptTitle(text = "") {

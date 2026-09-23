@@ -9,7 +9,7 @@ import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromG
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
 import { useGalleryColumnCount } from './app/gallery';
 import { normalizeLoras } from './app/loras';
-import { currentLoraLibrary, deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks, recordLoraRecents, rememberedLoraStrength, rememberLoraStrengths, renameLoraStack, replaceLoraLibrary, saveLoraStack, toggleLoraFavorite, updateLoraStack, type LoraSnapshot } from './app/lora-storage';
+import { deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks, recordLoraRecents, rememberActiveLoras, rememberedLoraStrength, rememberLoraStrengths, renameLoraStack, saveLoraStack, startLoraSync, subscribeLoraLibrary, subscribeLoraSync, toggleLoraFavorite, updateLoraStack, type LoraSnapshot, type LoraSyncStatus } from './app/lora-storage';
 import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
 import { SidebarControls } from './app/SidebarControls';
@@ -113,7 +113,6 @@ function App() {
   const zenStripDragRef = useRef<{ id: number; x: number; scrollLeft: number; moved: boolean } | null>(null);
   const latestZenIdRef = useRef("");
   const privacyInitializedRef = useRef(false);
-  const loraSaveTimer = useRef<number | null>(null);
   // Set when LoRAs are applied for a workflow we're about to switch to (e.g. "Copy
   // all settings"), so the switch doesn't load that workflow's saved stack over them.
   const explicitLorasFor = useRef("");
@@ -156,14 +155,23 @@ function App() {
     loadGallery();
   }, [loadGallery]);
 
+  // The LoRA library lives on the server and syncs edit by edit. Say once when
+  // edits are stuck on this device, and once when they have gone through.
+  const loraSyncFailing = useRef(false);
   useEffect(() => {
-    apiJson<{ found: boolean; library: unknown }>('/api/loras/library')
-      .then((data) => {
-        if (data.found) replaceLoraLibrary(data.library);
-        else fetch('/api/loras/library', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ library: currentLoraLibrary() }) }).catch(() => null);
-        setLoraSnapshotRevision((value) => value + 1);
-      })
-      .catch(() => null);
+    const stop = startLoraSync();
+    const offLibrary = subscribeLoraLibrary(() => setLoraSnapshotRevision((value) => value + 1));
+    const offSync = subscribeLoraSync((sync: LoraSyncStatus) => {
+      if (sync.failing && !loraSyncFailing.current) {
+        showToast(sync.locked
+          ? "LoRA changes are saved on this device. Unlock HEISS UI to sync them."
+          : "Could not reach HEISS UI. LoRA changes are saved on this device and sync when it is back.", "error");
+      } else if (!sync.failing && loraSyncFailing.current && !sync.pending) {
+        showToast("LoRA changes synced", "success");
+      }
+      loraSyncFailing.current = sync.failing;
+    });
+    return () => { stop(); offLibrary(); offSync(); };
   }, []);
 
   useEffect(() => {
@@ -675,16 +683,7 @@ function App() {
     setLoras((current) => {
       const next = normalizeLoras(typeof update === 'function' ? update(current) : update);
       rememberLoraStrengths(workflowId, next);
-      if (workflowId) {
-        if (loraSaveTimer.current !== null) window.clearTimeout(loraSaveTimer.current);
-        loraSaveTimer.current = window.setTimeout(() => {
-          apiJson(`/api/loras/${encodeURIComponent(workflowId)}`, {
-            method: "PUT",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ loras: next })
-          }).catch(() => null);
-        }, 250);
-      }
+      rememberActiveLoras(workflowId, next);
       return next;
     });
   }

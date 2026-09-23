@@ -3,6 +3,7 @@ import path from "node:path";
 import { comfy, comfyModelsDir } from './comfy.js';
 import { dataDir } from './gallery-store.js';
 import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, variantFor } from './family-catalog.js';
+import { readJsonFile, writeJsonFile } from './json-store.js';
 
 /**
  * Which family (and variant) a model file belongs to, and which parts an
@@ -42,7 +43,7 @@ function choiceKey(source, name) {
 export function loadModelChoices() {
   if (choicesCache) return choicesCache;
   try {
-    const raw = JSON.parse(fs.readFileSync(choicesPath(), "utf8"));
+    const raw = readJsonFile(choicesPath());
     choicesCache = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
   } catch {
     choicesCache = {};
@@ -52,7 +53,7 @@ export function loadModelChoices() {
 
 function saveChoices(next) {
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(choicesPath(), JSON.stringify(next, null, 2));
+  writeJsonFile(choicesPath(), next);
   choicesCache = next;
 }
 

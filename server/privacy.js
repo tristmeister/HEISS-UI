@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { root } from './comfy.js';
+import { readJsonFile, writeJsonFile } from './json-store.js';
 
 const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
 const privacyPath = path.join(dataDir, "privacy.json");
@@ -20,7 +21,7 @@ function fromBase64url(value = "") {
 
 function readConfig() {
   try {
-    return JSON.parse(fs.readFileSync(privacyPath, "utf8"));
+    return readJsonFile(privacyPath);
   } catch {
     return null;
   }
@@ -28,7 +29,7 @@ function readConfig() {
 
 function writeConfig(config) {
   fs.mkdirSync(dataDir, { recursive: true });
-  fs.writeFileSync(privacyPath, JSON.stringify(config, null, 2));
+  writeJsonFile(privacyPath, config);
 }
 
 function scrypt(password, salt) {
