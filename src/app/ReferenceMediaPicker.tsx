@@ -330,7 +330,7 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
         {isStart && strength ? (
           <Tip content="How much the model may change your image: low keeps it close, high only borrows its layout and colours">
             <label className="ref-strength">
-              <span>Change <b>{Math.round(strength.value * 100)}%</b></span>
+              <span>Change<b>{Math.round(strength.value * 100)}%</b></span>
               <input
                 type="range"
                 min={strength.meta?.min ?? 0}
