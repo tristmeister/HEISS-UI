@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { comfy } from './comfy.js';
 import { getCustomWorkflow } from './custom-workflows.js';
 import { startImageDataUrl } from './start-images.js';
+import { krea2RawShift } from './model-families.js';
 
 export async function uploadReferenceImage(dataUrl) {
   if (!dataUrl || !dataUrl.includes(",")) return "";
@@ -264,7 +265,7 @@ export async function checkpointImageGraph(body) {
  * Krea 2: a single-stream DiT with a Qwen3-VL text encoder. Loads either as a
  * diffusion model with its own encoder and VAE, or from an all-in-one checkpoint.
  * The Krea2T enhancer sits between the model and the LoRAs when ComfyUI has it;
- * validation decides that from ComfyUI's node list, not the client.
+ * validation decides that and Raw vs Turbo server-side, not the client.
  */
 export function krea2ImageGraph(body) {
   const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
@@ -304,11 +305,23 @@ export function krea2ImageGraph(body) {
   };
   graph["9"] = { class_type: "VAEDecode", inputs: { samples: ["8", 0], vae } };
   graph["10"] = { class_type: "SaveImage", inputs: { images: ["9", 0], filename_prefix: "heiss-ui/image" } };
+  // Raw's shift depends on the image size. With both ends of ModelSamplingFlux's
+  // ramp set to the same value it applies exactly that shift, patched last so it
+  // sits after the LoRAs.
+  let samplerModel = { node: "8", input: "model" };
+  if (body.krea2Raw) {
+    const width = Number(body.width || 1024);
+    const height = Number(body.height || 1024);
+    const shift = krea2RawShift(width, height);
+    graph["30"] = { class_type: "ModelSamplingFlux", inputs: { model, max_shift: shift, base_shift: shift, width, height } };
+    graph["8"].inputs.model = ["30", 0];
+    samplerModel = { node: "30", input: "model" };
+  }
   applyLoraStack(graph, body, {
     startId: 11,
     modelSource: model,
     clipSource: clip,
-    modelTargets: [{ node: "8", input: "model" }],
+    modelTargets: [samplerModel],
     clipTargets: [{ node: "5", input: "clip" }, { node: "6", input: "clip" }]
   });
   return graph;

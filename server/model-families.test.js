@@ -14,7 +14,7 @@ fs.mkdirSync(unetDir, { recursive: true });
 fs.mkdirSync(checkpointDir, { recursive: true });
 test.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
-const { classifyModel, readSafetensorsHeader, setModelChoice, typeFromArchitecture, typeFromHeader } = await import("./model-families.js");
+const { classifyModel, isKrea2RawName, krea2RawShift, readSafetensorsHeader, setModelChoice, typeFromArchitecture, typeFromHeader } = await import("./model-families.js");
 const { inferModels } = await import("./models.js");
 const { krea2ImageGraph } = await import("./graphs.js");
 
@@ -46,6 +46,7 @@ function fakeObjectInfo({ unets = [], checkpoints = [], clipTypes = ["krea2", "q
     EmptySD3LatentImage: choices({}),
     VAEDecode: choices({}),
     SaveImage: choices({}),
+    ModelSamplingFlux: choices({}),
     ...extra
   };
 }
@@ -160,4 +161,38 @@ test("the enhancer follows ComfyUI's node list, not the request", async () => {
   assert.equal(without.clipType, "krea2");
   const withNode = sanitizeGenerateBody(request, fakeObjectInfo({ unets: ["krea2TurboFP8.safetensors"], extra: { "ComfyUI-Krea2T-Enhancer": choices({}) } }));
   assert.equal(withNode.krea2Enhancer, true);
+});
+
+test("Raw is told apart from Turbo by name and gets its own sampling", () => {
+  assert.equal(isKrea2RawName("krea2_raw_bf16.safetensors"), true);
+  assert.equal(isKrea2RawName("Krea-2-Base-fp8.safetensors"), true);
+  assert.equal(isKrea2RawName("krea2_turbo_fp8_scaled.safetensors"), false);
+  assert.equal(isKrea2RawName("krea2_raw_turbo_merge.safetensors"), false);
+  assert.equal(isKrea2RawName("base/krea2_turbo.safetensors"), false, "only the file name counts, not its folder");
+  assert.equal(krea2RawShift(256, 256), 0.5);
+  assert.equal(krea2RawShift(1280, 1280), 1.15);
+  assert.equal(krea2RawShift(1024, 1024), 0.906);
+
+  const models = inferModels(fakeObjectInfo({ unets: ["krea2_raw_bf16.safetensors", "krea2_turbo_fp8_scaled.safetensors"] }));
+  const raw = models.profiles.find((profile) => profile.model === "krea2_raw_bf16.safetensors");
+  const turbo = models.profiles.find((profile) => profile.model === "krea2_turbo_fp8_scaled.safetensors");
+  assert.deepEqual([raw.defaults.steps, raw.defaults.cfg], [28, 4.5]);
+  assert.deepEqual([turbo.defaults.steps, turbo.defaults.cfg], [8, 1]);
+});
+
+test("Raw graphs patch the shift after the LoRAs; Turbo keeps ComfyUI's", async () => {
+  const body = { workflow: "krea2-image", model: "krea2_raw.safetensors", textEncoder: "te", vae: "vae", prompt: "a cat", width: 1024, height: 1024, krea2Raw: true, loras: [{ name: "a.safetensors", strength: 0.5 }] };
+  const graph = krea2ImageGraph(body);
+  assert.equal(graph["30"].class_type, "ModelSamplingFlux");
+  assert.equal(graph["30"].inputs.max_shift, 0.906);
+  assert.equal(graph["30"].inputs.base_shift, 0.906);
+  assert.deepEqual(graph["30"].inputs.model, ["11", 0]);
+  assert.deepEqual(graph["8"].inputs.model, ["30", 0]);
+  assert.equal(krea2ImageGraph({ ...body, krea2Raw: false })["30"], undefined);
+
+  const { sanitizeGenerateBody } = await import("./validation.js");
+  const info = fakeObjectInfo({ unets: ["krea2_raw_bf16.safetensors", "krea2TurboFP8.safetensors"] });
+  const request = { kind: "image", workflow: "krea2-image", prompt: "a cat", textEncoder: "qwen3VL4B.safetensors", vae: "qwen_image_vae.safetensors" };
+  assert.equal(sanitizeGenerateBody({ ...request, model: "krea2_raw_bf16.safetensors" }, info).krea2Raw, true);
+  assert.equal(sanitizeGenerateBody({ ...request, model: "krea2TurboFP8.safetensors", krea2Raw: true }, info).krea2Raw, false);
 });

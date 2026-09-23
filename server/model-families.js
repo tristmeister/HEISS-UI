@@ -78,6 +78,27 @@ function isKrea2Name(name = "") {
   return /krea/i.test(name) && !/flux|krea[-_ .]?1(?!\d)/i.test(name);
 }
 
+/**
+ * Raw (the undistilled base) and Turbo share every tensor, so only the filename
+ * can tell them apart. Anything not clearly Raw is treated as Turbo, the model
+ * most people run.
+ */
+export function isKrea2RawName(name = "") {
+  const base = String(name).split(/[\\/]/).pop() || "";
+  return /raw|base/i.test(base) && !/turbo|tdm|distill/i.test(base);
+}
+
+/**
+ * Raw samples with a resolution-dependent timestep shift: mu runs linearly from
+ * 0.5 at 256 image tokens to 1.15 at 6400 (16 px per token), like diffusers'
+ * Krea2Pipeline. Turbo is distilled for a fixed 1.15, which ComfyUI already uses.
+ */
+export function krea2RawShift(width, height) {
+  const tokens = Math.ceil(Number(width || 1024) / 16) * Math.ceil(Number(height || 1024) / 16);
+  const mu = 0.5 + (tokens - 256) * (1.15 - 0.5) / (6400 - 256);
+  return Math.round(mu * 1000) / 1000;
+}
+
 function isZImageName(name = "") {
   return /z[-_ ]?anime|z[-_ ]?image/i.test(name);
 }

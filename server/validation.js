@@ -2,6 +2,7 @@ import { missingNodes, nodeRange, optionsFor } from './comfy.js';
 import { inferModels } from './models.js';
 import { workflowFor, workflowIds } from './workflow-registry.js';
 import { getCustomWorkflow } from './custom-workflows.js';
+import { isKrea2RawName } from './model-families.js';
 
 export function clampNumber(value, fallback, min, max) {
   const number = Number(value);
@@ -134,6 +135,7 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     clipType: workflowInfo.family === "krea2" ? "krea2" : String(input.clipType || "wan"),
     // Decided here from ComfyUI's node list so a client cannot ask for a node that is not there.
     krea2Enhancer: workflowInfo.family === "krea2" && Boolean(info["ComfyUI-Krea2T-Enhancer"]),
+    krea2Raw: workflowInfo.family === "krea2" && isKrea2RawName(input.model) && Boolean(info.ModelSamplingFlux),
     weightDtype: String(input.weightDtype || "default"),
     width: snapInteger(input.width, widthRange.default, widthRange),
     height: snapInteger(input.height, heightRange.default, heightRange),

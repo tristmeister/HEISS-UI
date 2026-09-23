@@ -1,7 +1,7 @@
 import { missingNodes, nodeRange, optionsFor, textRange } from './comfy.js';
 import { workflowFor } from './workflow-registry.js';
 import { loadCustomWorkflows, workflowOptionIssues } from './custom-workflows.js';
-import { classifyModel, modelTypeChoices, modelTypes } from './model-families.js';
+import { classifyModel, isKrea2RawName, modelTypeChoices, modelTypes } from './model-families.js';
 
 export function modelBasename(name = "") {
   return String(name).split(/[\\/]/).pop() || name;
@@ -253,39 +253,44 @@ export function inferModels(info, stats = {}) {
     height: { ...imageRange.height, step: Math.max(16, Number(imageRange.height.step) || 0) },
     count: imageRange.count
   };
-  const krea2Profile = (name, fromCheckpoint) => buildProfile({
-    id: `image:${fromCheckpoint ? "krea2-checkpoint" : "krea2"}:${name}`,
-    kind: "image",
-    label: `${prettyModelName(name)} · Krea 2`,
-    displayName: prettyModelName(name),
-    description: fromCheckpoint ? "Krea 2 checkpoint workflow" : "Krea 2 workflow",
-    model: name,
-    workflow: fromCheckpoint ? krea2CheckpointWorkflow.id : krea2Workflow.id,
-    family: krea2Workflow.family,
-    defaults: {
-      width: 1024,
-      height: 1024,
-      steps: 8,
-      cfg: 1,
-      sampler: samplers.includes("euler") ? "euler" : samplers[0] || "euler",
-      scheduler: schedulers.includes("simple") ? "simple" : schedulers[0] || "normal",
-      textEncoder: fromCheckpoint ? "" : clips.find((clip) => /qwen[-_ ]?3[-_ ]?vl/i.test(clip)) || clips.find((clip) => /qwen.*vl/i.test(clip)) || clips.find((clip) => /qwen/i.test(clip)) || clips[0] || "",
-      vae: fromCheckpoint ? "" : vaes.find((vae) => /qwen[-_ ]?image/i.test(vae)) || vaes.find((vae) => /qwen/i.test(vae)) || vaes[0] || "",
-      clipType: "krea2",
-      weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default"
-    },
-    aspects: aspectSet({ width: 1024, height: 1024 }, [
-      ["1:1", 1, 1],
-      ["16:9", 16, 9],
-      ["9:16", 9, 16],
-      ["4:3", 4, 3],
-      ["3:4", 3, 4],
-      ["2.35:1", 235, 100]
-    ], { width: krea2Range.width, height: krea2Range.height }),
-    options: fromCheckpoint ? { samplers, schedulers, loras } : { textEncoders: clips, vaes, weightDtypes, samplers, schedulers, loras },
-    constraints: { prompt: textMeta, negative: textMeta, width: krea2Range.width, height: krea2Range.height, count: krea2Range.count, ...samplerRange },
-    capabilities: fromCheckpoint ? { lora: canUseLoras } : { textEncoder: true, vae: true, weightDtype: true, lora: canUseLoras }
-  });
+  // Turbo is distilled for 8 guidance-free steps. Raw wants real CFG; Krea's own
+  // scale counts from 0, so their 3.5 is ComfyUI's 4.5, and diffusers runs 28 steps.
+  const krea2Profile = (name, fromCheckpoint) => {
+    const raw = isKrea2RawName(name);
+    return buildProfile({
+      id: `image:${fromCheckpoint ? "krea2-checkpoint" : "krea2"}:${name}`,
+      kind: "image",
+      label: `${prettyModelName(name)} · Krea 2`,
+      displayName: prettyModelName(name),
+      description: `Krea 2 ${raw ? "Raw" : "Turbo"}${fromCheckpoint ? " checkpoint" : ""} workflow`,
+      model: name,
+      workflow: fromCheckpoint ? krea2CheckpointWorkflow.id : krea2Workflow.id,
+      family: krea2Workflow.family,
+      defaults: {
+        width: 1024,
+        height: 1024,
+        steps: raw ? 28 : 8,
+        cfg: raw ? 4.5 : 1,
+        sampler: samplers.includes("euler") ? "euler" : samplers[0] || "euler",
+        scheduler: schedulers.includes("simple") ? "simple" : schedulers[0] || "normal",
+        textEncoder: fromCheckpoint ? "" : clips.find((clip) => /qwen[-_ ]?3[-_ ]?vl/i.test(clip)) || clips.find((clip) => /qwen.*vl/i.test(clip)) || clips.find((clip) => /qwen/i.test(clip)) || clips[0] || "",
+        vae: fromCheckpoint ? "" : vaes.find((vae) => /qwen[-_ ]?image/i.test(vae)) || vaes.find((vae) => /qwen/i.test(vae)) || vaes[0] || "",
+        clipType: "krea2",
+        weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default"
+      },
+      aspects: aspectSet({ width: 1024, height: 1024 }, [
+        ["1:1", 1, 1],
+        ["16:9", 16, 9],
+        ["9:16", 9, 16],
+        ["4:3", 4, 3],
+        ["3:4", 3, 4],
+        ["2.35:1", 235, 100]
+      ], { width: krea2Range.width, height: krea2Range.height }),
+      options: fromCheckpoint ? { samplers, schedulers, loras } : { textEncoders: clips, vaes, weightDtypes, samplers, schedulers, loras },
+      constraints: { prompt: textMeta, negative: textMeta, width: krea2Range.width, height: krea2Range.height, count: krea2Range.count, ...samplerRange },
+      capabilities: fromCheckpoint ? { lora: canUseLoras } : { textEncoder: true, vae: true, weightDtype: true, lora: canUseLoras }
+    });
+  };
   for (const name of canRunKrea2 ? unetsOfType("krea2") : []) profiles.push(krea2Profile(name, false));
   for (const name of canRunKrea2Checkpoint ? checkpointsOfType("krea2") : []) profiles.push(krea2Profile(name, true));
 
