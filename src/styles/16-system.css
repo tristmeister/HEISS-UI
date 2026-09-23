@@ -33,6 +33,31 @@
   backdrop-filter: var(--surface-float-blur);
 }
 
+/* The composer and its drawer hold menus that pop out past their edges. An
+   element with backdrop-filter becomes the backdrop root for everything inside
+   it, so those menus would have nothing to blur and the gallery would show
+   straight through. Their own glass therefore lives on a pseudo-element, which
+   leaves the element itself transparent to nested blur. (-webkit- first: the
+   CSS minifier keeps only the last of the pair.) */
+.zen-prompt,
+.composer-drawer {
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+.zen-prompt::before,
+.composer-drawer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--surface-grain), var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  pointer-events: none;
+}
+
 /* Large surfaces carry the deep shadow, small ones the tight one. */
 .zen-prompt,
 .zen-controls,
