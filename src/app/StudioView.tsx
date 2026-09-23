@@ -16,6 +16,7 @@ import { canUpscaleItem } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
+import { FailurePanel } from './GenerationFailure';
 import { ModelDownloadWidget, useModelDownloadWidget } from './ModelDownloadWidget';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
@@ -499,7 +500,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   onClick={clickViewer}
                   onDoubleClick={(event) => { event.stopPropagation(); zoomViewer(viewerZoom > 1 ? 1 : 2.5); }}
                 >
-                  {compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
+                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyAndToast} onReuse={() => { applyAllSettings(active); setActive(null); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
                   <GenerationMedia item={active} fit="contain">
                   {active.status === "pending" ? (() => {
                     const ratio = active.progress?.max ? Math.min(1, Math.max(0, active.progress.value / active.progress.max)) : 0;

@@ -1,4 +1,5 @@
 import { comfy, comfyUrl, normalizeComfyError } from './comfy.js';
+import { describeFailure } from './failures.js';
 import { rememberMissingParts } from './model-families.js';
 import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
@@ -188,10 +189,10 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
         updateGalleryJob(id, { status: "canceled" });
       }
       if (message.type === "execution_error") {
-        const context = data.node_type ? ` (${data.node_type}${data.node_id ? `, node ${data.node_id}` : ""})` : "";
-        const error = learnFromFailure(jobBodies.get(id), data.exception_message) || normalizeComfyError(`${data.exception_message || "ComfyUI execution failed"}${context}`);
-        setTerminalJob(id, { status: "error", error });
-        updateGalleryJob(id, { status: "error", filename: error });
+        const learned = learnFromFailure(jobBodies.get(id), data.exception_message);
+        const failure = describeFailure({ message: data.exception_message, nodeType: data.node_type, nodeId: data.node_id, exceptionType: data.exception_type, traceback: data.traceback, learned });
+        setTerminalJob(id, { status: "error", error: failure.summary, failure });
+        updateGalleryJob(id, { status: "error", filename: failure.title, failure });
       }
     } catch {
       // Ignore malformed websocket messages from Comfy extensions.
@@ -251,8 +252,19 @@ async function runJob(id, body) {
         socket?.close();
         return;
       }
+      // The socket already recorded the failure; history would only add an empty result.
+      if (jobs.get(id)?.status === "error") {
+        socket?.close();
+        return;
+      }
       const history = await comfy(`/history/${queued.prompt_id}`);
-      if (history[queued.prompt_id]) {
+      const entry = history[queued.prompt_id];
+      // A run that failed while the socket was down still says why in its history.
+      if (entry?.status?.status_str === "error") {
+        const failed = (entry.status.messages || []).find(([type]) => type === "execution_error")?.[1] || {};
+        throw Object.assign(new Error(failed.exception_message || "ComfyUI execution failed"), { comfyFailure: failed });
+      }
+      if (entry) {
         const outputs = outputsFrom(history[queued.prompt_id]);
         const completed = body.privateVault
           ? storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey)
@@ -266,9 +278,13 @@ async function runJob(id, body) {
       await new Promise((resolve) => setTimeout(resolve, 1600));
     }
   } catch (error) {
-    const message = learnFromFailure(body, error.message) || normalizeComfyError(error.message);
-    setTerminalJob(id, { status: "error", error: message });
-    updateGalleryJob(id, { status: "error", filename: message });
+    // The socket may already have recorded the richer failure for this job.
+    const known = jobs.get(id)?.failure;
+    const learned = learnFromFailure(body, error.message);
+    const from = error.comfyFailure || {};
+    const failure = known || describeFailure({ message: learned ? error.message : normalizeComfyError(error.message), nodeType: from.node_type, nodeId: from.node_id, exceptionType: from.exception_type, traceback: from.traceback, learned });
+    setTerminalJob(id, { status: "error", error: failure.summary, failure });
+    updateGalleryJob(id, { status: "error", filename: failure.title, failure });
     socket?.close();
   } finally {
     // The progress socket can report an error a moment after this loop ends.

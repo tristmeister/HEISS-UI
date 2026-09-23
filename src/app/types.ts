@@ -47,7 +47,9 @@ export type UpscaleState = {
   startedAt?: string;
   completedAt?: string;
 };
-export type GalleryItem = Output & { id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle };
+/** Why a run failed: a headline, a plain hint, and the raw detail for bug reports. */
+export type GenerationFailure = { title: string; summary: string; hint?: string; nodeType?: string; nodeId?: string; exceptionType?: string; detail?: string; traceback?: string; at?: number };
+export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle };
 export type GalleryBundle = {
   id: string;
   domain: "gallery" | "vault";

@@ -5,6 +5,7 @@ import { cn } from './format';
 import { Tip } from './components';
 import { GenerationMedia } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
+import { FailureTile } from './GenerationFailure';
 import type { GalleryItem } from './types';
 import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
@@ -134,10 +135,10 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
             </div>
           </div>
           </GenerationMedia>
-        ) : item.vaultLocked ? <div className="generating stopped vault-locked"><LockKeyhole size={22} /><span>Private item</span></div> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
+        ) : item.vaultLocked ? <div className="generating stopped vault-locked"><LockKeyhole size={22} /><span>Private item</span></div> : item.status === "error" ? <FailureTile item={item} /> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
         <span className="tile-caption">
           <strong>{item.vaultLocked ? "Private item" : titleFromPrompt(item.prompt || item.filename)}</strong>
-          <em>{item.vaultLocked ? "Unlock to view" : item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
+          <em>{item.vaultLocked ? "Unlock to view" : item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.status === "error" ? "Failed" : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}

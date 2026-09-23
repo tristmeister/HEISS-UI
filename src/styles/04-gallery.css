@@ -242,7 +242,7 @@
 }
 .tile.pending .tile-action { opacity: 1; }
 .tile.pending .tile-caption { display: none; }
-.tile.error { opacity: 0.7; }
+.tile.error { opacity: 1; }
 
 .generating {
   position: relative;
@@ -469,3 +469,84 @@
   animation: scrimFade 180ms var(--ease-out);
 }
 @keyframes scrimFade { from { opacity: 0; } to { opacity: 1; } }
+
+/* ------------------------------------------------------------ Failures
+   A failed run reads as a calm card, with the whole error in the viewer. */
+.failure-tile {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 16px;
+  background: radial-gradient(160px 120px at 50% 20%, rgb(255 110 90 / .08), transparent 70%), rgb(255 255 255 / .02);
+  text-align: left;
+}
+.failure-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-pill); background: rgb(255 110 90 / .12); color: rgb(255 150 130); }
+.failure-icon.is-large { width: 40px; height: 40px; margin: 0 auto 4px; }
+.failure-tile strong { font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: hsl(var(--foreground)); }
+.failure-tile p {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: hsl(var(--muted-foreground));
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.failure-node, .failure-facts code {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / .06);
+  font: 500 10.5px "Geist Mono", ui-monospace, Menlo, monospace;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.failure-panel {
+  display: grid;
+  gap: 10px;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  margin: auto;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-menu);
+  background-color: var(--surface-float);
+  box-shadow: var(--shadow-float);
+  text-align: center;
+  cursor: auto;
+  user-select: text;
+}
+.failure-panel h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.015em; }
+.failure-summary { margin: 0; font-size: 13px; line-height: 1.5; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.failure-hint { margin: 2px 0 0; padding: 10px 12px; border-radius: var(--r-item); background: rgb(255 154 82 / .08); font-size: 12.5px; line-height: 1.5; text-align: left; }
+.failure-facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.failure-facts em { font-style: normal; opacity: .7; }
+.failure-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
+.failure-actions .btn { gap: 6px; }
+.failure-detail { display: grid; gap: 8px; text-align: left; }
+.failure-toggle { justify-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: var(--r-pill); background: none; font: inherit; font-size: 12px; color: hsl(var(--muted-foreground)); cursor: pointer; }
+.failure-toggle:hover { color: hsl(var(--foreground)); }
+.failure-toggle svg { transition: transform var(--dur-fast); }
+.failure-detail.is-open .failure-toggle svg { transform: rotate(180deg); }
+.failure-detail pre {
+  max-height: 280px;
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  border-radius: var(--r-item);
+  background: rgb(0 0 0 / .35);
+  font: 11px/1.55 "Geist Mono", ui-monospace, Menlo, monospace;
+  color: hsl(var(--muted-foreground));
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
