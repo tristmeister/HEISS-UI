@@ -13,9 +13,12 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cva, type VariantProps } from "class-variance-authority";
-import type { IconComponent } from "@/lib/icon-context";
+import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 import { useShape } from "@/lib/shape-context";
+
+/** Any icon component that takes a size, like lucide-react's. */
+type IconComponent = ComponentType<{ size?: number; strokeWidth?: number; className?: string }>;
 
 // ---------------------------------------------------------------------------
 // Select context

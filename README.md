@@ -58,15 +58,18 @@ The node graph is great for building workflows and less great for the everyday l
 
 You need **Node.js 20+** and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
 
+**Easiest:** download the latest `heiss-ui-*.zip` from [Releases](https://github.com/tristmeister/HEISS-UI/releases), unpack it and double-click **Start HEISS UI** (`.command` on macOS, `.bat` on Windows), or run `npm start` in the folder. The app comes prebuilt; the first start installs its three runtime packages, about 30 MB.
+
+**From source**, to follow `main` or change the code:
+
 ```bash
 git clone https://github.com/tristmeister/HEISS-UI.git heiss-ui
 cd heiss-ui
 npm install
-npm run build
 npm start
 ```
 
-Then open **http://127.0.0.1:8787**. Your models, samplers and VAEs show up on their own.
+`npm start` builds the app the first time. Then open **http://127.0.0.1:8787**. Your models, samplers and VAEs show up on their own.
 
 ComfyUI on another port or machine? Copy `.env.example` to `.env` and set `COMFY_URL`.
 

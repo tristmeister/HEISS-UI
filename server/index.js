@@ -108,8 +108,31 @@ async function runRepoCommand(command, args) {
   return `${stdout}${stderr}`.trim();
 }
 
+const releasesUrl = "https://github.com/tristmeister/HEISS-UI/releases";
+
+/** A copy unpacked from a GitHub release: compare its version with the latest release. */
+async function releaseUpdateStatus() {
+  const release = JSON.parse(fs.readFileSync(path.join(root, "release.json"), "utf8"));
+  const current = String(release.version || "");
+  const response = await fetch("https://api.github.com/repos/tristmeister/HEISS-UI/releases/latest", { headers: { accept: "application/vnd.github+json" } });
+  // No release published yet counts as up to date, not as a failure.
+  if (response.status === 404) return { ok: true, release: true, available: false, current, latest: current, branch: "release", url: releasesUrl };
+  if (!response.ok) throw new Error(`GitHub answered ${response.status} when checking for a new release.`);
+  const latestRelease = await response.json();
+  const latest = String(latestRelease.tag_name || "").replace(/^v/, "");
+  const newer = (a, b) => {
+    const [x, y] = [a, b].map((value) => value.split(".").map((part) => Number.parseInt(part, 10) || 0));
+    for (let index = 0; index < Math.max(x.length, y.length); index += 1) {
+      if ((x[index] || 0) !== (y[index] || 0)) return (x[index] || 0) > (y[index] || 0);
+    }
+    return false;
+  };
+  return { ok: true, release: true, available: Boolean(latest) && newer(latest, current), current, latest, branch: "release", url: latestRelease.html_url || releasesUrl };
+}
+
 async function updateStatus() {
   if (!fs.existsSync(path.join(root, ".git"))) {
+    if (fs.existsSync(path.join(root, "release.json"))) return releaseUpdateStatus();
     return { ok: false, available: false, current: "", latest: "", branch: "", error: "This copy is not a Git checkout." };
   }
   const branch = (await runRepoCommand("git", ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
@@ -1008,6 +1031,11 @@ app.post("/api/update/install", async (req, res) => {
     }
     if (!before.available) {
       res.json({ ...before, updated: false, message: "Already up to date." });
+      return;
+    }
+    if (before.release) {
+      // A release copy has no git to pull; the new version is a fresh download.
+      res.json({ ...before, updated: false, message: `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
       return;
     }
     const branch = before.branch && before.branch !== "HEAD" ? before.branch : "main";
