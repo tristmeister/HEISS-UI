@@ -20,8 +20,10 @@ section into the next version and uses it as the GitHub release notes.
   `extra_model_paths.yaml` (a shared model drive, an A1111 install) were
   never read, so HEISS could not tell what they were. It now reads every
   folder ComfyUI loads from.
-- A reference image added to a built-in model was ignored; it now becomes the
-  start image.
+- A reference image added to a built-in model was ignored, even at 0%
+  change. The composer could show a reference restored from a draft or a
+  model switch that it then never sent; it now sends what it shows, and the
+  server accepts a bare image id too.
 - The workflow menu showed the gallery through its top half instead of frosted
   glass, and the Add reference chip clashed with prompt text running under it.
 

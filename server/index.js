@@ -778,7 +778,13 @@ app.post("/api/generate", async (req, res) => {
     };
   }
   body.privateVault = Boolean(req.body?.privateVault);
-  if (!isMockJob && body.referenceAssets?.length) {
+  // An older page (or a draft restored from before the reference library) can
+  // send only the image's id; treat it as the reference instead of losing it.
+  if (!isMockJob && !body.referenceAssets?.length && body.startImageId && !body.startImage) {
+    // Not a library id (an old start-image upload): keep the legacy path for it.
+    body.referenceAssets = await stageReferenceAssets(req, [{ slot: "reference", assetId: body.startImageId }]).catch(() => []);
+  }
+  if (!isMockJob && body.referenceAssets?.length && !body.referenceAssets.every((item) => item.comfyName)) {
     try {
       body.referenceAssets = await stageReferenceAssets(req, body.referenceAssets);
       body.startImageId ||= body.referenceAssets[0]?.assetId || "";
