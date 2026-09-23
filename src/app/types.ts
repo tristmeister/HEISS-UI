@@ -10,6 +10,8 @@ export type MediaInput = {
   max?: number;
   label?: string;
   control?: { node: string; input: string };
+  /** "start": image-to-image, the model redraws this picture. "reference": a model that reads it as guidance. */
+  role?: "reference" | "start";
 };
 export type ReferenceAsset = {
   id: string;

@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
-import { ReferenceSlots } from './ReferenceMediaPicker';
+import { ReferenceSlots, type ReferenceStrength } from './ReferenceMediaPicker';
 import type { AspectPreset, MediaInput, Profile, ReferenceAsset, SelectedReferenceAsset } from './types';
 
 /* ---------------------------------------------------------------------------
@@ -233,6 +233,7 @@ export type ComposerBarProps = {
   generate: () => void;
   refreshComfyStatus: () => void;
   referenceInputs?: MediaInput[];
+  referenceStrength?: ReferenceStrength | null;
   referenceAssets?: SelectedReferenceAsset[];
   onReferenceSelect: (slot: string, asset: ReferenceAsset) => void;
   onReferenceRemove: (slot: string) => void;
@@ -249,7 +250,7 @@ export function ComposerBar(props: ComposerBarProps) {
     privateGeneration, privacyEnabled, onPrivacySetup, onOpenLoras, setPrivateGeneration,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
-    referenceInputs = [], referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
+    referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
   } = props;
 
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
@@ -330,7 +331,7 @@ export function ComposerBar(props: ComposerBarProps) {
 
   return (
     <>
-      <ReferenceSlots inputs={referenceInputs} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
+      <ReferenceSlots inputs={referenceInputs} strength={referenceStrength} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (
         <motion.div

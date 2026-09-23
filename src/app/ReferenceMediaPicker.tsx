@@ -258,13 +258,18 @@ function DropBadge({ text }: { text: string }) {
 
 /* ------------------------------------------------------------------ Slot */
 
+/** How much a start image may change (the sampler's denoise), 0-1. */
+export type ReferenceStrength = { value: number; onChange: (value: number) => void; meta?: { min?: number; max?: number; step?: number } };
+
 /**
  * One reference input as a chip in the composer's top-right corner. Empty, it
- * introduces itself as "Add reference" and settles into a round +. With an
+ * introduces itself as "Add reference" (or "Add start image" for plain
+ * image-to-image) and settles into a round +. With an
  * image it becomes a squircle thumbnail that opens into a small menu on hover.
  */
-function ReferenceSlot({ input, selected, open, busy, progress, fresh, onOpen, onRemove }: {
+function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh, onOpen, onRemove }: {
   input: MediaInput;
+  strength?: ReferenceStrength | null;
   selected: ReferenceAsset | null;
   open: boolean;
   busy: boolean;
@@ -278,6 +283,7 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, onOpen, o
   React.useEffect(() => { setBroken(false); }, [image]);
   const required = Boolean(input.required || (input.min || 0) > 0);
   const label = input.label || "Reference image";
+  const isStart = input.role === "start";
   const [introduced, setIntroduced] = React.useState(false);
   React.useEffect(() => {
     const id = window.setTimeout(() => setIntroduced(true), 2600);
@@ -306,7 +312,7 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, onOpen, o
           onClick={onOpen}
         >
           <Plus size={15} strokeWidth={2.2} />
-          <span className="ref-add-label"><span>Add reference{required ? <em>Required</em> : null}</span></span>
+          <span className="ref-add-label"><span>{isStart ? "Add start image" : "Add reference"}{required ? <em>Required</em> : null}</span></span>
         </button>
       </Tip>
     );
@@ -319,9 +325,25 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, onOpen, o
       <div className="ref-menu">
         <button type="button" className="ref-menu-name" onClick={onOpen} tabIndex={-1}>
           <strong>{selected.name}</strong>
-          <small>{selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
+          <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
         </button>
-        <Tip content="Remove reference">
+        {isStart && strength ? (
+          <Tip content="How much the model may change your image: low keeps it close, high only borrows its layout and colours">
+            <label className="ref-strength">
+              <span>Change <b>{Math.round(strength.value * 100)}%</b></span>
+              <input
+                type="range"
+                min={strength.meta?.min ?? 0}
+                max={strength.meta?.max ?? 1}
+                step={Math.max(0.05, strength.meta?.step ?? 0.05)}
+                value={strength.value}
+                aria-label="How much to change the start image"
+                onChange={(event) => strength.onChange(Number(event.target.value))}
+              />
+            </label>
+          </Tip>
+        ) : null}
+        <Tip content={`Remove ${label.toLowerCase()}`}>
           <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
         </Tip>
       </div>
@@ -338,8 +360,9 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, onOpen, o
  * Every reference input of the workflow, top right of the composer, plus the
  * picker popover and drop-and-paste uploads on the whole prompt bar.
  */
-export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDelete, onError }: {
+export function ReferenceSlots({ inputs, strength = null, selected, onSelect, onRemove, confirmDelete, onError }: {
   inputs: MediaInput[];
+  strength?: ReferenceStrength | null;
   selected: SelectedReferenceAsset[];
   onSelect: (slot: string, asset: ReferenceAsset) => void;
   onRemove: (slot: string) => void;
@@ -472,6 +495,7 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
           <ReferenceSlot
             key={input.id}
             input={input}
+            strength={strength}
             selected={assetFor(input.id)}
             open={openSlot === input.id}
             busy={uploadSlot === input.id}
@@ -502,7 +526,7 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
         ) : null}
       </AnimatePresence>
       <div ref={overlayRef} className={cn("composer-drop", dropTarget === "prompt" && "is-active", landing && "is-landing")} aria-hidden={dropTarget !== "prompt"}>
-        <DropBadge text={inputs.length > 1 ? "Drop to use as a reference" : "Drop to use as reference"} />
+        <DropBadge text={inputs.length === 1 && inputs[0].role === "start" ? "Drop to start from this image" : inputs.length > 1 ? "Drop to use as a reference" : "Drop to use as reference"} />
       </div>
     </div>
   );

@@ -33,8 +33,12 @@ function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[
   if (!profile || profile.kind !== "image") return [];
   const declared = (profile.mediaInputs || []).filter((input) => input.kind === "image");
   if (declared.length) return declared;
-  if (profile.capabilities.imageToImage || profile.capabilities.startImage) {
-    return [{ id: "reference", kind: "image", required: Boolean(profile.capabilities.imageToImage), min: profile.capabilities.imageToImage ? 1 : 0, max: 1, label: "Reference image" }];
+  // Edit models read a reference; everything else can only start from a picture and redraw it.
+  if (profile.capabilities.imageToImage) {
+    return [{ id: "reference", kind: "image", required: true, min: 1, max: 1, label: "Reference image", role: "reference" }];
+  }
+  if (profile.capabilities.startImage) {
+    return [{ id: "reference", kind: "image", required: false, min: 0, max: 1, label: "Start image", role: "start" }];
   }
   return [];
 }
@@ -980,7 +984,9 @@ function App() {
 
   const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); }, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
-  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs };
+  // How much a start image may change: denoise, shown next to the image in the composer.
+  const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;
+  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs, referenceStrength };
   return (
     <>
       <StudioView view={view} />
