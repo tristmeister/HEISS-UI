@@ -61,6 +61,8 @@ const MARK = `
   uniform vec4 uBox;
   uniform float uP;
   uniform vec2 uMouse;
+  uniform vec2 uTip;
+  uniform float uSpeed;
   uniform float uHeat;
   uniform float uEmber;
 
@@ -81,24 +83,33 @@ const MARK = `
     float lp = smoothstep(0.0, 1.0, clamp(uP * 2.0 - n * 0.5 - bq.x * 0.35 - h * 0.15, 0.0, 1.0));
 
     // Fire: a small, dense flame standing on the pointer, not a glow around it.
-    // rel is in CSS pixels, y up. The flame is ~R wide at its base and tapers to
-    // a tip about H above; noise scrolling upward cuts it into flickering tongues.
+    // rel is in CSS pixels, y up. The base sits on the pointer; the tip trails
+    // behind on its own slower spring (uTip), so the flame bends into its
+    // movement and straightens when it rests. Speed stretches and thins it.
     vec2 rel = (c - uMouse) / uDpr;
-    float R = 15.0 + 5.0 * uHeat;
-    float H = 38.0 + 30.0 * uHeat;
-    float up = clamp(rel.y / H, 0.0, 1.0);
-    float width = R * (1.0 - up * 0.85) + 2.0;
-    // The upper flame sways, so tongues lick sideways instead of standing still.
-    float sway = (fbm(vec2(rel.y * 0.05 - uTime * 2.4, 7.0)) - 0.5) * R * 1.6 * up;
-    float xw = rel.x + sway;
-    float body = exp(-pow(xw / width, 2.0) * 2.2) * smoothstep(-R * 0.55, 0.0, rel.y) * (1.0 - smoothstep(0.5, 1.0, up));
+    float R = 14.0 + 5.0 * uHeat;
+    float breathe = 0.9 + 0.1 * sin(uTime * 3.1) + 0.06 * sin(uTime * 7.3);
+    float H = (40.0 + 28.0 * uHeat) * breathe * (1.0 + 0.35 * uSpeed);
+    vec2 tipOff = clamp((uTip - uMouse) / uDpr, vec2(-R * 2.2), vec2(R * 2.2));
+    float up = rel.y / H;
+    float upc = clamp(up, 0.0, 1.0);
+    float bend = tipOff.x * upc * upc;
+    float sway = (fbm(vec2(rel.y * 0.05 - uTime * 2.4, 7.0)) - 0.5) * R * 1.4 * upc;
+    float xw = rel.x - bend + sway;
+    float width = R * pow(1.0 - upc, 0.6) * (1.0 - 0.12 * uSpeed) * (1.0 + 0.25 * abs(tipOff.x) / (R * 2.2)) + 2.0;
+    // A rounded base under the pointer and a ragged, flickering tip: no flat cuts.
+    float base = rel.y < 0.0 ? exp(-pow(rel.y / (R * 0.6), 2.0)) : 1.0;
+    float tipNoise = fbm(vec2(xw * 0.08, uTime * 1.7));
+    float top = 1.0 - smoothstep(0.5 + 0.3 * tipNoise, 1.05, up);
+    float body = exp(-pow(xw / width, 2.0) * 2.0) * base * top;
     float tongues = fbm(vec2(xw * 0.1 + 3.0, rel.y * 0.06 - uTime * 2.8));
     float lit = smoothstep(0.0, 0.3, uHeat);
-    float fire = clamp((body * (0.6 + 0.9 * tongues) - 0.28) * 1.7, 0.0, 1.0) * lit;
-    // A few embers lift off the tip.
-    float emberCell = step(0.965, hash(id + floor(uTime * 6.0))) * exp(-pow(rel.x / (R * 1.4), 2.0)) * step(H * 0.45, rel.y) * (1.0 - smoothstep(H * 0.9, H * 1.5, rel.y)) * lit;
+    // Soft threshold: edges fade through dim red instead of stopping hard.
+    float fire = smoothstep(0.16, 0.8, body * (0.55 + 0.9 * tongues)) * lit;
+    // A few embers lift off the tip, following its lean.
+    float emberCell = step(0.965, hash(id + floor(uTime * 6.0))) * exp(-pow((rel.x - tipOff.x * 0.9) / (R * 1.4), 2.0)) * step(H * 0.5, rel.y) * (1.0 - smoothstep(H * 0.95, H * 1.5, rel.y)) * lit;
     // Temperature falls toward the tip: white only in the core at the base.
-    float temp = fire * (1.0 - up * 0.8);
+    float temp = fire * (1.0 - upc * 0.8);
     vec3 fireC = mix(vec3(0.62, 0.1, 0.03), vec3(1.0, 0.4, 0.08), smoothstep(0.08, 0.35, temp));
     fireC = mix(fireC, vec3(1.0, 0.72, 0.25), smoothstep(0.4, 0.65, temp));
     fireC = mix(fireC, vec3(1.0, 0.95, 0.78), smoothstep(0.78, 0.95, temp));
@@ -227,12 +238,12 @@ export function HeatMark({ className }: { className?: string }) {
     };
 
     // Pointer in canvas device pixels (y up), eased; heat builds while hovering, a press flares it.
-    const p = { x: -1e5, y: -1e5, tx: -1e5, ty: -1e5, on: 0, heat: 0, flare: 0 };
+    const p = { x: -1e5, y: -1e5, tx: -1e5, ty: -1e5, vx: 0, vy: 0, bx: -1e5, by: -1e5, bvx: 0, bvy: 0, speed: 0, on: 0, heat: 0, flare: 0 };
     const move = (event: PointerEvent) => {
       const r = canvas.getBoundingClientRect();
       p.tx = (event.clientX - r.left) * dpr;
       p.ty = (r.bottom - event.clientY) * dpr;
-      if (p.x < -1e4) { p.x = p.tx; p.y = p.ty; }
+      if (p.x < -1e4) { p.x = p.bx = p.tx; p.y = p.by = p.ty; }
       p.on = 1;
     };
     const leave = () => { p.on = 0; };
@@ -248,14 +259,25 @@ export function HeatMark({ className }: { className?: string }) {
       raf = 0;
       const t = (now - t0) / 1000;
       layout();
-      p.x += (p.tx - p.x) * 0.14;
-      p.y += (p.ty - p.y) * 0.14;
+      // The base follows the pointer on a soft spring (a slight, fluid delay);
+      // the tip follows the base on a slower one, so the flame trails and bends.
+      p.vx = (p.vx + (p.tx - p.x) * 0.075) * 0.74;
+      p.vy = (p.vy + (p.ty - p.y) * 0.075) * 0.74;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.bvx = (p.bvx + (p.x - p.bx) * 0.045) * 0.8;
+      p.bvy = (p.bvy + (p.y - p.by) * 0.045) * 0.8;
+      p.bx += p.bvx;
+      p.by += p.bvy;
+      p.speed += (Math.min(1, Math.hypot(p.vx, p.vy) / (dpr * 14)) - p.speed) * 0.2;
       p.heat += (p.on - p.heat) * (p.on ? 0.16 : 0.06);
       p.flare *= 0.94;
       const reveal = reduce ? 1 : Math.min(1, Math.max(0, (t - 0.15) / 1.8));
       gl.uniform1f(u('uTime'), reduce ? 4 : t);
       gl.uniform1f(u('uP'), 1 - Math.pow(1 - reveal, 3));
       gl.uniform2f(u('uMouse'), p.x, p.y);
+      gl.uniform2f(u('uTip'), p.bx, p.by);
+      gl.uniform1f(u('uSpeed'), p.speed);
       gl.uniform1f(u('uHeat'), reduce ? 0 : Math.min(1.6, p.heat + p.flare * 0.8));
       gl.uniform1f(u('uEmber'), reduce ? 0.4 : 1);
       gl.clearColor(0, 0, 0, 0);
