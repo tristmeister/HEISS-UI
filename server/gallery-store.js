@@ -207,8 +207,8 @@ export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}
   return { revision: galleryRevision, reset: false, upserts, removes: [...removes] };
 }
 
-export function outputFileCandidates(item) {
-  if (!comfyOutputDir) return [];
+export function outputFileCandidates(item, baseDir = comfyOutputDir) {
+  if (!baseDir) return [];
   const keys = [item?.url, item?.id, item?.outputName, item?.filename].filter(Boolean);
   const candidates = [];
   for (const key of keys) {
@@ -230,7 +230,7 @@ export function outputFileCandidates(item) {
       filename = path.basename(String(key));
     }
     if (!filename || filename === "." || filename === "/") continue;
-    const base = path.resolve(comfyOutputDir);
+    const base = path.resolve(baseDir);
     const withSubfolder = subfolder && path.basename(base).toLowerCase() !== path.basename(subfolder).toLowerCase()
       ? path.resolve(base, subfolder, filename)
       : path.resolve(base, filename);
@@ -264,11 +264,10 @@ export function deleteGalleryFiles(items) {
   return { deleted, skipped };
 }
 
-export function hasExistingOutputFile(item) {
-  if (!comfyOutputDir) return true;
-  return outputFileCandidates(item).some((file) => {
+function outputFileExistsIn(item, baseDir) {
+  const base = path.resolve(baseDir);
+  return outputFileCandidates(item, base).some((file) => {
     const resolved = path.resolve(file);
-    const base = path.resolve(comfyOutputDir);
     if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`)) return false;
     try {
       return fs.existsSync(resolved) && fs.statSync(resolved).isFile();
@@ -276,6 +275,40 @@ export function hasExistingOutputFile(item) {
       return false;
     }
   });
+}
+
+/**
+ * How many of the newest finished Comfy outputs actually sit in `baseDir`.
+ * This is what tells a right output folder from a merely existing one.
+ */
+export function outputFolderMatch(baseDir = comfyOutputDir, items = gallery, sampleSize = 12) {
+  if (!baseDir) return { checked: 0, found: 0 };
+  const sample = sortGallery(items.filter((item) => item?.status === "done" && !item.privateVault && isComfyOutputItem(item))).slice(0, sampleSize);
+  return { checked: sample.length, found: sample.filter((item) => outputFileExistsIn(item, baseDir)).length };
+}
+
+// A wrong output folder must never read as an empty gallery. Missing files only
+// hide cards once the folder has shown it holds at least one recent output.
+let folderTrust = { dir: "", checkedAt: 0, trusted: true };
+function outputFolderTrusted() {
+  const now = Date.now();
+  if (folderTrust.dir === comfyOutputDir && now - folderTrust.checkedAt < 15000) return folderTrust.trusted;
+  let trusted = false;
+  try {
+    if (fs.statSync(comfyOutputDir).isDirectory()) {
+      const { checked, found } = outputFolderMatch();
+      trusted = checked === 0 || found > 0;
+    }
+  } catch {
+    trusted = false;
+  }
+  folderTrust = { dir: comfyOutputDir, checkedAt: now, trusted };
+  return trusted;
+}
+
+export function hasExistingOutputFile(item) {
+  if (!comfyOutputDir || !outputFolderTrusted()) return true;
+  return outputFileExistsIn(item, comfyOutputDir);
 }
 
 export function saveGallery() {

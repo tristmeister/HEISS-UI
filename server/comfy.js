@@ -2,6 +2,7 @@ import { writeLocalEnvValue } from "./env.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
+import os from "node:os";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(__dirname, "..");
@@ -11,11 +12,23 @@ export const port = Number(process.env.PORT || 8787);
 const localComfyOutputDir = "C:\\CUVenv\\ComfyUI\\output";
 export let comfyOutputDir = process.env.COMFY_OUTPUT_DIR || (fs.existsSync(localComfyOutputDir) ? localComfyOutputDir : "");
 
+/**
+ * Turn whatever got pasted into a folder path: Explorer's "Copy as path" wraps it
+ * in quotes, Finder drags arrive as file:// URLs, and shells write ~ for home.
+ */
+export function normalizeFolderInput(value = "") {
+  let text = String(value || "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+  if (/^file:\/\//i.test(text)) {
+    try { text = fileURLToPath(text); } catch { /* keep the raw text */ }
+  }
+  if (text === "~" || /^~[\\/]/.test(text)) text = path.join(os.homedir(), text.slice(1));
+  return text ? path.resolve(text) : "";
+}
+
 export function setComfyOutputDir(value = "") {
-  const requested = String(value || "").trim();
-  if (!requested) throw new Error("Choose an existing ComfyUI output folder.");
-  const next = path.resolve(requested);
-  if (!fs.existsSync(next) || !fs.statSync(next).isDirectory()) throw new Error("Choose an existing ComfyUI output folder.");
+  const next = normalizeFolderInput(value);
+  if (!next) throw new Error("Choose an existing ComfyUI output folder.");
+  if (!fs.existsSync(next) || !fs.statSync(next).isDirectory()) throw new Error("That folder does not exist on this computer.");
   writeLocalEnvValue("COMFY_OUTPUT_DIR", next);
   comfyOutputDir = next;
   return comfyOutputDir;

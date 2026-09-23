@@ -1,11 +1,13 @@
 import React from 'react';
-import { Bug, Copy, Download, ExternalLink, FolderOpen, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
 import { NumberPicker, Skeleton } from './components';
 import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
+import { apiJson } from './api';
+import type { OutputFolderReport } from './types';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
@@ -123,6 +125,146 @@ function UpscaleReadiness({ status, reason, install, onRefresh, onCancel, onSetu
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
 }
 
+/* ------------------------------------------------------------ Output folder */
+
+const fileCount = (report: OutputFolderReport) => {
+  const count = report.media || 0;
+  return `${new Intl.NumberFormat().format(count)}${report.capped ? '+' : ''} file${count === 1 && !report.capped ? '' : 's'}`;
+};
+
+/** One sentence per state, always saying what it means for the gallery. */
+function describeFolder(report: OutputFolderReport | null): { tone?: 'ok' | 'warn' | 'bad'; label: string; detail: string } {
+  if (!report) return { label: 'Checking…', detail: '' };
+  switch (report.state) {
+    case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Gens still show up, but HEISS UI cannot delete their files or use Private Vault until it knows this folder.' };
+    case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'Nothing exists at that path on this computer.' };
+    case 'not-folder': return { tone: 'bad', label: 'Not a folder', detail: 'That path points at a file.' };
+    case 'mismatch': return { tone: 'warn', label: 'Your gens are not here', detail: `None of your last ${report.checked} gens are in this folder (${fileCount(report)}). ComfyUI is probably saving somewhere else. Try Find automatically.` };
+    case 'match': return { tone: 'ok', label: 'Linked', detail: `${report.found === report.checked ? `All ${report.checked}` : `${report.found} of ${report.checked}`} recent gens found here · ${fileCount(report)}` };
+    default: return { tone: report.looksLikeComfy ? 'ok' : 'warn', label: report.looksLikeComfy ? 'Linked' : 'Set', detail: `${fileCount(report)}${report.looksLikeComfy ? '' : ' · does not look like a ComfyUI folder'}. It gets confirmed after your next gen.` };
+  }
+}
+
+function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showToast }: {
+  savedDir: string;
+  galleryNote?: string;
+  onSave: (dir: string) => Promise<OutputFolderReport | null>;
+  onOpen: () => void;
+  onCopy: (dir: string) => void;
+  showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
+}) {
+  const [report, setReport] = React.useState<OutputFolderReport | null>(null);
+  const [canBrowse, setCanBrowse] = React.useState(false);
+  const [draft, setDraft] = React.useState(savedDir);
+  const [draftReport, setDraftReport] = React.useState<OutputFolderReport | null>(null);
+  const [busy, setBusy] = React.useState<'' | 'browse' | 'detect' | 'save'>('');
+  const [candidates, setCandidates] = React.useState<OutputFolderReport[] | null>(null);
+
+  const refresh = React.useCallback(() => {
+    apiJson<{ outputDir: string; report: OutputFolderReport; canBrowse: boolean }>('/api/output-dir')
+      .then((data) => { setReport(data.report); setCanBrowse(data.canBrowse); setDraft(data.outputDir || ''); })
+      .catch(() => setReport({ path: savedDir, state: savedDir ? 'ok' : 'empty' }));
+  }, [savedDir]);
+  React.useEffect(refresh, [refresh]);
+
+  // Check the typed path as it settles, so problems show before Save.
+  const dirty = draft.trim() !== '' && draft.trim() !== (report?.path || savedDir);
+  React.useEffect(() => {
+    if (!dirty) { setDraftReport(null); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => {
+      apiJson<OutputFolderReport>('/api/output-dir/check', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ outputDir: draft }), signal: controller.signal })
+        .then(setDraftReport)
+        .catch(() => null);
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [draft, dirty]);
+
+  const save = async (dir: string) => {
+    setBusy('save');
+    const next = await onSave(dir);
+    setBusy('');
+    if (!next) return;
+    setReport(next);
+    setDraft(next.path);
+    setDraftReport(null);
+    setCandidates(null);
+  };
+
+  const browse = async () => {
+    setBusy('browse');
+    try {
+      const data = await apiJson<{ path?: string; canceled?: boolean }>('/api/output-dir/browse', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ start: draft || savedDir }) });
+      setBusy('');
+      if (data.path) await save(data.path);
+    } catch (error) {
+      setBusy('');
+      showToast(error instanceof Error ? error.message : 'Could not open the folder picker', 'error');
+    }
+  };
+
+  const detect = async () => {
+    setBusy('detect');
+    try {
+      const data = await apiJson<{ candidates: OutputFolderReport[] }>('/api/output-dir/detect');
+      const list = data.candidates.filter((item) => item.path !== report?.path);
+      if (!list.length) showToast(report?.state === 'match' ? 'This is already the right folder' : 'No output folder found. Is ComfyUI running?', report?.state === 'match' ? 'success' : 'error');
+      setCandidates(list.length ? list : null);
+    } catch {
+      showToast('Could not search for the output folder', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const shown = describeFolder(dirty ? draftReport : report);
+  const draftBlocked = dirty && (!draftReport || draftReport.state === 'missing' || draftReport.state === 'not-folder');
+  const hasSaved = Boolean(report?.path && report.state !== 'missing');
+
+  return (
+    <Row label="Output folder" description={galleryNote} stacked>
+      <div className={cn('set-folder-status', dirty && 'is-draft')} aria-live="polite">
+        <Status tone={shown.tone}>{dirty ? `New path: ${shown.label.toLowerCase()}` : shown.label}</Status>
+        {shown.detail ? <span>{shown.detail}</span> : null}
+      </div>
+      <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); if (dirty && !draftBlocked) save(draft); }}>
+        <input
+          className="modal-input set-path-input"
+          aria-label="Output folder"
+          value={draft}
+          placeholder={canBrowse ? 'Paste a path, or browse' : 'Paste the full folder path'}
+          spellCheck={false}
+          autoComplete="off"
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Escape' && dirty) { event.stopPropagation(); setDraft(report?.path || savedDir); } }}
+        />
+        {dirty
+          ? <button className="btn is-primary" type="submit" disabled={draftBlocked || busy === 'save'}>Save</button>
+          : canBrowse ? <button className="btn" type="button" onClick={browse} disabled={Boolean(busy)}><FolderSearch size={14} /> {busy === 'browse' ? 'Waiting…' : 'Browse…'}</button> : null}
+      </form>
+      {candidates ? (
+        <div className="set-folder-picks" role="list" aria-label="Folders found">
+          {candidates.map((item) => (
+            <button key={item.path} type="button" role="listitem" className="set-folder-pick" onClick={() => save(item.path)} disabled={busy === 'save'}>
+              <code className="set-path">{item.path}</code>
+              <span>
+                {item.source === 'comfy' ? 'From ComfyUI · ' : ''}
+                {item.state === 'match' ? `${item.found} of ${item.checked} recent gens here` : item.state === 'mismatch' ? 'Your recent gens are not here' : fileCount(item)}
+              </span>
+              {item.state === 'match' ? <Check size={14} className="set-folder-pick-mark" aria-hidden="true" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      <div className="set-actions">
+        <button className="btn is-ghost" onClick={detect} disabled={Boolean(busy)}><ScanSearch size={14} /> {busy === 'detect' ? 'Searching…' : 'Find automatically'}</button>
+        <button className="btn is-ghost" onClick={onOpen} disabled={!hasSaved}><FolderOpen size={14} /> Open</button>
+        <button className="btn is-ghost" onClick={() => onCopy(report?.path || savedDir)} disabled={!hasSaved}><Copy size={14} /> Copy path</button>
+      </div>
+    </Row>
+  );
+}
+
 type StudioStats = {
   outputs: number; images: number; videos: number; upscales: number; renderMs: number; megapixels: number;
   firstAt: string; activeDays: number; currentStreak: number; longestStreak: number;
@@ -151,7 +293,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const {
     prefs, setPrefs, setZenMode, zenGalleryOpen, setZenGalleryOpen,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, refreshUpscaleStatus, cancelUpscaleInstall, setUpscaleSetupOpen,
-    gallery, galleryLoaded, paths, outputDirDraft, setOutputDirDraft, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
+    gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings,
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
     setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
@@ -308,17 +450,15 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'library' ? (
           <>
-            <Group title="Folders" note="Private Vault needs the output folder: HEISS UI only picks up and removes finished outputs from that exact folder.">
-              <Row label="Output folder" description={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined} stacked>
-                <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); saveOutputDirectory(); }}>
-                  <input className="modal-input" aria-label="Output folder" value={outputDirDraft} placeholder="ComfyUI output folder" onChange={(event) => setOutputDirDraft(event.target.value)} />
-                  <button className="btn" type="submit" disabled={!outputDirDraft.trim() || outputDirDraft.trim() === paths.outputDir}>Save</button>
-                </form>
-                <div className="set-actions">
-                  <button className="btn is-ghost" onClick={openOutputFolder} disabled={!paths.outputDir}><FolderOpen size={14} /> Open</button>
-                  <button className="btn is-ghost" onClick={() => copyAndToast(paths.outputDir || '', 'Output path copied')} disabled={!paths.outputDir}><Copy size={14} /> Copy path</button>
-                </div>
-              </Row>
+            <Group title="Folders" note="The output folder is where ComfyUI saves files. HEISS UI uses it to delete files with their cards and for Private Vault, and checks it against your recent gens.">
+              <OutputFolderRow
+                savedDir={paths.outputDir || ''}
+                galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
+                onSave={saveOutputDirectory}
+                onOpen={openOutputFolder}
+                onCopy={(dir) => copyAndToast(dir, 'Output path copied')}
+                showToast={showToast}
+              />
               <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path">{paths.workflowsDir}</code> : <Skeleton className="skeleton-text path" />}>
                 <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Reload</button>
               </Row>

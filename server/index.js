@@ -25,6 +25,7 @@ import { clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLo
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { cancelModelInstall, normalizeQuality, probeDownloadSizes, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
+import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -219,17 +220,48 @@ app.get("/api/models", async (_req, res) => {
   }
 });
 
-app.get("/api/paths", (_req, res) => {
+app.get("/api/paths", async (_req, res) => {
+  await autoDetectOutputDir();
   res.json({ outputDir: comfyOutputDir, galleryDir: dataDir, workflowsDir: userWorkflowsDir });
 });
 
-app.post("/api/config/output-dir", (req, res) => {
+app.post("/api/config/output-dir", async (req, res) => {
   if (!requireLocal(req, res)) return;
   try {
     const outputDir = setComfyOutputDir(req.body?.outputDir || "");
-    res.json({ ok: true, outputDir, galleryDir: dataDir, workflowsDir: userWorkflowsDir });
+    res.json({ ok: true, outputDir, galleryDir: dataDir, workflowsDir: userWorkflowsDir, report: await inspectOutputDir(outputDir) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/output-dir", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  await autoDetectOutputDir();
+  res.json({ outputDir: comfyOutputDir, report: await inspectOutputDir(comfyOutputDir), canBrowse: isLocalClient(req.socket.remoteAddress || "") });
+});
+
+app.post("/api/output-dir/check", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  res.json(await inspectOutputDir(req.body?.outputDir || ""));
+});
+
+app.get("/api/output-dir/detect", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  res.json({ candidates: await detectOutputDirs() });
+});
+
+app.post("/api/output-dir/browse", async (req, res) => {
+  // The picker opens on this machine's screen, so only its own browser may ask.
+  if (!isLocalClient(req.socket.remoteAddress || "")) {
+    res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
+    return;
+  }
+  try {
+    const picked = await pickFolder(req.body?.start || comfyOutputDir);
+    res.json(picked ? { ok: true, path: picked, report: await inspectOutputDir(picked) } : { ok: true, canceled: true });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
   }
 });
 

@@ -109,6 +109,30 @@
 .set-inline-form .modal-input { flex: 1; min-width: 0; }
 .set-stack { display: grid; gap: 8px; }
 .set-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* Output folder: a live verdict above the path, found folders as pickable rows. */
+.set-folder-status { display: grid; gap: 4px; font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.set-folder-status .set-status { font-size: 13px; font-weight: 550; color: hsl(var(--foreground)); }
+.set-folder-status.is-draft .set-status { color: hsl(var(--muted-foreground)); }
+.set-path-input { font: 500 12px/1 "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; }
+.set-folder-picks { display: grid; gap: 4px; }
+.set-folder-pick {
+  position: relative;
+  display: grid;
+  gap: 2px;
+  padding: 10px 40px 10px 14px;
+  border: 0;
+  border-radius: var(--r-item);
+  background: var(--well);
+  color: hsl(var(--foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.set-folder-pick:hover:not(:disabled) { background: var(--control-hover); }
+.set-folder-pick:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.set-folder-pick > span { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.set-folder-pick-mark { position: absolute; top: 50%; right: 14px; translate: 0 -50%; color: #7fd49a; }
 .set-stack .set-actions { margin-top: 4px; }
 .set-value { font-size: 13px; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); padding-right: 6px; }
 

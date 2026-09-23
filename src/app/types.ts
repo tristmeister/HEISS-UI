@@ -105,6 +105,8 @@ export type Models = {
   capabilities: Record<string, boolean>;
 };
 export type Paths = { outputDir?: string; galleryDir?: string; workflowsDir?: string };
+export type OutputFolderState = "empty" | "missing" | "not-folder" | "ok" | "match" | "mismatch";
+export type OutputFolderReport = { path: string; state: OutputFolderState; media?: number; capped?: boolean; checked?: number; found?: number; looksLikeComfy?: boolean; source?: "comfy" | "common" };
 export type Health = { ok: boolean; comfyUrl?: string; error?: string };
 export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean };
 export type UpdateStatus = { ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string };

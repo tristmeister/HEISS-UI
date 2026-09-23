@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import "./styles.css";
 
-import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, Paths, Preferences, PrivacyStatus, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
+import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, PrivacyStatus, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
 import { apiJson, copyImage, copyText, loadDraft, loadPrefs } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
@@ -61,7 +61,6 @@ function App() {
   const [negative, setNegative] = useState(String(initialDraft.negative || ""));
   const [model, setModel] = useState(String(initialDraft.model || ""));
   const [paths, setPaths] = useState<Paths>({});
-  const [outputDirDraft, setOutputDirDraft] = useState("");
   const [textEncoder, setTextEncoder] = useState(String(initialDraft.textEncoder || ""));
   const [vae, setVae] = useState(String(initialDraft.vae || ""));
   const [clipType, setClipType] = useState(String(initialDraft.clipType || ""));
@@ -178,10 +177,6 @@ function App() {
       .catch(() => null);
     return () => { current = false; };
   }, [model]);
-
-  useEffect(() => {
-    setOutputDirDraft(paths.outputDir || "");
-  }, [paths.outputDir]);
 
   useEffect(() => {
     const timer = window.setInterval(refreshComfyStatus, 5000);
@@ -505,17 +500,20 @@ function App() {
       .catch(() => null);
   }
 
-  async function saveOutputDirectory() {
+  async function saveOutputDirectory(outputDir: string) {
     try {
-      const next = await apiJson<Paths>("/api/config/output-dir", {
+      const next = await apiJson<Paths & { report?: OutputFolderReport }>("/api/config/output-dir", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ outputDir: outputDirDraft })
+        body: JSON.stringify({ outputDir })
       });
       setPaths(next);
-      showToast("Comfy output folder saved", "success");
+      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent gens are not in it" : "Output folder saved", next.report?.state === "mismatch" ? "default" : "success");
+      loadGallery().catch(() => null);
+      return next.report || null;
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not save output folder", "error");
+      return null;
     }
   }
 
@@ -951,7 +949,7 @@ function App() {
   };
   const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab }} />;
 
-  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, outputDirDraft, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setOutputDirDraft, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetupOpen, setUpscaleSetupOpen, upscaleInstall, upscaleBusyIds, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); }, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
+  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetupOpen, setUpscaleSetupOpen, upscaleInstall, upscaleBusyIds, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); }, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
   const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs };
   return (
