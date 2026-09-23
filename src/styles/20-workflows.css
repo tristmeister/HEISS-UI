@@ -225,8 +225,8 @@
   gap: 8px;
   border-radius: calc(var(--r-panel) - 6px);
   background: rgb(10 10 10 / .82);
-  box-shadow: inset 0 0 0 2px rgb(255 154 82 / .5);
-  color: var(--ember);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .35);
+  color: hsl(var(--foreground));
   pointer-events: none;
 }
 .wf-drop strong { font-size: 15px; color: hsl(var(--foreground)); }
@@ -247,7 +247,7 @@
   cursor: pointer;
   transition: background var(--dur-fast), border-color var(--dur-fast);
 }
-.wf-dropzone:hover:not(:disabled) { background: rgb(255 255 255 / .04); border-color: rgb(255 154 82 / .45); }
+.wf-dropzone:hover:not(:disabled) { background: rgb(255 255 255 / .04); border-color: rgb(255 255 255 / .3); }
 .wf-dropzone strong { font-size: 13.5px; font-weight: 550; color: hsl(var(--foreground)); }
 .wf-dropzone span { font-size: 12px; }
 .wf-import .field > span { display: inline-flex; align-items: center; gap: 6px; }

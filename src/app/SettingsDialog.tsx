@@ -1,18 +1,20 @@
 import React from 'react';
-import { Copy, Download, ExternalLink, FolderOpen, Github, Info, LockKeyhole, Plug, RefreshCw, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Bug, Copy, Download, ExternalLink, FolderOpen, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
 import { NumberPicker, Skeleton } from './components';
 import { Modal } from './Modal';
+import { HeatMark } from './HeatMark';
+import { MosaicButton } from './MosaicButton';
 
 export const SETTINGS_SECTIONS = [
-  { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves.' },
+  { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and the values new workflows start from.' },
   { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'A one-click SeedVR2 restore pass behind the arrow on finished images.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where outputs live and how the gallery groups them.' },
   { id: 'privacy', label: 'Privacy', icon: LockKeyhole, description: 'Encrypt prompts and private generations behind a password.' },
   { id: 'connection', label: 'Connection', icon: Plug, description: 'ComfyUI, installed models and other devices on your network.' },
-  { id: 'about', label: 'About', icon: Info, description: 'Version, updates and resetting things.' }
+  { id: 'about', label: 'About', icon: Info, description: 'Version, your numbers, updates and credits.' }
 ] as const;
 export type SettingsSection = typeof SETTINGS_SECTIONS[number]['id'];
 
@@ -121,6 +123,28 @@ function UpscaleReadiness({ status, reason, install, onRefresh, onCancel, onSetu
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
 }
 
+type StudioStats = {
+  outputs: number; images: number; videos: number; upscales: number; renderMs: number; megapixels: number;
+  firstAt: string; activeDays: number; currentStreak: number; longestStreak: number;
+  busiestDay: string; busiestCount: number; topWorkflow: string; topWorkflowCount: number;
+};
+
+const compact = (value: number) => new Intl.NumberFormat(undefined, { notation: value >= 10000 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(value || 0);
+
+function formatDuration(ms: number) {
+  const minutes = Math.round((ms || 0) / 60000);
+  if (minutes < 1) return `${Math.round((ms || 0) / 1000)}s`;
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 100 ? `${hours}h ${minutes % 60}m` : `${compact(hours)}h`;
+}
+
+function formatDay(value: string) {
+  if (!value) return '';
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric' });
+}
+
 /* ------------------------------------------------------------ Dialog */
 
 export function SettingsDialog({ view, open, section, onSectionChange, onClose }: { view: Record<string, any>; open: boolean; section: SettingsSection; onSectionChange: (section: SettingsSection) => void; onClose: () => void }) {
@@ -132,9 +156,37 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
     setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
     health, refreshHealth, models, refreshModels, refreshWorkflows,
-    updateStatus, updateBusy, checkForUpdates, installUpdate
+    updateStatus, updateBusy, checkForUpdates, installUpdate, workflows, modelProfiles
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
+
+  // About: stats come from the local gallery; the update check always runs long
+  // enough for the mosaic button to show its burn.
+  const [stats, setStats] = React.useState<StudioStats | null>(null);
+  const [appVersion, setAppVersion] = React.useState('');
+  const [checking, setChecking] = React.useState(false);
+  React.useEffect(() => {
+    if (!open || section !== 'about') return;
+    let live = true;
+    fetch('/api/stats').then((response) => response.ok ? response.json() : null).then((data) => {
+      if (!live || !data?.stats) return;
+      setStats(data.stats);
+      setAppVersion(data.version || '');
+    }).catch(() => null);
+    return () => { live = false; };
+  }, [open, section]);
+  const topWorkflowName = stats?.topWorkflow
+    ? (workflows || []).find((item: { profileId: string; name: string }) => item.profileId === stats.topWorkflow)?.name
+      || (modelProfiles || []).find((item: { id: string; displayName?: string; label?: string }) => item.id === stats.topWorkflow)?.displayName
+      || stats.topWorkflow.replace(/^custom:/, '')
+    : '';
+  const runUpdateCheck = async () => {
+    const started = performance.now();
+    setChecking(true);
+    try { await checkForUpdates(false); } finally {
+      window.setTimeout(() => setChecking(false), Math.max(0, 1600 - (performance.now() - started)));
+    }
+  };
 
   const [lanBusy, setLanBusy] = React.useState(false);
   const copyLanUrl = React.useCallback(async () => {
@@ -189,6 +241,17 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </Group>
             <Group title="Safety">
               <SwitchRow label="Confirm before removing things" description="Ask before deleting, cancelling, resetting or clearing the cache." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
+            </Group>
+            <Group title="Reset" tone="danger" note="Generated files on disk are never touched.">
+              <Row label="Clear the gallery" description="Remove finished items from what HEISS UI shows.">
+                <button className="btn is-danger-soft" onClick={clearGallery}>Clear gallery</button>
+              </Row>
+              <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
+                <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
+              </Row>
+              <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
+                <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>
+              </Row>
             </Group>
           </>
         ) : null}
@@ -369,32 +432,61 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'about' ? (
           <>
-            <Group>
-              <div className="set-about">
-                <img src="/heiss-mark-white.svg" alt="" />
-                <div>
-                  <strong>HEISS UI</strong>
-                  <span>A local image and video studio for ComfyUI. Based on <a href="https://github.com/jasperdevs/J-AI-Studio" target="_blank" rel="noreferrer">J-AI Studio</a> by Jasper.</span>
-                </div>
-                <a className="btn" href={githubUrl} target="_blank" rel="noreferrer"><Github size={14} /> GitHub</a>
+            <section className="about-hero">
+              <HeatMark className="about-mark" />
+              <p className="about-tagline">A local image and video studio for ComfyUI.</p>
+              <div className="about-meta">
+                {appVersion ? <span>v{appVersion}</span> : null}
+                {updateStatus?.current ? <span>{updateStatus.branch || 'main'} · {String(updateStatus.current).slice(0, 7)}</span> : null}
+                <span>MIT licensed</span>
+              </div>
+            </section>
+
+            <Group title="Your studio" note={stats && stats.outputs ? <>Since {formatDay(stats.firstAt)} · {stats.activeDays} active day{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <> · busiest day {formatDay(stats.busiestDay)} with {stats.busiestCount}</> : null}. Counted from your local gallery, nothing leaves this machine.</> : 'Counted from your local gallery, nothing leaves this machine.'}>
+              <div className="about-stats">
+                {[
+                  { value: stats ? compact(stats.outputs) : null, label: 'Outputs', hint: stats ? `${compact(stats.images)} images · ${compact(stats.videos)} videos` : '' },
+                  { value: stats ? formatDuration(stats.renderMs) : null, label: 'Rendering', hint: stats?.upscales ? `${compact(stats.upscales)} upscaled` : 'time in ComfyUI' },
+                  { value: stats ? `${compact(stats.megapixels)} MP` : null, label: 'Pixels made', hint: 'megapixels' },
+                  { value: stats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null, label: 'Current streak', hint: stats?.currentStreak ? 'keep it going' : 'generate today to start one' },
+                  { value: stats ? `${stats.longestStreak} day${stats.longestStreak === 1 ? '' : 's'}` : null, label: 'Longest streak', hint: '' },
+                  { value: stats ? (topWorkflowName || '—') : null, label: 'Most used', hint: stats?.topWorkflowCount ? `${compact(stats.topWorkflowCount)} outputs` : '' }
+                ].map((tile) => (
+                  <div className="about-stat" key={tile.label}>
+                    <strong title={typeof tile.value === 'string' ? tile.value : undefined}>{tile.value ?? <Skeleton className="skeleton-text short" />}</strong>
+                    <span>{tile.label}</span>
+                    {tile.hint ? <small>{tile.hint}</small> : null}
+                  </div>
+                ))}
               </div>
             </Group>
+
             <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart the local server to finish updating.' : undefined}>
-              <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.current ? `${updateStatus.branch || 'main'} · ${String(updateStatus.current).slice(0, 7)}` : undefined}>
-                {updateStatus?.available
-                  ? <button className="btn is-primary" onClick={installUpdate} disabled={updateBusy}>{updateBusy ? 'Installing…' : 'Install update'}</button>
-                  : <button className="btn" onClick={() => checkForUpdates()} disabled={updateBusy}>{updateBusy ? 'Checking…' : 'Check for updates'}</button>}
+              <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? 'Pulls the latest code, installs packages and rebuilds.' : 'Checks GitHub for a newer commit.'} stacked>
+                <div className="about-update">
+                  <MosaicButton busy={checking} disabled={checking || updateBusy} onClick={runUpdateCheck}>
+                    {checking ? 'Checking for updates…' : updateStatus?.ok && !updateStatus.available ? 'Up to date · check again' : 'Check for updates'}
+                  </MosaicButton>
+                  {updateStatus?.available ? <button className="btn is-primary" onClick={installUpdate} disabled={updateBusy}>{updateBusy ? 'Installing…' : 'Install update'}</button> : null}
+                </div>
               </Row>
             </Group>
-            <Group title="Reset" tone="danger" note="Generated files on disk are never touched.">
-              <Row label="Clear the gallery" description="Remove finished items from what HEISS UI shows.">
-                <button className="btn is-danger-soft" onClick={clearGallery}>Clear gallery</button>
+
+            <Group title="Links">
+              <div className="about-links">
+                <a href={githubUrl} target="_blank" rel="noreferrer"><Github size={15} /><span>Source on GitHub</span><ExternalLink size={12} /></a>
+                <a href={`${githubUrl}/issues`} target="_blank" rel="noreferrer"><Bug size={15} /><span>Report an issue</span><ExternalLink size={12} /></a>
+                <a href="https://tristmeister.github.io/HEISS-UI/" target="_blank" rel="noreferrer"><Globe size={15} /><span>Website</span><ExternalLink size={12} /></a>
+                <a href={`${githubUrl}/blob/main/LICENSE`} target="_blank" rel="noreferrer"><Scale size={15} /><span>MIT license</span><ExternalLink size={12} /></a>
+              </div>
+            </Group>
+
+            <Group title="Credits">
+              <Row label="J-AI Studio by Jasper" description="HEISS UI started as a fork of J-AI Studio. The calm, prompt-first idea and much of the foundation are his work.">
+                <a className="btn is-ghost" href="https://github.com/jasperdevs/J-AI-Studio" target="_blank" rel="noreferrer"><ExternalLink size={13} /> J-AI Studio</a>
               </Row>
-              <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
-                <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
-              </Row>
-              <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
-                <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>
+              <Row label="ComfyUI" description="Every image and video is rendered by your local ComfyUI; HEISS UI is the studio around it.">
+                <a className="btn is-ghost" href="https://github.com/comfyanonymous/ComfyUI" target="_blank" rel="noreferrer"><ExternalLink size={13} /> ComfyUI</a>
               </Row>
             </Group>
           </>

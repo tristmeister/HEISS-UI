@@ -215,7 +215,7 @@
 
 .upscale-modal .upscale-setup-steps:first-child,
 .upscale-modal .upscale-model-list:first-child { margin-top: 0; }
-.reference-media-dialog.is-dragging { box-shadow: var(--shadow-float), 0 0 0 2px var(--ember-soft); }
+.reference-media-dialog.is-dragging { box-shadow: var(--shadow-float), 0 0 0 2px rgb(255 255 255 / .25); }
 
 /* --------------------------------------------------------------- Toasts
    Top center, on the floating glass. Sonner reads these variables, so no

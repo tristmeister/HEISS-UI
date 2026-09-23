@@ -2,18 +2,18 @@
    Website accents, kept quiet
 
    Three things carried over from the HEISS UI site: the warm ember, square
-   markers instead of round dots, and design-tool selection handles. They mark
-   focus, selection and "something is happening", and nothing else.
+   markers instead of round dots, and design-tool selection handles. Focus and
+   selection stay neutral white; ember only marks status and heat.
 --------------------------------------------------------------------------- */
 
 /* ------------------------------------------------------------ Selection */
 
-::selection { background: rgb(255 154 82 / .28); color: #fff; }
+::selection { background: rgb(255 255 255 / .22); color: #fff; }
 
-/* Keyboard focus: one ember ring everywhere. :where keeps it at zero
+/* Keyboard focus: one neutral ring everywhere. :where keeps it at zero
    specificity so components with their own focus style still win. */
 :where(button, a, summary, [role="button"], [role="tab"], [role="switch"], [tabindex]):focus-visible {
-  outline: 2px solid rgb(255 154 82 / .8);
+  outline: 2px solid rgb(255 255 255 / .55);
   outline-offset: 2px;
 }
 
@@ -40,18 +40,18 @@
 .handles i:nth-child(4) { right: 0; bottom: 0; }
 
 /* Workflow gallery: the selected card's thumbnail. */
-.wf-card.active .handles i { background: var(--ember); box-shadow: var(--ember-glow); }
+.wf-card.active .handles i { background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); }
 
 /* Zen strip: the image on stage. */
 .zen-gallery-strip button { position: relative; }
 .zen-gallery-strip button .handles { inset: 3px; --h: 4px; }
-.zen-gallery-strip button.active .handles i { background: var(--ember); box-shadow: none; }
+.zen-gallery-strip button.active .handles i { background: #fff; box-shadow: none; }
 
 /* Gallery tiles show handles only when reached with the keyboard. */
 .tile > .handles { opacity: 0; transition: opacity var(--dur-fast); }
 .tile:focus-visible { outline: none; }
 .tile:focus-visible > .handles { opacity: 1; }
-.tile:focus-visible > .handles i { background: var(--ember); box-shadow: var(--ember-glow); }
+.tile:focus-visible > .handles i { background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); }
 
 /* ---------------------------------------------------- Mosaic skeletons
    Loading tiles resolve like the generation preview: a quiet pixel mosaic

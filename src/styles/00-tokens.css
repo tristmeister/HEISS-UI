@@ -37,11 +37,12 @@
   --dock-h: 48px;
   --sidebar-w: min(390px, calc(100vw - 36px));
 
-  /* The one warm note, borrowed from the website: focus, live state, markers. Use sparingly. */
+  /* The one warm note, borrowed from the website: status markers and heat, never outlines. */
   --ember: #ff9a52;
   --ember-soft: rgb(255 154 82 / .14);
   --ember-glow: 0 0 10px rgb(255 154 82 / .6);
-  --focus-ring: 0 0 0 2px var(--surface-modal), 0 0 0 4px rgb(255 154 82 / .75);
+  /* Focus and selection stay neutral. */
+  --focus-ring: 0 0 0 2px var(--surface-modal), 0 0 0 4px rgb(255 255 255 / .5);
 
   /* Modals: one scrim, one sheet. */
   --scrim: rgb(0 0 0 / .72);

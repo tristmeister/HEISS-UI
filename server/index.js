@@ -15,6 +15,7 @@ import { getThumbnail, resizeInMemory } from './thumbnails.js';
 import { jobs, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
+import { galleryStats } from './stats.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
 import { clearUnlockCookie, encryptionKeyFromRequest, isPrivacyEnabled, privacyStatusFor, revealGalleryItemsForRequest, setPrivacyPassword, setUnlockCookie, verifyPrivacyPassword } from './privacy.js';
@@ -161,6 +162,14 @@ app.post("/api/privacy/lock", (_req, res) => {
   if (!requireTrustedAccess(_req, res)) return;
   clearUnlockCookie(res);
   res.json({ ok: true, enabled: isPrivacyEnabled(), unlocked: false });
+});
+
+const appVersion = (() => {
+  try { return JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version || ""; } catch { return ""; }
+})();
+
+app.get("/api/stats", (_req, res) => {
+  res.json({ ok: true, version: appVersion, stats: galleryStats(gallery) });
 });
 
 app.get("/api/health", async (_req, res) => {
