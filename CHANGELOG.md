@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-23
+
 The first tagged release: a redesigned studio, smart upscaling, drop-in model
 support and prebuilt downloads.
 
@@ -55,4 +57,5 @@ support and prebuilt downloads.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/commits/main
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tristmeister/HEISS-UI/releases/tag/v0.2.0
