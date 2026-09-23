@@ -118,8 +118,8 @@
   height: 22px;
   border-radius: var(--r-pill);
   background: var(--surface-float);
-  backdrop-filter: var(--surface-float-blur);
   -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
   font-size: 10.5px;
   font-weight: 600;
 }

@@ -28,9 +28,9 @@
 .fluid-select-content,
 .composer-drawer {
   border: 1px solid var(--surface-border);
-  background: var(--surface-float);
-  backdrop-filter: var(--surface-float-blur);
+  background: var(--surface-grain), var(--surface-float);
   -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
 }
 
 /* Large surfaces carry the deep shadow, small ones the tight one. */
@@ -215,9 +215,9 @@
 
 .heiss-tooltip {
   border: 1px solid var(--surface-border);
-  background: var(--surface-float) !important;
-  backdrop-filter: var(--surface-float-blur);
+  background: var(--surface-grain), var(--surface-float) !important;
   -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
   box-shadow: var(--shadow-float-sm);
   font-size: 12px;
 }

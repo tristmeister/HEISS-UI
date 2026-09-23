@@ -18,8 +18,8 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--scrim);
-  backdrop-filter: var(--scrim-blur);
   -webkit-backdrop-filter: var(--scrim-blur);
+  backdrop-filter: var(--scrim-blur);
   animation: modal-fade var(--dur-fast) ease-out;
 }
 
@@ -132,8 +132,8 @@
   margin: 0;
   border: 1px solid var(--surface-border);
   background: var(--surface-float);
-  backdrop-filter: var(--surface-float-blur);
   -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
   color: hsl(var(--foreground));
 }
 
@@ -234,8 +234,9 @@
   --border-radius: var(--r-item);
 }
 [data-sonner-toaster] [data-sonner-toast].heiss-toast {
-  backdrop-filter: var(--surface-float-blur);
+  background-image: var(--surface-grain);
   -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
   box-shadow: var(--shadow-float-sm);
   font-size: 13px;
 }

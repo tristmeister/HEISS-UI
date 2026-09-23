@@ -1,11 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, GripVertical, Layers, Pencil, Plus, RotateCcw, Save, Search, Star, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, GripVertical, Layers, Plus, RotateCcw, Save, Search, Star, X } from 'lucide-react';
 import { cn } from './format';
 import { defaultLoraStrength, loraGroups, maxLoras, recommendedLoras, rankedLoras } from './loras';
 import { Switch } from './SettingsDialog';
 import { Tip } from './components';
-import { useDismiss } from './useDismiss';
 import type { LoraSnapshot } from './lora-storage';
 import type { LoraSelection, Profile } from './types';
 
@@ -285,82 +284,128 @@ function LoraPicker({ options, profile, current, favorites, recents, remaining, 
 
 /* ---------------------------------------------------------------- Stacks */
 
-function StackBar({ library, loras, activeId, setActiveId }: { library: LoraLibraryApi; loras: LoraSelection[]; activeId: string; setActiveId: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [naming, setNaming] = useState<{ id: string; value: string } | null>(null);
-  const ref = useRef<HTMLDivElement>(null);
-  const close = useCallback(() => { setOpen(false); setNaming(null); }, []);
-  useDismiss(ref, open, close);
+/** A readable default name from the LoRAs themselves: "Film Grain + Portrait Light +1". */
+function suggestStackName(loras: LoraSelection[], taken: string[]) {
+  const words = loras.filter((item) => item.enabled).map((item) => fileName(item.name)
+    .replace(/[-_.]+/g, ' ')
+    .replace(/\b(v\d+(\.\d+)*|lora|loha|lycoris|epoch\s*\d+|e\d+|\d{3,})\b/gi, '')
+    .replace(/\s+/g, ' ').trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase()))
+    .filter(Boolean);
+  let name = words.slice(0, 2).join(' + ') + (words.length > 2 ? ` +${words.length - 2}` : '');
+  if (!name) name = 'My stack';
+  if (name.length > 40) name = `${name.slice(0, 38).trim()}…`;
+  let unique = name;
+  for (let n = 2; taken.includes(unique); n++) unique = `${name} ${n}`;
+  return unique;
+}
 
-  const active = library.stacks.find((stack) => stack.id === activeId) || library.stacks.find((stack) => sameStack(stack.loras, loras)) || null;
-  const modified = Boolean(active && !sameStack(active.loras, loras));
-  const commitName = () => {
-    if (!naming) return;
-    const value = naming.value.trim();
-    if (!value) { setNaming(null); return; }
-    if (naming.id === 'new') { const stack = library.saveStack(value); setActiveId(stack.id); }
-    else library.renameStack(naming.id, value);
-    setNaming(null);
-  };
-  const nameInput = (
-    <input
-      autoFocus
-      className="lora-stack-input is-bare"
-      aria-label="Stack name"
-      value={naming?.value || ''}
-      placeholder="Stack name"
-      onChange={(event) => setNaming((current) => current && { ...current, value: event.target.value })}
-      onFocus={(event) => event.target.select()}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') { event.preventDefault(); commitName(); }
-        if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setNaming(null); }
-      }}
-      onBlur={commitName}
-    />
+function NameField({ initial, action, onSave, onCancel }: { initial: string; action: string; onSave: (name: string) => void; onCancel: () => void }) {
+  const [value, setValue] = useState(initial);
+  const save = () => { const name = value.trim(); if (name) onSave(name); else onCancel(); };
+  return (
+    <form className="lora-name-field" onSubmit={(event) => { event.preventDefault(); save(); }}>
+      <input
+        autoFocus
+        className="is-bare"
+        aria-label="Stack name"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onFocus={(event) => event.target.select()}
+        onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCancel(); } }}
+      />
+      <button type="submit" className="lora-chip-action is-primary" disabled={!value.trim()}>{action}</button>
+      <button type="button" className="lora-chip-action" aria-label="Cancel" onClick={onCancel}><X size={13} /></button>
+    </form>
   );
+}
+
+/**
+ * Stacks live in plain sight as chips: one click loads one, the active one is
+ * lit, and saving only appears when there is something new to save.
+ */
+function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
+  library: LoraLibraryApi;
+  loras: LoraSelection[];
+  activeId: string;
+  setActiveId: (id: string) => void;
+  onLoad: (stack: LoraSnapshot) => void;
+}) {
+  const [naming, setNaming] = useState<null | { mode: 'new' } | { mode: 'rename'; id: string }>(null);
+  // The stack you're working from: the one you loaded, an exact match, or one with
+  // the same LoRAs (so nudging a strength reads as "changed", not "unsaved").
+  const sameSet = (stack: LoraSnapshot) => stack.loras.length === loras.length && stack.loras.every((item) => loras.some((current) => current.name === item.name));
+  const active = library.stacks.find((stack) => stack.id === activeId)
+    || library.stacks.find((stack) => sameStack(stack.loras, loras))
+    || (loras.length ? library.stacks.find(sameSet) : null)
+    || null;
+  const modified = Boolean(active && loras.length && !sameStack(active.loras, loras));
+  const matchesSaved = library.stacks.some((stack) => sameStack(stack.loras, loras));
+  const canSaveNew = loras.length > 0 && !matchesSaved && !modified;
+  const family = library.familyLabel || 'this model';
+
+  if (!library.stacks.length && !loras.length) return null;
+  const remove = async (stack: LoraSnapshot) => { if (await library.deleteStack(stack) && stack.id === activeId) setActiveId(''); };
 
   return (
-    <div className="lora-stackbar" ref={ref} data-open-surface={open || undefined}>
-      <button type="button" className="lora-stack-trigger" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        <Layers size={14} />
-        <span className="lora-stack-name">{active ? active.name : loras.length ? 'Unsaved stack' : 'Stacks'}</span>
-        {modified ? <em className="lora-stack-modified">Modified</em> : null}
-        <ChevronDown size={13} className="lora-stack-chevron" />
-      </button>
-      {modified && active ? <Tip content={`Save changes to ${active.name}`}><button type="button" className="btn is-ghost lora-stack-update" onClick={() => library.updateStack(active.id)}><Save size={13} /> Update</button></Tip> : null}
-      {open ? (
-        <div className="lora-stack-menu">
-          <div className="lora-stack-menu-head">Stacks for {library.familyLabel || 'this model'}</div>
-          {library.stacks.length ? library.stacks.map((stack) => (
-            <div className={cn('lora-stack-row', stack.id === active?.id && 'active')} key={stack.id}>
-              {naming?.id === stack.id ? nameInput : (
-                <button type="button" className="lora-stack-load" onClick={() => { library.loadStack(stack); setActiveId(stack.id); setOpen(false); }}>
-                  <span>{stack.name}</span>
-                  <small>{stack.loras.length} LoRA{stack.loras.length === 1 ? '' : 's'}</small>
-                </button>
-              )}
-              {naming?.id === stack.id ? null : (
-                <>
-                  <Tip content="Rename"><button type="button" className="lora-stack-action" aria-label={`Rename ${stack.name}`} onClick={() => setNaming({ id: stack.id, value: stack.name })}><Pencil size={12} /></button></Tip>
-                  <Tip content="Delete"><button type="button" className="lora-stack-action is-danger" aria-label={`Delete ${stack.name}`} onClick={async () => { if (await library.deleteStack(stack) && stack.id === activeId) setActiveId(''); }}><Trash2 size={12} /></button></Tip>
-                </>
-              )}
-            </div>
-          )) : <p className="lora-stack-empty">Save the LoRAs you use together as a stack. Every {library.familyLabel || 'model'} workflow can load it.</p>}
-          <div className="lora-stack-foot">
-            {naming?.id === 'new' ? nameInput : (
-              <button type="button" className="btn is-ghost" disabled={!loras.length} onClick={() => setNaming({ id: 'new', value: `Stack ${library.stacks.length + 1}` })}>
-                <Plus size={13} /> Save current as new stack
-              </button>
-            )}
-          </div>
+    <section className="lora-stacks" aria-label={`Saved stacks for ${family}`}>
+      {library.stacks.length ? (
+        <div className="lora-chips">
+          {library.stacks.map((stack) => {
+            const isActive = stack.id === active?.id;
+            if (naming?.mode === 'rename' && naming.id === stack.id) {
+              return <NameField key={stack.id} initial={stack.name} action="Rename" onSave={(name) => { library.renameStack(stack.id, name); setNaming(null); }} onCancel={() => setNaming(null)} />;
+            }
+            return (
+              <Tip key={stack.id} content={<>{stack.loras.map((item) => fileName(item.name)).join(', ') || 'Empty'}<br /><span className="lora-tip-hint">Double-click to rename</span></>}>
+                <span className={cn('lora-chip', isActive && 'is-active', isActive && modified && 'is-modified')}>
+                  <button
+                    type="button"
+                    className="lora-chip-load"
+                    aria-pressed={isActive}
+                    onClick={() => { if (!isActive || modified) onLoad(stack); setActiveId(stack.id); }}
+                    onDoubleClick={() => setNaming({ mode: 'rename', id: stack.id })}
+                    onKeyDown={(event) => {
+                      if (event.key === 'F2') { event.preventDefault(); setNaming({ mode: 'rename', id: stack.id }); }
+                      if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); remove(stack); }
+                    }}
+                  >
+                    <span className="lora-chip-name">{stack.name}</span>
+                    <em>{stack.loras.length}</em>
+                  </button>
+                  <button type="button" className="lora-chip-remove" aria-label={`Delete stack ${stack.name}`} onClick={() => remove(stack)}><X size={11} /></button>
+                </span>
+              </Tip>
+            );
+          })}
         </div>
       ) : null}
-    </div>
+
+      {naming?.mode === 'new' ? (
+        <NameField
+          initial={suggestStackName(loras, library.stacks.map((stack) => stack.name))}
+          action="Save"
+          onSave={(name) => { const stack = library.saveStack(name); setActiveId(stack.id); setNaming(null); }}
+          onCancel={() => setNaming(null)}
+        />
+      ) : modified && active ? (
+        <div className="lora-stack-changes">
+          <span><i aria-hidden="true" />Changed from <strong>{active.name}</strong></span>
+          <button type="button" className="lora-chip-action is-primary" onClick={() => library.updateStack(active.id)}>Update</button>
+          <button type="button" className="lora-chip-action" onClick={() => setNaming({ mode: 'new' })}>Save as new</button>
+        </div>
+      ) : canSaveNew ? (
+        <button type="button" className="lora-save-chip" onClick={() => setNaming({ mode: 'new' })}>
+          <Save size={12} /> Save as stack{library.stacks.length ? '' : <span> for every {family} workflow</span>}
+        </button>
+      ) : null}
+    </section>
   );
 }
 
 /* ----------------------------------------------------------------- Panel */
+
+type Undo = { label: string; restore: LoraSelection[] };
 
 export function LoraPanel({ loras, setLoras, options, profile, limit, library, rememberedStrength, unavailableReason }: {
   loras: LoraSelection[];
@@ -374,9 +419,9 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
 }) {
   const [picker, setPicker] = useState<{ swap: string | null } | null>(null);
   const [activeStackId, setActiveStackId] = useState('');
-  const [removed, setRemoved] = useState<{ item: LoraSelection; index: number } | null>(null);
-  const removedTimer = useRef<number | null>(null);
-  useEffect(() => () => { if (removedTimer.current) window.clearTimeout(removedTimer.current); }, []);
+  const [undo, setUndo] = useState<Undo | null>(null);
+  const undoTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (undoTimer.current) window.clearTimeout(undoTimer.current); }, []);
   useEffect(() => { setActiveStackId(''); }, [library.familyLabel]);
 
   const available = useMemo(() => new Set(options), [options]);
@@ -391,19 +436,23 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
     );
   }
 
+  /** Every change that drops LoRAs can be taken back for a few seconds. */
+  const withUndo = (label: string, next: LoraSelection[]) => {
+    const before = loras;
+    setLoras(next);
+    setUndo({ label, restore: before });
+    if (undoTimer.current) window.clearTimeout(undoTimer.current);
+    undoTimer.current = window.setTimeout(() => setUndo(null), 6000);
+  };
   const update = (index: number, patch: Partial<LoraSelection>) => setLoras((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item));
-  const remove = (index: number) => {
-    const item = loras[index];
-    setLoras((current) => current.filter((_, i) => i !== index));
-    setRemoved({ item, index });
-    if (removedTimer.current) window.clearTimeout(removedTimer.current);
-    removedTimer.current = window.setTimeout(() => setRemoved(null), 6000);
+  const remove = (index: number) => withUndo(`Removed ${fileName(loras[index].name)}`, loras.filter((_, i) => i !== index));
+  const clearAll = () => { withUndo(`Cleared ${loras.length} LoRA${loras.length === 1 ? '' : 's'}`, []); setActiveStackId(''); };
+  const loadStack = (stack: LoraSnapshot) => {
+    const unsaved = loras.length > 0 && !library.stacks.some((item) => sameStack(item.loras, loras));
+    if (unsaved) withUndo(`Loaded ${stack.name}`, stack.loras);
+    else library.loadStack(stack);
   };
-  const undoRemove = () => {
-    if (!removed) return;
-    setLoras((current) => { const next = [...current]; next.splice(Math.min(removed.index, next.length), 0, removed.item); return next; });
-    setRemoved(null);
-  };
+  const allOff = loras.length > 0 && loras.every((item) => !item.enabled);
   const move = (from: number, to: number) => setLoras((current) => { const next = [...current]; const [item] = next.splice(from, 1); next.splice(to, 0, item); return next; });
   const add = (names: string[]) => {
     const fresh = names.filter((name) => !loras.some((item) => item.name === name)).slice(0, Math.max(0, cap - loras.length));
@@ -440,7 +489,21 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
 
   return (
     <div className="lora-panel">
-      <StackBar library={library} loras={loras} activeId={activeStackId} setActiveId={setActiveStackId} />
+      <header className="lora-head">
+        <span className="lora-count">{loras.length ? <>{activeCount} active <em>· {loras.length}/{cap}</em></> : `Up to ${cap} LoRAs`}</span>
+        {loras.length ? (
+          <>
+            <Tip content={allOff ? 'Turn every LoRA back on' : 'Turn every LoRA off, keep the stack'}>
+              <button type="button" className="lora-head-action" onClick={() => setLoras((current) => current.map((item) => ({ ...item, enabled: allOff })))}>{allOff ? 'All on' : 'All off'}</button>
+            </Tip>
+            <Tip content="Remove every LoRA (you can undo)">
+              <button type="button" className="lora-head-action" onClick={clearAll}>Clear</button>
+            </Tip>
+          </>
+        ) : null}
+      </header>
+
+      <Stacks library={library} loras={loras} activeId={activeStackId} setActiveId={setActiveStackId} onLoad={loadStack} />
 
       {loras.length ? (
         <Reorder.Group as="div" axis="y" values={loras} onReorder={(next) => setLoras(next)} className="lora-list">
@@ -461,23 +524,20 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
         </Reorder.Group>
       ) : (
         <div className="lora-empty">
-          <p>LoRAs steer style, characters or detail on top of the model. Add one to start a stack.</p>
+          <p>LoRAs steer style, characters or detail on top of the model.{library.stacks.length ? ' Load a saved stack above, or add one.' : ' Add one to start.'}</p>
         </div>
       )}
 
-      {removed ? (
+      {undo ? (
         <div className="lora-undo" role="status">
-          <span>Removed {fileName(removed.item.name)}</span>
-          <button type="button" onClick={undoRemove}><RotateCcw size={12} /> Undo</button>
+          <span>{undo.label}</span>
+          <button type="button" onClick={() => { setLoras(undo.restore); setUndo(null); }}><RotateCcw size={12} /> Undo</button>
         </div>
       ) : null}
 
-      <div className="lora-foot">
-        <button type="button" className="btn lora-add" onClick={() => setPicker({ swap: null })} disabled={loras.length >= cap}>
-          <Plus size={14} /> Add LoRA
-        </button>
-        <span className="lora-count">{activeCount} active · {loras.length}/{cap}</span>
-      </div>
+      <button type="button" className="btn lora-add" onClick={() => setPicker({ swap: null })} disabled={loras.length >= cap}>
+        <Plus size={14} /> {loras.length >= cap ? `This workflow takes ${cap}` : 'Add LoRA'}
+      </button>
     </div>
   );
 }
