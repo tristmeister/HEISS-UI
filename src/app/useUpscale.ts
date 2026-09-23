@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { apiJson } from './api';
+import { ApiError, apiJson } from './api';
 import type { GalleryItem, Preferences, UpscaleInstall, UpscaleStatus } from './types';
 
 /** The gallery keeps the original as the record; only the view swaps. */
@@ -39,6 +39,29 @@ export function upscaleQualityLabel(quality = "balanced") {
   return upscaleEfforts.find((effort) => effort.value === quality)?.label || "Balanced";
 }
 
+/** Why an image could not be upscaled, shown in a popover on its upscale button. */
+export type UpscaleNotice = { title: string; message: string; reason: string };
+
+const noticeTitles: Record<string, string> = {
+  private: "Private images cannot be upscaled yet",
+  missing: "This image is gone from the server",
+  video: "Only images can be upscaled",
+  unfinished: "Still rendering",
+  source: "Could not read the original",
+  switch: "Could not switch versions"
+};
+
+export function upscaleNoticeFrom(error: unknown, fallbackReason = ""): UpscaleNotice {
+  const reason = error instanceof ApiError && error.reason ? error.reason : fallbackReason;
+  const message = error instanceof Error ? error.message : "Upscale failed to start.";
+  const offline = error instanceof TypeError;
+  return {
+    reason,
+    title: noticeTitles[reason] || (offline ? "Could not reach HEISS UI" : "Upscale could not start"),
+    message: offline ? "The HEISS UI server did not answer. Check that it is still running, then try again." : message
+  };
+}
+
 /** Where the setup flow stands; the dialog, its hero and the stepper all read from this. */
 export type UpscaleSetupStage = "checking" | "offline" | "nodes" | "models" | "downloading" | "verifying" | "ready" | "error";
 
@@ -56,6 +79,15 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [install, setInstall] = useState<UpscaleInstall>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
+  const [notices, setNotices] = useState<Map<string, UpscaleNotice>>(() => new Map());
+  const setNotice = useCallback((id: string, notice: UpscaleNotice | null) => {
+    setNotices((current) => {
+      if (!notice && !current.has(id)) return current;
+      const next = new Map(current);
+      if (notice) next.set(id, notice); else next.delete(id);
+      return next;
+    });
+  }, []);
   const [reason, setReason] = useState("");
   const [offline, setOffline] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
@@ -223,6 +255,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
   const runUpscale = useCallback(async (item: GalleryItem) => {
     const quality = prefs.upscaleQuality || "balanced";
     markBusy(item.id, true);
+    setNotice(item.id, null);
     try {
       await apiJson("/api/upscale", {
         method: "POST",
@@ -231,11 +264,11 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
       });
       loadGalleryDelta();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Upscale failed to start", "error");
+      setNotice(item.id, upscaleNoticeFrom(error));
     } finally {
       markBusy(item.id, false);
     }
-  }, [loadGalleryDelta, markBusy, prefs.upscaleFaceDetail, prefs.upscaleQuality, showToast]);
+  }, [loadGalleryDelta, markBusy, prefs.upscaleFaceDetail, prefs.upscaleQuality, setNotice]);
 
   // Setup finished for an image that was waiting: hold the ready moment for a
   // beat, then close and do what the click asked for in the first place.
@@ -255,6 +288,15 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
 
   const upscaleItem = useCallback(async (item: GalleryItem) => {
     if (!canUpscaleItem(item) || item.upscale?.status === "running") return;
+    // Known before asking anyone, and no setup would change it.
+    if (item.privateVault) {
+      setNotice(item.id, {
+        reason: "private",
+        title: noticeTitles.private,
+        message: "They exist only encrypted in the vault, and smart upscale works on the regular gallery, where it would save the result unencrypted."
+      });
+      return;
+    }
     markBusy(item.id, true);
     const current = await refreshStatus(prefs.upscaleQuality || "balanced");
     markBusy(item.id, false);
@@ -263,7 +305,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
       return;
     }
     openSetup(item);
-  }, [markBusy, openSetup, prefs.upscaleQuality, refreshStatus, runUpscale]);
+  }, [markBusy, openSetup, prefs.upscaleQuality, refreshStatus, runUpscale, setNotice]);
 
   const toggleUpscale = useCallback(async (item: GalleryItem, active?: boolean) => {
     if (!item.upscale?.url) return;
@@ -276,11 +318,11 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
       });
       loadGalleryDelta();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not switch versions", "error");
+      setNotice(item.id, upscaleNoticeFrom(error, "switch"));
     } finally {
       markBusy(item.id, false);
     }
-  }, [loadGalleryDelta, markBusy, showToast]);
+  }, [loadGalleryDelta, markBusy, setNotice]);
 
   /** One click: upscale the first time, then flip between the two versions. */
   const activateUpscale = useCallback((item: GalleryItem) => {
@@ -293,6 +335,8 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     upscaleUnavailableReason: reason,
     upscaleInstall: install,
     upscaleBusyIds: busyIds,
+    upscaleNotices: notices,
+    dismissUpscaleNotice: (id: string) => setNotice(id, null),
     upscaleSetup: {
       open: setupOpen,
       stage,

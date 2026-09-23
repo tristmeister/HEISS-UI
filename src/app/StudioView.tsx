@@ -14,6 +14,7 @@ import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
+import { UpscaleNoticePopover } from './UpscaleNotice';
 import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
@@ -41,7 +42,7 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
@@ -319,6 +320,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               smartUpscale={prefs.smartUpscale !== false}
               upscaleBusyIds={upscaleBusyIds}
               onUpscale={activateUpscale}
+              upscaleNotices={upscaleNotices}
+              onDismissUpscaleNotice={dismissUpscaleNotice}
               titleFromPrompt={titleFromPrompt}
             />
           ) : comfyOffline ? (
@@ -579,6 +582,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => copyImageAndToast(active)}><Copy size={15} /></button></Tip>
                   {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
+                    <span className="upscale-notice-anchor">
+                    {upscaleNotices?.get(active.id) ? <UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /> : null}
                     <Tip content={active.upscale?.status === "running" ? "Upscaling" : active.upscale?.url ? (active.upscaleActive ? "Showing the upscale - click for the original" : "Showing the original - click for the upscale") : "Smart upscale"}>
                       <button
                         className={cn("icon-button", active.upscaleActive && active.upscale?.url && "active")}
@@ -590,6 +595,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         {active.upscale?.status === "running" || upscaleBusyIds?.has(active.id) ? <RefreshCw size={15} className="spin" /> : <UpscaleArrow size={16} />}
                       </button>
                     </Tip>
+                    </span>
                   ) : null}
                   {active.upscale?.url ? (
                     <Tip content={compareOpen ? "Hide the comparison" : "Compare with the original"}>

@@ -858,9 +858,24 @@ app.post("/api/upscale", async (req, res) => {
     res.status(400).json({ ok: false, error: `Face detail needs the Impact Pack nodes: ${status.faceDetail.missingNodes.join(", ")}.` });
     return;
   }
-  const item = findUpscaleTarget(String(req.body?.galleryItemId || ""));
-  if (!item || item.type !== "image" || item.status !== "done") {
-    res.status(404).json({ ok: false, error: "That image is not available to upscale." });
+  // Say exactly why an image cannot be upscaled; the tile shows this in a popover.
+  const itemId = String(req.body?.galleryItemId || "");
+  const item = findUpscaleTarget(itemId);
+  if (!item) {
+    const privateItem = encryptionKeyFromRequest(req) && vaultGalleryItemsForRequest(req, { bundles: false }).some((entry) => entry.id === itemId);
+    if (privateItem) {
+      res.status(409).json({ ok: false, reason: "private", error: "Private Vault images cannot be upscaled yet. They exist only encrypted in the vault, and smart upscale works on the regular gallery, where it would save the result unencrypted." });
+    } else {
+      res.status(404).json({ ok: false, reason: "missing", error: "The server no longer has this image in its gallery. It may have been deleted or cleared on another device; reload to catch up." });
+    }
+    return;
+  }
+  if (item.type !== "image") {
+    res.status(400).json({ ok: false, reason: "video", error: "Only images can be upscaled. Video upscaling is not built in yet." });
+    return;
+  }
+  if (item.status !== "done") {
+    res.status(409).json({ ok: false, reason: "unfinished", error: "This image has not finished rendering yet. Upscale it once it is done." });
     return;
   }
   if (item.upscale?.status === "running") {
@@ -873,11 +888,11 @@ app.post("/api/upscale", async (req, res) => {
     const [staged] = await stageReferenceAssets(req, [{ assetId: asset.id, slot: "upscale", source: asset.source }]);
     imageName = staged?.comfyName || "";
   } catch (error) {
-    res.status(400).json({ ok: false, error: error.message });
+    res.status(400).json({ ok: false, reason: "source", error: `Could not read the original file to send to ComfyUI: ${error.message}` });
     return;
   }
   if (!imageName) {
-    res.status(400).json({ ok: false, error: "Could not hand this image to ComfyUI." });
+    res.status(502).json({ ok: false, reason: "source", error: "ComfyUI did not accept the original image. Check that ComfyUI is running and its input folder is writable." });
     return;
   }
   const jobId = crypto.randomUUID();

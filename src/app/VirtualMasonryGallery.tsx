@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { GalleryTile } from './GalleryTile';
 import { generationIdentity } from './GenerationPreview';
 import { BundleTile, bundleSheetHeight } from './BundleTile';
+import type { UpscaleNotice } from './useUpscale';
 import type { GalleryItem } from './types';
 
 type VirtualMasonryGalleryProps = {
@@ -24,6 +25,8 @@ type VirtualMasonryGalleryProps = {
   smartUpscale?: boolean;
   upscaleBusyIds?: Set<string>;
   onUpscale?: (item: GalleryItem) => void;
+  upscaleNotices?: Map<string, UpscaleNotice>;
+  onDismissUpscaleNotice?: (id: string) => void;
 };
 
 function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set<string>) {
@@ -68,6 +71,8 @@ export function VirtualMasonryGallery({
   ungroupBundle,
   upscaleBusyIds,
   onUpscale,
+  upscaleNotices,
+  onDismissUpscaleNotice,
 }: VirtualMasonryGalleryProps) {
   const [containerRef, containerWidth] = useElementWidth<HTMLElement>();
   const safeColumns = Math.max(1, columns);
@@ -109,6 +114,8 @@ export function VirtualMasonryGallery({
           smartUpscale={smartUpscale}
           upscaleBusyIds={upscaleBusyIds}
           onUpscale={onUpscale}
+          upscaleNotices={upscaleNotices}
+          onDismissUpscaleNotice={onDismissUpscaleNotice}
           spacing={spacing}
           titleFromPrompt={titleFromPrompt}
           toggleBundle={toggleBundle}
@@ -139,6 +146,8 @@ function VirtualMasonryColumn({
   ungroupBundle,
   upscaleBusyIds,
   onUpscale,
+  upscaleNotices,
+  onDismissUpscaleNotice,
   width,
 }: Omit<VirtualMasonryGalleryProps, "columns" | "items"> & { column: GalleryItem[]; spacing: number; width: number }) {
   const virtualizer = useVirtualizer({
@@ -191,6 +200,8 @@ function VirtualMasonryColumn({
                 smartUpscale={smartUpscale}
                 upscaleBusy={Boolean(upscaleBusyIds?.has(item.id))}
                 onUpscale={onUpscale}
+                upscaleNotice={upscaleNotices?.get(item.id)}
+                onDismissUpscaleNotice={onDismissUpscaleNotice}
                 titleFromPrompt={titleFromPrompt}
                 width={width}
               />

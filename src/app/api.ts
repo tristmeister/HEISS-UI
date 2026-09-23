@@ -49,9 +49,17 @@ export async function apiJson<T>(url: string, options?: RequestInit): Promise<T>
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof data?.error === "string" ? data.error : response.statusText || "Request failed";
-    throw new Error(message);
+    throw new ApiError(message, response.status, typeof data?.reason === "string" ? data.reason : "");
   }
   return data as T;
+}
+
+/** A failed API call that keeps the HTTP status and the server's reason code, so callers can explain it. */
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly reason: string) {
+    super(message);
+    this.name = "ApiError";
+  }
 }
 
 export type ReferenceAssetPage = { items: ReferenceAsset[]; nextCursor?: string; hasMore?: boolean };

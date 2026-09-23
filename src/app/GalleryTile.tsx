@@ -8,6 +8,8 @@ import { ElapsedTime } from './ElapsedTime';
 import type { GalleryItem } from './types';
 import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
+import { UpscaleNoticePopover } from './UpscaleNotice';
+import type { UpscaleNotice } from './useUpscale';
 
 type GalleryTileProps = {
   item: GalleryItem;
@@ -24,6 +26,8 @@ type GalleryTileProps = {
   smartUpscale?: boolean;
   upscaleBusy?: boolean;
   onUpscale?: (item: GalleryItem) => void;
+  upscaleNotice?: UpscaleNotice;
+  onDismissUpscaleNotice?: (id: string) => void;
 };
 
 function upscaleTooltip(item: GalleryItem) {
@@ -37,7 +41,7 @@ function upscaleTooltip(item: GalleryItem) {
   return "Smart upscale";
 }
 
-function UpscaleButton({ item, busy, onUpscale }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void }) {
+function UpscaleButton({ item, busy, onUpscale, held = false }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void; held?: boolean }) {
   const state = item.upscale;
   const running = state?.status === "running";
   const ratio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
@@ -48,7 +52,7 @@ function UpscaleButton({ item, busy, onUpscale }: { item: GalleryItem; busy: boo
       <span
         role="button"
         tabIndex={0}
-        className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", busy && "is-busy")}
+        className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", busy && "is-busy", held && "is-held")}
         aria-label={upscaleTooltip(item)}
         aria-pressed={state?.url ? active : undefined}
         aria-disabled={running || busy}
@@ -82,7 +86,7 @@ const tileEnterTransition = {
   mass: 0.86,
 };
 
-function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, width }: GalleryTileProps) {
+function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
   const ratio = item.progress?.max ? Math.min(1, Math.max(0, item.progress.value / item.progress.max)) : 0;
   const indeterminate = !item.progress?.max;
   const mountedRef = useRef(false);
@@ -135,7 +139,8 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
           <strong>{item.vaultLocked ? "Private item" : titleFromPrompt(item.prompt || item.filename)}</strong>
           <em>{item.vaultLocked ? "Unlock to view" : item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
-        {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} /> : null}
+        {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} held={Boolean(upscaleNotice)} /> : null}
+        {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
         {item.status === "pending" ? <Tip content="Cancel generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Cancel</span></Tip> : null}
         {item.status !== "pending" && !item.vaultLocked ? (
           <span className="tile-hover-actions" onPointerDown={(event) => event.stopPropagation()}>
@@ -154,6 +159,7 @@ export const GalleryTile = React.memo(GalleryTileComponent, (previous, next) => 
   if (previous.gathering !== next.gathering) return false;
   if (previous.smartUpscale !== next.smartUpscale) return false;
   if (previous.upscaleBusy !== next.upscaleBusy) return false;
+  if (previous.upscaleNotice !== next.upscaleNotice) return false;
   if (previous.width !== next.width || previous.height !== next.height) return false;
   return true;
 });

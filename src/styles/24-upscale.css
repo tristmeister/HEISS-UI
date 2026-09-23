@@ -440,6 +440,63 @@
 .udw-arrow.is-ready { transform-origin: 50% 60%; animation: udw-pop 520ms var(--ease-out); filter: drop-shadow(0 0 4px rgb(255 240 222 / .45)); }
 @keyframes udw-pop { 0% { transform: scale(.82); } 55% { transform: scale(1.08); } 100% { transform: scale(1); } }
 
+/* ------------------------------------------------------- Why it failed
+   A popover on the upscale button: under it on a tile, above it in the viewer. */
+
+.upscale-notice {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 8px 12px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-item);
+  background-color: var(--surface-float);
+  background-image: var(--surface-grain);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm);
+  color: hsl(var(--foreground));
+  text-align: left;
+  white-space: normal;
+  cursor: default;
+  -webkit-font-smoothing: antialiased;
+}
+.upscale-notice.is-tile { top: 50px; left: 8px; right: 8px; max-width: 320px; }
+.upscale-notice.is-viewer { bottom: calc(100% + 14px); left: 50%; width: min(320px, calc(100vw - 32px)); translate: -50% 0; }
+.upscale-notice-anchor { position: relative; display: inline-flex; }
+
+.upscale-notice-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--danger-fill);
+  color: var(--danger-ink);
+}
+.upscale-notice.is-private .upscale-notice-icon { background: var(--control-fill); color: hsl(var(--foreground)); }
+.upscale-notice-text { display: grid; flex: 1; gap: 3px; min-width: 0; padding-top: 3px; }
+.upscale-notice-text strong { font-size: 12.5px; font-weight: 600; line-height: 1.3; }
+.upscale-notice-text span { font-size: 12px; line-height: 1.45; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.upscale-notice-close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-pill);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.upscale-notice-close:hover { background: var(--control-hover); color: #fff; }
+.upscale-notice-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* The button the popover points at stays put while it is open. */
+.tile-upscale.is-held { opacity: 1; }
+
 @media (max-width: 760px) {
   .upscale-hero-wrap { aspect-ratio: 1.8; }
   .upscale-efforts span { display: none; }
