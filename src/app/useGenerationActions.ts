@@ -1,4 +1,4 @@
-import { apiJson } from './api';
+import { apiJson, serverClockOffset } from './api';
 import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
@@ -25,7 +25,8 @@ export function useGenerationActions(view: any) {
 
   function pendingItemsFor(jobId: string, body: any): GalleryItem[] {
     const itemCount = body.kind === "image" ? Math.max(1, Math.min(8, Number(body.count || 1))) : 1;
-    const createdAt = new Date().toISOString();
+    // On the server's clock, like the stamp the server puts on it moments later.
+    const createdAt = new Date(Date.now() + serverClockOffset).toISOString();
     const title = String(body.prompt || "Untitled prompt").replace(/\s+/g, " ").trim().slice(0, 68) || "Untitled prompt";
     return Array.from({ length: itemCount }, (_, index) => ({
       id: `${jobId}-${index}`,
