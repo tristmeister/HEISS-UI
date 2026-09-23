@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 
 /**
  * The website's footer wordmark, brought into the app: "HEISS UI" in pixel
- * letters that develop out of a gray flow mosaic, then run hot where the
- * pointer is, with sparks and steam. Press to stoke it.
+ * letters that develop out of a gray flow mosaic. A small, dense flame
+ * stands on the pointer and warms the letters beside it. Press to stoke it.
  *
  * The site draws its letters with PP Neue Bit, which must not ship with the
  * app, so the letters here come from a tiny built-in 5x7 pixel alphabet. The
@@ -80,37 +80,58 @@ const MARK = `
     float n = fbm(bq * vec2(3.0, 1.2) + 3.0);
     float lp = smoothstep(0.0, 1.0, clamp(uP * 2.0 - n * 0.5 - bq.x * 0.35 - h * 0.15, 0.0, 1.0));
 
-    float d = length((c - uMouse) / (uDpr * 150.0));
-    float heat = exp(-d * d * 1.8) * uHeat;
-    // At rest the letters smoulder from the bottom up.
+    // Fire: a small, dense flame standing on the pointer, not a glow around it.
+    // rel is in CSS pixels, y up. The flame is ~R wide at its base and tapers to
+    // a tip about H above; noise scrolling upward cuts it into flickering tongues.
+    vec2 rel = (c - uMouse) / uDpr;
+    float R = 15.0 + 5.0 * uHeat;
+    float H = 38.0 + 30.0 * uHeat;
+    float up = clamp(rel.y / H, 0.0, 1.0);
+    float width = R * (1.0 - up * 0.85) + 2.0;
+    // The upper flame sways, so tongues lick sideways instead of standing still.
+    float sway = (fbm(vec2(rel.y * 0.05 - uTime * 2.4, 7.0)) - 0.5) * R * 1.6 * up;
+    float xw = rel.x + sway;
+    float body = exp(-pow(xw / width, 2.0) * 2.2) * smoothstep(-R * 0.55, 0.0, rel.y) * (1.0 - smoothstep(0.5, 1.0, up));
+    float tongues = fbm(vec2(xw * 0.1 + 3.0, rel.y * 0.06 - uTime * 2.8));
+    float lit = smoothstep(0.0, 0.3, uHeat);
+    float fire = clamp((body * (0.6 + 0.9 * tongues) - 0.28) * 1.7, 0.0, 1.0) * lit;
+    // A few embers lift off the tip.
+    float emberCell = step(0.965, hash(id + floor(uTime * 6.0))) * exp(-pow(rel.x / (R * 1.4), 2.0)) * step(H * 0.45, rel.y) * (1.0 - smoothstep(H * 0.9, H * 1.5, rel.y)) * lit;
+    // Temperature falls toward the tip: white only in the core at the base.
+    float temp = fire * (1.0 - up * 0.8);
+    vec3 fireC = mix(vec3(0.62, 0.1, 0.03), vec3(1.0, 0.4, 0.08), smoothstep(0.08, 0.35, temp));
+    fireC = mix(fireC, vec3(1.0, 0.72, 0.25), smoothstep(0.4, 0.65, temp));
+    fireC = mix(fireC, vec3(1.0, 0.95, 0.78), smoothstep(0.78, 0.95, temp));
+    fireC = mix(fireC, vec3(1.0, 0.45, 0.12), emberCell * (1.0 - fire));
+
+    // Letters only warm right beside the flame; at rest they smoulder from the bottom up.
+    float near = exp(-dot(rel, rel) / (R * R * 9.0)) * uHeat;
     float ember = uEmber * (1.0 - smoothstep(0.0, 0.7, bq.y)) * (0.25 + 0.75 * v) * step(0.55, fract(h * 7.0 + uTime * 0.35));
-    float glow = clamp(heat * (0.3 + 0.9 * v) + ember * 0.55, 0.0, 1.0);
+    float glow = clamp(near * (0.4 + 0.6 * v) + ember * 0.55, 0.0, 1.0);
 
     vec3 genC = mix(vec3(0.2), vec3(0.75), v);
     float genA = inBox * (0.1 + 0.45 * v);
 
     float shade = mix(0.24, 0.46, bq.y) + 0.06 * v;
-    vec3 txtC = vec3(shade);
     vec3 hot = mix(vec3(1.0, 0.45, 0.18), vec3(1.0, 0.86, 0.66), v);
-    txtC = mix(txtC, hot, glow);
+    vec3 txtC = mix(vec3(shade), hot, glow);
 
     vec3 col = mix(genC, txtC, lp);
     float a = mix(genA, ink, lp);
 
-    float spark = inBox * (1.0 - ink) * heat * step(0.8, fract(h * 13.0 + uTime * 1.3)) * lp;
-    col = mix(col, hot, spark);
-    a = max(a, spark * 0.7);
-
+    // Quiet steam from the letter tops, never louder on hover.
     float above = c.y - (uBox.y + uBox.w);
     float stem = texture2D(uMask, vec2(uv.x, (uBox.y + uBox.w - uCell * 0.5) / uRes.y)).a;
-    float band = step(0.0, above) * (1.0 - smoothstep(0.0, uBox.w * 0.55, above));
+    float band = step(0.0, above) * (1.0 - smoothstep(0.0, uBox.w * 0.5, above));
     float wob = sin(id.y * 0.45 - uTime * 1.2) * 1.4;
     float s = noise(vec2((id.x + wob) * 0.5, id.y * 0.3 - uTime * 1.5));
-    float heatAll = max(uHeat, uEmber * 0.35);
-    float steam = band * step(0.5, stem) * step(0.66 - heatAll * 0.12, s) * lp;
-    float steamA = steam * (0.18 + 0.5 * heatAll) * (1.0 - above / (uBox.w * 0.55));
-    col = mix(col, mix(vec3(0.5), hot, heatAll * 0.6), step(0.001, steamA) * (1.0 - ink));
+    float steamA = band * step(0.5, stem) * step(0.7, s) * lp * uEmber * 0.16 * (1.0 - above / (uBox.w * 0.5));
+    col = mix(col, vec3(0.5), step(0.001, steamA) * (1.0 - ink));
     a = max(a, steamA);
+
+    float flame = max(fire, emberCell * 0.8) * lp;
+    col = mix(col, fireC, flame);
+    a = max(a, flame);
 
     float sq = cellSquare(f, 0.44, 1.0 / uCell);
     gl_FragColor = vec4(col * a * sq, a * sq);
@@ -229,7 +250,7 @@ export function HeatMark({ className }: { className?: string }) {
       layout();
       p.x += (p.tx - p.x) * 0.14;
       p.y += (p.ty - p.y) * 0.14;
-      p.heat += (p.on - p.heat) * (p.on ? 0.08 : 0.025);
+      p.heat += (p.on - p.heat) * (p.on ? 0.16 : 0.06);
       p.flare *= 0.94;
       const reveal = reduce ? 1 : Math.min(1, Math.max(0, (t - 0.15) / 1.8));
       gl.uniform1f(u('uTime'), reduce ? 4 : t);
