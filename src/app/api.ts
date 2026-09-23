@@ -40,8 +40,26 @@ export async function copyImage(item: GalleryItem) {
   }
 }
 
+/**
+ * How far the HEISS server's clock runs ahead of this browser's, in ms. Job
+ * times are stamped by the server, which may be another machine, so timers
+ * count against this instead of trusting the two clocks to agree.
+ */
+export let serverClockOffset = 0;
+
+function noteServerClock(response: Response, sentAt: number) {
+  const header = Date.parse(response.headers.get("date") || "");
+  if (!Number.isFinite(header)) return;
+  // The header has whole seconds; aim at the middle of the second and the round trip.
+  const sample = header + 500 - (sentAt + Date.now()) / 2;
+  // Under 1.5 s is rounding and latency, not a clock that is off.
+  serverClockOffset = Math.abs(sample) < 1500 ? 0 : sample;
+}
+
 export async function apiJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const sentAt = Date.now();
   const response = await fetch(url, options);
+  noteServerClock(response, sentAt);
   // A server started before an update answers new routes with the app page.
   if (response.ok && (response.headers.get("content-type") || "").includes("text/html")) {
     throw new Error("The HEISS server is out of date. Restart it to use this.");
