@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Toaster } from 'sonner';
 import { BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -599,7 +600,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         );
       })() : null}
       {workflowGalleryOpen ? <WorkflowGallery view={{ ...view, onClose: () => setWorkflowGalleryOpen(false) }} /> : null}
-      <Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} />
+      {/* The shell is position: fixed, a stacking context of its own, so a toaster
+          inside it sits under every portaled dialog and its blurred scrim. */}
+      {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} />, document.body)}
     </div>
     </GenerationPreviewMode.Provider>
   );

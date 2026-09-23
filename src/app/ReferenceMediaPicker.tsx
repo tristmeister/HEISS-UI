@@ -1,22 +1,13 @@
 import React from "react";
-import { Modal } from "./Modal";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, Image as ImageIcon, Images, LoaderCircle, Plus, Trash2, Upload, X } from "lucide-react";
 import { cn } from "./format";
+import { Tip } from "./components";
+import { useDismiss } from "./useDismiss";
 import { deleteReferenceAsset, listReferenceAssets, referenceAssetFromGallery, uploadReferenceAsset } from "./api";
-import type { MediaInput, ReferenceAsset } from "./types";
+import type { MediaInput, ReferenceAsset, SelectedReferenceAsset } from "./types";
 
 type PickerTab = "generation" | "upload";
-
-export type ReferenceMediaPickerProps = {
-  open: boolean;
-  input: MediaInput;
-  selected: ReferenceAsset | null;
-  onOpenChange: (open: boolean) => void;
-  onSelect: (asset: ReferenceAsset) => void;
-  onRemoveSelected?: () => void;
-  confirmDelete?: (asset: ReferenceAsset) => Promise<boolean>;
-  onError?: (message: string) => void;
-};
 
 type PageState = {
   items: ReferenceAsset[];
@@ -28,6 +19,7 @@ type PageState = {
 };
 
 const emptyPage = (): PageState => ({ items: [], cursor: "", hasMore: false, loading: false, loaded: false, error: "" });
+const spring = { type: "spring", duration: 0.38, bounce: 0.12 } as const;
 
 function assetImage(asset: ReferenceAsset) {
   return asset.thumbnailUrl || asset.url || "";
@@ -50,14 +42,27 @@ function moveGridFocus(event: React.KeyboardEvent<HTMLButtonElement>, index: num
   }
 }
 
-export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSelect, onRemoveSelected, confirmDelete, onError }: ReferenceMediaPickerProps) {
+/* --------------------------------------------------------------- Popover */
+
+/**
+ * The reference library as a popover that rises out of the composer: recent
+ * generations and uploads in a grid, an upload button, drop and paste.
+ */
+function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected, confirmDelete, onError, upload }: {
+  input: MediaInput;
+  selected: ReferenceAsset | null;
+  onClose: () => void;
+  onSelect: (asset: ReferenceAsset) => void;
+  onRemoveSelected: () => void;
+  confirmDelete?: (asset: ReferenceAsset) => Promise<boolean>;
+  onError?: (message: string) => void;
+  upload: { busy: boolean; progress: number; start: (file: File | undefined) => Promise<ReferenceAsset | null> };
+}) {
   const [tab, setTab] = React.useState<PickerTab>("generation");
   const [pages, setPages] = React.useState<Record<PickerTab, PageState>>({ generation: emptyPage(), upload: emptyPage() });
-  const [uploading, setUploading] = React.useState(false);
-  const [uploadProgress, setUploadProgress] = React.useState(0);
   const [selectingId, setSelectingId] = React.useState("");
-  const [dragging, setDragging] = React.useState(false);
   const uploadInput = React.useRef<HTMLInputElement>(null);
+  const label = (input.label || "Reference image").toLowerCase();
 
   const load = React.useCallback(async (target: PickerTab, cursor = "") => {
     setPages((current) => ({ ...current, [target]: { ...current[target], loading: true, error: "" } }));
@@ -80,53 +85,24 @@ export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSe
   }, []);
 
   React.useEffect(() => {
-    if (!open || pages[tab].loaded || pages[tab].loading) return;
+    if (pages[tab].loaded || pages[tab].loading) return;
     load(tab);
-  }, [load, open, pages, tab]);
+  }, [load, pages, tab]);
 
-  const uploadFile = React.useCallback(async (file: File | undefined) => {
-    if (!file || uploading) return;
-    if (!file.type.startsWith("image/")) {
-      onError?.("Choose an image file");
-      return;
-    }
-    setUploading(true);
-    setUploadProgress(0);
-    try {
-      const asset = await uploadReferenceAsset(file, setUploadProgress);
-      setPages((current) => ({ ...current, upload: { ...current.upload, loaded: true, items: [asset, ...current.upload.items] } }));
-      onSelect(asset);
-      onOpenChange(false);
-    } catch (error) {
-      onError?.(error instanceof Error ? error.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-      if (uploadInput.current) uploadInput.current.value = "";
-    }
-  }, [onError, onOpenChange, onSelect, uploading]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    const onPaste = (event: ClipboardEvent) => {
-      const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith("image/"));
-      if (!file) return;
-      event.preventDefault();
-      uploadFile(file);
-    };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [open, uploadFile]);
+  const uploadAndUse = async (file: File | undefined) => {
+    const asset = await upload.start(file);
+    if (!asset) return;
+    setPages((current) => ({ ...current, upload: { ...current.upload, loaded: true, items: [asset, ...current.upload.items] } }));
+    onClose();
+  };
 
   async function choose(asset: ReferenceAsset) {
-    if (selectingId || uploading) return;
+    if (selectingId || upload.busy) return;
     setSelectingId(asset.id);
     try {
-      const resolved = asset.source === "generation" && asset.galleryItemId
-        ? await referenceAssetFromGallery(asset.galleryItemId)
-        : asset;
+      const resolved = asset.source === "generation" && asset.galleryItemId ? await referenceAssetFromGallery(asset.galleryItemId) : asset;
       onSelect(resolved);
-      onOpenChange(false);
+      onClose();
     } catch (error) {
       onError?.(error instanceof Error ? error.message : "Could not use this image");
     } finally {
@@ -141,115 +117,296 @@ export function ReferenceMediaPicker({ open, input, selected, onOpenChange, onSe
       if (confirmDelete && !await confirmDelete(asset)) return;
       await deleteReferenceAsset(asset.id);
       setPages((current) => ({ ...current, upload: { ...current.upload, items: current.upload.items.filter((item) => item.id !== asset.id) } }));
-      if (selected?.id === asset.id) onRemoveSelected?.();
+      if (selected?.id === asset.id) onRemoveSelected();
     } catch (error) {
       onError?.(error instanceof Error ? error.message : "Could not delete upload");
     }
   }
 
   const page = pages[tab];
-  const label = input.label || "Reference image";
-
   return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      size="wide"
-      busy={uploading}
-      className={cn("reference-media-dialog", dragging && "is-dragging")}
-      bodyClassName="reference-media-body"
-      title={`Choose ${label.toLowerCase()}`}
-      description="Select a past generation or upload an image."
-      headerActions={
-        <>
-          <button className="btn is-primary" type="button" onClick={() => uploadInput.current?.click()} disabled={uploading}>
-            {uploading ? <LoaderCircle className="spin" size={16} /> : <Plus size={16} />}
-            <span>{uploading ? `Uploading ${uploadProgress || ""}${uploadProgress ? "%" : ""}` : "Upload"}</span>
-          </button>
-          <input ref={uploadInput} className="reference-file-input" type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => uploadFile(event.target.files?.[0])} />
-        </>
-      }
-      contentProps={{
-        "aria-busy": uploading || selectingId ? "true" : undefined,
-        onDragEnter: (event) => { event.preventDefault(); setDragging(true); },
-        onDragOver: (event) => event.preventDefault(),
-        onDragLeave: (event) => { if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) setDragging(false); },
-        onDrop: (event) => { event.preventDefault(); setDragging(false); uploadFile(Array.from(event.dataTransfer.files).find((file) => file.type.startsWith("image/"))); }
-      }}
+    <motion.div
+      className="reference-popover"
+      role="dialog"
+      aria-label={`Choose ${label}`}
+      aria-busy={upload.busy || Boolean(selectingId) || undefined}
+      data-open-surface
+      initial={{ opacity: 0, y: 10, scale: 0.97, filter: "blur(4px)" }}
+      animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: 8, scale: 0.98, filter: "blur(3px)" }}
+      transition={spring}
     >
-            <nav className="reference-media-tabs" role="tablist" aria-label="Reference image sources">
-              <button id="reference-tab-generation" role="tab" aria-selected={tab === "generation"} aria-controls="reference-panel" className={cn(tab === "generation" && "active")} onClick={() => setTab("generation")}>
-                <Images size={18} /><span>Generations</span>
-              </button>
-              <button id="reference-tab-upload" role="tab" aria-selected={tab === "upload"} aria-controls="reference-panel" className={cn(tab === "upload" && "active")} onClick={() => setTab("upload")}>
-                <ImageIcon size={18} /><span>Uploads</span>
-              </button>
-              <button className="reference-mobile-upload" type="button" onClick={() => uploadInput.current?.click()} disabled={uploading}>
-                <Upload size={18} /><span>Upload image</span>
-              </button>
-            </nav>
-            <section id="reference-panel" role="tabpanel" aria-labelledby={`reference-tab-${tab}`} className="reference-media-panel">
-              {page.loading && !page.items.length ? (
-                <div className="reference-media-grid is-loading" aria-label="Loading images">
-                  {Array.from({ length: 10 }, (_, index) => <div className="reference-media-skeleton" key={index} />)}
-                </div>
-              ) : page.error && !page.items.length ? (
-                <div className="reference-media-empty is-error"><ImageIcon size={25} /><h3>Images unavailable</h3><p>{page.error}</p><button className="btn" onClick={() => load(tab)}>Try again</button></div>
-              ) : !page.items.length ? (
-                <div className="reference-media-empty"><ImageIcon size={25} /><h3>{tab === "generation" ? "No generations yet" : "No uploads yet"}</h3><p>{tab === "generation" ? "Completed image generations will appear here." : "Drop, paste, or upload an image to get started."}</p>{tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}>Upload image</button> : null}</div>
-              ) : (
-                <>
-                  <div className="reference-media-grid" data-reference-grid>
-                    {page.items.map((asset, index) => {
-                      const isSelected = selected?.id === asset.id;
-                      return (
-                        <div
-                          key={asset.id}
-                          className={cn("reference-media-tile", isSelected && "is-selected")}
-                        >
-                          <button
-                            type="button"
-                            data-reference-index={index}
-                            className="reference-media-tile-select"
-                            aria-pressed={isSelected}
-                            aria-label={`${isSelected ? "Selected: " : ""}${asset.name}`}
-                            onKeyDown={(event) => moveGridFocus(event, index)}
-                            onClick={() => choose(asset)}
-                            disabled={Boolean(selectingId || uploading)}
-                          >
-                            <img src={assetImage(asset)} alt="" loading="lazy" draggable={false} />
-                            <span className="reference-media-tile-name">{asset.name}</span>
-                            {isSelected ? <i className="reference-media-check"><Check size={13} /></i> : null}
-                          </button>
-                          {asset.source === "upload" ? <button type="button" className="reference-media-delete" aria-label={`Delete ${asset.name}`} onClick={(event) => removeUpload(event, asset)}><Trash2 size={14} /></button> : null}
-                          {selectingId === asset.id ? <span className="reference-media-selecting"><LoaderCircle className="spin" size={18} /></span> : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {page.hasMore ? <button className="reference-media-more" onClick={() => load(tab, page.cursor)} disabled={page.loading}>{page.loading ? "Loading…" : "Load more"}</button> : null}
-                </>
-              )}
-            </section>
-          {dragging ? <div className="reference-drop-overlay"><Upload size={24} /><strong>Drop image to upload</strong></div> : null}
-    </Modal>
+      <header className="reference-popover-head">
+        <div className="reference-tabs" role="tablist" aria-label="Reference image sources">
+          <button role="tab" aria-selected={tab === "generation"} className={cn(tab === "generation" && "active")} onClick={() => setTab("generation")}><Images size={14} /> Generations</button>
+          <button role="tab" aria-selected={tab === "upload"} className={cn(tab === "upload" && "active")} onClick={() => setTab("upload")}><ImageIcon size={14} /> Uploads</button>
+        </div>
+        <span className="reference-popover-hint">Drop or paste an image anywhere on the prompt</span>
+        <button type="button" className="btn is-primary reference-upload" onClick={() => uploadInput.current?.click()} disabled={upload.busy}>
+          {upload.busy ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}
+          <span>{upload.busy ? `${upload.progress || 0}%` : "Upload"}</span>
+        </button>
+        <input ref={uploadInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { uploadAndUse(event.target.files?.[0]); event.currentTarget.value = ""; }} />
+        <Tip content="Close (Esc)"><button type="button" className="reference-popover-close" aria-label="Close" onClick={onClose}><X size={15} /></button></Tip>
+      </header>
+
+      <div className="reference-popover-body" role="tabpanel">
+        {page.loading && !page.items.length ? (
+          <div className="reference-grid is-loading" aria-label="Loading images">
+            {Array.from({ length: 12 }, (_, index) => <div className="reference-skeleton" key={index} />)}
+          </div>
+        ) : page.error && !page.items.length ? (
+          <div className="reference-empty"><ImageIcon size={22} /><strong>Images unavailable</strong><p>{page.error}</p><button className="btn" onClick={() => load(tab)}>Try again</button></div>
+        ) : !page.items.length ? (
+          <div className="reference-empty">
+            <ImageIcon size={22} />
+            <strong>{tab === "generation" ? "No generations yet" : "No uploads yet"}</strong>
+            <p>{tab === "generation" ? "Finished images will show up here." : "Upload one, or drop it on the prompt."}</p>
+            {tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}><Upload size={14} /> Upload image</button> : null}
+          </div>
+        ) : (
+          <>
+            <div className="reference-grid" data-reference-grid>
+              {page.items.map((asset, index) => {
+                const isSelected = selected?.id === asset.id;
+                return (
+                  <motion.div
+                    key={asset.id}
+                    className={cn("reference-tile", isSelected && "is-selected")}
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ ...spring, delay: Math.min(index, 18) * 0.012 }}
+                  >
+                    <button
+                      type="button"
+                      data-reference-index={index}
+                      className="reference-tile-select"
+                      aria-pressed={isSelected}
+                      aria-label={`${isSelected ? "Selected: " : ""}${asset.name}`}
+                      onKeyDown={(event) => moveGridFocus(event, index)}
+                      onClick={() => choose(asset)}
+                      disabled={Boolean(selectingId || upload.busy)}
+                    >
+                      <img src={assetImage(asset)} alt="" loading="lazy" draggable={false} />
+                      {isSelected ? <i className="reference-tile-check"><Check size={12} strokeWidth={3} /></i> : null}
+                    </button>
+                    {asset.source === "upload" ? <button type="button" className="reference-tile-delete" aria-label={`Delete ${asset.name}`} onClick={(event) => removeUpload(event, asset)}><Trash2 size={13} /></button> : null}
+                    {selectingId === asset.id ? <span className="reference-tile-busy"><LoaderCircle className="spin" size={16} /></span> : null}
+                  </motion.div>
+                );
+              })}
+            </div>
+            {page.hasMore ? <button className="btn is-ghost reference-more" onClick={() => load(tab, page.cursor)} disabled={page.loading}>{page.loading ? "Loading…" : "Load more"}</button> : null}
+          </>
+        )}
+      </div>
+    </motion.div>
   );
 }
 
-export function ReferenceMediaControl({ input, selected, onOpen, onRemove }: { input: MediaInput; selected: ReferenceAsset | null; onOpen: () => void; onRemove: () => void }) {
+/* ------------------------------------------------------------------ Slot */
+
+/**
+ * One reference input as a chip in the composer's top-right corner. Empty, it
+ * introduces itself as "Add reference" and settles into a round +. With an
+ * image it becomes a squircle thumbnail that opens into a small menu on hover.
+ */
+function ReferenceSlot({ input, selected, open, busy, progress, onOpen, onRemove }: {
+  input: MediaInput;
+  selected: ReferenceAsset | null;
+  open: boolean;
+  busy: boolean;
+  progress: number;
+  onOpen: () => void;
+  onRemove: () => void;
+}) {
   const required = Boolean(input.required || (input.min || 0) > 0);
   const label = input.label || "Reference image";
-  if (!selected) {
-    return <button type="button" className={cn("composer-reference-empty", required && "is-required")} onClick={onOpen} aria-label={`Add ${label.toLowerCase()}${required ? ", required" : ""}`}><Plus size={16} /><span>Add reference</span>{required ? <i>Required</i> : null}</button>;
+  const [introduced, setIntroduced] = React.useState(false);
+  React.useEffect(() => {
+    const id = window.setTimeout(() => setIntroduced(true), 2600);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  if (busy) {
+    return (
+      <div className="ref-chip is-busy" aria-live="polite">
+        <LoaderCircle className="spin" size={15} /><span>{progress ? `${progress}%` : "Uploading"}</span>
+      </div>
+    );
   }
+
+  if (!selected) {
+    // The label is always rendered; a grid track animates it open and shut.
+    const expanded = !introduced || required || open;
+    return (
+      <Tip content={expanded ? `Choose a ${label.toLowerCase()}, or drop one on the prompt` : `Add ${label.toLowerCase()}`}>
+        <button
+          type="button"
+          data-open-trigger
+          className={cn("ref-chip ref-add", expanded && "is-expanded", required && "is-required", open && "is-open")}
+          aria-label={`Add ${label.toLowerCase()}${required ? ", required" : ""}`}
+          aria-expanded={open}
+          onClick={onOpen}
+        >
+          <Plus size={15} strokeWidth={2.2} />
+          <span className="ref-add-label"><span>Add reference{required ? <em>Required</em> : null}</span></span>
+        </button>
+      </Tip>
+    );
+  }
+
   return (
-    <div className="composer-reference-selected">
-      <button type="button" className="composer-reference-main" onClick={onOpen} aria-label={`Change ${label.toLowerCase()}, currently ${selected.name}`}>
-        {assetImage(selected) ? <img src={assetImage(selected)} alt="" /> : <span className="composer-reference-thumb-placeholder"><ImageIcon size={17} /></span>}
-        <span><strong>{selected.name}</strong><small>{selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private generation" : "Upload"}</small></span>
+    <div className={cn("ref-chip ref-selected", open && "is-open")}>
+      <div className="ref-menu">
+        <div>
+          <button type="button" className="ref-menu-name" onClick={onOpen} tabIndex={-1}>
+            <strong>{selected.name}</strong>
+            <small>{selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
+          </button>
+          <Tip content="Remove reference">
+            <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
+          </Tip>
+        </div>
+      </div>
+      <button type="button" data-open-trigger className="ref-thumb" onClick={onOpen} aria-label={`Change ${label.toLowerCase()}, currently ${selected.name}`} aria-expanded={open}>
+        {assetImage(selected) ? <img src={assetImage(selected)} alt="" draggable={false} /> : <ImageIcon size={15} />}
       </button>
-      <button type="button" className="composer-reference-change" onClick={onOpen}>Change</button>
-      <button type="button" className="composer-reference-remove" onClick={onRemove} aria-label={`Remove ${label.toLowerCase()}`}><X size={15} /></button>
+    </div>
+  );
+}
+
+/* ----------------------------------------------------------------- Slots */
+
+/**
+ * Every reference input of the workflow, top right of the composer, plus the
+ * picker popover and drop-and-paste uploads on the whole prompt bar.
+ */
+export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDelete, onError }: {
+  inputs: MediaInput[];
+  selected: SelectedReferenceAsset[];
+  onSelect: (slot: string, asset: ReferenceAsset) => void;
+  onRemove: (slot: string) => void;
+  confirmDelete?: (asset: ReferenceAsset) => Promise<boolean>;
+  onError?: (message: string) => void;
+}) {
+  const [openSlot, setOpenSlot] = React.useState("");
+  const [uploadSlot, setUploadSlot] = React.useState("");
+  const [progress, setProgress] = React.useState(0);
+  const [dropping, setDropping] = React.useState(false);
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const close = React.useCallback(() => setOpenSlot(""), []);
+  useDismiss(rootRef, Boolean(openSlot), close);
+
+  const assetFor = (slot: string) => selected.find((item) => item.slot === slot)?.asset || null;
+  // New images go to the slot that's open, else the first empty one, else the first.
+  const targetSlot = () => openSlot || inputs.find((input) => !assetFor(input.id))?.id || inputs[0]?.id || "";
+
+  const upload = React.useCallback(async (file: File | undefined, slot: string) => {
+    if (!file || !slot || uploadSlot) return null;
+    if (!file.type.startsWith("image/")) { onError?.("Choose an image file"); return null; }
+    setUploadSlot(slot);
+    setProgress(0);
+    try {
+      const asset = await uploadReferenceAsset(file, setProgress);
+      onSelect(slot, asset);
+      return asset;
+    } catch (error) {
+      onError?.(error instanceof Error ? error.message : "Upload failed");
+      return null;
+    } finally {
+      setUploadSlot("");
+      setProgress(0);
+    }
+  }, [onError, onSelect, uploadSlot]);
+
+  // Drop an image anywhere on the prompt bar, or paste one while the prompt has focus.
+  const uploadRef = React.useRef({ upload, targetSlot });
+  uploadRef.current = { upload, targetSlot };
+  React.useEffect(() => {
+    const host = rootRef.current?.closest<HTMLElement>(".zen-prompt");
+    if (!host || !inputs.length) return;
+    let depth = 0;
+    const hasImage = (event: DragEvent) => Array.from(event.dataTransfer?.items || []).some((item) => item.kind === "file" && item.type.startsWith("image/"));
+    const enter = (event: DragEvent) => { if (!hasImage(event)) return; event.preventDefault(); depth += 1; setDropping(true); };
+    const over = (event: DragEvent) => { if (hasImage(event)) { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"; } };
+    const leave = () => { depth = Math.max(0, depth - 1); if (!depth) setDropping(false); };
+    const drop = (event: DragEvent) => {
+      const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/"));
+      depth = 0;
+      setDropping(false);
+      if (!file) return;
+      event.preventDefault();
+      uploadRef.current.upload(file, uploadRef.current.targetSlot()).then((asset) => { if (asset) setOpenSlot(""); });
+    };
+    const paste = (event: ClipboardEvent) => {
+      const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith("image/"));
+      if (!file) return;
+      event.preventDefault();
+      uploadRef.current.upload(file, uploadRef.current.targetSlot()).then((asset) => { if (asset) setOpenSlot(""); });
+    };
+    host.addEventListener("dragenter", enter);
+    host.addEventListener("dragover", over);
+    host.addEventListener("dragleave", leave);
+    host.addEventListener("drop", drop);
+    host.addEventListener("paste", paste);
+    return () => {
+      host.removeEventListener("dragenter", enter);
+      host.removeEventListener("dragover", over);
+      host.removeEventListener("dragleave", leave);
+      host.removeEventListener("drop", drop);
+      host.removeEventListener("paste", paste);
+    };
+  }, [inputs.length]);
+
+  if (!inputs.length) return null;
+  const openInput = inputs.find((input) => input.id === openSlot) || null;
+
+  return (
+    <div className="composer-reference" ref={rootRef}>
+      <div className="composer-reference-slots">
+        {inputs.map((input) => (
+          <ReferenceSlot
+            key={input.id}
+            input={input}
+            selected={assetFor(input.id)}
+            open={openSlot === input.id}
+            busy={uploadSlot === input.id}
+            progress={progress}
+            onOpen={() => setOpenSlot((current) => current === input.id ? "" : input.id)}
+            onRemove={() => onRemove(input.id)}
+          />
+        ))}
+      </div>
+      <AnimatePresence>
+        {openInput ? (
+          <ReferencePopover
+            key="popover"
+            input={openInput}
+            selected={assetFor(openInput.id)}
+            onClose={close}
+            onSelect={(asset) => onSelect(openInput.id, asset)}
+            onRemoveSelected={() => onRemove(openInput.id)}
+            confirmDelete={confirmDelete}
+            onError={onError}
+            upload={{ busy: Boolean(uploadSlot), progress, start: (file) => upload(file, openInput.id) }}
+          />
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {dropping ? (
+          <motion.div
+            key="drop"
+            className="composer-drop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+          >
+            <Upload size={18} /><strong>Drop to use as reference</strong>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

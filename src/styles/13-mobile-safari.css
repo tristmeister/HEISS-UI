@@ -42,15 +42,6 @@ body {
 }
 
 @media (max-width: 760px) {
-  .reference-media-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
-  .reference-media-tabs { flex-direction: row; gap: 4px; padding: 8px; overflow-x: auto; box-shadow: inset 0 -1px rgb(255 255 255 / .07); }
-  .reference-media-tabs button { min-width: max-content; min-height: 44px; padding: 0 13px; border-radius: 14px; }
-  .reference-media-tabs .reference-mobile-upload { display: none; }
-  .reference-media-panel { padding: 12px; }
-  .reference-media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  .reference-media-tile { border-radius: 14px; }
-  .reference-media-tile-name { display: none; }
-  .reference-media-delete { opacity: 1; }
 
   .stage-gallery {
     padding-right: max(6px, env(safe-area-inset-right));
@@ -108,9 +99,6 @@ body {
 }
 
 @media (max-width: 480px) {
-  .composer-reference-selected { grid-template-columns: minmax(0, 1fr) 40px; }
-  .composer-reference-change { display: none; }
-  .reference-media-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
   .stage-gallery {
     padding-right: max(5px, env(safe-area-inset-right));

@@ -215,7 +215,6 @@
 
 .upscale-modal .upscale-setup-steps:first-child,
 .upscale-modal .upscale-model-list:first-child { margin-top: 0; }
-.reference-media-dialog.is-dragging { box-shadow: var(--shadow-float), 0 0 0 2px rgb(255 255 255 / .25); }
 
 /* --------------------------------------------------------------- Toasts
    Top center, on the floating glass. Sonner reads these variables, so no
@@ -233,6 +232,8 @@
   --error-text: var(--danger-ink);
   --border-radius: var(--r-item);
 }
+/* An open dialog turns off pointer events on <body>; toasts over it stay live. */
+[data-sonner-toaster] [data-sonner-toast]:not([data-visible="false"]) { pointer-events: auto; }
 [data-sonner-toaster] [data-sonner-toast].heiss-toast {
   background-image: var(--surface-grain);
   -webkit-backdrop-filter: var(--surface-float-blur);

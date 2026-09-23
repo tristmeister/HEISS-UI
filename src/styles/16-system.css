@@ -101,7 +101,6 @@
 .zen-zoom-dock .viewer-zoom,
 .viewer-dock .icon-button,
 .viewer-dock .text-button,
-.reference-media-panel .icon-button,
 .composer-drawer .icon-button {
   width: var(--control-h);
   height: var(--control-h);
@@ -121,7 +120,6 @@
 .zen-zoom-dock .viewer-zoom:hover,
 .viewer-dock .icon-button:hover:not(:disabled),
 .viewer-dock .text-button:hover:not(:disabled),
-.reference-media-panel .icon-button:hover:not(:disabled),
 .composer-drawer .icon-button:hover {
   background: var(--control-hover);
   color: #fff;

@@ -147,7 +147,6 @@
 .set-status.is-warn i { background: var(--ember); }
 .set-status.is-bad i { background: #ff7b66; }
 
-
 .btn.is-danger-soft { background: var(--danger-fill); color: var(--danger-ink); }
 .btn.is-danger-soft:hover:not(:disabled) { background: rgb(255 120 100 / .22); }
 

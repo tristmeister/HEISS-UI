@@ -11,6 +11,9 @@ import { cn } from '@/lib/utils';
  * - wide / sheet: libraries and settings; big, scrolls its body.
  * While `busy`, nothing dismisses it: not Escape, not the scrim, not the close button.
  */
+/** Toasts float above dialogs; touching one is not a click outside. */
+const isToast = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('[data-sonner-toaster]'));
+
 export type ModalSize = 'alert' | 'form' | 'wide' | 'sheet';
 
 export function Modal({
@@ -79,8 +82,8 @@ export function Modal({
               if (opener?.isConnected) { event.preventDefault(); opener.focus(); }
             }}
             onEscapeKeyDown={(event) => { if (busy) event.preventDefault(); }}
-            onPointerDownOutside={(event) => { if (busy || !dismissOnOutside) event.preventDefault(); }}
-            onInteractOutside={(event) => { if (busy || !dismissOnOutside) event.preventDefault(); }}
+            onPointerDownOutside={(event) => { if (busy || !dismissOnOutside || isToast(event.target)) event.preventDefault(); }}
+            onInteractOutside={(event) => { if (busy || !dismissOnOutside || isToast(event.target)) event.preventDefault(); }}
           >
             {hero}
             <header className="modal-head">

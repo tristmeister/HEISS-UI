@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
-import { ReferenceMediaControl, ReferenceMediaPicker } from './ReferenceMediaPicker';
+import { ReferenceSlots } from './ReferenceMediaPicker';
 import type { AspectPreset, MediaInput, Profile, ReferenceAsset, SelectedReferenceAsset } from './types';
 
 /* ---------------------------------------------------------------------------
@@ -259,9 +259,6 @@ export function ComposerBar(props: ComposerBarProps) {
   const { rowRef, plan, level } = useDensityLevel(contentKey);
   useComposerHeightVar(rowRef);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [referencePickerSlot, setReferencePickerSlot] = React.useState("");
-  const pickerInput = referenceInputs.find((input) => input.id === referencePickerSlot) || null;
-  const pickerAsset = pickerInput ? referenceAssets.find((item) => item.slot === pickerInput.id)?.asset || null : null;
 
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
@@ -333,14 +330,7 @@ export function ComposerBar(props: ComposerBarProps) {
 
   return (
     <>
-      {referenceInputs.length ? (
-        <>
-          <div className="composer-reference-list">
-            {referenceInputs.map((input) => <ReferenceMediaControl key={input.id} input={input} selected={referenceAssets.find((item) => item.slot === input.id)?.asset || null} onOpen={() => setReferencePickerSlot(input.id)} onRemove={() => onReferenceRemove(input.id)} />)}
-          </div>
-          {pickerInput ? <ReferenceMediaPicker open input={pickerInput} selected={pickerAsset} onOpenChange={(open) => { if (!open) setReferencePickerSlot(""); }} onSelect={(asset) => onReferenceSelect(pickerInput.id, asset)} onRemoveSelected={() => onReferenceRemove(pickerInput.id)} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} /> : null}
-        </>
-      ) : null}
+      <ReferenceSlots inputs={referenceInputs} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (
         <motion.div

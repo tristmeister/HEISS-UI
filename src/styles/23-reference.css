@@ -1,0 +1,309 @@
+/* ---------------------------------------------------------------------------
+   Reference images (src/app/ReferenceMediaPicker.tsx)
+
+   A chip in the composer's top-right corner, a popover that rises out of the
+   composer to pick one, and a drop target over the whole prompt bar.
+--------------------------------------------------------------------------- */
+
+.zen-prompt:has(.composer-reference-slots) textarea { padding-right: 64px; }
+
+.composer-reference-slots {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------------------ Chip */
+
+.ref-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  border-radius: var(--r-pill);
+  color: hsl(var(--foreground));
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+/* Empty: "+ Add reference" that settles into a round +. The label sits in a
+   grid track that animates between 0fr and 1fr, so the chip morphs smoothly. */
+.ref-add {
+  display: inline-grid;
+  grid-template-columns: 36px 0fr;
+  align-items: center;
+  justify-items: center;
+  padding: 0;
+  border: 0;
+  background: var(--control-fill);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+  cursor: pointer;
+  transition: grid-template-columns 420ms var(--ease-out), background var(--dur-fast), box-shadow var(--dur-fast), scale 100ms;
+}
+.ref-add.is-expanded { grid-template-columns: 30px 1fr; }
+.ref-add > svg { transition: rotate 320ms var(--ease-out); }
+.ref-add.is-open > svg { rotate: 45deg; }
+.ref-add-label { min-width: 0; overflow: hidden; justify-self: stretch; }
+.ref-add-label > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 14px;
+  opacity: 0;
+  filter: blur(3px);
+  transition: opacity 220ms var(--ease-out), filter 220ms var(--ease-out);
+}
+.ref-add.is-expanded .ref-add-label > span { opacity: 1; filter: none; transition-delay: 90ms; }
+.ref-add-label em {
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--ember-soft);
+  color: var(--ember);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 600;
+}
+.ref-add:hover { background: var(--control-hover); }
+.ref-add:active { scale: .96; }
+.ref-add.is-open { background: var(--action); color: var(--action-ink); box-shadow: none; }
+
+/* Chosen: a squircle thumbnail. Hover or focus opens a small menu to its left. */
+.ref-selected {
+  display: grid;
+  grid-template-columns: 0fr auto;
+  padding: 0;
+  border-radius: 16px;
+  transition: grid-template-columns 360ms var(--ease-out), background var(--dur-fast), box-shadow var(--dur-fast), padding 360ms var(--ease-out);
+}
+.ref-selected:hover,
+.ref-selected:focus-within,
+.ref-selected.is-open {
+  grid-template-columns: 1fr auto;
+  padding: 0 0 0 4px;
+  background: var(--surface-grain), rgb(30 30 30 / .86);
+  box-shadow: inset 0 0 0 1px var(--surface-border), var(--shadow-float-sm);
+}
+.ref-thumb {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 12px;
+  background: var(--well);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .14), 0 4px 12px rgb(0 0 0 / .35);
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: scale 160ms var(--ease-out), box-shadow var(--dur-fast);
+}
+@supports (corner-shape: squircle) {
+  .ref-thumb { border-radius: 40%; corner-shape: squircle; }
+}
+.ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ref-thumb:hover { scale: 1.05; box-shadow: 0 0 0 1px rgb(255 255 255 / .3), 0 6px 16px rgb(0 0 0 / .4); }
+.ref-menu { min-width: 0; overflow: hidden; }
+.ref-menu > div {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+  opacity: 0;
+  translate: 6px 0;
+  transition: opacity 200ms var(--ease-out), translate 300ms var(--ease-out);
+}
+.ref-selected:hover .ref-menu > div,
+.ref-selected:focus-within .ref-menu > div,
+.ref-selected.is-open .ref-menu > div { opacity: 1; translate: 0 0; transition-delay: 60ms; }
+.ref-menu-name {
+  display: grid;
+  gap: 1px;
+  max-width: 150px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ref-menu-name strong { font-size: 12px; font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ref-menu-name small { font-size: 10.5px; color: hsl(var(--muted-foreground)); }
+.ref-menu-name:hover { background: var(--control-hover); }
+.ref-menu-remove {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+.ref-menu-remove:hover { background: var(--danger-fill); color: var(--danger-ink); }
+
+.ref-chip.is-busy {
+  gap: 7px;
+  padding: 0 12px;
+  background: var(--control-fill);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+  color: hsl(var(--muted-foreground));
+  font-variant-numeric: tabular-nums;
+}
+
+/* --------------------------------------------------------------- Popover */
+
+.reference-popover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  height: min(440px, 58dvh);
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-panel);
+  background: var(--surface-grain), rgb(22 22 22 / .9);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float);
+  transform-origin: 92% 100%;
+}
+.reference-popover-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; box-shadow: inset 0 -1px 0 var(--surface-border); }
+.reference-tabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--well); }
+.reference-tabs button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.reference-tabs button:hover { color: hsl(var(--foreground)); }
+.reference-tabs button.active { background: var(--selected); color: #fff; }
+.reference-popover-hint { flex: 1; min-width: 0; font-size: 11.5px; color: hsl(var(--muted-foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.reference-upload { height: 36px; min-height: 36px; padding: 0 14px; font-variant-numeric: tabular-nums; }
+.reference-popover-close {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+}
+.reference-popover-close:hover { background: var(--control-hover); color: #fff; }
+
+.reference-popover-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 12px; }
+.reference-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+.reference-tile { position: relative; aspect-ratio: 1; }
+.reference-tile-select {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-media);
+  background: var(--well);
+  cursor: pointer;
+  transition: scale 160ms var(--ease-out), box-shadow var(--dur-fast);
+}
+.reference-tile-select img { width: 100%; height: 100%; object-fit: cover; display: block; transition: scale 300ms var(--ease-out); }
+.reference-tile-select:hover img { scale: 1.05; }
+.reference-tile-select:active { scale: .97; }
+.reference-tile.is-selected .reference-tile-select { box-shadow: 0 0 0 2px #fff; }
+.reference-tile-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--action-ink);
+}
+.reference-tile-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(10 10 10 / .6);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: #fff;
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--dur-fast), background var(--dur-fast);
+}
+.reference-tile:hover .reference-tile-delete,
+.reference-tile-delete:focus-visible { opacity: 1; }
+.reference-tile-delete:hover { background: rgb(196 85 63 / .9); }
+.reference-tile-busy { position: absolute; inset: 0; display: grid; place-items: center; border-radius: var(--r-media); background: rgb(0 0 0 / .45); color: #fff; }
+.reference-skeleton { aspect-ratio: 1; border-radius: var(--r-media); background: rgb(255 255 255 / .03); animation: mosaic-flicker 2.4s steps(3, jump-none) infinite; }
+.reference-skeleton:nth-child(3n) { animation-delay: -.8s; }
+.reference-skeleton:nth-child(3n + 1) { animation-delay: -1.6s; }
+.reference-empty { display: grid; justify-items: center; align-content: center; gap: 6px; height: 100%; min-height: 200px; text-align: center; color: hsl(var(--muted-foreground)); }
+.reference-empty strong { margin-top: 4px; font-size: 13.5px; font-weight: 550; color: hsl(var(--foreground)); }
+.reference-empty p { margin: 0 0 8px; font-size: 12.5px; }
+.reference-more { display: flex; margin: 12px auto 0; }
+
+/* ------------------------------------------------------------------ Drop */
+
+.composer-drop {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: inherit;
+  background: rgb(12 12 12 / .78);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .35);
+  color: #fff;
+  font-size: 13.5px;
+  pointer-events: none;
+}
+
+@media (hover: none) {
+  .reference-tile-delete { opacity: 1; }
+}
+@media (max-width: 760px) {
+  .reference-popover { height: min(420px, 62dvh); }
+  .reference-popover-hint { display: none; }
+  .reference-upload span { display: none; }
+  .reference-upload { width: 36px; padding: 0; }
+  .reference-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ref-add,
+  .ref-selected,
+  .ref-add-label > span,
+  .ref-menu > div { transition: none; }
+}
