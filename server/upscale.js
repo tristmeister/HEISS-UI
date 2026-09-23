@@ -624,13 +624,29 @@ function faceDetailStack(graph, body, imageSource, info) {
 }
 
 /**
+ * A combo's choices wherever the node declares it. SeedVR2 makes
+ * offload_device optional, and ComfyUI rejects any value outside the list,
+ * so reading only the required inputs sent "cpu" to a Mac that offers
+ * ["none", "mps"].
+ */
+function comboOptions(info, nodeClass, key) {
+  const required = optionsFor(info, nodeClass, key);
+  if (required.length) return required.map(String);
+  const input = info?.[nodeClass]?.input?.optional?.[key];
+  if (!Array.isArray(input)) return [];
+  if (Array.isArray(input[0])) return input[0].map(String);
+  if (Array.isArray(input[1]?.options)) return input[1].options.map(String);
+  return [];
+}
+
+/**
  * The loaders list the devices this machine actually has (cuda:N, mps) and
  * whether a separate offload device exists. Block swapping needs one, and on
  * Apple silicon there is none, so it switches off there instead of failing.
  */
 function devicesFor(info, nodeClass) {
-  const devices = optionsFor(info, nodeClass, "device").map(String);
-  const offloads = optionsFor(info, nodeClass, "offload_device").map(String);
+  const devices = comboOptions(info, nodeClass, "device");
+  const offloads = comboOptions(info, nodeClass, "offload_device");
   const device = devices.find((name) => name !== "none" && name !== "cpu") || devices[0] || "cuda:0";
   const offload = offloads.length ? (offloads.includes("cpu") && device !== "cpu" ? "cpu" : "none") : "cpu";
   return { device, offload };

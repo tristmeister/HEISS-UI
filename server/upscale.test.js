@@ -9,11 +9,12 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-seedvr2-"));
 process.env.HEISS_SEEDVR2_MODEL_DIR = dir;
 const { installState, modelFiles, startModelInstall, upscaleGraph, upscaleStatus } = await import("./upscale.js");
 
-const combo = (values) => [values];
+// Shaped like the real /object_info: V3 combos, and offload_device is an optional input.
+const combo = (values) => ["COMBO", { options: values }];
 const infoWith = ({ dit = [], vae = [], devices = ["cuda:0"], offloads = ["none", "cpu", "cuda:0"] } = {}) => ({
-  SeedVR2LoadDiTModel: { input: { required: { model: combo(dit), device: combo(devices), offload_device: combo(offloads) } } },
-  SeedVR2LoadVAEModel: { input: { required: { model: combo(vae), device: combo(devices), offload_device: combo(offloads) } } },
-  SeedVR2VideoUpscaler: { input: { required: { offload_device: combo(offloads) } } }
+  SeedVR2LoadDiTModel: { input: { required: { model: combo(dit), device: combo(devices) }, optional: { offload_device: combo(offloads) } } },
+  SeedVR2LoadVAEModel: { input: { required: { model: combo(vae), device: combo(devices) }, optional: { offload_device: combo(offloads) } } },
+  SeedVR2VideoUpscaler: { input: { required: {}, optional: { offload_device: combo(offloads) } } }
 });
 // SeedVR2 2.5+ lists every registry model whether or not it is downloaded.
 const registryListing = { dit: ["seedvr2_ema_3b_fp8_e4m3fn.safetensors", "seedvr2_ema_7b_fp16.safetensors"], vae: ["ema_vae_fp16.safetensors"] };
@@ -65,9 +66,12 @@ test("the graph uses the machine's own device and skips block swap without an of
   clearDir();
   placeModel("seedvr2_ema_3b_fp8_e4m3fn.safetensors");
   placeModel("ema_vae_fp16.safetensors");
-  const mac = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith({ ...registryListing, devices: ["mps"], offloads: ["none"] })).graph;
+  // What a Mac really offers: the offload list has no "cpu" at all.
+  const mac = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith({ ...registryListing, devices: ["mps"], offloads: ["none", "mps"] })).graph;
   assert.equal(mac["3"].inputs.device, "mps");
   assert.equal(mac["3"].inputs.offload_device, "none");
+  assert.equal(mac["4"].inputs.offload_device, "none");
+  assert.equal(mac["5"].inputs.offload_device, "none");
   assert.equal(mac["3"].inputs.blocks_to_swap, 0);
   assert.equal(mac["3"].inputs.swap_io_components, false);
   const cuda = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith(registryListing)).graph;
