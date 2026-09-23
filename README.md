@@ -204,7 +204,7 @@ Start-Process "http://127.0.0.1:8787/"
 Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only files it ever adds are text encoders or VAEs you choose to download for a model, and those go into ComfyUI's own folders.
 
 **Which models work?**
-Out of the box: SD 1.5, SDXL (including Pony, Illustrious and NoobAI, plus Lightning, DMD2 and Hyper merges), Pony V7, SD 3.5, Flux.1, Flux.2 Dev and Klein, Chroma, HiDream, Qwen-Image, Z-Image, Krea 2 and Anima for images, and Wan 2.1, Wan 2.2, HunyuanVideo 1.5 and MiniMax H3 for video. Both all-in-one checkpoints and model-only files work; HEISS finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+Out of the box: Krea 2, Anima, Z-Image, Flux.2 Dev and Klein, Pony V7, Chroma, Qwen-Image, HiDream, SD 3.5, Flux.1, SDXL (including NoobAI, Illustrious and Pony, plus DMD2, Hyper and Lightning merges) and SD 1.5 for images, and MiniMax H3, HunyuanVideo 1.5, Wan 2.2 and Wan 2.1 for video. Both all-in-one checkpoints and model-only files work; HEISS finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
 
 **Where do my images go?**
 Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.
