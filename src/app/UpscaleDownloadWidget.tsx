@@ -17,7 +17,7 @@ import type { UpscaleInstall } from './types';
  * until it is dealt with.
  */
 
-type Mode = 'downloading' | 'verifying' | 'ready' | 'error';
+export type Mode = 'downloading' | 'verifying' | 'ready' | 'error';
 
 const READY_HOLD_MS = 4200;
 const CELLS = ARROW.flatMap((row, y) => [...row].map((bit, x) => (bit === 'X' ? { x, y } : null)).filter(Boolean)) as Array<{ x: number; y: number }>;
@@ -27,7 +27,7 @@ const rows = ARROW.length;
 const jitter = (x: number, y: number) => ((x * 73 + y * 151) % 97) / 97;
 
 /** The setup hero's arrow, drawn as SVG cells: dim until the fill line reaches them, ember below it, white-hot at it. */
-function MiniArrow({ mode, progress }: { mode: Mode; progress: number }) {
+export function MiniArrow({ mode, progress }: { mode: Mode; progress: number }) {
   const filled = mode === 'downloading' ? Math.round(progress * rows) : rows;
   const front = rows - filled;
   const bottomRow = ARROW[rows - 1];
@@ -76,7 +76,7 @@ function MiniArrow({ mode, progress }: { mode: Mode; progress: number }) {
   );
 }
 
-function formatEta(seconds: number) {
+export function formatEta(seconds: number) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '';
   if (seconds < 60) return 'under a minute left';
   const minutes = Math.round(seconds / 60);

@@ -11,7 +11,7 @@ import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, 
 import { inferModels, mockModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
-import { cancelDownload, downloadState, startDownload } from './model-downloads.js';
+import { cancelDownload, discardDownload, downloadState, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
@@ -294,7 +294,7 @@ app.get("/api/models/downloads", (_req, res) => {
 
 // Fetches a missing text encoder or VAE. Only ids from HEISS's own catalog are
 // accepted, so the server never downloads from a URL a request supplies.
-app.post("/api/models/downloads", (req, res) => {
+app.post("/api/models/downloads", async (req, res) => {
   if (!requireLocal(req, res)) return;
   const spec = catalogDownload(req.body?.id);
   if (!spec) {
@@ -302,7 +302,10 @@ app.post("/api/models/downloads", (req, res) => {
     return;
   }
   try {
-    res.json({ ok: true, download: startDownload(spec), ...downloadState() });
+    const download = startDownload(spec);
+    // Already on disk: rescan now so the model page catches up without another click.
+    if (download?.already) await loadComfyContext({ force: true }).catch(() => null);
+    res.json({ ok: true, download, ...downloadState() });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
@@ -310,7 +313,10 @@ app.post("/api/models/downloads", (req, res) => {
 
 app.post("/api/models/downloads/cancel", (req, res) => {
   if (!requireLocal(req, res)) return;
-  cancelDownload(String(req.body?.id || ""));
+  const id = String(req.body?.id || "");
+  const spec = req.body?.discard ? catalogDownload(id) : null;
+  if (spec) discardDownload(spec);
+  else cancelDownload(id);
   res.json({ ok: true, ...downloadState() });
 });
 

@@ -105,8 +105,8 @@ export type Profile = {
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number };
 export type MissingPart = { part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[] };
-export type ModelDownload = { id: string; file: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled"; receivedBytes: number; totalBytes: number; error?: string };
-export type DownloadState = { active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[] };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number };
+export type DownloadState = { active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
 export type ModelFile = { name: string; source: ModelSource; family: string; choice: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string; missing?: string[] };

@@ -10,7 +10,7 @@ export function workflowState(validation?: WorkflowValidation): { state: Workflo
   const missing = validation?.missingNodes?.length || 0;
   const files = validation?.missingFiles?.length || 0;
   if (validation && !validation.ok && files) {
-    return { state: 'needs-setup', label: `Needs ${files} file${files === 1 ? '' : 's'}`, detail: 'A text encoder or VAE this model needs is not installed yet. Download it from the sidebar.' };
+    return { state: 'needs-setup', label: `Needs ${files} file${files === 1 ? '' : 's'}`, detail: 'A text encoder or VAE this model needs is not installed yet. Get it right here.' };
   }
   if (validation && !validation.ok && missing) {
     return { state: 'missing-nodes', label: `Missing ${missing} node${missing === 1 ? '' : 's'}`, detail: 'Install the missing custom nodes in ComfyUI, then check again.' };

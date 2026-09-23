@@ -16,6 +16,7 @@ import { canUpscaleItem } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
+import { ModelDownloadWidget, useModelDownloadWidget } from './ModelDownloadWidget';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
@@ -42,7 +43,7 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs, referenceStrength } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
@@ -54,7 +55,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
-  const downloadWidget = useUpscaleDownloadWidget(upscaleSetup, upscaleInstall);
+  const upscaleWidget = useUpscaleDownloadWidget(upscaleSetup, upscaleInstall);
+  // A text encoder or VAE landing rescans models, so every panel catches up at once.
+  const modelWidget = useModelDownloadWidget({
+    onDone: () => { refreshModels(false); refreshWorkflows(); },
+    onError: (item) => showToast(item.error || `${item.label} failed to download`, "error")
+  });
+  // Two pills share the top edge; the upscale one wins, the toaster moves for either.
+  const downloadWidget = { visible: upscaleWidget.visible || (modelWidget.visible && !workflowGalleryOpen) };
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
@@ -432,7 +440,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         onOpenLibrary={() => { upscaleSetup.closeSetup(); openSettings("library"); }}
         showToast={showToast}
       />
-      <UpscaleDownloadWidget widget={downloadWidget} setup={upscaleSetup} install={upscaleInstall} />
+      <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
+      <ModelDownloadWidget widget={modelWidget} hidden={upscaleWidget.visible || workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
       {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
         <Modal
           open

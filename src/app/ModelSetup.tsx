@@ -1,9 +1,12 @@
 import React from 'react';
-import { Download, ExternalLink, X } from 'lucide-react';
-import { apiJson } from './api';
+import { Check, Download, ExternalLink, Pause, Play, RotateCw, X } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ComfyRestart } from './ComfyRestart';
+import { CellBar } from './UpscaleDialogs';
+import { formatEta } from './UpscaleDownloadWidget';
 import { cn } from './format';
-import type { DownloadState, MissingPart, ModelDownload, Profile } from './types';
+import { downloadFor, useModelDownloads } from './useModelDownloads';
+import type { MissingPart, ModelDownload, Profile } from './types';
 
 function formatBytes(bytes = 0) {
   if (!bytes) return '';
@@ -12,67 +15,34 @@ function formatBytes(bytes = 0) {
 }
 
 const partVerb: Record<MissingPart['part'], string> = {
-  encoder: 'text encoder',
+  encoder: 'Text encoder',
   vae: 'VAE',
-  model: 'model file',
-  comfy: 'update'
+  model: 'Model file',
+  comfy: 'ComfyUI'
 };
 
+type RowState = 'idle' | 'queued' | 'downloading' | 'paused' | 'error' | 'landed' | 'manual';
+
 /**
- * What the selected model still needs before it can run, each part with a
- * one-click download into ComfyUI's own folder (or a link when ComfyUI runs on
- * another machine). Rescans the models once a download lands.
+ * What the selected model still needs before it can run: every part as one
+ * row with its own progress, a single "Get everything" for the lot, and
+ * downloads that pause and resume where they stopped. The same panel sits in
+ * the sidebar and in the workflow gallery.
  */
-export function ModelSetup({ profile, onInstalled, showToast }: { profile: Profile; onInstalled: () => void; showToast: (message: string, tone?: string) => void }) {
-  const [downloads, setDownloads] = React.useState<DownloadState | null>(null);
+export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar' }: {
+  profile: Profile;
+  showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
+  onInstalled: () => void;
+  variant?: 'sidebar' | 'gallery';
+}) {
+  const reduced = useReducedMotion();
+  const { state, landed, start, pause, discard } = useModelDownloads();
   const [remote, setRemote] = React.useState(false);
   const missing = profile.missing || [];
-  const busy = Boolean(downloads?.active || downloads?.queued.length);
-  // Set once a file lands; if the model still reports it missing after the rescan, a restart is the fix.
-  const [landed, setLanded] = React.useState(false);
 
-  const refresh = React.useCallback(async () => {
+  const run = async (action: () => Promise<unknown>) => {
     try {
-      setDownloads(await apiJson<DownloadState & { ok: boolean }>('/api/models/downloads'));
-    } catch {
-      // The panel still works as a list of links without progress.
-    }
-  }, []);
-
-  React.useEffect(() => { refresh(); }, [refresh, profile.id]);
-
-  // Poll only while something is moving; rescan models when a file lands.
-  const finishedRef = React.useRef(new Set<string>());
-  React.useEffect(() => {
-    if (!busy) return;
-    const timer = window.setInterval(refresh, 1000);
-    return () => window.clearInterval(timer);
-  }, [busy, refresh]);
-  React.useEffect(() => {
-    for (const item of downloads?.recent || []) {
-      const key = `${item.id}:${item.status}`;
-      if (finishedRef.current.has(key)) continue;
-      finishedRef.current.add(key);
-      if (item.status === 'done') { onInstalled(); setLanded(true); }
-      if (item.status === 'error') showToast(item.error || `${item.label} failed to download`, 'error');
-    }
-  }, [downloads, onInstalled, showToast]);
-
-  if (!missing.length) return null;
-
-  const stateFor = (file: string): ModelDownload | undefined => {
-    if (downloads?.active?.file === file) return downloads.active;
-    return downloads?.queued.find((item) => item.file === file);
-  };
-
-  const start = async (id: string) => {
-    try {
-      const data = await apiJson<DownloadState & { ok: boolean }>('/api/models/downloads', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id })
-      });
-      setDownloads(data);
+      await action();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Download failed';
       if (/not on this computer/i.test(message)) setRemote(true);
@@ -80,70 +50,137 @@ export function ModelSetup({ profile, onInstalled, showToast }: { profile: Profi
     }
   };
 
-  const cancel = async (id: string) => {
-    try {
-      setDownloads(await apiJson<DownloadState & { ok: boolean }>('/api/models/downloads/cancel', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id })
-      }));
-    } catch { /* the next poll shows the truth */ }
-  };
+  if (!missing.length) return null;
 
-  const fetchable = missing.filter((item) => item.downloads.length);
+  const rows = missing.map((item) => {
+    const download = item.downloads[0];
+    const current = download ? downloadFor(state, download.file) : undefined;
+    let rowState: RowState = !download ? 'manual' : 'idle';
+    if (current?.status === 'queued') rowState = 'queued';
+    else if (current?.status === 'downloading') rowState = 'downloading';
+    else if (current?.status === 'paused') rowState = 'paused';
+    else if (current?.status === 'error') rowState = 'error';
+    else if (download && landed.has(download.file)) rowState = 'landed';
+    return { item, download, current, rowState };
+  });
+
+  const startable = remote ? [] : rows.filter((row) => row.download && (row.rowState === 'idle' || row.rowState === 'paused' || row.rowState === 'error'));
+  const remainingBytes = startable.reduce((sum, row) => sum + Math.max(0, (row.current?.totalBytes || row.download?.bytes || 0) - (row.current?.receivedBytes || 0)), 0);
+  const moving = rows.some((row) => row.rowState === 'downloading' || row.rowState === 'queued');
+  const stuck = rows.some((row) => row.rowState === 'landed');
+  const fetchable = rows.filter((row) => row.download).length;
+
+  const title = moving ? 'Downloading' : fetchable === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet';
+  const subtitle = profile.encoderBuiltIn === false && profile.source === 'checkpoint'
+    ? 'This checkpoint ships without everything it needs.'
+    : `${profile.displayName} runs once ${missing.length === 1 ? 'this is' : 'these are'} in place.`;
 
   return (
-    <section className="model-setup" aria-label="Files this model needs">
+    <section className={cn('model-setup', `is-${variant}`)} aria-label="Files this model needs">
       <header className="model-setup-head">
-        <strong>{fetchable.length === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet'}</strong>
-        <span>{profile.encoderBuiltIn === false && profile.source === 'checkpoint' ? 'This checkpoint ships without everything it needs.' : `${profile.displayName} can run once these are in place.`}</span>
+        <div>
+          <strong>{title}</strong>
+          <span>{subtitle}</span>
+        </div>
+        {startable.length > 1 ? (
+          <button type="button" className="btn is-primary" onClick={() => run(async () => { for (const row of startable) await start(row.download!.id); })}>
+            <Download size={14} /> Get all{remainingBytes ? ` · ${formatBytes(remainingBytes)}` : ''}
+          </button>
+        ) : null}
       </header>
       <ul className="model-setup-list">
-        {missing.map((item) => {
-          const download = item.downloads[0];
-          const state = download ? stateFor(download.file) : undefined;
-          const progress = state && state.totalBytes ? Math.min(1, state.receivedBytes / state.totalBytes) : 0;
-          return (
-            <li key={`${item.part}:${item.slot || item.kind || item.label}`} className={cn('model-setup-item', state && 'is-busy')}>
+        {rows.map(({ item, download, current, rowState }) => (
+          <li key={`${item.part}:${item.slot || item.kind || item.label}`} className={cn('model-setup-item', `is-${rowState}`)}>
+            <div className="model-setup-row">
+              <span className={cn('model-setup-dot', `is-${rowState}`)} aria-hidden="true">
+                {rowState === 'landed' ? <Check size={11} strokeWidth={3} /> : null}
+              </span>
               <div className="model-setup-copy">
+                <small>{partVerb[item.part]}</small>
                 <strong>{item.label}</strong>
-                <span>{item.detail || `Missing ${partVerb[item.part]}.`}</span>
               </div>
-              {download ? (
-                <div className="model-setup-actions">
-                  {state ? (
-                    <>
-                      <span className="model-setup-progress" aria-label={`${Math.round(progress * 100)} percent`}>
-                        <i style={{ transform: `scaleX(${progress})` }} />
-                      </span>
-                      <span className="model-setup-meta">{state.status === 'queued' ? 'Waiting' : `${Math.round(progress * 100)}%`}</span>
-                      <button type="button" className="btn is-ghost is-icon" aria-label={`Stop downloading ${download.file}`} onClick={() => cancel(state.id)}><X size={14} /></button>
-                    </>
-                  ) : (
-                    <>
-                      {!remote ? (
-                        <button type="button" className="btn" onClick={() => start(download.id)} title={download.file}>
-                          <Download size={14} /> Download{download.bytes ? ` · ${formatBytes(download.bytes)}` : ''}
-                        </button>
-                      ) : null}
-                      <a className="btn is-ghost is-icon" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer" aria-label={`Open ${download.file} on Hugging Face`} title={download.file}>
-                        <ExternalLink size={14} />
-                      </a>
-                    </>
-                  )}
-                </div>
+              <div className="model-setup-actions">
+                <RowActions rowState={rowState} download={download} current={current} remote={remote} run={run} start={start} pause={pause} discard={discard} />
+              </div>
+            </div>
+            <AnimatePresence initial={false}>
+              {current && (rowState === 'downloading' || rowState === 'queued' || rowState === 'paused') ? (
+                <motion.div
+                  className="model-setup-progress"
+                  initial={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                  animate={reduced ? { opacity: 1 } : { opacity: 1, height: 'auto' }}
+                  exit={reduced ? { opacity: 0 } : { opacity: 0, height: 0 }}
+                  transition={{ duration: 0.22 }}
+                >
+                  <CellBar value={current.totalBytes ? current.receivedBytes / current.totalBytes : 0} />
+                  <small>{progressLine(current, rowState)}</small>
+                </motion.div>
               ) : null}
-            </li>
-          );
-        })}
+            </AnimatePresence>
+            {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'} It picks up where it left off.</p> : null}
+            {rowState === 'idle' || rowState === 'manual' ? <p className="model-setup-detail">{item.detail}</p> : null}
+          </li>
+        ))}
       </ul>
-      {landed && !busy && !remote ? (
+      {stuck && !moving && !remote ? (
         <div className="model-setup-restart">
-          <p className="model-setup-note">Downloaded, but ComfyUI has not picked it up yet. A restart makes it load the new file.</p>
+          <p>Downloaded and in place, but ComfyUI has not listed it yet. A restart makes it look again.</p>
           <ComfyRestart compact onBack={onInstalled} />
         </div>
       ) : null}
       {remote ? <p className="model-setup-note">ComfyUI runs on another computer, so put these files into its models folders there, then rescan.</p> : null}
     </section>
+  );
+}
+
+function progressLine(current: ModelDownload, rowState: RowState) {
+  const pct = current.totalBytes ? Math.floor((current.receivedBytes / current.totalBytes) * 100) : 0;
+  if (rowState === 'queued') return current.receivedBytes ? `Waiting · resumes at ${pct}%` : 'Waiting for the file before it';
+  if (rowState === 'paused') return `Paused at ${pct}% · ${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`;
+  const speed = current.bytesPerSecond || 0;
+  const eta = speed > 0 && current.totalBytes ? formatEta((current.totalBytes - current.receivedBytes) / speed) : '';
+  return [`${pct}%`, `${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`, speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', eta].filter(Boolean).join(' · ');
+}
+
+function RowActions({ rowState, download, current, remote, run, start, pause, discard }: {
+  rowState: RowState;
+  download?: MissingPart['downloads'][number];
+  current?: ModelDownload;
+  remote: boolean;
+  run: (action: () => Promise<unknown>) => void;
+  start: (id: string) => Promise<unknown>;
+  pause: (id: string) => Promise<unknown>;
+  discard: (id: string) => Promise<unknown>;
+}) {
+  if (!download) return null;
+  const link = (
+    <a className="btn is-ghost is-icon" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer" aria-label={`Open ${download.file} on Hugging Face`} title={download.file}>
+      <ExternalLink size={14} />
+    </a>
+  );
+  if (rowState === 'downloading' || rowState === 'queued') {
+    return <button type="button" className="btn is-ghost is-icon" aria-label={`Pause ${download.file}`} title="Pause" onClick={() => run(() => pause(current?.id || download.id))}><Pause size={14} /></button>;
+  }
+  if (rowState === 'paused') {
+    return (
+      <>
+        <button type="button" className="btn" onClick={() => run(() => start(download.id))}><Play size={13} /> Resume</button>
+        <button type="button" className="btn is-ghost is-icon" aria-label={`Discard the partial ${download.file}`} title="Discard" onClick={() => run(() => discard(download.id))}><X size={14} /></button>
+      </>
+    );
+  }
+  if (rowState === 'error') {
+    return <button type="button" className="btn" onClick={() => run(() => start(download.id))}><RotateCw size={13} /> Retry</button>;
+  }
+  if (rowState === 'landed') return <span className="model-setup-meta">In place</span>;
+  return (
+    <>
+      {!remote ? (
+        <button type="button" className="btn" onClick={() => run(() => start(download.id))} title={download.file}>
+          <Download size={14} /> {download.bytes ? formatBytes(download.bytes) : 'Get'}
+        </button>
+      ) : null}
+      {link}
+    </>
   );
 }

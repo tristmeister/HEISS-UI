@@ -7,7 +7,9 @@ import { cn } from './format';
 import { Field, StudioSelect as Select } from './components';
 import { Segmented } from './SettingsDialog';
 import { workflowState } from './workflowStatus';
-import type { Mode, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
+import { ModelSetup } from './ModelSetup';
+import { ComfyRestart } from './ComfyRestart';
+import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
 type Filter = "all" | "favorites" | "attention";
@@ -70,7 +72,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     setWorkflows: (value: WorkflowSummary[] | ((current: WorkflowSummary[]) => WorkflowSummary[])) => void;
     model: string;
     chooseModel: (id: string) => void;
-    models: { profiles: Array<{ id: string; kind: Mode }> } | null;
+    models: { profiles: Profile[] } | null;
   };
   const [kind, setKind] = useState<Mode>(mode);
   const [filter, setFilter] = useState<Filter>("all");
@@ -99,6 +101,8 @@ export function WorkflowGallery({ view }: { view: any }) {
   }, [filter, ofKind, query]);
   const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
   const selectedStatus = selected ? workflowState(selected.validation) : null;
+  // The same setup panel as the sidebar, for the model this workflow runs.
+  const selectedProfile = selected ? models?.profiles.find((profile) => profile.id === selected.profileId) : undefined;
 
   const openImport = () => { setImportStep(imports.length ? "review" : "choose"); setImportOpen(true); };
   const closeImport = () => { setImportOpen(false); setImports([]); setImportStep("choose"); setPasteJson(""); };
@@ -322,6 +326,9 @@ export function WorkflowGallery({ view }: { view: any }) {
             <div className={cn("wf-health", `is-${selectedStatus.state}`)}>
               <StatusBadge validation={selected.validation} />
               <p>{selectedStatus.detail}</p>
+              {selectedProfile?.missing?.length ? (
+                <ModelSetup variant="gallery" profile={selectedProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
+              ) : null}
               {selected.validation.missingNodes?.length ? (
                 <div className="wf-missing">
                   <ul>{selected.validation.missingNodes.map((node) => <li key={node}><code>{node}</code></li>)}</ul>
@@ -329,7 +336,8 @@ export function WorkflowGallery({ view }: { view: any }) {
                 </div>
               ) : null}
               {[...(selected.validation.missingNodes?.length ? selected.validation.issues.filter((issue) => !issue.startsWith("Missing node class:")) : selected.validation.issues), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
-              {selectedStatus.state !== "ready" ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
+              {selected.validation.missingNodes?.length ? <ComfyRestart compact className="wf-restart" onBack={checkAgain} /> : null}
+              {selectedStatus.state !== "ready" && !selectedProfile?.missing?.length ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
             </div>
 
             <div className="wf-detail-actions">

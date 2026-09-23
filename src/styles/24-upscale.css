@@ -528,3 +528,4 @@
 .comfy-restart.is-end { justify-items: end; text-align: right; max-width: 260px; }
 .upscale-restart { margin-top: 10px; }
 .upscale-route-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; background: hsl(var(--muted-foreground) / .14); color: hsl(var(--muted-foreground)); }
+.wf-restart { margin-top: 2px; }

@@ -538,45 +538,72 @@ button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
    What the selected model still needs, each with its download. */
 
 .model-setup {
+  position: relative;
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 12px;
+  padding: 14px 12px 12px;
+  overflow: hidden;
   border-radius: calc(var(--r-item) + 4px);
   background: var(--ember-soft);
-  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .22);
+  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .2);
 }
-.model-setup-head { display: grid; gap: 3px; }
-.model-setup-head strong { font-size: 13px; font-weight: 600; color: var(--ember); }
+/* The same faint heat the upscale pill carries, so the two read as one family. */
+.model-setup::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(220px 90px at 0% 0%, rgb(255 154 82 / .14), transparent 70%);
+  pointer-events: none;
+}
+.model-setup > * { position: relative; }
+.model-setup-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.model-setup-head > div { display: grid; gap: 3px; min-width: 0; }
+.model-setup-head strong { font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: var(--ember); }
 .model-setup-head span { font-size: 12px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
-.model-setup-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.model-setup-head .btn { flex: none; }
+.model-setup-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
 .model-setup-item {
   display: grid;
   gap: 8px;
   padding: 10px;
   border-radius: var(--r-item);
-  background: rgb(0 0 0 / .28);
+  background: rgb(0 0 0 / .26);
+  transition: background var(--dur-base);
 }
-.model-setup-copy { display: grid; gap: 2px; min-width: 0; }
-.model-setup-copy strong { font-size: 12.5px; font-weight: 550; }
-.model-setup-copy span { font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
-.model-setup-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.model-setup .btn { height: 32px; min-height: 32px; padding: 0 12px; font-size: 12px; }
-.model-setup .btn.is-icon { width: 32px; padding: 0; flex: none; }
-.model-setup-progress {
-  flex: 1;
-  height: 4px;
-  overflow: hidden;
+.model-setup-item.is-landed { background: rgb(0 0 0 / .14); }
+.model-setup-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.model-setup-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
   border-radius: var(--r-pill);
-  background: rgb(255 255 255 / .1);
+  box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / .22);
+  color: #111;
+  transition: background var(--dur-base), box-shadow var(--dur-base);
 }
-.model-setup-progress i {
-  display: block;
-  height: 100%;
-  background: var(--ember);
-  transform-origin: left;
-  transition: transform 400ms var(--ease-out);
-}
-.model-setup-meta { flex: none; min-width: 42px; font-size: 11.5px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); text-align: right; }
+.model-setup-dot.is-downloading, .model-setup-dot.is-queued { box-shadow: inset 0 0 0 1.5px var(--ember); }
+.model-setup-dot.is-downloading { background: radial-gradient(circle, var(--ember) 0 3px, transparent 3.5px); animation: model-setup-pulse 1.6s ease-in-out infinite; }
+.model-setup-dot.is-paused { box-shadow: inset 0 0 0 1.5px rgb(255 154 82 / .55); background: linear-gradient(90deg, transparent 5px, rgb(255 154 82 / .7) 5px 7px, transparent 7px 9px, rgb(255 154 82 / .7) 9px 11px, transparent 11px); }
+.model-setup-dot.is-error { box-shadow: inset 0 0 0 1.5px rgb(255 110 90 / .8); }
+.model-setup-dot.is-landed { background: #f4f4f4; box-shadow: none; }
+@keyframes model-setup-pulse { 50% { box-shadow: inset 0 0 0 1.5px var(--ember), 0 0 0 4px rgb(255 154 82 / .12); } }
+.model-setup-copy { display: grid; flex: 1; gap: 1px; min-width: 0; }
+.model-setup-copy small { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.model-setup-copy strong { overflow: hidden; font-size: 12.5px; font-weight: 550; white-space: nowrap; text-overflow: ellipsis; }
+.model-setup-actions { display: flex; flex: none; align-items: center; gap: 4px; }
+.model-setup .btn { height: 30px; min-height: 30px; padding: 0 11px; gap: 6px; font-size: 12px; }
+.model-setup .btn.is-icon { width: 30px; padding: 0; flex: none; }
+.model-setup-progress { display: grid; gap: 6px; overflow: hidden; }
+.model-setup-progress .cell-bar { height: 5px; }
+.model-setup-item.is-paused .cell-bar > div { background: rgb(255 154 82 / .45); }
+.model-setup-progress small { font-size: 11px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); }
+.model-setup-detail, .model-setup-error { margin: 0 0 0 26px; font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.model-setup-error { color: rgb(255 140 120); }
+.model-setup-meta { font-size: 11.5px; color: hsl(var(--muted-foreground)); }
 .model-setup-note { margin: 0; font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+.model-setup-restart { display: grid; gap: 8px; padding: 10px; border-radius: var(--r-item); background: rgb(0 0 0 / .2); }
+.model-setup-restart p { margin: 0; font-size: 11.5px; line-height: 1.45; color: hsl(var(--muted-foreground)); }
+.model-setup.is-gallery { margin-top: 4px; }
 .encoder-slot-builtin { font-size: 12px; color: hsl(var(--muted-foreground)); }
-.model-setup-restart { display: grid; gap: 8px; padding-top: 10px; border-top: 1px solid hsl(var(--border) / .6); }
