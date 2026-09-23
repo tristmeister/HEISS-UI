@@ -41,6 +41,7 @@ The node graph is great for building workflows and less great for the everyday l
 ## Features
 
 - **Bring your own workflow.** Export any ComfyUI API workflow, map the inputs you care about, and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
+- **Drop in a model and go.** HEISS reads each model file to tell what it is, uses the settings its makers recommend, and pairs it with a matching text encoder and VAE. If one is missing, it says which and can download it for you.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
 - **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works. Queue the next one, cancel any time.
 - **Image and video.** Separate galleries, plus start-image reuse wherever the workflow supports it.
@@ -197,10 +198,10 @@ Start-Process "http://127.0.0.1:8787/"
 ## FAQ
 
 **Do I still need ComfyUI?**
-Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that.
+Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only files it ever adds are text encoders or VAEs you choose to download for a model, and those go into ComfyUI's own folders.
 
 **Which models work?**
-The common image, checkpoint and video setups work out of the box. For a model that needs custom nodes or special wiring, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+Out of the box: SD 1.5, SDXL (including Pony, Illustrious and NoobAI, plus Lightning, DMD2 and Hyper merges), Pony V7, SD 3.5, Flux.1, Flux.2 Dev and Klein, Chroma, HiDream, Qwen-Image, Z-Image, Krea 2 and Anima for images, and Wan 2.1, Wan 2.2, HunyuanVideo 1.5 and MiniMax H3 for video. Both all-in-one checkpoints and model-only files work; HEISS finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
 
 **Where do my images go?**
 Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.

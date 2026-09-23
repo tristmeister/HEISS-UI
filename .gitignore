@@ -11,7 +11,10 @@ outputs
 data
 *.log
 *.tsbuildinfo
-/private/cove/
+# Internal docs, design notes and anything else not meant for the public repo.
+/private/
+# Local tooling config (launch configs with machine paths).
+/.claude/
 .DS_Store
 
 # Never publish product screenshots or design working files.
