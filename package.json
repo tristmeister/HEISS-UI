@@ -21,7 +21,8 @@
     "build": "tsc -b && vite build",
     "start": "node server/index.js",
     "preview": "vite preview --host 127.0.0.1 --port 5173",
-    "test": "node --test server/*.test.js",
+    "test": "node --test server/*.test.js scripts/*.test.js",
+    "release": "node scripts/release.mjs",
     "check:updates": "npm outdated",
     "package": "npm run build && node scripts/package-release.mjs"
   },

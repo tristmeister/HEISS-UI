@@ -200,8 +200,29 @@ const appVersion = (() => {
   try { return JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version || ""; } catch { return ""; }
 })();
 
-app.get("/api/stats", (_req, res) => {
-  res.json({ ok: true, version: appVersion, stats: galleryStats(gallery) });
+/**
+ * How far a source checkout is past its release tag, so About can tell
+ * "v0.2.0" from "v0.2.0 + 3". Release copies have no git and are exactly
+ * their version.
+ */
+let describeCache = { at: 0, value: null };
+async function commitsSinceRelease() {
+  if (Date.now() - describeCache.at < 60000) return describeCache.value;
+  let value = null;
+  try {
+    const { stdout } = await execFileAsync("git", ["describe", "--tags", "--long", "--match", "v[0-9]*"], { cwd: root, timeout: 3000 });
+    const match = stdout.trim().match(/^(v[\d.]+)-(\d+)-g[0-9a-f]+$/);
+    if (match) value = { tag: match[1], commits: Number(match[2]) };
+  } catch {
+    // No git, or no release tag yet.
+  }
+  describeCache = { at: Date.now(), value };
+  return value;
+}
+
+app.get("/api/stats", async (_req, res) => {
+  const since = await commitsSinceRelease();
+  res.json({ ok: true, version: appVersion, sinceRelease: since, stats: galleryStats(gallery) });
 });
 
 app.get("/api/health", async (_req, res) => {

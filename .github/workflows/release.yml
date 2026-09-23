@@ -1,7 +1,8 @@
 name: Release
 
-# Push a tag like v0.2.0 (matching package.json's version) to publish a
-# prebuilt download: the built app plus the server, no sources or build tools.
+# `npm run release` bumps the version, dates CHANGELOG.md and tags vX.Y.Z;
+# pushing that tag publishes a prebuilt download (the built app plus the
+# server, no sources or build tools) with the changelog section as notes.
 on:
   push:
     tags: ["v*"]
@@ -29,7 +30,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" release/*.zip --title "HEISS UI ${GITHUB_REF_NAME}" --generate-notes
+        # The notes are that version's CHANGELOG.md section (scripts/release.mjs writes it).
+        run: |
+          node scripts/changelog.mjs notes "${GITHUB_REF_NAME}" > release-notes.md
+          gh release create "${GITHUB_REF_NAME}" release/*.zip --title "HEISS UI ${GITHUB_REF_NAME}" --notes-file release-notes.md
       - name: Keep the package as a build artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4

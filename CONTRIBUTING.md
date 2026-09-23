@@ -24,6 +24,29 @@ npm run build
 - Document any new environment variable in `.env.example` and the README.
 - Don't commit model files, generated media, logs or `.env` files.
 - New workflow templates belong in `workflows/` with a `heissUi` mapping block. See [the workflow guide](./workflows/README.md).
+- Add a line for anything people will notice under **Unreleased** in [CHANGELOG.md](./CHANGELOG.md).
+
+## Versions and releases
+
+HEISS UI uses [Semantic Versioning](https://semver.org/). `package.json` holds the version, and every release is a `vX.Y.Z` tag with the same number.
+
+Until the public 1.0 release, versions stay at `0.x.y`:
+
+- **Minor** (`0.2.0` → `0.3.0`): new features. Before 1.0 this is also where breaking changes go (settings that reset, a workflow format change), called out in the changelog.
+- **Patch** (`0.2.0` → `0.2.1`): fixes only, safe to take without reading the notes.
+- **1.0.0** is reserved for the public announcement. The release script refuses a plain `major` bump before then, so it can only happen on purpose.
+
+To cut a release, from an up-to-date `main` with the notes written under **Unreleased**:
+
+```bash
+npm run release -- minor --dry-run   # checks everything, changes nothing
+npm run release -- minor             # bump, date the changelog, commit "Release vX.Y.Z", tag
+git push --atomic origin main vX.Y.Z # publishes the GitHub release
+```
+
+`patch`, `minor` or an exact version like `1.0.0` all work; `--push` pushes for you. The script checks the tree is clean and in sync, runs the tests and the build, and moves the **Unreleased** notes into the new version. Pushing the tag runs the Release workflow, which checks the tag matches `package.json`, builds the download and publishes it with that changelog section as the notes. Release copies of the app find it through their update check.
+
+Between releases a source checkout shows how far it is past its tag in **Settings › About**, for example `v0.2.0 + 3`.
 
 ## Found a bug?
 

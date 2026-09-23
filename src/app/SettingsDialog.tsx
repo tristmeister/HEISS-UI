@@ -313,6 +313,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   // enough for the mosaic button to show its burn.
   const [stats, setStats] = React.useState<StudioStats | null>(null);
   const [appVersion, setAppVersion] = React.useState('');
+  const [sinceRelease, setSinceRelease] = React.useState<{ tag: string; commits: number } | null>(null);
   const [checking, setChecking] = React.useState(false);
   React.useEffect(() => {
     if (!open || section !== 'about') return;
@@ -321,6 +322,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
       if (!live || !data?.stats) return;
       setStats(data.stats);
       setAppVersion(data.version || '');
+      setSinceRelease(data.sinceRelease || null);
     }).catch(() => null);
     return () => { live = false; };
   }, [open, section]);
@@ -606,7 +608,11 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <HeatMark className="about-mark" />
               <p className="about-tagline">A local image and video studio for ComfyUI.</p>
               <div className="about-meta">
-                {appVersion ? <span>v{appVersion}</span> : null}
+                {appVersion ? (
+                  sinceRelease?.commits
+                    ? <span title={`${sinceRelease.commits} commit${sinceRelease.commits === 1 ? '' : 's'} since the ${sinceRelease.tag} release`}>v{appVersion} + {sinceRelease.commits}</span>
+                    : <span>v{appVersion}</span>
+                ) : null}
                 {updateStatus?.current ? <span>{updateStatus.branch || 'main'} · {String(updateStatus.current).slice(0, 7)}</span> : null}
                 <span>MIT licensed</span>
               </div>

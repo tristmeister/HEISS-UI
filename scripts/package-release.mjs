@@ -36,7 +36,7 @@ copy("dist");
 copy("server", (file) => !/\.test\.js$/.test(file));
 copy("workflows");
 copy("scripts/ensure-runtime-dependencies.mjs");
-for (const file of ["package-lock.json", ".env.example", "README.md", "LICENSE"]) copy(file);
+for (const file of ["package-lock.json", ".env.example", "README.md", "CHANGELOG.md", "LICENSE"]) copy(file);
 
 // A release only ever runs `npm start`: keep the runtime packages and the start
 // hooks, drop build scripts that would need the missing dev tools.
