@@ -43,9 +43,13 @@ export async function videoGraph(body) {
   return builtInGraph(body);
 }
 
-/** Every built-in family; a start image is uploaded to ComfyUI first so the graph can load it by name. */
+/**
+ * Every built-in family. The start image is the reference the composer staged in
+ * ComfyUI (already uploaded, by name), or a legacy start image uploaded now.
+ */
 async function builtInGraph(body) {
-  const startImageComfy = (body.startImage || body.startImageId) ? await uploadBodyStartImage(body) : "";
+  const staged = (body.referenceAssets || []).find((item) => item?.comfyName)?.comfyName || "";
+  const startImageComfy = staged || ((body.startImage || body.startImageId) ? await uploadBodyStartImage(body) : "");
   return familyGraph({ ...body, startImageComfy });
 }
 

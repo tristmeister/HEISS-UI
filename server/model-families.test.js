@@ -294,3 +294,11 @@ test("validation fills encoders from the profile and rejects files that do not f
   assert.deepEqual([body.encoders, body.vae, body.source, body.bundled], [["qwen3-4b-heretic_fp8_e4m3fn.safetensors"], "ae.safetensors", "checkpoint", { encoder: false, vae: false }]);
   assert.throws(() => sanitizeGenerateBody({ kind: "image", workflow: profile.workflow, profileId: profile.id, prompt: "a cat", textEncoders: ["ae.safetensors"] }, info), /does not fit/);
 });
+
+test("a staged reference image becomes the start image of a built-in graph", async () => {
+  const { imageGraph } = await import("./graphs.js");
+  const graph = await imageGraph({ workflow: "family:krea2", family: "krea2", variant: "turbo", source: "unet", model: "krea2.safetensors", encoders: ["te.safetensors"], vae: "vae.safetensors", prompt: "a cat", steps: 8, cfg: 1, seed: 1, denoise: 0.6, referenceAssets: [{ slot: "reference", assetId: "a1", comfyName: "staged-ref.png" }] });
+  assert.equal(byType(graph, "LoadImage")[0].inputs.image, "staged-ref.png");
+  assert.equal(byType(graph, "VAEEncode").length, 1);
+  assert.equal(byType(graph, "KSampler")[0].inputs.denoise, 0.6);
+});
