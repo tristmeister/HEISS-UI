@@ -227,29 +227,41 @@
 .viewer-arrow.next { right: 16px; }
 .viewer-stage.with-side .viewer-arrow.next { right: calc(380px + 16px); }
 
-/* Original against upscale, split by a pointer-tracked line. */
+/* Original against upscale. The comparer rides the viewer's zoom: the viewer
+   transforms every img in its canvas, so both layers scale and pan as one,
+   while the split, line and tags stay fixed on screen. */
 .upscale-compare {
-  position: absolute; inset: 0;
+  /* Fills the canvas's content box, so it keeps the same margins as a plain image. */
+  position: relative;
+  width: 100%; height: 100%;
   display: grid; place-items: center;
-  cursor: ew-resize;
+  container-type: size;
   outline: none;
   touch-action: none;
 }
+/* Keyboard focus shows on the handle, not as a ring round the whole stage. */
+.upscale-compare:focus-visible { outline: none; }
+.upscale-compare:focus-visible .upscale-compare-line span { outline: 2px solid rgb(255 255 255 / .55); outline-offset: 3px; }
+.upscale-compare[data-state="near"],
+.upscale-compare[data-state="dragging"] { cursor: ew-resize; }
+/* Sized to the image itself (contain-fit into the stage), so the split line
+   and the tags sit on the picture, not on the empty stage around it. */
 .upscale-compare-frame {
   position: relative;
+  width: min(100cqw, 100cqh * var(--compare-ratio, 1));
   aspect-ratio: var(--compare-ratio, 1);
-  max-width: 100%;
-  max-height: 100%;
   overflow: hidden;
+  border-radius: var(--r-media);
 }
-.upscale-compare-image {
-  display: block;
+/* Outrank the viewer's own img sizing (width: auto, max-width): the original
+   and the upscale differ in pixel size and must fill the same box exactly. */
+.upscale-compare .upscale-compare-image {
+  position: absolute; inset: 0;
   width: 100%; height: 100%;
+  max-width: none; max-height: none;
   object-fit: contain;
-  user-select: none;
-  -webkit-user-drag: none;
+  border-radius: 0;
 }
-/* Both layers share one box, so the split lands on identical pixels. */
 .upscale-compare-reveal {
   position: absolute; inset: 0;
   clip-path: inset(0 calc(100% - var(--compare-position, 50%)) 0 0);
@@ -259,37 +271,44 @@
   left: var(--compare-position, 50%);
   width: 2px;
   margin-left: -1px;
-  background: rgb(255 255 255 / 0.9);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 0.35), 0 0 18px rgb(0 0 0 / 0.45);
+  background: rgb(255 255 255 / .92);
+  box-shadow: 0 0 0 .5px rgb(0 0 0 / .3), 0 0 14px rgb(0 0 0 / .4);
   pointer-events: none;
 }
 .upscale-compare-line span {
   position: absolute; top: 50%; left: 50%;
-  width: 30px; height: 30px;
-  transform: translate(-50%, -50%);
+  display: grid; place-items: center;
+  width: 38px; height: 38px;
+  translate: -50% -50%;
+  border: 2px solid rgb(255 255 255 / .95);
   border-radius: 50%;
-  border: 2px solid rgb(255 255 255 / 0.92);
-  background: rgb(0 0 0 / 0.35);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: transform 160ms var(--ease-out);
+  background: rgb(18 18 18 / .55);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  backdrop-filter: blur(10px) saturate(1.4);
+  box-shadow: 0 4px 18px rgb(0 0 0 / .45);
+  color: #fff;
+  transition: scale 180ms var(--ease-out), background 180ms;
 }
-.upscale-compare-line.is-tracking span { transform: translate(-50%, -50%) scale(1.08); }
+.upscale-compare[data-state="near"] .upscale-compare-line span { scale: 1.08; background: rgb(28 28 28 / .7); }
+.upscale-compare[data-state="dragging"] .upscale-compare-line span { scale: 1.14; background: rgb(255 255 255 / .22); }
 .upscale-compare-tag {
   position: absolute; top: 12px;
-  padding: 4px 9px;
+  padding: 4px 10px;
+  border: 1px solid rgb(255 255 255 / .12);
   border-radius: 999px;
-  background: rgb(0 0 0 / 0.55);
-  backdrop-filter: blur(12px) saturate(1.4);
+  background: rgb(0 0 0 / .5);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
-  border: 1px solid rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(12px) saturate(1.4);
   color: #fff;
-  font-size: 11px; font-weight: 500;
-  letter-spacing: -0.01em;
+  font-size: 11.5px; font-weight: 550;
+  letter-spacing: -.01em;
   pointer-events: none;
+  transition: opacity 200ms, translate 200ms var(--ease-out);
 }
 .upscale-compare-tag.is-before { left: 12px; }
 .upscale-compare-tag.is-after { right: 12px; }
+.upscale-compare[data-edge="start"] .upscale-compare-tag.is-before { opacity: 0; translate: -4px 0; }
+.upscale-compare[data-edge="end"] .upscale-compare-tag.is-after { opacity: 0; translate: 4px 0; }
 @media (max-width: 620px) {
   .upscale-compare-tag { top: 8px; font-size: 10px; padding: 3px 7px; }
   .upscale-compare-tag.is-before { left: 8px; }
