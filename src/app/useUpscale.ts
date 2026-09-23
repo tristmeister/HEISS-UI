@@ -239,7 +239,8 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
 
   // Setup finished for an image that was waiting: hold the ready moment for a
   // beat, then close and do what the click asked for in the first place.
-  // With the dialog hidden there is no moment to hold, so it starts straight away.
+  // With the dialog hidden there is no moment to hold, so it starts straight
+  // away; the download widget at the top announces it instead.
   useEffect(() => {
     if (stage !== "ready" || !pending) return;
     const item = pending;
@@ -247,11 +248,10 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     const timer = window.setTimeout(() => {
       setSetupOpen(false);
       setPending(null);
-      if (!shown) showToast("Smart upscale is ready. Upscaling your image now", "success");
       runUpscale(item);
     }, shown ? READY_BEAT_MS : 0);
     return () => window.clearTimeout(timer);
-  }, [setupOpen, stage, pending, runUpscale, showToast]);
+  }, [setupOpen, stage, pending, runUpscale]);
 
   const upscaleItem = useCallback(async (item: GalleryItem) => {
     if (!canUpscaleItem(item) || item.upscale?.status === "running") return;

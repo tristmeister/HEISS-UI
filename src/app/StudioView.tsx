@@ -14,6 +14,7 @@ import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
+import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
@@ -52,6 +53,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
+  const downloadWidget = useUpscaleDownloadWidget(upscaleSetup, upscaleInstall);
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
@@ -425,6 +427,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         onOpenLibrary={() => { upscaleSetup.closeSetup(); openSettings("library"); }}
         showToast={showToast}
       />
+      <UpscaleDownloadWidget widget={downloadWidget} setup={upscaleSetup} install={upscaleInstall} />
       {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
         <Modal
           open
@@ -614,7 +617,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       {workflowGalleryOpen ? <WorkflowGallery view={{ ...view, onClose: () => setWorkflowGalleryOpen(false) }} /> : null}
       {/* The shell is position: fixed, a stacking context of its own, so a toaster
           inside it sits under every portaled dialog and its blurred scrim. */}
-      {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} />, document.body)}
+      {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={downloadWidget.visible ? { top: 88 } : undefined} mobileOffset={downloadWidget.visible ? { top: 80 } : undefined} />, document.body)}
     </div>
     </GenerationPreviewMode.Provider>
   );

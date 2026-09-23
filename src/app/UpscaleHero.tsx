@@ -18,7 +18,7 @@ import type { UpscaleSetupStage } from './useUpscale';
  * - error: the heat dies back to a dull red.
  */
 
-const ARROW = [
+export const ARROW = [
   '.......X.......',
   '......XXX......',
   '.....XXXXX.....',
@@ -78,7 +78,7 @@ function field(x: number, y: number, t: number) {
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
 /** Heat to colour, as the mosaic button does it: deep red, ember, then white-hot. */
-function heatColor(h: number): [number, number, number] {
+export function heatColor(h: number): [number, number, number] {
   if (h < 0.5) {
     const k = h / 0.5;
     return [170 + 85 * k, 40 + 114 * k, 20 + 62 * k];

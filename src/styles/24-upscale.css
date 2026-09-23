@@ -347,6 +347,99 @@
 .upscale-pending strong { font-size: 13px; font-weight: 550; }
 .upscale-pending span { font-size: 12.5px; color: hsl(var(--muted-foreground)); }
 
+/* ------------------------------------------------------ Download widget
+   A glass pill at the top while the weights download with setup closed. */
+
+.udw {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: calc(var(--z-viewer) + 1);
+  display: flex;
+  align-items: center;
+  translate: -50% 0;
+  width: min(380px, calc(100vw - 24px));
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-menu);
+  background-color: var(--surface-float);
+  background-image: var(--surface-grain);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float);
+  color: hsl(var(--foreground));
+  -webkit-font-smoothing: antialiased;
+}
+/* A faint heat under the glass while it fills; white when done, red when stopped. */
+.udw::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120px 60px at 34px 50%, rgb(255 154 82 / .16), transparent 70%);
+  pointer-events: none;
+  transition: background var(--dur-base);
+}
+.udw.is-ready::before { background: radial-gradient(120px 60px at 34px 50%, rgb(255 240 222 / .14), transparent 70%); }
+.udw.is-error::before { background: radial-gradient(120px 60px at 34px 50%, rgb(255 110 90 / .14), transparent 70%); }
+
+.udw-main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 12px 9px 10px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.udw-main:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.udw-arrow { flex: none; width: 38px; height: 46px; margin: -4px 0 -2px; overflow: visible; }
+.udw-text { display: grid; flex: 1; gap: 5px; min-width: 0; }
+.udw-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.udw-title strong { overflow: hidden; font-size: 13px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; text-overflow: ellipsis; }
+.udw-title em { flex: none; font: 600 12px "Geist Mono", ui-monospace, Menlo, monospace; font-style: normal; font-variant-numeric: tabular-nums; color: var(--ember); }
+.udw-text small { overflow: hidden; font-size: 11.5px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); white-space: nowrap; text-overflow: ellipsis; }
+.udw .cell-bar { height: 5px; }
+.udw-thumb { flex: none; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; outline: 1px solid rgb(255 255 255 / .1); outline-offset: -1px; }
+.udw.is-downloading .udw-thumb { opacity: .75; filter: saturate(.7); }
+.udw-close {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin-right: 8px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.udw-close:hover { background: var(--control-hover); color: #fff; }
+
+/* The arrow's cells: ember twinkle below the fill line, sparks lifting off it,
+   a bottom-to-top scan while checking, one pop when ready. */
+.udw-twinkle { animation: udw-twinkle 2.4s ease-in-out infinite; }
+@keyframes udw-twinkle { 50% { opacity: .62; } }
+.udw-spark { animation: udw-spark 1.6s linear infinite; }
+@keyframes udw-spark {
+  0% { opacity: 0; transform: translateY(0); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-4.5px); }
+}
+.udw-arrow.is-downloading { filter: drop-shadow(0 0 3px rgb(255 154 82 / .45)); }
+.udw-scan { animation: udw-scan 900ms ease-in-out infinite; }
+@keyframes udw-scan { 0%, 100% { opacity: .45; } 40% { opacity: 1; } }
+.udw-arrow.is-ready { transform-origin: 50% 60%; animation: udw-pop 520ms var(--ease-out); filter: drop-shadow(0 0 4px rgb(255 240 222 / .45)); }
+@keyframes udw-pop { 0% { transform: scale(.82); } 55% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
 @media (max-width: 760px) {
   .upscale-hero-wrap { aspect-ratio: 1.8; }
   .upscale-efforts span { display: none; }
@@ -356,6 +449,10 @@
 @media (prefers-reduced-motion: reduce) {
   .upscale-body,
   .upscale-stepper .is-active i,
-  .upscale-watcher i { animation: none; }
+  .upscale-watcher i,
+  .udw-twinkle,
+  .udw-spark,
+  .udw-scan,
+  .udw-arrow.is-ready { animation: none; }
   .cell-bar > div { transition: none; }
 }

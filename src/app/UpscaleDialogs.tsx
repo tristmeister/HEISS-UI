@@ -35,7 +35,7 @@ function SetupSteps({ stage }: { stage: UpscaleSetupStage }) {
 }
 
 /** A progress bar cut into cells, so it reads as the same material as the hero. */
-function CellBar({ value, tone = "ember" }: { value: number; tone?: "ember" | "done" }) {
+export function CellBar({ value, tone = "ember" }: { value: number; tone?: "ember" | "done" }) {
   return (
     <div className={cn("cell-bar", tone === "done" && "is-done")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)}>
       <div style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
