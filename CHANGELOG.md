@@ -10,6 +10,17 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Changed
+- Models that can only redraw a picture (Krea 2, SDXL, Flux, Z-Image and the
+  other built-in image models) now offer **Add start image** instead of Add
+  reference, and a Change slider next to the image sets how much it may change.
+
+### Fixed
+- A reference image added to a built-in model was ignored; it now becomes the
+  start image.
+- The workflow menu showed the gallery through its top half instead of frosted
+  glass, and the Add reference chip clashed with prompt text running under it.
+
 ## [0.2.0] - 2026-09-23
 
 The first tagged release: a redesigned studio, smart upscaling, drop-in model
