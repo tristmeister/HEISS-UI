@@ -1,4 +1,5 @@
 import React from 'react';
+import { ComfyRestart } from './ComfyRestart';
 import { Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
@@ -278,7 +279,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     prefs, setPrefs, setZenMode, zenGalleryOpen, setZenGalleryOpen,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
     gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
-    clearFailedItems, clearGallery, clearAllCache, restartComfy, resetAllSettings,
+    clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
     setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
     health, refreshHealth, models, refreshModels, refreshWorkflows,
@@ -400,8 +401,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
                 <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
               </Row>
-              <Row label="Restart ComfyUI" description="Picks up new custom nodes and frees everything it holds. Needs ComfyUI-Manager.">
-                <button className="btn is-danger-soft" onClick={restartComfy}>Restart</button>
+              <Row label="Restart ComfyUI" description="Picks up new custom nodes and files, and frees everything it holds.">
+                <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
               </Row>
               <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
                 <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>

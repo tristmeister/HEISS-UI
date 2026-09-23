@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Copy, ExternalLink, FolderOpen, RefreshCw } from 'lucide-react';
 import { Modal } from './Modal';
+import { ComfyRestart, useComfyManager } from './ComfyRestart';
 import { UpscaleHero } from './UpscaleHero';
 import { copyText } from './api';
 import { cn } from './format';
@@ -86,8 +87,10 @@ function CopyRow({ text, label, block, showToast }: { text: string; label: strin
  * switched off (ComfyUI needs --enable-manager), so when ComfyUI does not
  * answer as having it, the terminal route opens first.
  */
-function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
+function NodeInstall({ status, showToast, onRestarted }: { status: UpscaleStatus | null; showToast: (message: string, tone?: "default" | "success" | "error") => void; onRestarted: () => void }) {
   const plan = status?.nodeSetup;
+  const { info: manager } = useComfyManager();
+  const hasManager = manager ? manager.available : plan?.manager !== false;
   const [route, setRoute] = useState<"manager" | "terminal">(plan && !plan.manager ? "terminal" : "manager");
   const [shellIndex, setShellIndex] = useState(0);
   const commands = plan?.commands?.length ? plan.commands : [{ shell: "sh" as const, label: "Terminal", command: `cd ComfyUI/custom_nodes && git clone ${repositoryUrl}` }];
@@ -99,12 +102,20 @@ function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; show
     seen.current = true;
     if (!plan.manager) setRoute("terminal");
   }, [plan]);
+  // Manager can also turn out missing after the dialog opened; follow that once.
+  const managerSeen = React.useRef(false);
+  useEffect(() => {
+    if (!manager || managerSeen.current) return;
+    managerSeen.current = true;
+    if (!manager.available) setRoute("terminal");
+  }, [manager]);
   return (
     <>
       <div className="upscale-routes" role="tablist" aria-label="How to install">
         {(["manager", "terminal"] as const).map((value) => (
           <button key={value} type="button" role="tab" aria-selected={route === value} className={cn(route === value && "is-active")} onClick={() => setRoute(value)}>
             {value === "manager" ? "ComfyUI Manager" : "Terminal"}
+            {value === "manager" && !hasManager ? <span className="upscale-route-tag">Off</span> : null}
           </button>
         ))}
       </div>
@@ -114,7 +125,7 @@ function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; show
             <span className="upscale-step-n">1</span>
             <div>
               In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>. Searching the node list for <strong>SeedVR2</strong> works too.
-              {plan && !plan.manager ? <p className="upscale-fine">ComfyUI is not answering as having Manager. Newer ComfyUI ships it switched off: start ComfyUI with <code>--enable-manager</code>, or use the terminal instead.</p> : null}
+              {!hasManager ? <p className="upscale-fine">ComfyUI is not answering as having Manager. Newer ComfyUI ships it switched off: start ComfyUI with <code>--enable-manager</code>, or use the terminal instead.</p> : null}
             </div>
           </li>
           <li>
@@ -126,7 +137,10 @@ function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; show
           </li>
           <li>
             <span className="upscale-step-n">3</span>
-            <div><strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.</div>
+            <div>
+              <strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.
+              <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
+            </div>
           </li>
         </ol>
       ) : (
@@ -156,7 +170,10 @@ function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; show
           </li>
           <li>
             <span className="upscale-step-n">2</span>
-            <div><strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.</div>
+            <div>
+              <strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.
+              <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
+            </div>
           </li>
         </ol>
       )}
@@ -247,7 +264,7 @@ export function UpscaleSetupDialog({
   } else if (stage === "nodes") {
     body = (
       <>
-        <NodeInstall status={status} showToast={showToast} />
+        <NodeInstall status={status} showToast={showToast} onRestarted={() => setup.recheck()} />
         <Watcher lastChecked={setup.lastChecked}>Watching ComfyUI for the SeedVR2 nodes</Watcher>
         {status?.detectedNodes?.length ? (
           <p className="upscale-fine">

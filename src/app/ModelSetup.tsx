@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, ExternalLink, X } from 'lucide-react';
 import { apiJson } from './api';
+import { ComfyRestart } from './ComfyRestart';
 import { cn } from './format';
 import type { DownloadState, MissingPart, ModelDownload, Profile } from './types';
 
@@ -27,6 +28,8 @@ export function ModelSetup({ profile, onInstalled, showToast }: { profile: Profi
   const [remote, setRemote] = React.useState(false);
   const missing = profile.missing || [];
   const busy = Boolean(downloads?.active || downloads?.queued.length);
+  // Set once a file lands; if the model still reports it missing after the rescan, a restart is the fix.
+  const [landed, setLanded] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     try {
@@ -50,7 +53,7 @@ export function ModelSetup({ profile, onInstalled, showToast }: { profile: Profi
       const key = `${item.id}:${item.status}`;
       if (finishedRef.current.has(key)) continue;
       finishedRef.current.add(key);
-      if (item.status === 'done') onInstalled();
+      if (item.status === 'done') { onInstalled(); setLanded(true); }
       if (item.status === 'error') showToast(item.error || `${item.label} failed to download`, 'error');
     }
   }, [downloads, onInstalled, showToast]);
@@ -134,6 +137,12 @@ export function ModelSetup({ profile, onInstalled, showToast }: { profile: Profi
           );
         })}
       </ul>
+      {landed && !busy && !remote ? (
+        <div className="model-setup-restart">
+          <p className="model-setup-note">Downloaded, but ComfyUI has not picked it up yet. A restart makes it load the new file.</p>
+          <ComfyRestart compact onBack={onInstalled} />
+        </div>
+      ) : null}
       {remote ? <p className="model-setup-note">ComfyUI runs on another computer, so put these files into its models folders there, then rescan.</p> : null}
     </section>
   );

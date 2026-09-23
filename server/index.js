@@ -26,7 +26,7 @@ import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, 
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
-import { cancelModelInstall, downloadPlan, installState, managerAvailable, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
+import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 
@@ -1044,6 +1044,10 @@ app.post("/api/cache/clear", async (_req, res) => {
   await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
   await comfy("/free", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }) }).catch(() => null);
   res.json({ ok: true, outputs: revealGalleryItemsForRequest(gallery, _req) });
+});
+
+app.get("/api/comfy/manager", async (_req, res) => {
+  res.json({ ok: true, ...(await managerInfo()) });
 });
 
 // ComfyUI is started outside HEISS UI, so only ComfyUI-Manager can restart it in place.

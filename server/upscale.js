@@ -255,15 +255,22 @@ export function nodeInstallPlan(root = comfyRootDir(), platform = process.platfo
 
 /** Manager 4 (pip, off unless ComfyUI starts with --enable-manager) and the older git install answer on different routes. */
 export async function managerAvailable() {
+  return (await managerInfo()).available;
+}
+
+/** Which ComfyUI-Manager answers, if any; `connected` is false when ComfyUI itself is down. */
+export async function managerInfo() {
   for (const route of ["/v2/manager/version", "/manager/version"]) {
     try {
-      await comfy(route);
-      return true;
+      const answer = await comfy(route);
+      const version = typeof answer === "string" ? answer : answer instanceof ArrayBuffer ? Buffer.from(answer).toString("utf8") : String(answer?.version || "");
+      return { connected: true, available: true, version: version.trim().slice(0, 40) || null };
     } catch {
       // Try the next route.
     }
   }
-  return false;
+  const connected = await comfy("/system_stats").then(() => true, () => false);
+  return { connected, available: false, version: null };
 }
 
 /** Free space where the models would land; the nearest existing parent answers for a folder not made yet. */

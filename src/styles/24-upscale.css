@@ -513,3 +513,18 @@
   .udw-arrow.is-ready { animation: none; }
   .cell-bar > div { transition: none; }
 }
+
+/* Restart ComfyUI: one control reused wherever a restart finishes a setup step. */
+.comfy-restart { display: grid; justify-items: start; gap: 6px; }
+.comfy-restart .btn { gap: 6px; }
+.comfy-restart .btn:disabled { opacity: .5; cursor: not-allowed; }
+.comfy-restart .btn.is-done { color: hsl(142 60% 45%); }
+.comfy-restart .is-spinning { animation: spin .9s linear infinite; }
+.comfy-restart-note { margin: 0; font-size: 11.5px; line-height: 1.45; color: hsl(var(--muted-foreground)); }
+.comfy-restart-note.is-error { color: hsl(var(--destructive)); }
+.comfy-restart-note code { font-size: 11px; }
+.comfy-restart-link { padding: 0; border: 0; background: none; font: inherit; color: hsl(var(--foreground)); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.comfy-restart.is-compact .btn { height: 32px; min-height: 32px; padding: 0 12px; font-size: 12px; }
+.comfy-restart.is-end { justify-items: end; text-align: right; max-width: 260px; }
+.upscale-restart { margin-top: 10px; }
+.upscale-route-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; background: hsl(var(--muted-foreground) / .14); color: hsl(var(--muted-foreground)); }
