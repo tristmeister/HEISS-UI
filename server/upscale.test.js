@@ -134,3 +134,22 @@ test("a download that fails its checksum is thrown away, not installed", async (
   assert.match(done.error, /checksum/);
   assert.equal(fs.existsSync(path.join(dir, "ema_vae_fp16.safetensors")), false);
 });
+
+test("the terminal install uses ComfyUI's own folder and Python when it can see them", async () => {
+  const { nodeInstallPlan } = await import("./upscale.js");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-comfy-"));
+  fs.mkdirSync(path.join(root, "custom_nodes"));
+  fs.mkdirSync(path.join(root, ".venv", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".venv", "bin", "python"), "");
+  const fresh = nodeInstallPlan(root, "darwin");
+  assert.equal(fresh.exact, true);
+  assert.match(fresh.command, /^cd ".*custom_nodes" && git clone https:\/\/github\.com\/numz\/ComfyUI-SeedVR2_VideoUpscaler\.git && ".*\.venv\/bin\/python" -m pip install -r ComfyUI-SeedVR2_VideoUpscaler\/requirements\.txt$/);
+  // Cloned but not loading: only the requirements are missing.
+  fs.mkdirSync(path.join(root, "custom_nodes", "ComfyUI-SeedVR2_VideoUpscaler"));
+  const cloned = nodeInstallPlan(root, "darwin");
+  assert.equal(cloned.cloned, true);
+  assert.doesNotMatch(cloned.command, /git clone/);
+  // Nothing known: a generic command that still works from the ComfyUI folder.
+  assert.equal(nodeInstallPlan("", "darwin").command.startsWith("cd ComfyUI/custom_nodes && git clone"), true);
+  fs.rmSync(root, { recursive: true, force: true });
+});

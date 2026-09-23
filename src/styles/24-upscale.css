@@ -165,6 +165,36 @@
 .upscale-url button:hover { background: var(--control-hover); }
 .upscale-url button.is-copied { color: #a9e2b8; }
 
+/* A command wraps instead of truncating: every character of it matters. */
+.upscale-url.is-block { align-items: flex-start; padding: 10px 6px 10px 14px; border-radius: var(--r-item); }
+.upscale-url.is-block code { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; user-select: all; }
+.upscale-steps code:not(.upscale-url code) { font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--foreground)); }
+.upscale-steps .upscale-fine { margin-top: 6px; }
+
+/* Manager or terminal: a small pill switch above the steps. */
+.upscale-routes {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 16px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--well);
+}
+.upscale-routes button {
+  height: 28px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.upscale-routes button:hover { color: hsl(var(--foreground)); }
+.upscale-routes button.is-active { background: var(--selected); color: hsl(var(--foreground)); }
+
 /* A live line for whatever setup is waiting on. */
 .upscale-watcher {
   display: flex;

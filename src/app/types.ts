@@ -223,6 +223,8 @@ export type UpscaleStatus = {
   ready: boolean;
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
+  /** Only while the nodes are missing: whether Manager is on, and the terminal route otherwise. */
+  nodeSetup?: { manager: boolean; exact: boolean; customNodesDir: string; python: string; cloned: boolean; command: string };
 };
 export type UpscaleDownloadPreview = {
   quality: UpscaleQuality;

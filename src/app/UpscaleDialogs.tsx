@@ -60,10 +60,10 @@ function Watcher({ children, lastChecked }: React.PropsWithChildren<{ lastChecke
   );
 }
 
-function CopyUrl({ showToast }: { showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
+function CopyRow({ text, label, block, showToast }: { text: string; label: string; block?: boolean; showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
   const [copied, setCopied] = useState(false);
   const copy = async () => {
-    if (!(await copyText(repositoryUrl))) {
+    if (!(await copyText(text))) {
       showToast("Copy failed", "error");
       return;
     }
@@ -71,13 +71,85 @@ function CopyUrl({ showToast }: { showToast: (message: string, tone?: "default" 
     window.setTimeout(() => setCopied(false), 1600);
   };
   return (
-    <div className="upscale-url">
-      <code>{repositoryUrl}</code>
-      <button type="button" className={copied ? "is-copied" : ""} onClick={copy} aria-label="Copy the repository URL">
+    <div className={cn("upscale-url", block && "is-block")}>
+      <code>{text}</code>
+      <button type="button" className={copied ? "is-copied" : ""} onClick={copy} aria-label={label}>
         {copied ? <Check size={13} /> : <Copy size={13} />}
         <span>{copied ? "Copied" : "Copy"}</span>
       </button>
     </div>
+  );
+}
+
+/**
+ * Two ways in: ComfyUI Manager, or one terminal command. Manager 4 ships
+ * switched off (ComfyUI needs --enable-manager), so when ComfyUI does not
+ * answer as having it, the terminal route opens first.
+ */
+function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
+  const plan = status?.nodeSetup;
+  const [route, setRoute] = useState<"manager" | "terminal">(plan && !plan.manager ? "terminal" : "manager");
+  const seen = React.useRef(Boolean(plan));
+  // The first report decides the default; after that the choice is the user's.
+  useEffect(() => {
+    if (!plan || seen.current) return;
+    seen.current = true;
+    if (!plan.manager) setRoute("terminal");
+  }, [plan]);
+  return (
+    <>
+      <div className="upscale-routes" role="tablist" aria-label="How to install">
+        {(["manager", "terminal"] as const).map((value) => (
+          <button key={value} type="button" role="tab" aria-selected={route === value} className={cn(route === value && "is-active")} onClick={() => setRoute(value)}>
+            {value === "manager" ? "ComfyUI Manager" : "Terminal"}
+          </button>
+        ))}
+      </div>
+      {route === "manager" ? (
+        <ol className="upscale-steps">
+          <li>
+            <span className="upscale-step-n">1</span>
+            <div>
+              In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>. Searching the node list for <strong>SeedVR2</strong> works too.
+              {plan && !plan.manager ? <p className="upscale-fine">ComfyUI is not answering as having Manager. Newer ComfyUI ships it switched off: start ComfyUI with <code>--enable-manager</code>, or use the terminal instead.</p> : null}
+            </div>
+          </li>
+          <li>
+            <span className="upscale-step-n">2</span>
+            <div>
+              Paste the SeedVR2 repository:
+              <CopyRow text={repositoryUrl} label="Copy the repository URL" showToast={showToast} />
+            </div>
+          </li>
+          <li>
+            <span className="upscale-step-n">3</span>
+            <div><strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.</div>
+          </li>
+        </ol>
+      ) : (
+        <ol className="upscale-steps">
+          <li>
+            <span className="upscale-step-n">1</span>
+            <div>
+              {plan?.cloned
+                ? <>The SeedVR2 folder is already in <code>custom_nodes</code> but does not load, which usually means its Python packages are missing. Run this in a terminal:</>
+                : <>Run this in a terminal. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? " with ComfyUI's own Python" : ""}:</>}
+              <CopyRow text={plan?.command || `cd ComfyUI/custom_nodes && git clone ${repositoryUrl}`} label="Copy the install command" block showToast={showToast} />
+              {plan && !plan.exact ? (
+                <p className="upscale-fine">
+                  {plan.customNodesDir ? null : <>Run it from the folder that holds ComfyUI. </>}
+                  If ComfyUI runs from its own environment, swap <code>python</code> for that Python.
+                </p>
+              ) : null}
+            </div>
+          </li>
+          <li>
+            <span className="upscale-step-n">2</span>
+            <div><strong>Restart ComfyUI</strong>. That is it: this dialog moves on by itself.</div>
+          </li>
+        </ol>
+      )}
+    </>
   );
 }
 
@@ -105,7 +177,7 @@ const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean): {
   switch (stage) {
     case "checking": return { title: "Setting up smart upscale", description: "Checking what ComfyUI already has." };
     case "offline": return { title: "Waiting for ComfyUI", description: "Smart upscale runs inside ComfyUI, and it is not answering right now. Setup carries on by itself as soon as it is back." };
-    case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale restores real detail with SeedVR2. Its nodes install once through ComfyUI Manager, and HEISS UI notices by itself when they arrive." };
+    case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale restores real detail with SeedVR2. Its nodes install once, through ComfyUI Manager or a terminal, and HEISS UI notices by itself when they arrive." };
     case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights. They download once from Hugging Face and are checked before first use.` };
     case "downloading": return { title: "Downloading SeedVR2", description: pending ? "Your image upscales the moment this finishes. You can close this; the download keeps going." : "You can close this; the download keeps going in the background." };
     case "verifying": return { title: "Checking the download", description: "Matching every file against its published checksum and making sure ComfyUI can load it." };
@@ -164,23 +236,7 @@ export function UpscaleSetupDialog({
   } else if (stage === "nodes") {
     body = (
       <>
-        <ol className="upscale-steps">
-          <li>
-            <span className="upscale-step-n">1</span>
-            <div>In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>. Searching the node list for <strong>SeedVR2</strong> works too.</div>
-          </li>
-          <li>
-            <span className="upscale-step-n">2</span>
-            <div>
-              Paste the SeedVR2 repository:
-              <CopyUrl showToast={showToast} />
-            </div>
-          </li>
-          <li>
-            <span className="upscale-step-n">3</span>
-            <div><strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.</div>
-          </li>
-        </ol>
+        <NodeInstall status={status} showToast={showToast} />
         <Watcher lastChecked={setup.lastChecked}>Watching ComfyUI for the SeedVR2 nodes</Watcher>
         {status?.detectedNodes?.length ? (
           <p className="upscale-fine">

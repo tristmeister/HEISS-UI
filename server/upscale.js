@@ -186,6 +186,70 @@ function detectedSeedVR2Nodes(info) {
   return Object.keys(info || {}).filter((name) => /seedvr2/i.test(name)).sort();
 }
 
+/* ------------------------------------------------------------ node install */
+
+export const seedvr2Repository = "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git";
+const seedvr2Folder = "ComfyUI-SeedVR2_VideoUpscaler";
+
+/** The ComfyUI folder itself, when it sits on this machine next to the models folder we found. */
+export function comfyRootDir() {
+  const models = comfyModelsDir();
+  return models ? path.dirname(models) : "";
+}
+
+/**
+ * The Python that ComfyUI runs with, so pip installs into the right place.
+ * Covers a venv inside ComfyUI, the Desktop app's standalone env and the
+ * Windows portable build; anything else falls back to a plain `python`.
+ */
+export function comfyPython(root, platform = process.platform) {
+  if (!root) return "";
+  const win = platform === "win32";
+  const candidates = win
+    ? [[".venv", "Scripts", "python.exe"], ["venv", "Scripts", "python.exe"], ["..", "python_embeded", "python.exe"], ["..", "python_embedded", "python.exe"]]
+    : [[".venv", "bin", "python"], ["venv", "bin", "python"], ["..", "standalone-env", "bin", "python3"], ["..", ".venv", "bin", "python"]];
+  const found = candidates.map((parts) => path.join(root, ...parts)).find((file) => fileSize(file) > 0 || fs.existsSync(file));
+  return found ? path.resolve(found) : "";
+}
+
+const quote = (value) => `"${value}"`;
+
+/**
+ * Setup without ComfyUI Manager: one command that clones the pack into
+ * custom_nodes and installs its requirements with ComfyUI's own Python.
+ * On a machine we can see, the paths are the real ones; if the pack folder is
+ * already there but the nodes do not load, only the requirements are missing.
+ */
+export function nodeInstallPlan(root = comfyRootDir(), platform = process.platform) {
+  const win = platform === "win32";
+  const join = win ? path.win32.join : path.posix.join;
+  const customNodes = root ? join(root, "custom_nodes") : "";
+  const python = comfyPython(root, platform);
+  const cloned = Boolean(customNodes) && fs.existsSync(join(customNodes, seedvr2Folder));
+  const pip = `${python ? quote(python) : "python"} -m pip install -r ${win ? `${seedvr2Folder}\\requirements.txt` : `${seedvr2Folder}/requirements.txt`}`;
+  const cd = customNodes ? `cd ${win ? "/d " : ""}${quote(customNodes)}` : `cd ComfyUI${win ? "\\" : "/"}custom_nodes`;
+  return {
+    exact: Boolean(customNodes && python),
+    customNodesDir: customNodes,
+    python,
+    cloned,
+    command: cloned ? `${cd} && ${pip}` : `${cd} && git clone ${seedvr2Repository} && ${pip}`
+  };
+}
+
+/** Manager 4 (pip, off unless ComfyUI starts with --enable-manager) and the older git install answer on different routes. */
+export async function managerAvailable() {
+  for (const route of ["/v2/manager/version", "/manager/version"]) {
+    try {
+      await comfy(route);
+      return true;
+    } catch {
+      // Try the next route.
+    }
+  }
+  return false;
+}
+
 /** Free space where the models would land; the nearest existing parent answers for a folder not made yet. */
 export function freeBytesAt(dir) {
   if (!dir || typeof fs.statfsSync !== "function") return null;

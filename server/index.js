@@ -24,7 +24,7 @@ import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, 
 import { sendGalleryExport } from './gallery-export.js';
 import { clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
-import { cancelModelInstall, downloadPlan, installState, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
+import { cancelModelInstall, downloadPlan, installState, managerAvailable, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 
@@ -741,7 +741,10 @@ async function upscaleContext(res, { force = false } = {}) {
 app.get("/api/upscale/status", async (req, res) => {
   const info = await upscaleContext(res, { force: req.query.fresh === "1" });
   if (!info) return;
-  res.json({ ok: true, ...upscaleStatus(info, req.query.quality) });
+  const status = upscaleStatus(info, req.query.quality);
+  // Only worth the extra round trips while the nodes still need installing.
+  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), ...nodeInstallPlan() };
+  res.json({ ok: true, ...status });
 });
 
 // Download progress never needs ComfyUI, so it keeps reporting while ComfyUI restarts.
