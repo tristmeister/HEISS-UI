@@ -1,6 +1,7 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Image as ImageIcon, Images, LoaderCircle, Plus, Trash2, Upload, X } from "lucide-react";
+import { Check, Image as ImageIcon, Images, LoaderCircle, LockKeyhole, Plus, Trash2, Upload, X } from "lucide-react";
 import { cn } from "./format";
 import { Tip } from "./components";
 import { useDismiss } from "./useDismiss";
@@ -48,8 +49,12 @@ function moveGridFocus(event: React.KeyboardEvent<HTMLButtonElement>, index: num
  * The reference library as a popover that rises out of the composer: recent
  * generations and uploads in a grid, an upload button, drop and paste.
  */
-function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected, confirmDelete, onError, upload }: {
+function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped, onClose, onSelect, onRemoveSelected, confirmDelete, onError, upload }: {
   input: MediaInput;
+  anchor: HTMLElement | null;
+  popRef: React.RefObject<HTMLDivElement | null>;
+  dropActive: boolean;
+  dropped: { asset: ReferenceAsset; nonce: number } | null;
   selected: ReferenceAsset | null;
   onClose: () => void;
   onSelect: (asset: ReferenceAsset) => void;
@@ -63,6 +68,32 @@ function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected
   const [selectingId, setSelectingId] = React.useState("");
   const uploadInput = React.useRef<HTMLInputElement>(null);
   const label = (input.label || "Reference image").toLowerCase();
+  const [newId, setNewId] = React.useState("");
+
+  // Pinned above the prompt bar. It lives in <body>, not inside the bar, because
+  // the bar's own backdrop blur would stop this one from blurring the gallery.
+  const [box, setBox] = React.useState<{ left: number; width: number; bottom: number } | null>(null);
+  React.useLayoutEffect(() => {
+    if (!anchor) return;
+    const measure = () => {
+      const rect = anchor.getBoundingClientRect();
+      setBox({ left: rect.left, width: rect.width, bottom: window.innerHeight - rect.top + 10 });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(anchor);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [anchor]);
+
+  // Dragging a file over the popover means "add to my uploads".
+  React.useEffect(() => { if (dropActive) setTab("upload"); }, [dropActive]);
+  React.useEffect(() => {
+    if (!dropped) return;
+    setTab("upload");
+    setNewId(dropped.asset.id);
+    setPages((current) => ({ ...current, upload: { ...current.upload, loaded: true, items: [dropped.asset, ...current.upload.items.filter((item) => item.id !== dropped.asset.id)] } }));
+  }, [dropped]);
 
   const load = React.useCallback(async (target: PickerTab, cursor = "") => {
     setPages((current) => ({ ...current, [target]: { ...current[target], loading: true, error: "" } }));
@@ -124,9 +155,12 @@ function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected
   }
 
   const page = pages[tab];
-  return (
+  if (!box) return null;
+  return createPortal(
     <motion.div
-      className="reference-popover"
+      ref={popRef}
+      className={cn("reference-popover", dropActive && "is-drop-target")}
+      style={{ left: box.left, width: box.width, bottom: box.bottom }}
       role="dialog"
       aria-label={`Choose ${label}`}
       aria-busy={upload.busy || Boolean(selectingId) || undefined}
@@ -172,7 +206,7 @@ function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected
                 return (
                   <motion.div
                     key={asset.id}
-                    className={cn("reference-tile", isSelected && "is-selected")}
+                    className={cn("reference-tile", isSelected && "is-selected", asset.id === newId && "is-new")}
                     initial={{ opacity: 0, scale: 0.94 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ ...spring, delay: Math.min(index, 18) * 0.012 }}
@@ -200,7 +234,25 @@ function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected
           </>
         )}
       </div>
-    </motion.div>
+      <AnimatePresence>
+        {dropActive ? (
+          <motion.div key="drop" className="reference-drop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
+            <DropBadge text="Drop to add to your uploads" />
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>,
+    document.body
+  );
+}
+
+/** The shared drop affordance: an icon that lifts toward the pointer and a label. */
+function DropBadge({ text }: { text: string }) {
+  return (
+    <div className="drop-badge">
+      <span className="drop-badge-icon"><Upload size={18} /></span>
+      <strong>{text}</strong>
+    </div>
   );
 }
 
@@ -211,15 +263,19 @@ function ReferencePopover({ input, selected, onClose, onSelect, onRemoveSelected
  * introduces itself as "Add reference" and settles into a round +. With an
  * image it becomes a squircle thumbnail that opens into a small menu on hover.
  */
-function ReferenceSlot({ input, selected, open, busy, progress, onOpen, onRemove }: {
+function ReferenceSlot({ input, selected, open, busy, progress, fresh, onOpen, onRemove }: {
   input: MediaInput;
   selected: ReferenceAsset | null;
   open: boolean;
   busy: boolean;
   progress: number;
+  fresh: boolean;
   onOpen: () => void;
   onRemove: () => void;
 }) {
+  const image = selected ? assetImage(selected) : "";
+  const [broken, setBroken] = React.useState(false);
+  React.useEffect(() => { setBroken(false); }, [image]);
   const required = Boolean(input.required || (input.min || 0) > 0);
   const label = input.label || "Reference image";
   const [introduced, setIntroduced] = React.useState(false);
@@ -257,20 +313,20 @@ function ReferenceSlot({ input, selected, open, busy, progress, onOpen, onRemove
   }
 
   return (
-    <div className={cn("ref-chip ref-selected", open && "is-open")}>
+    <div className={cn("ref-chip ref-selected", open && "is-open", fresh && "is-new")}>
+      {/* The menu reveals leftward from behind the thumbnail with a clip-path, so
+          nothing reflows and the thumbnail never moves. */}
       <div className="ref-menu">
-        <div>
-          <button type="button" className="ref-menu-name" onClick={onOpen} tabIndex={-1}>
-            <strong>{selected.name}</strong>
-            <small>{selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
-          </button>
-          <Tip content="Remove reference">
-            <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
-          </Tip>
-        </div>
+        <button type="button" className="ref-menu-name" onClick={onOpen} tabIndex={-1}>
+          <strong>{selected.name}</strong>
+          <small>{selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
+        </button>
+        <Tip content="Remove reference">
+          <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
+        </Tip>
       </div>
       <button type="button" data-open-trigger className="ref-thumb" onClick={onOpen} aria-label={`Change ${label.toLowerCase()}, currently ${selected.name}`} aria-expanded={open}>
-        {assetImage(selected) ? <img src={assetImage(selected)} alt="" draggable={false} /> : <ImageIcon size={15} />}
+        {image && !broken ? <img src={image} alt="" draggable={false} onError={() => setBroken(true)} /> : selected.source === "vault" ? <LockKeyhole size={14} /> : <ImageIcon size={15} />}
       </button>
     </div>
   );
@@ -293,10 +349,17 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
   const [openSlot, setOpenSlot] = React.useState("");
   const [uploadSlot, setUploadSlot] = React.useState("");
   const [progress, setProgress] = React.useState(0);
-  const [dropping, setDropping] = React.useState(false);
+  const [dropTarget, setDropTarget] = React.useState<"" | "prompt" | "popover">("");
+  const [landing, setLanding] = React.useState(false);
+  const [freshSlot, setFreshSlot] = React.useState("");
+  const [dropped, setDropped] = React.useState<{ asset: ReferenceAsset; nonce: number } | null>(null);
+  const [host, setHost] = React.useState<HTMLElement | null>(null);
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const popRef = React.useRef<HTMLDivElement>(null);
+  const overlayRef = React.useRef<HTMLDivElement>(null);
   const close = React.useCallback(() => setOpenSlot(""), []);
-  useDismiss(rootRef, Boolean(openSlot), close);
+  useDismiss([rootRef, popRef], Boolean(openSlot), close);
+  React.useLayoutEffect(() => { setHost(rootRef.current?.closest<HTMLElement>(".zen-prompt") || null); }, []);
 
   const assetFor = (slot: string) => selected.find((item) => item.slot === slot)?.asset || null;
   // New images go to the slot that's open, else the first empty one, else the first.
@@ -310,6 +373,8 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
     try {
       const asset = await uploadReferenceAsset(file, setProgress);
       onSelect(slot, asset);
+      setFreshSlot(slot);
+      window.setTimeout(() => setFreshSlot(""), 700);
       return asset;
     } catch (error) {
       onError?.(error instanceof Error ? error.message : "Upload failed");
@@ -320,44 +385,77 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
     }
   }, [onError, onSelect, uploadSlot]);
 
-  // Drop an image anywhere on the prompt bar, or paste one while the prompt has focus.
-  const uploadRef = React.useRef({ upload, targetSlot });
-  uploadRef.current = { upload, targetSlot };
+  /*
+   * Drag and drop follows the pointer: over the open popover it offers "add to
+   * uploads", over the prompt bar "use as reference", anywhere else nothing.
+   * The indicator's spotlight tracks the pointer; a drop lands with a pulse.
+   */
+  const live = React.useRef({ upload, targetSlot, openSlot });
+  live.current = { upload, targetSlot, openSlot };
   React.useEffect(() => {
-    const host = rootRef.current?.closest<HTMLElement>(".zen-prompt");
     if (!host || !inputs.length) return;
-    let depth = 0;
     const hasImage = (event: DragEvent) => Array.from(event.dataTransfer?.items || []).some((item) => item.kind === "file" && item.type.startsWith("image/"));
-    const enter = (event: DragEvent) => { if (!hasImage(event)) return; event.preventDefault(); depth += 1; setDropping(true); };
-    const over = (event: DragEvent) => { if (hasImage(event)) { event.preventDefault(); if (event.dataTransfer) event.dataTransfer.dropEffect = "copy"; } };
-    const leave = () => { depth = Math.max(0, depth - 1); if (!depth) setDropping(false); };
-    const drop = (event: DragEvent) => {
-      const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/"));
-      depth = 0;
-      setDropping(false);
-      if (!file) return;
+    const targetOf = (event: DragEvent): "" | "prompt" | "popover" => {
+      const node = event.target instanceof Element ? event.target : null;
+      if (node?.closest(".reference-popover")) return "popover";
+      if (node && host.contains(node)) return "prompt";
+      return "";
+    };
+    const track = (event: DragEvent, target: "" | "prompt" | "popover") => {
+      const surface = target === "popover" ? popRef.current : target === "prompt" ? host : null;
+      const layer = target === "prompt" ? overlayRef.current : surface?.querySelector<HTMLElement>(".reference-drop");
+      if (!surface || !layer) return;
+      const rect = surface.getBoundingClientRect();
+      layer.style.setProperty("--drop-x", `${event.clientX - rect.left}px`);
+      layer.style.setProperty("--drop-y", `${event.clientY - rect.top}px`);
+    };
+    let clearTimer = 0;
+    const over = (event: DragEvent) => {
+      if (!hasImage(event)) return;
+      const target = targetOf(event);
+      window.clearTimeout(clearTimer);
+      setDropTarget(target);
+      if (!target) return;
       event.preventDefault();
-      uploadRef.current.upload(file, uploadRef.current.targetSlot()).then((asset) => { if (asset) setOpenSlot(""); });
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      track(event, target);
+    };
+    // dragleave fires between children; only clear once nothing re-claims the drag.
+    const leave = () => { window.clearTimeout(clearTimer); clearTimer = window.setTimeout(() => setDropTarget(""), 80); };
+    const drop = (event: DragEvent) => {
+      const target = targetOf(event);
+      window.clearTimeout(clearTimer);
+      setDropTarget("");
+      const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/"));
+      if (!file || !target) return;
+      event.preventDefault();
+      setLanding(true);
+      window.setTimeout(() => setLanding(false), 520);
+      const { upload: run, targetSlot: slot, openSlot: open } = live.current;
+      run(file, slot()).then((asset) => {
+        if (!asset) return;
+        if (target === "popover" && open) setDropped({ asset, nonce: Date.now() });
+        else setOpenSlot("");
+      });
     };
     const paste = (event: ClipboardEvent) => {
       const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith("image/"));
       if (!file) return;
       event.preventDefault();
-      uploadRef.current.upload(file, uploadRef.current.targetSlot()).then((asset) => { if (asset) setOpenSlot(""); });
+      live.current.upload(file, live.current.targetSlot());
     };
-    host.addEventListener("dragenter", enter);
-    host.addEventListener("dragover", over);
-    host.addEventListener("dragleave", leave);
-    host.addEventListener("drop", drop);
+    window.addEventListener("dragover", over);
+    window.addEventListener("dragleave", leave);
+    window.addEventListener("drop", drop);
     host.addEventListener("paste", paste);
     return () => {
-      host.removeEventListener("dragenter", enter);
-      host.removeEventListener("dragover", over);
-      host.removeEventListener("dragleave", leave);
-      host.removeEventListener("drop", drop);
+      window.clearTimeout(clearTimer);
+      window.removeEventListener("dragover", over);
+      window.removeEventListener("dragleave", leave);
+      window.removeEventListener("drop", drop);
       host.removeEventListener("paste", paste);
     };
-  }, [inputs.length]);
+  }, [host, inputs.length]);
 
   if (!inputs.length) return null;
   const openInput = inputs.find((input) => input.id === openSlot) || null;
@@ -373,6 +471,7 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
             open={openSlot === input.id}
             busy={uploadSlot === input.id}
             progress={progress}
+            fresh={freshSlot === input.id}
             onOpen={() => setOpenSlot((current) => current === input.id ? "" : input.id)}
             onRemove={() => onRemove(input.id)}
           />
@@ -384,6 +483,10 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
             key="popover"
             input={openInput}
             selected={assetFor(openInput.id)}
+            anchor={host}
+            popRef={popRef}
+            dropActive={dropTarget === "popover"}
+            dropped={dropped}
             onClose={close}
             onSelect={(asset) => onSelect(openInput.id, asset)}
             onRemoveSelected={() => onRemove(openInput.id)}
@@ -393,20 +496,9 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
           />
         ) : null}
       </AnimatePresence>
-      <AnimatePresence>
-        {dropping ? (
-          <motion.div
-            key="drop"
-            className="composer-drop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-          >
-            <Upload size={18} /><strong>Drop to use as reference</strong>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+      <div ref={overlayRef} className={cn("composer-drop", dropTarget === "prompt" && "is-active", landing && "is-landing")} aria-hidden={dropTarget !== "prompt"}>
+        <DropBadge text={inputs.length > 1 ? "Drop to use as a reference" : "Drop to use as reference"} />
+      </div>
     </div>
   );
 }

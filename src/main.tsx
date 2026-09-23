@@ -5,7 +5,7 @@ import "./styles.css";
 
 import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, PrivacyStatus, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
-import { apiJson, copyImage, copyText, loadDraft, loadPrefs } from './app/api';
+import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromGallery } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
 import { useGalleryColumnCount } from './app/gallery';
 import { normalizeLoras } from './app/loras';
@@ -318,7 +318,11 @@ function App() {
       customSize,
       startImageId,
       startImageName,
-      referenceAssets: referenceAssets.filter(({ asset }) => asset.privacyDomain !== "vault" && asset.source !== "vault"),
+      // Private references keep only their gallery id in the browser: no name, no thumbnail.
+      // The preview is looked up again once the vault is unlocked.
+      referenceAssets: referenceAssets.map(({ slot, asset }) => asset.privacyDomain === "vault" || asset.source === "vault"
+        ? { slot, asset: { id: asset.id, source: "vault" as const, privacyDomain: "vault" as const, galleryItemId: asset.galleryItemId, name: "Private image", mime: "", width: 0, height: 0, size: 0, createdAt: "", thumbnailUrl: "" } }
+        : { slot, asset }),
       advanced,
       showDetails,
       showGenerationSettings,
@@ -682,6 +686,21 @@ function App() {
     });
   }
 
+  // Restore previews of Private references once the vault is open again.
+  useEffect(() => {
+    if (!privacyStatus?.unlocked) return;
+    const pending = referenceAssets.filter(({ asset }) => asset.source === "vault" && !asset.thumbnailUrl && asset.galleryItemId);
+    if (!pending.length) return;
+    let live = true;
+    Promise.all(pending.map(({ slot, asset }) => referenceAssetFromGallery(asset.galleryItemId || "").then((resolved) => ({ slot, resolved })).catch(() => null)))
+      .then((results) => {
+        if (!live) return;
+        const found = results.filter(Boolean) as Array<{ slot: string; resolved: ReferenceAsset }>;
+        if (found.length) setReferenceAssets((current) => current.map((item) => found.find((hit) => hit.slot === item.slot)?.resolved ? { slot: item.slot, asset: found.find((hit) => hit.slot === item.slot)!.resolved } : item));
+      });
+    return () => { live = false; };
+  }, [privacyStatus?.unlocked, referenceAssets]);
+
   const loraStrengthForCurrentWorkflow = (name: string, fallback: number) => rememberedLoraStrength(model, name, fallback);
 
   function changeMode(next: Mode) {
@@ -752,7 +771,9 @@ function App() {
     height: 0,
     size: 0,
     createdAt: "",
-    thumbnailUrl: ""
+    // Only the id survives a reload for images kept out of the saved draft (Private ones);
+    // uploads can still be previewed from it, anything else falls back to an icon.
+    thumbnailUrl: `/api/reference-assets/${encodeURIComponent(startImageId)}/thumbnail`
   } : null);
   const composerReferenceAssets = referenceAsset && referenceInput && !referenceAssets.some((item) => item.slot === referenceInput.id)
     ? [{ slot: referenceInput.id, asset: referenceAsset }, ...referenceAssets]

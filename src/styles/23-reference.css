@@ -30,24 +30,22 @@
   white-space: nowrap;
 }
 
-/* Empty: "+ Add reference" that settles into a round +. The label sits in a
-   grid track that animates between 0fr and 1fr, so the chip morphs smoothly. */
+/* Empty: "+ Add reference" that settles into a round +. The chip is anchored
+   on the right, so animating max-width grows and shrinks it toward the left. */
 .ref-add {
-  display: inline-grid;
-  grid-template-columns: 36px 0fr;
-  align-items: center;
-  justify-items: center;
+  max-width: 36px;
   padding: 0;
+  overflow: hidden;
   border: 0;
   background: var(--control-fill);
   box-shadow: inset 0 0 0 1px var(--surface-border);
   cursor: pointer;
-  transition: grid-template-columns 420ms var(--ease-out), background var(--dur-fast), box-shadow var(--dur-fast), scale 100ms;
+  transition: max-width 480ms var(--ease-out), background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), scale 100ms;
 }
-.ref-add.is-expanded { grid-template-columns: 30px 1fr; }
-.ref-add > svg { transition: rotate 320ms var(--ease-out); }
+.ref-add.is-expanded { max-width: 240px; }
+.ref-add > svg { flex: none; margin: 0 10.5px; transition: rotate 320ms var(--ease-out); }
 .ref-add.is-open > svg { rotate: 45deg; }
-.ref-add-label { min-width: 0; overflow: hidden; justify-self: stretch; }
+.ref-add-label { display: inline-flex; margin-left: -4px; }
 .ref-add-label > span {
   display: inline-flex;
   align-items: center;
@@ -55,9 +53,9 @@
   padding-right: 14px;
   opacity: 0;
   filter: blur(3px);
-  transition: opacity 220ms var(--ease-out), filter 220ms var(--ease-out);
+  transition: opacity 200ms var(--ease-out), filter 200ms var(--ease-out);
 }
-.ref-add.is-expanded .ref-add-label > span { opacity: 1; filter: none; transition-delay: 90ms; }
+.ref-add.is-expanded .ref-add-label > span { opacity: 1; filter: none; transition-delay: 120ms; }
 .ref-add-label em {
   padding: 2px 7px;
   border-radius: var(--r-pill);
@@ -71,23 +69,12 @@
 .ref-add:active { scale: .96; }
 .ref-add.is-open { background: var(--action); color: var(--action-ink); box-shadow: none; }
 
-/* Chosen: a squircle thumbnail. Hover or focus opens a small menu to its left. */
-.ref-selected {
-  display: grid;
-  grid-template-columns: 0fr auto;
-  padding: 0;
-  border-radius: 16px;
-  transition: grid-template-columns 360ms var(--ease-out), background var(--dur-fast), box-shadow var(--dur-fast), padding 360ms var(--ease-out);
-}
-.ref-selected:hover,
-.ref-selected:focus-within,
-.ref-selected.is-open {
-  grid-template-columns: 1fr auto;
-  padding: 0 0 0 4px;
-  background: var(--surface-grain), rgb(30 30 30 / .86);
-  box-shadow: inset 0 0 0 1px var(--surface-border), var(--shadow-float-sm);
-}
+/* Chosen: the thumbnail never moves. Its menu is a panel behind it that a
+   clip-path wipes open to the left, so nothing reflows while it animates. */
+.ref-selected { position: relative; display: block; }
 .ref-thumb {
+  position: relative;
+  z-index: 2;
   width: 36px;
   height: 36px;
   display: grid;
@@ -97,34 +84,44 @@
   border: 0;
   border-radius: 12px;
   background: var(--well);
-  box-shadow: 0 0 0 1px rgb(255 255 255 / .14), 0 4px 12px rgb(0 0 0 / .35);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .16), 0 4px 12px rgb(0 0 0 / .35);
   color: hsl(var(--muted-foreground));
   cursor: pointer;
-  transition: scale 160ms var(--ease-out), box-shadow var(--dur-fast);
-}
-@supports (corner-shape: squircle) {
-  .ref-thumb { border-radius: 40%; corner-shape: squircle; }
+  transition: scale 200ms var(--ease-out), box-shadow var(--dur-fast);
 }
 .ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ref-thumb:hover { scale: 1.05; box-shadow: 0 0 0 1px rgb(255 255 255 / .3), 0 6px 16px rgb(0 0 0 / .4); }
-.ref-menu { min-width: 0; overflow: hidden; }
-.ref-menu > div {
+.ref-thumb:hover { scale: 1.06; box-shadow: 0 0 0 1px rgb(255 255 255 / .32), 0 6px 16px rgb(0 0 0 / .4); }
+.ref-menu {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: max-content; /* its parent is only the 36px thumbnail */
+  height: 42px;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding-right: 6px;
+  padding: 0 46px 0 6px;
+  border-radius: 16px;
+  background: var(--surface-grain), rgb(30 30 30 / .9);
+  box-shadow: inset 0 0 0 1px var(--surface-border), var(--shadow-float-sm);
+  white-space: nowrap;
   opacity: 0;
-  translate: 6px 0;
-  transition: opacity 200ms var(--ease-out), translate 300ms var(--ease-out);
+  pointer-events: none;
+  clip-path: inset(0 0 0 calc(100% - 42px) round 16px);
+  transition: clip-path 420ms var(--ease-out), opacity 160ms var(--ease-out);
 }
-.ref-selected:hover .ref-menu > div,
-.ref-selected:focus-within .ref-menu > div,
-.ref-selected.is-open .ref-menu > div { opacity: 1; translate: 0 0; transition-delay: 60ms; }
+.ref-selected:hover .ref-menu,
+.ref-selected:focus-within .ref-menu,
+.ref-selected.is-open .ref-menu { opacity: 1; pointer-events: auto; clip-path: inset(0 0 0 0 round 16px); }
+.ref-menu > * { opacity: 0; translate: 8px 0; transition: opacity 200ms var(--ease-out), translate 360ms var(--ease-out); }
+.ref-selected:hover .ref-menu > *,
+.ref-selected:focus-within .ref-menu > *,
+.ref-selected.is-open .ref-menu > * { opacity: 1; translate: 0 0; transition-delay: 70ms; }
 .ref-menu-name {
   display: grid;
   gap: 1px;
-  max-width: 150px;
-  padding: 2px 8px;
+  max-width: 160px;
+  padding: 3px 8px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -149,6 +146,14 @@
 }
 .ref-menu-remove:hover { background: var(--danger-fill); color: var(--danger-ink); }
 
+/* A freshly dropped or uploaded image pops into place. */
+.ref-selected.is-new .ref-thumb { animation: ref-pop 620ms var(--ease-out); }
+@keyframes ref-pop {
+  0% { scale: .4; opacity: 0; }
+  55% { scale: 1.12; opacity: 1; }
+  100% { scale: 1; }
+}
+
 .ref-chip.is-busy {
   gap: 7px;
   padding: 0 12px;
@@ -161,22 +166,20 @@
 /* --------------------------------------------------------------- Popover */
 
 .reference-popover {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: calc(100% + 10px);
-  z-index: 20;
+  position: fixed;
+  z-index: 90; /* over the deck and composer, under modals and toasts */
   display: flex;
   flex-direction: column;
   height: min(440px, 58dvh);
   overflow: hidden;
   border: 1px solid var(--surface-border);
   border-radius: var(--r-panel);
-  background: var(--surface-grain), rgb(22 22 22 / .9);
+  /* The same frosted glass as the prompt bar. */
+  background: var(--surface-grain), var(--surface-float);
   -webkit-backdrop-filter: var(--surface-float-blur);
   backdrop-filter: var(--surface-float-blur);
   box-shadow: var(--shadow-float);
-  transform-origin: 92% 100%;
+  transform-origin: 94% 100%;
 }
 .reference-popover-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 10px 10px 10px 12px; box-shadow: inset 0 -1px 0 var(--surface-border); }
 .reference-tabs { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--r-pill); background: var(--well); }
@@ -231,6 +234,7 @@
 .reference-tile-select:hover img { scale: 1.05; }
 .reference-tile-select:active { scale: .97; }
 .reference-tile.is-selected .reference-tile-select { box-shadow: 0 0 0 2px #fff; }
+.reference-tile.is-new .reference-tile-select { animation: ref-pop 620ms var(--ease-out); }
 .reference-tile-check {
   position: absolute;
   top: 6px;
@@ -273,23 +277,72 @@
 .reference-empty p { margin: 0 0 8px; font-size: 12.5px; }
 .reference-more { display: flex; margin: 12px auto 0; }
 
-/* ------------------------------------------------------------------ Drop */
+/* ------------------------------------------------------------------ Drop
+   Where the file will land lights up: the prompt bar for "use as reference",
+   the open picker for "add to uploads". A spotlight follows the pointer, the
+   edge shimmers, and a drop lands with a quick shrink. */
 
-.composer-drop {
+@property --drop-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+
+.composer-drop,
+.reference-drop {
   position: absolute;
   inset: 0;
   z-index: 25;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border-radius: inherit;
-  background: rgb(12 12 12 / .78);
-  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .35);
-  color: #fff;
-  font-size: 13.5px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-panel);
+  background:
+    radial-gradient(240px circle at var(--drop-x, 50%) var(--drop-y, 50%), rgb(255 255 255 / .12), transparent 70%),
+    rgb(14 14 14 / .74);
   pointer-events: none;
 }
+.composer-drop { opacity: 0; transition: opacity 180ms var(--ease-out); }
+.composer-drop.is-active { opacity: 1; }
+.composer-drop::before,
+.reference-drop::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1.5px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--drop-angle), rgb(255 255 255 / .08), rgb(255 255 255 / .75) 12%, rgb(255 255 255 / .08) 30%, rgb(255 255 255 / .08) 55%, rgb(255 255 255 / .55) 68%, rgb(255 255 255 / .08) 85%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: drop-spin 2.6s linear infinite;
+}
+@keyframes drop-spin { to { --drop-angle: 360deg; } }
+
+.drop-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  font-size: 13.5px;
+  transform: translateY(6px) scale(.96);
+  transition: transform 320ms var(--ease-out), opacity 320ms var(--ease-out);
+}
+.composer-drop.is-active .drop-badge,
+.reference-drop .drop-badge { transform: none; }
+.drop-badge strong { font-weight: 550; }
+.drop-badge-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--action-ink);
+  box-shadow: 0 6px 20px rgb(0 0 0 / .4);
+  animation: drop-bob 1.1s var(--ease-soft) infinite alternate;
+}
+@keyframes drop-bob { to { translate: 0 -4px; } }
+
+/* Landing: the badge shrinks off toward the reference chip and the layer fades. */
+.composer-drop.is-landing { opacity: 1; animation: drop-fade 520ms var(--ease-out) forwards; }
+.composer-drop.is-landing .drop-badge { transform: translate(38%, -70%) scale(.4); opacity: 0; transition-duration: 460ms; }
+@keyframes drop-fade { 0%, 35% { opacity: 1; } 100% { opacity: 0; } }
 
 @media (hover: none) {
   .reference-tile-delete { opacity: 1; }
@@ -303,7 +356,10 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .ref-add,
-  .ref-selected,
-  .ref-add-label > span,
-  .ref-menu > div { transition: none; }
+  .ref-menu,
+  .ref-menu > *,
+  .ref-add-label > span { transition: none; }
+  .composer-drop::before,
+  .reference-drop::before,
+  .drop-badge-icon { animation: none; }
 }
