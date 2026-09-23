@@ -3,7 +3,7 @@ import { Check, RotateCw } from 'lucide-react';
 import { apiJson } from './api';
 import { cn } from './format';
 
-export type ManagerInfo = { connected: boolean; available: boolean; version: string | null };
+export type ManagerInfo = { connected: boolean; available: boolean; version: string | null; stale?: boolean };
 
 // One answer shared by every restart button on screen, refreshed at most every 20 s.
 let cached: { info: ManagerInfo; at: number } | null = null;
@@ -15,7 +15,7 @@ async function fetchManager(force = false): Promise<ManagerInfo> {
   if (!pending) {
     pending = apiJson<ManagerInfo & { ok: boolean }>('/api/comfy/manager')
       .then(({ connected, available, version }) => ({ connected, available, version }))
-      .catch(() => ({ connected: false, available: false, version: null }))
+      .catch((error) => ({ connected: false, available: false, version: null, stale: /out of date|Unknown API route/i.test(String(error?.message || '')) }))
       .then((info) => {
         cached = { info, at: Date.now() };
         listeners.forEach((listener) => listener(info));
@@ -98,7 +98,9 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
       </button>
       {off ? (
         <p className="comfy-restart-note">
-          {info?.connected
+          {info?.stale
+            ? <>The HEISS server is running older code. Restart it to use this.</>
+            : info?.connected
             ? <>Needs ComfyUI-Manager. Start ComfyUI with <code>--enable-manager</code>, or restart it yourself.</>
             : <>ComfyUI is not answering.</>}{' '}
           <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
