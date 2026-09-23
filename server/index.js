@@ -7,8 +7,9 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, port, root, setComfyOutputDir } from './comfy.js';
+import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult } from './models.js';
+import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
@@ -38,6 +39,11 @@ async function loadComfyContext({ force = false } = {}) {
   if (fresh) return comfyCache;
   const info = await comfy("/object_info");
   const stats = await comfy("/system_stats").catch(() => ({}));
+  // Model-type detection is synchronous; fetch what it needs from a remote ComfyUI first.
+  await primeModelMetadata({
+    unet: optionsFor(info, "UNETLoader", "unet_name"),
+    checkpoint: optionsFor(info, "CheckpointLoaderSimple", "ckpt_name")
+  }).catch(() => null);
   comfyCache = { info, stats, fetchedAt: Date.now() };
   return comfyCache;
 }
@@ -217,6 +223,17 @@ app.get("/api/models", async (_req, res) => {
     res.json(inferModels(info, stats));
   } catch {
     res.json(mockModelResult());
+  }
+});
+
+app.put("/api/models/types", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    setModelChoice(req.body?.source, req.body?.name, req.body?.type);
+    const { info, stats } = await loadComfyContext();
+    res.json(inferModels(info, stats));
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
   }
 });
 

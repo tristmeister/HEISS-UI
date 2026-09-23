@@ -100,6 +100,8 @@
 .set-row-text strong { font-size: 13.5px; font-weight: 550; color: hsl(var(--foreground)); }
 .set-row-text > span { font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
 .set-row-control { flex: none; display: flex; align-items: center; gap: 8px; }
+.set-model-name { display: block; overflow-wrap: anywhere; }
+.set-type-picker { width: 200px; }
 .set-row.is-disabled .set-row-text strong { color: hsl(var(--muted-foreground)); }
 
 .set-row.is-stacked { flex-direction: column; align-items: stretch; gap: 12px; }
@@ -228,7 +230,9 @@
   .set-row { flex-wrap: wrap; padding: 12px 12px 12px 14px; }
   .set-row-control { flex-wrap: wrap; }
   .set-row:has(.segmented) .set-row-control,
-  .set-row:has(.number-picker) .set-row-control { width: 100%; }
+  .set-row:has(.number-picker) .set-row-control,
+  .set-row:has(.set-type-picker) .set-row-control,
+  .set-type-picker { width: 100%; }
   .set-row .segmented { width: 100%; }
   .set-row .segmented button { flex: 1; }
   }

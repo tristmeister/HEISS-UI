@@ -1,6 +1,7 @@
 import { missingNodes, nodeRange, optionsFor, textRange } from './comfy.js';
 import { workflowFor } from './workflow-registry.js';
 import { loadCustomWorkflows, workflowOptionIssues } from './custom-workflows.js';
+import { classifyModel, modelTypeChoices, modelTypes } from './model-families.js';
 
 export function modelBasename(name = "") {
   return String(name).split(/[\\/]/).pop() || name;
@@ -23,10 +24,6 @@ export function prettyModelName(name = "") {
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function isZImageModel(name = "") {
-  return /z[-_ ]?anime|z[-_ ]?image/i.test(name);
-}
-
 export function isNvfp4Model(name = "") {
   return /nvfp4/i.test(name);
 }
@@ -41,10 +38,6 @@ export function torchVersionAtLeast(version = "", major, minor) {
 
 export function torchSupportsNvfp4(stats = {}) {
   return torchVersionAtLeast(stats?.system?.pytorch_version, 2, 8);
-}
-
-export function isWanVideoModel(name = "") {
-  return /wan/i.test(name);
 }
 
 export function snapDimension(value, meta = {}) {
@@ -158,6 +151,16 @@ export function inferModels(info, stats = {}) {
   const canRunUnetImage = missingNodes(info, unetImageWorkflow.requiredNodes).length === 0;
   const canRunCheckpointImage = missingNodes(info, checkpointImageWorkflow.requiredNodes).length === 0;
   const canRunWanVideo = missingNodes(info, wanVideoWorkflow.requiredNodes).length === 0;
+  const krea2Workflow = workflowFor("krea2-image");
+  const krea2CheckpointWorkflow = workflowFor("krea2-checkpoint");
+  // The krea2 text-encoder type doubles as "this ComfyUI knows Krea 2 at all".
+  const knowsKrea2 = clipTypes.includes("krea2");
+  const canRunKrea2 = knowsKrea2 && missingNodes(info, krea2Workflow.requiredNodes).length === 0;
+  const canRunKrea2Checkpoint = knowsKrea2 && missingNodes(info, krea2CheckpointWorkflow.requiredNodes).length === 0;
+  const unetTypes = new Map(unets.map((name) => [name, classifyModel("unet", name)]));
+  const checkpointTypes = new Map(checkpoints.map((name) => [name, classifyModel("checkpoint", name)]));
+  const unetsOfType = (type) => runnableUnets.filter((name) => unetTypes.get(name)?.type === type);
+  const checkpointsOfType = (type) => checkpoints.filter((name) => checkpointTypes.get(name)?.type === type);
   const sd3Range = {
     width: nodeRange(info, "EmptySD3LatentImage", "width", { default: 1024, min: 16, max: 16384, step: 16 }),
     height: nodeRange(info, "EmptySD3LatentImage", "height", { default: 1024, min: 16, max: 16384, step: 16 }),
@@ -175,8 +178,7 @@ export function inferModels(info, stats = {}) {
     fps: nodeRange(info, "CreateVideo", "fps", { default: 30, min: 1, max: 120, step: 1 })
   };
 
-  const zImageNames = new Set(canRunUnetImage ? runnableUnets.filter(isZImageModel) : []);
-  for (const name of zImageNames) {
+  for (const name of canRunUnetImage ? unetsOfType("z-image") : []) {
     profiles.push(buildProfile({
       id: `image:unet-z:${name}`,
       kind: "image",
@@ -212,7 +214,7 @@ export function inferModels(info, stats = {}) {
     }));
   }
 
-  for (const name of canRunCheckpointImage ? checkpoints.filter((name) => !zImageNames.has(name)) : []) {
+  for (const name of canRunCheckpointImage ? checkpointsOfType("checkpoint") : []) {
     profiles.push(buildProfile({
       id: `image:checkpoint:${name}`,
       kind: "image",
@@ -245,7 +247,49 @@ export function inferModels(info, stats = {}) {
     }));
   }
 
-  for (const name of canRunWanVideo ? runnableUnets.filter(isWanVideoModel) : []) {
+  const krea2Range = {
+    // Qwen-Image VAE (8x) plus 2x2 patches: sizes on a 16 px grid.
+    width: { ...imageRange.width, step: Math.max(16, Number(imageRange.width.step) || 0) },
+    height: { ...imageRange.height, step: Math.max(16, Number(imageRange.height.step) || 0) },
+    count: imageRange.count
+  };
+  const krea2Profile = (name, fromCheckpoint) => buildProfile({
+    id: `image:${fromCheckpoint ? "krea2-checkpoint" : "krea2"}:${name}`,
+    kind: "image",
+    label: `${prettyModelName(name)} · Krea 2`,
+    displayName: prettyModelName(name),
+    description: fromCheckpoint ? "Krea 2 checkpoint workflow" : "Krea 2 workflow",
+    model: name,
+    workflow: fromCheckpoint ? krea2CheckpointWorkflow.id : krea2Workflow.id,
+    family: krea2Workflow.family,
+    defaults: {
+      width: 1024,
+      height: 1024,
+      steps: 8,
+      cfg: 1,
+      sampler: samplers.includes("euler") ? "euler" : samplers[0] || "euler",
+      scheduler: schedulers.includes("simple") ? "simple" : schedulers[0] || "normal",
+      textEncoder: fromCheckpoint ? "" : clips.find((clip) => /qwen[-_ ]?3[-_ ]?vl/i.test(clip)) || clips.find((clip) => /qwen.*vl/i.test(clip)) || clips.find((clip) => /qwen/i.test(clip)) || clips[0] || "",
+      vae: fromCheckpoint ? "" : vaes.find((vae) => /qwen[-_ ]?image/i.test(vae)) || vaes.find((vae) => /qwen/i.test(vae)) || vaes[0] || "",
+      clipType: "krea2",
+      weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default"
+    },
+    aspects: aspectSet({ width: 1024, height: 1024 }, [
+      ["1:1", 1, 1],
+      ["16:9", 16, 9],
+      ["9:16", 9, 16],
+      ["4:3", 4, 3],
+      ["3:4", 3, 4],
+      ["2.35:1", 235, 100]
+    ], { width: krea2Range.width, height: krea2Range.height }),
+    options: fromCheckpoint ? { samplers, schedulers, loras } : { textEncoders: clips, vaes, weightDtypes, samplers, schedulers, loras },
+    constraints: { prompt: textMeta, negative: textMeta, width: krea2Range.width, height: krea2Range.height, count: krea2Range.count, ...samplerRange },
+    capabilities: fromCheckpoint ? { lora: canUseLoras } : { textEncoder: true, vae: true, weightDtype: true, lora: canUseLoras }
+  });
+  for (const name of canRunKrea2 ? unetsOfType("krea2") : []) profiles.push(krea2Profile(name, false));
+  for (const name of canRunKrea2Checkpoint ? checkpointsOfType("krea2") : []) profiles.push(krea2Profile(name, true));
+
+  for (const name of canRunWanVideo ? unetsOfType("wan") : []) {
     profiles.push(buildProfile({
       id: `video:wan:${name}`,
       kind: "video",
@@ -336,11 +380,27 @@ export function inferModels(info, stats = {}) {
   const videoProfiles = profiles.filter((profile) => profile.kind === "video");
   const profiled = new Set(profiles.map((profile) => profile.model));
   const unsupportedModels = [...new Set([...incompatibleModels, ...unets, ...checkpoints].filter((name) => !profiled.has(name)))];
+  // Every model file with what it was taken for and why, so Settings can offer
+  // "Use as …" for the ones nothing picked up (and undo earlier choices).
+  const modelFiles = [
+    ...unets.map((name) => ({ name, source: "unet", ...unetTypes.get(name) })),
+    ...checkpoints.map((name) => ({ name, source: "checkpoint", ...checkpointTypes.get(name) }))
+  ].map((item) => ({
+    ...item,
+    label: modelTypes[item.type]?.label || "",
+    supported: profiled.has(item.name),
+    reason: incompatibleModels.includes(item.name) ? "Needs PyTorch 2.8 or newer (NVFP4)."
+      : item.type === "krea2" && !knowsKrea2 ? "This ComfyUI is too old for Krea 2."
+      : !profiled.has(item.name) && item.type ? `${modelTypes[item.type].label} needs nodes ComfyUI does not have.`
+      : ""
+  }));
   return {
     imageModels: imageProfiles.map((profile) => ({ label: profile.label, value: profile.id })),
     videoModels: videoProfiles.map((profile) => ({ label: profile.label, value: profile.id })),
     profiles,
     unsupportedModels,
+    modelFiles,
+    modelTypeChoices: modelTypeChoices(),
     textEncoders: clips,
     vaes,
     clipTypes,

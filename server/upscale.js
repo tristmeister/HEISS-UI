@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
-import { comfy, comfyOutputDir, optionsFor } from "./comfy.js";
+import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
 
 // SeedVR2 restores detail rather than interpolating it, so the pipeline mirrors
 // the reference workflow: soften the source with a lanczos pre-scale, then let
@@ -45,25 +45,9 @@ function downloadUrl(file) {
 export function seedvr2ModelDir() {
   const override = String(process.env.HEISS_SEEDVR2_MODEL_DIR || process.env.JAI_SEEDVR2_MODEL_DIR || "").trim();
   if (override) return path.resolve(override);
-  const comfyRoot = String(process.env.HEISS_COMFY_ROOT || process.env.JAI_COMFY_ROOT || "").trim();
-  if (comfyRoot) return path.join(path.resolve(comfyRoot), "models", "SEEDVR2");
+  const models = comfyModelsDir();
+  if (models) return path.join(models, "SEEDVR2");
   if (!comfyOutputDir) return "";
-  // The output folder is not always a direct child of the ComfyUI root, so walk
-  // up until a real models/ folder turns up rather than assuming one level.
-  let current = path.resolve(comfyOutputDir);
-  for (let depth = 0; depth < 4; depth += 1) {
-    const parent = path.dirname(current);
-    if (!parent || parent === current) break;
-    try {
-      const models = path.join(parent, "models");
-      if (fs.existsSync(models) && fs.statSync(models).isDirectory()) {
-        return path.join(models, "SEEDVR2");
-      }
-    } catch {
-      // Keep walking; an unreadable level is not fatal.
-    }
-    current = parent;
-  }
   return path.join(path.dirname(path.resolve(comfyOutputDir)), "models", "SEEDVR2");
 }
 

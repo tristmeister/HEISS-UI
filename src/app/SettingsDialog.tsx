@@ -2,12 +2,12 @@ import React from 'react';
 import { Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
-import { NumberPicker, Skeleton } from './components';
+import { NumberPicker, Skeleton, StudioSelect } from './components';
 import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
 import { apiJson } from './api';
-import type { OutputFolderReport } from './types';
+import type { ModelFile, Models, OutputFolderReport } from './types';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
@@ -302,6 +302,28 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
 
+  // Models nothing picked up, plus the ones you assigned by hand so they can be undone.
+  const modelList = models as Models | null;
+  const typedModels = (modelList?.modelFiles || []).filter((file) => !file.supported || file.via === 'choice');
+  const [typeBusy, setTypeBusy] = React.useState('');
+  const setModelType = async (file: ModelFile, type: string) => {
+    const key = `${file.source}:${file.name}`;
+    setTypeBusy(key);
+    try {
+      await apiJson('/api/models/types', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ source: file.source, name: file.name, type: type === 'auto' ? '' : type })
+      });
+      refreshModels(false);
+      refreshWorkflows();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not save the model type', 'error');
+    } finally {
+      setTypeBusy('');
+    }
+  };
+
   // About: stats come from the local gallery; the update check always runs long
   // enough for the mosaic button to show its burn.
   const [stats, setStats] = React.useState<StudioStats | null>(null);
@@ -557,11 +579,32 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Models">
               <Row label="Image models"><span className="set-value">{models ? models.imageModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
               <Row label="Video models"><span className="set-value">{models ? models.videoModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
-              {(models?.unsupportedModels?.length || 0) > 0 ? <Row label="Not supported" description="Found on disk, but no workflow can run them."><span className="set-value">{models.unsupportedModels.length}</span></Row> : null}
               <Row label="Rescan" description="Pick up models and workflows added since the studio started.">
                 <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
+            {typedModels.length ? (
+              <Group title="Model types" note="HEISS reads each model file to tell which workflow runs it. Pick one here when it could not tell, or guessed wrong.">
+                {typedModels.map((file) => {
+                  const key = `${file.source}:${file.name}`;
+                  const folder = file.source === 'checkpoint' ? 'Checkpoint' : 'Diffusion model';
+                  const status = file.via === 'choice'
+                    ? `${folder} · set by you${file.reason ? `. ${file.reason}` : ''}`
+                    : `${folder} · ${file.reason || 'Not recognised. Pick what it is to use it.'}`;
+                  return (
+                    <Row key={key} label={<span className="set-model-name" title={file.name}>{file.name.split(/[\\/]/).pop()}</span>} description={status} disabled={typeBusy === key}>
+                      <div className="set-type-picker">
+                        <StudioSelect
+                          value={file.via === 'choice' ? file.type : 'auto'}
+                          onChange={(type) => setModelType(file, type)}
+                          options={[{ label: file.via === 'choice' ? 'Detect again' : 'Not used', value: 'auto' }, ...(modelList?.modelTypeChoices?.[file.source] || [])]}
+                        />
+                      </div>
+                    </Row>
+                  );
+                })}
+              </Group>
+            ) : null}
             <Group title="Other devices" note={<>Start the studio with <code>npm run dev:lan</code> first. With Private Vault on, other devices need the password.</>}>
               <Row label="Open on your phone or another computer" description={`This studio runs at ${window.location.host || 'localhost'}.`}>
                 <button className="btn" onClick={copyLanUrl} disabled={lanBusy}><Copy size={14} /> {lanBusy ? 'Finding…' : 'Copy LAN URL'}</button>

@@ -33,6 +33,30 @@ export function setComfyOutputDir(value = "") {
   comfyOutputDir = next;
   return comfyOutputDir;
 }
+/**
+ * ComfyUI's models folder on this machine, or "" when ComfyUI runs elsewhere.
+ * HEISS_COMFY_ROOT wins; otherwise walk up from the output folder, which is not
+ * always a direct child of the ComfyUI root, until a real models/ turns up.
+ */
+export function comfyModelsDir() {
+  const comfyRoot = String(process.env.HEISS_COMFY_ROOT || process.env.JAI_COMFY_ROOT || "").trim();
+  if (comfyRoot) return path.join(path.resolve(comfyRoot), "models");
+  if (!comfyOutputDir) return "";
+  let current = path.resolve(comfyOutputDir);
+  for (let depth = 0; depth < 4; depth += 1) {
+    const parent = path.dirname(current);
+    if (!parent || parent === current) break;
+    try {
+      const models = path.join(parent, "models");
+      if (fs.existsSync(models) && fs.statSync(models).isDirectory()) return models;
+    } catch {
+      // Keep walking; an unreadable level is not fatal.
+    }
+    current = parent;
+  }
+  return "";
+}
+
 export const localHosts = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export const allowLanActions = process.env.HEISS_ALLOW_LAN === "1" || process.env.JAI_ALLOW_LAN === "1" || host === "0.0.0.0" || host === "::";
 

@@ -21,6 +21,28 @@ export const workflows = {
     needsTextEncoder: false,
     needsVae: false
   },
+  "krea2-image": {
+    id: "krea2-image",
+    kind: "image",
+    family: "krea2",
+    latentNode: "EmptyLatentImage",
+    requiredNodes: ["UNETLoader", "CLIPLoader", "VAELoader", "CLIPTextEncode", "EmptyLatentImage", "KSampler", "VAEDecode", "SaveImage"],
+    modelNode: "UNETLoader",
+    modelKey: "unet_name",
+    needsTextEncoder: true,
+    needsVae: true
+  },
+  "krea2-checkpoint": {
+    id: "krea2-checkpoint",
+    kind: "image",
+    family: "krea2",
+    latentNode: "EmptyLatentImage",
+    requiredNodes: ["CheckpointLoaderSimple", "CLIPTextEncode", "EmptyLatentImage", "KSampler", "VAEDecode", "SaveImage"],
+    modelNode: "CheckpointLoaderSimple",
+    modelKey: "ckpt_name",
+    needsTextEncoder: false,
+    needsVae: false
+  },
   "wan-video": {
     id: "wan-video",
     kind: "video",

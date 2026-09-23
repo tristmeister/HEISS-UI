@@ -35,6 +35,7 @@ export function composeWorkflowPrompt(workflow, userPrompt = "") {
 export async function imageGraph(body) {
   if (body.workflow?.startsWith("custom:")) return customWorkflowGraph(body);
   if (body.workflow === "checkpoint-image") return checkpointImageGraph(body);
+  if (body.workflow === "krea2-image" || body.workflow === "krea2-checkpoint") return krea2ImageGraph(body);
   return unetImageGraph(body);
 }
 
@@ -256,6 +257,60 @@ export async function checkpointImageGraph(body) {
     clipTargets: [{ node: "2", input: "clip" }, { node: "3", input: "clip" }]
   });
 
+  return graph;
+}
+
+/**
+ * Krea 2: a single-stream DiT with a Qwen3-VL text encoder. Loads either as a
+ * diffusion model with its own encoder and VAE, or from an all-in-one checkpoint.
+ * The Krea2T enhancer sits between the model and the LoRAs when ComfyUI has it;
+ * validation decides that from ComfyUI's node list, not the client.
+ */
+export function krea2ImageGraph(body) {
+  const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
+  const count = Math.max(1, Math.min(8, Number(body.count || 1)));
+  const fromCheckpoint = body.workflow === "krea2-checkpoint";
+  const graph = fromCheckpoint
+    ? { "1": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: body.model } } }
+    : {
+      "1": { class_type: "UNETLoader", inputs: { unet_name: body.model, weight_dtype: body.weightDtype || "default" } },
+      "2": { class_type: "CLIPLoader", inputs: { clip_name: body.textEncoder, type: "krea2", device: "default" } },
+      "3": { class_type: "VAELoader", inputs: { vae_name: body.vae } }
+    };
+  let model = ["1", 0];
+  const clip = fromCheckpoint ? ["1", 1] : ["2", 0];
+  const vae = fromCheckpoint ? ["1", 2] : ["3", 0];
+  if (body.krea2Enhancer) {
+    graph["4"] = { class_type: "ComfyUI-Krea2T-Enhancer", inputs: { model, enabled: true, strength: 1.5, debug: false } };
+    model = ["4", 0];
+  }
+  graph["5"] = { class_type: "CLIPTextEncode", inputs: { text: body.prompt || "", clip } };
+  graph["6"] = { class_type: "CLIPTextEncode", inputs: { text: body.negative || "", clip } };
+  graph["7"] = { class_type: "EmptyLatentImage", inputs: { width: Number(body.width || 1024), height: Number(body.height || 1024), batch_size: count } };
+  graph["8"] = {
+    class_type: "KSampler",
+    inputs: {
+      model,
+      seed,
+      steps: Number(body.steps || 8),
+      cfg: Number(body.cfg || 1),
+      sampler_name: body.sampler || "euler",
+      scheduler: body.scheduler || "simple",
+      positive: ["5", 0],
+      negative: ["6", 0],
+      latent_image: ["7", 0],
+      denoise: Number(body.denoise || 1)
+    }
+  };
+  graph["9"] = { class_type: "VAEDecode", inputs: { samples: ["8", 0], vae } };
+  graph["10"] = { class_type: "SaveImage", inputs: { images: ["9", 0], filename_prefix: "heiss-ui/image" } };
+  applyLoraStack(graph, body, {
+    startId: 11,
+    modelSource: model,
+    clipSource: clip,
+    modelTargets: [{ node: "8", input: "model" }],
+    clipTargets: [{ node: "5", input: "clip" }, { node: "6", input: "clip" }]
+  });
   return graph;
 }
 

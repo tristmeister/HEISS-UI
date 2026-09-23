@@ -89,11 +89,16 @@ export type Profile = {
   /** LoRAs the workflow's loader accepts; rgthree stacks take 4. */
   maxLoras?: number;
 };
+export type ModelSource = "unet" | "checkpoint";
+/** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
+export type ModelFile = { name: string; source: ModelSource; type: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string };
 export type Models = {
   imageModels: SelectOption[];
   videoModels: SelectOption[];
   profiles: Profile[];
   unsupportedModels?: string[];
+  modelFiles?: ModelFile[];
+  modelTypeChoices?: Record<ModelSource, SelectOption[]>;
   textEncoders: string[];
   vaes: string[];
   clipTypes?: string[];

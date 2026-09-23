@@ -131,7 +131,9 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     modelName: String(input.modelName || customWorkflow?.defaults?.model || ""),
     textEncoder: String(input.textEncoder || ""),
     vae: String(input.vae || ""),
-    clipType: String(input.clipType || "wan"),
+    clipType: workflowInfo.family === "krea2" ? "krea2" : String(input.clipType || "wan"),
+    // Decided here from ComfyUI's node list so a client cannot ask for a node that is not there.
+    krea2Enhancer: workflowInfo.family === "krea2" && Boolean(info["ComfyUI-Krea2T-Enhancer"]),
     weightDtype: String(input.weightDtype || "default"),
     width: snapInteger(input.width, widthRange.default, widthRange),
     height: snapInteger(input.height, heightRange.default, heightRange),
