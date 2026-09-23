@@ -254,6 +254,13 @@ export function useGenerationActions(view: any) {
     setStatus("Ready");
   }
 
+  async function restartComfy() {
+    if (!await confirmAction({"title": "Restart ComfyUI?", "description": "Running and queued generations stop. ComfyUI comes back in a few seconds.", "action": "Restart ComfyUI", "destructive": true})) return;
+    const data = await fetch("/api/comfy/restart", { method: "POST" }).then((res) => res.json()).catch(() => null);
+    if (data?.ok) showToast("ComfyUI is restarting", "success");
+    else showToast(data?.error || "Could not restart ComfyUI", "error");
+  }
+
   async function openOutputFolder() {
     const response = await fetch("/api/open-output-folder", { method: "POST" }).catch(() => null);
     if (!response?.ok) showToast("Could not open folder", "error");
@@ -267,5 +274,5 @@ export function useGenerationActions(view: any) {
     showToast(response?.ok ? "Deleted from gallery" : "Delete failed", response?.ok ? "success" : "error");
   }
 
-  return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem };
+  return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, restartComfy, openOutputFolder, deleteItem };
 }

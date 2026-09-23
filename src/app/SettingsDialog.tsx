@@ -278,7 +278,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     prefs, setPrefs, setZenMode, zenGalleryOpen, setZenGalleryOpen,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
     gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
-    clearFailedItems, clearGallery, clearAllCache, resetAllSettings,
+    clearFailedItems, clearGallery, clearAllCache, restartComfy, resetAllSettings,
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
     setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
     health, refreshHealth, models, refreshModels, refreshWorkflows,
@@ -399,6 +399,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
               <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
                 <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
+              </Row>
+              <Row label="Restart ComfyUI" description="Picks up new custom nodes and frees everything it holds. Needs ComfyUI-Manager.">
+                <button className="btn is-danger-soft" onClick={restartComfy}>Restart</button>
               </Row>
               <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
                 <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>

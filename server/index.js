@@ -1046,6 +1046,32 @@ app.post("/api/cache/clear", async (_req, res) => {
   res.json({ ok: true, outputs: revealGalleryItemsForRequest(gallery, _req) });
 });
 
+// ComfyUI is started outside HEISS UI, so only ComfyUI-Manager can restart it in place.
+app.post("/api/comfy/restart", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  let sawManager = false;
+  for (const route of ["/v2/manager/reboot", "/api/manager/reboot", "/manager/reboot"]) {
+    let response;
+    try {
+      response = await fetch(`${comfyUrl}${route}`, { signal: AbortSignal.timeout(5000) });
+    } catch {
+      // ComfyUI dropping the connection mid-answer means it is already going down.
+      res.json({ ok: true });
+      return;
+    }
+    if (response.ok) {
+      res.json({ ok: true });
+      return;
+    }
+    if (response.status === 403) {
+      res.status(403).json({ ok: false, error: "ComfyUI-Manager refused the restart. Lower its security_level to normal in the Manager config, or restart ComfyUI by hand." });
+      return;
+    }
+    if (response.status !== 404 && response.status !== 405) sawManager = true;
+  }
+  res.status(501).json({ ok: false, error: sawManager ? "ComfyUI-Manager could not restart ComfyUI." : "Restarting needs ComfyUI-Manager. Newer ComfyUI ships it switched off: start ComfyUI with --enable-manager." });
+});
+
 app.delete("/api/gallery/:id", (req, res) => {
   const id = decodeURIComponent(req.params.id);
   const vault = vaultConfigured() ? deleteVaultItem(req, id) : { removed: 0 };
