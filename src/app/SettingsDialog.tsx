@@ -210,8 +210,8 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
       const list = data.candidates.filter((item) => item.path !== report?.path);
       if (!list.length) showToast(report?.state === 'match' ? 'This is already the right folder' : 'No output folder found. Is ComfyUI running?', report?.state === 'match' ? 'success' : 'error');
       setCandidates(list.length ? list : null);
-    } catch {
-      showToast('Could not search for the output folder', 'error');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not search for the output folder', 'error');
     } finally {
       setBusy('');
     }

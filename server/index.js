@@ -1027,6 +1027,9 @@ app.get("/comfy/*path", async (req, res) => {
 });
 
 const dist = path.join(root, "dist");
+// An unknown API route must fail as JSON, never fall through to the app page.
+app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "Unknown API route. Restart HEISS UI if it was just updated." }));
+
 if (fs.existsSync(dist)) {
   app.use(express.static(dist));
   app.get("*splat", (_req, res) => res.sendFile(path.join(dist, "index.html")));

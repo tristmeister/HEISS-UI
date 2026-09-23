@@ -42,6 +42,10 @@ export async function copyImage(item: GalleryItem) {
 
 export async function apiJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, options);
+  // A server started before an update answers new routes with the app page.
+  if (response.ok && (response.headers.get("content-type") || "").includes("text/html")) {
+    throw new Error("The HEISS server is out of date. Restart it to use this.");
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof data?.error === "string" ? data.error : response.statusText || "Request failed";
