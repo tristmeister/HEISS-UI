@@ -359,7 +359,12 @@ export function ReferenceSlots({ inputs, selected, onSelect, onRemove, confirmDe
   const overlayRef = React.useRef<HTMLDivElement>(null);
   const close = React.useCallback(() => setOpenSlot(""), []);
   useDismiss([rootRef, popRef], Boolean(openSlot), close);
-  React.useLayoutEffect(() => { setHost(rootRef.current?.closest<HTMLElement>(".zen-prompt") || null); }, []);
+  // Find the prompt bar whenever this renders into it. On first mount there may be
+  // no inputs yet (the workflow is still loading), so nothing is rendered to look from.
+  React.useLayoutEffect(() => {
+    const next = rootRef.current?.closest<HTMLElement>(".zen-prompt") || null;
+    setHost((current) => current === next ? current : next);
+  });
 
   const assetFor = (slot: string) => selected.find((item) => item.slot === slot)?.asset || null;
   // New images go to the slot that's open, else the first empty one, else the first.
