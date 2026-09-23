@@ -262,14 +262,14 @@ export async function managerAvailable() {
 export async function managerInfo() {
   for (const route of ["/v2/manager/version", "/manager/version"]) {
     try {
-      const answer = await comfy(route);
+      const answer = await comfy(route, { signal: AbortSignal.timeout(5000) });
       const version = typeof answer === "string" ? answer : answer instanceof ArrayBuffer ? Buffer.from(answer).toString("utf8") : String(answer?.version || "");
       return { connected: true, available: true, version: version.trim().slice(0, 40) || null };
     } catch {
       // Try the next route.
     }
   }
-  const connected = await comfy("/system_stats").then(() => true, () => false);
+  const connected = await comfy("/system_stats", { signal: AbortSignal.timeout(5000) }).then(() => true, () => false);
   return { connected, available: false, version: null };
 }
 
