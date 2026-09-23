@@ -111,7 +111,7 @@ function LoraCard({ item, index, count, missing, overLimit, onChange, onRemove, 
   const folder = folderOf(item.name);
   const label = fileName(item.name);
   return (
-    <Reorder.Item as="div" value={item} dragListener={false} dragControls={controls} className={cn('lora-card', !item.enabled && 'is-off', (missing || overLimit) && 'has-warning')}>
+    <Reorder.Item as="div" value={item} dragListener={false} dragControls={controls} style={{ position: 'relative' }} whileDrag={{ scale: 1.02, zIndex: 5, boxShadow: '0 12px 32px rgb(0 0 0 / 0.45), inset 0 0 0 1px rgb(255 255 255 / 0.14)' }} className={cn('lora-card', !item.enabled && 'is-off', (missing || overLimit) && 'has-warning')}>
       {count > 1 ? (
         <button
           type="button"
