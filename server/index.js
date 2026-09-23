@@ -24,7 +24,7 @@ import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, 
 import { sendGalleryExport } from './gallery-export.js';
 import { clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
-import { cancelModelInstall, normalizeQuality, probeDownloadSizes, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
+import { cancelModelInstall, downloadPlan, installState, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 
@@ -727,20 +727,26 @@ app.post("/api/generate", async (req, res) => {
   }
 });
 
-async function upscaleContext(res) {
+/** Setup polls with fresh=1 so a node pack installed a moment ago is not hidden behind the 30s cache. */
+async function upscaleContext(res, { force = false } = {}) {
   try {
-    const { info } = await loadComfyContext();
+    const { info } = await loadComfyContext({ force });
     return info;
   } catch {
-    res.status(503).json({ ok: false, error: "ComfyUI is offline, so smart upscale is unavailable." });
+    res.status(503).json({ ok: false, offline: true, error: "ComfyUI is offline, so smart upscale is unavailable.", install: installState() });
     return null;
   }
 }
 
 app.get("/api/upscale/status", async (req, res) => {
-  const info = await upscaleContext(res);
+  const info = await upscaleContext(res, { force: req.query.fresh === "1" });
   if (!info) return;
   res.json({ ok: true, ...upscaleStatus(info, req.query.quality) });
+});
+
+// Download progress never needs ComfyUI, so it keeps reporting while ComfyUI restarts.
+app.get("/api/upscale/install", (_req, res) => {
+  res.json({ ok: true, install: installState() });
 });
 
 app.post("/api/upscale/install/preview", async (req, res) => {
@@ -752,8 +758,7 @@ app.post("/api/upscale/install/preview", async (req, res) => {
     res.status(400).json({ ok: false, error: `ComfyUI is missing the SeedVR2 nodes: ${status.missingNodes.join(", ")}. Install the SeedVR2 VideoUpscaler custom nodes first.` });
     return;
   }
-  const probe = await probeDownloadSizes(quality, info);
-  res.json({ ok: true, quality, modelDir: status.modelDir, ...probe });
+  res.json({ ok: true, ...downloadPlan(quality, info) });
 });
 
 app.post("/api/upscale/install", async (req, res) => {

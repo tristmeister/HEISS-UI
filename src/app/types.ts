@@ -184,16 +184,26 @@ export type Preferences = {
   mobileZenDefaulted?: boolean;
 };
 
-export type UpscaleModelInfo = { key: string; file: string; label: string; approxBytes: number; present: boolean };
+export type UpscaleModelInfo = { key: string; file: string; label: string; detail?: string; bytes: number; present: boolean; partialBytes: number };
+export type UpscaleInstallFile = {
+  file: string;
+  label: string;
+  detail?: string;
+  bytes: number;
+  totalBytes: number;
+  phase: "queued" | "resuming" | "downloading" | "retrying" | "verifying" | "verified";
+  done: boolean;
+};
 export type UpscaleInstall = {
   status: "running" | "done" | "error" | "canceled";
   dir?: string;
+  quality?: UpscaleQuality;
   current?: string;
-  files?: Array<{ file: string; label: string; bytes: number; totalBytes: number; done: boolean }>;
+  files?: UpscaleInstallFile[];
   receivedBytes?: number;
   totalBytes?: number;
+  bytesPerSecond?: number;
   error?: string;
-  restartHint?: boolean;
 } | null;
 export type UpscaleStatus = {
   ok?: boolean;
@@ -202,15 +212,25 @@ export type UpscaleStatus = {
   missingNodes: string[];
   detectedNodes?: string[];
   modelDir: string;
+  remote?: boolean;
   canDownload: boolean;
+  freeBytes: number | null;
   models: UpscaleModelInfo[];
   missingModels: string[];
+  downloadBytes: number;
   needsDownload: boolean;
   substituting: boolean;
   ready: boolean;
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
 };
-export type UpscaleDownloadPreview = { quality: UpscaleQuality; modelDir: string; totalBytes: number; files: Array<{ key: string; file: string; label: string; bytes: number; exact: boolean }> };
+export type UpscaleDownloadPreview = {
+  quality: UpscaleQuality;
+  modelDir: string;
+  totalBytes: number;
+  remainingBytes: number;
+  freeBytes: number | null;
+  files: Array<{ key: string; file: string; label: string; detail?: string; bytes: number; partialBytes: number }>;
+};
 
 export type PrivacyStatus = { enabled: boolean; unlocked: boolean; cookieName?: string; vault?: { enabled: boolean; unlocked: boolean; assetCount: number } };

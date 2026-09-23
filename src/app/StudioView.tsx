@@ -13,6 +13,7 @@ import { VirtualMasonryGallery } from './VirtualMasonryGallery';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
+import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
@@ -39,7 +40,7 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
@@ -413,6 +414,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </>
       )}
       <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
+      <UpscaleSetupDialog
+        setup={upscaleSetup}
+        status={upscaleStatus}
+        install={upscaleInstall}
+        reason={upscaleUnavailableReason}
+        quality={prefs.upscaleQuality || "balanced"}
+        comfyUrl={health?.comfyUrl}
+        onQualityChange={(upscaleQuality) => setPrefs({ upscaleQuality })}
+        onOpenLibrary={() => { upscaleSetup.closeSetup(); openSettings("library"); }}
+        showToast={showToast}
+      />
       {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
         <Modal
           open

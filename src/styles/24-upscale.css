@@ -1,0 +1,328 @@
+/* ---------------------------------------------------------------------------
+   Smart upscale setup (src/app/UpscaleDialogs.tsx)
+
+   One dialog walks through nodes, model and check. The hero is a live cell
+   field (UpscaleHero); everything below it borrows the same material: cells
+   for progress, ember for heat, white for done.
+--------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------------ Hero */
+
+.upscale-hero-wrap {
+  position: relative;
+  flex: none;
+  aspect-ratio: 2.15;
+  overflow: hidden;
+  border-bottom: 1px solid var(--surface-border);
+  background: radial-gradient(ellipse 70% 90% at 50% 50%, #191919 0%, #0c0c0c 100%);
+}
+.upscale-hero { position: absolute; inset: 0; }
+.upscale-hero canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+
+/* A glow behind the arrow that tracks the stage: none while searching, a
+   smoulder when ready to download, full heat while filling, white when done. */
+.upscale-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side at 50% 50%, rgb(255 154 82 / .26), transparent 70%);
+  opacity: 0;
+  transition: opacity 700ms var(--ease-out), background 700ms;
+}
+.upscale-hero[data-stage="models"]::before { opacity: .45; }
+.upscale-hero[data-stage="downloading"]::before { opacity: 1; }
+.upscale-hero[data-stage="verifying"]::before { opacity: .7; }
+.upscale-hero[data-stage="ready"]::before { opacity: .6; background: radial-gradient(closest-side at 50% 50%, rgb(255 236 214 / .2), transparent 70%); }
+.upscale-hero[data-stage="error"]::before { opacity: .5; background: radial-gradient(closest-side at 50% 50%, rgb(255 110 90 / .2), transparent 70%); }
+/* Settle the field into the sheet so the stepper sits on something calm. */
+.upscale-hero::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 38%;
+  background: linear-gradient(to bottom, transparent, rgb(12 12 12 / .85));
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------------- Stepper */
+
+.upscale-stepper {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 6px 14px;
+  list-style: none;
+  translate: -50% 0;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-pill);
+  background: var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm);
+  white-space: nowrap;
+}
+.upscale-stepper li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  font-weight: 550;
+  color: hsl(var(--muted-foreground) / .75);
+  transition: color var(--dur-base);
+}
+/* The run between steps is a dotted line of cells. */
+.upscale-stepper li + li::before {
+  content: "";
+  width: 22px;
+  height: 2px;
+  margin: 0 3px;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .22) 0 2px, transparent 2px 4px);
+}
+.upscale-stepper li.is-done + li::before { background: repeating-linear-gradient(90deg, rgb(255 255 255 / .6) 0 2px, transparent 2px 4px); }
+.upscale-stepper i {
+  display: grid;
+  place-items: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / .14);
+  transition: background var(--dur-base), box-shadow var(--dur-base);
+}
+.upscale-stepper .is-done { color: hsl(var(--foreground) / .85); }
+.upscale-stepper .is-done i { background: var(--action); color: var(--action-ink); }
+.upscale-stepper .is-active { color: #fff; }
+.upscale-stepper .is-active i { background: var(--ember); box-shadow: var(--ember-glow); animation: upscale-smoulder 1.6s ease-in-out infinite; }
+@keyframes upscale-smoulder { 50% { opacity: .7; box-shadow: 0 0 3px rgb(255 154 82 / .35); } }
+
+/* ------------------------------------------------------------------ Body */
+
+.upscale-body { animation: upscale-body-in 280ms var(--ease-out); }
+/* Stages that wait on their own (checking, ready) have no footer to pad the bottom. */
+.upscale-modal .modal-body:last-child { padding-bottom: 24px; }
+.upscale-body > :first-child { margin-top: 0; }
+@keyframes upscale-body-in { from { opacity: 0; transform: translateY(4px); } }
+
+/* Numbered steps to install the nodes. */
+.upscale-steps { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.upscale-steps li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+}
+.upscale-steps strong { color: hsl(var(--foreground)); font-weight: 550; }
+.upscale-step-n {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--control-fill);
+  color: hsl(var(--foreground));
+  font: 600 11px/1 "Geist Mono", ui-monospace, Menlo, monospace;
+}
+
+.upscale-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 4px 4px 4px 14px;
+  border-radius: var(--r-pill);
+  background: var(--well);
+}
+.upscale-url code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font: 500 11.5px/1.4 "Geist Mono", ui-monospace, Menlo, monospace;
+  color: hsl(var(--foreground));
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.upscale-url button {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--control-fill);
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.upscale-url button:hover { background: var(--control-hover); }
+.upscale-url button.is-copied { color: #a9e2b8; }
+
+/* A live line for whatever setup is waiting on. */
+.upscale-watcher {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 11px 14px;
+  border-radius: var(--r-item);
+  background: var(--well);
+  font-size: 12.5px;
+  color: hsl(var(--muted-foreground));
+}
+.upscale-watcher i {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--ember);
+  box-shadow: var(--ember-glow);
+  animation: upscale-smoulder 1.6s ease-in-out infinite;
+}
+.upscale-watcher span { flex: 1; min-width: 0; }
+.upscale-watcher code { font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--foreground)); }
+.upscale-watcher em { flex: none; font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; font-style: normal; color: hsl(var(--muted-foreground) / .65); }
+
+.upscale-fine { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground) / .8); overflow-wrap: anywhere; }
+.upscale-fine.is-warn { color: var(--danger-ink); }
+
+.upscale-callout {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: var(--r-item);
+  background: var(--control-fill);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.upscale-callout strong { font-weight: 550; overflow-wrap: anywhere; }
+.upscale-callout span { color: hsl(var(--muted-foreground)); }
+.upscale-callout.is-danger { background: var(--danger-fill); color: var(--danger-ink); }
+
+/* Effort picker: what you get and what it weighs, side by side. */
+.upscale-efforts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 18px;
+  background: var(--well);
+}
+.upscale-efforts button {
+  display: grid;
+  justify-items: start;
+  gap: 1px;
+  min-width: 0;
+  padding: 9px 12px 10px;
+  border: 0;
+  border-radius: var(--r-item);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.upscale-efforts button:hover { background: var(--control-hover); }
+.upscale-efforts button.is-active { background: var(--selected); color: hsl(var(--foreground)); }
+.upscale-efforts strong { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
+.upscale-efforts strong em { font: 600 11px "Geist Mono", ui-monospace, Menlo, monospace; font-style: normal; color: var(--ember); }
+.upscale-efforts span { max-width: 100%; overflow: hidden; font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; }
+.upscale-efforts small { font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--muted-foreground) / .7); }
+
+/* Files: one joined list, each row name over file, size on the right. */
+.upscale-files { display: grid; gap: 2px; margin: 12px 0 0; padding: 0; list-style: none; }
+.upscale-files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  background: var(--control-fill);
+}
+.upscale-files li:first-child { border-radius: var(--r-item) var(--r-item) 4px 4px; }
+.upscale-files li:last-child { border-radius: 4px 4px var(--r-item) var(--r-item); }
+.upscale-files li:only-child { border-radius: var(--r-item); }
+.upscale-files li > div { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.upscale-files.is-live li > div { gap: 9px; }
+.upscale-files strong { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 550; color: hsl(var(--foreground)); }
+.upscale-files strong em { font-size: 11.5px; font-style: normal; font-weight: 400; color: hsl(var(--muted-foreground)); }
+.upscale-files code { overflow: hidden; font: 500 10.5px/1.4 "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--muted-foreground) / .7); white-space: nowrap; text-overflow: ellipsis; }
+.upscale-files li > span {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+}
+.upscale-files.is-live li > span { align-self: flex-start; }
+.upscale-files li.is-done > span { color: #a9e2b8; }
+
+.upscale-dest { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 0 4px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.upscale-dest svg { flex: none; }
+.upscale-dest code { flex: 1; min-width: 0; overflow: hidden; font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; white-space: nowrap; text-overflow: ellipsis; }
+.upscale-dest span { flex: none; font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; }
+.upscale-dest.is-short span { color: var(--danger-ink); }
+
+/* Download meter: one big number, the details beside it. */
+.upscale-meter { display: flex; align-items: flex-end; gap: 16px; }
+.upscale-meter strong {
+  font-size: 44px;
+  font-weight: 600;
+  line-height: .9;
+  letter-spacing: -.045em;
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--foreground));
+}
+.upscale-meter strong small { margin-left: 2px; font-size: 18px; letter-spacing: 0; color: hsl(var(--muted-foreground)); }
+.upscale-meter div { display: grid; gap: 3px; padding-bottom: 3px; font-size: 12.5px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); }
+.upscale-meter div span:first-child { color: hsl(var(--foreground)); }
+
+/* Progress cut into cells: the track and the fill share one mask, so they line up. */
+.cell-bar {
+  height: 6px;
+  background: repeating-linear-gradient(90deg, rgb(255 255 255 / .1) 0 4px, transparent 4px 6px);
+}
+.cell-bar > div {
+  height: 100%;
+  background: linear-gradient(90deg, #a8381a, var(--ember) 72%, #fff1dc);
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 6px);
+  mask-image: repeating-linear-gradient(90deg, #000 0 4px, transparent 4px 6px);
+  transition: width 800ms linear, background var(--dur-base);
+}
+.cell-bar.is-done > div { background: #f4f4f4; }
+
+/* The image that is waiting on setup, shown as it starts. */
+.upscale-pending {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px;
+  border-radius: calc(var(--r-media) + 10px);
+  background: var(--control-fill);
+}
+.upscale-pending img { flex: none; width: 56px; height: 56px; object-fit: cover; border-radius: var(--r-media); outline: 1px solid rgb(255 255 255 / .08); outline-offset: -1px; }
+.upscale-pending div { display: grid; gap: 2px; min-width: 0; }
+.upscale-pending strong { font-size: 13px; font-weight: 550; }
+.upscale-pending span { font-size: 12.5px; color: hsl(var(--muted-foreground)); }
+
+@media (max-width: 760px) {
+  .upscale-hero-wrap { aspect-ratio: 1.8; }
+  .upscale-efforts span { display: none; }
+  .upscale-meter strong { font-size: 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upscale-body,
+  .upscale-stepper .is-active i,
+  .upscale-watcher i { animation: none; }
+  .cell-bar > div { transition: none; }
+}

@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
 
 // SeedVR2 restores detail rather than interpolating it, so the pipeline mirrors
@@ -9,24 +10,71 @@ import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
 // the model rebuild the short side at the requested resolution.
 export const upscaleQualities = ["fast", "balanced", "high"];
 
-const ditModels = {
-  fast: { file: "seedvr2_ema_3b_fp8_e4m3fn.safetensors", approxBytes: 3_600_000_000, label: "SeedVR2 3B (fp8)" },
-  balanced: { file: "seedvr2_ema_7b_fp8_e4m3fn.safetensors", approxBytes: 7_800_000_000, label: "SeedVR2 7B (fp8)" },
-  high: { file: "seedvr2_ema_7b_fp16.safetensors", approxBytes: 15_300_000_000, label: "SeedVR2 7B (fp16)" }
+/**
+ * Every file HEISS UI may download, with the exact size and SHA-256 Hugging Face
+ * publishes for it (the same hashes the SeedVR2 node's own registry checks).
+ * Knowing them up front means the download dialog never guesses a size and a
+ * finished download is verified before anything tries to load it.
+ */
+export const modelFiles = {
+  "seedvr2_ema_3b_fp8_e4m3fn.safetensors": {
+    repo: "numz/SeedVR2_comfyUI", label: "SeedVR2 3B", detail: "fp8", bytes: 3_391_544_696,
+    sha256: "3bf1e43ebedd570e7e7a0b1b60d6a02e105978f505c8128a241cde99a8240cff"
+  },
+  "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors": {
+    repo: "AInVFX/SeedVR2_comfyUI", label: "SeedVR2 7B", detail: "fp8, last block fp16", bytes: 8_466_296_338,
+    sha256: "3d68b5ec0b295ae28092e355c8cad870edd00b817b26587d0cb8f9dd2df19bb2"
+  },
+  "seedvr2_ema_7b_fp8_e4m3fn.safetensors": {
+    repo: "numz/SeedVR2_comfyUI", label: "SeedVR2 7B", detail: "fp8", bytes: 8_239_729_704,
+    sha256: "1fdbf3877b7d1eb266038d3a165a977f17dbb4daa4a0f0d334d5461476963037"
+  },
+  "seedvr2_ema_7b_fp16.safetensors": {
+    repo: "numz/SeedVR2_comfyUI", label: "SeedVR2 7B", detail: "fp16", bytes: 16_479_334_424,
+    sha256: "7b8241aa957606ab6cfb66edabc96d43234f9819c5392b44d2492d9f0b0bbe4a"
+  },
+  "ema_vae_fp16.safetensors": {
+    repo: "numz/SeedVR2_comfyUI", label: "SeedVR2 VAE", detail: "fp16", bytes: 501_324_814,
+    sha256: "20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"
+  }
 };
 
-const vaeModel = { file: "ema_vae_fp16.safetensors", approxBytes: 500_000_000, label: "SeedVR2 VAE" };
+/**
+ * Each tier lists its DiT weights best first. Balanced prefers the mixed fp8
+ * build: the plain 7B fp8 file shows artifacts the SeedVR2 authors fixed by
+ * keeping the last block in fp16. The plain one still counts if it is already
+ * on disk, so nobody re-downloads 8 GB for a small quality difference.
+ */
+const ditTiers = {
+  fast: ["seedvr2_ema_3b_fp8_e4m3fn.safetensors"],
+  balanced: ["seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors", "seedvr2_ema_7b_fp8_e4m3fn.safetensors"],
+  high: ["seedvr2_ema_7b_fp16.safetensors"]
+};
+const vaeFile = "ema_vae_fp16.safetensors";
+
+/**
+ * Names the SeedVR2 node (2.5+) always offers in its dropdowns, downloaded or
+ * not: it fetches a missing one itself on first use, with no progress anyone can
+ * see. So a listed registry name proves nothing; only the file on disk does.
+ * Names outside this list are files the node discovered on disk, so those count.
+ */
+const nodeRegistryNames = new Set([
+  "seedvr2_ema_3b-Q4_K_M.gguf", "seedvr2_ema_3b-Q8_0.gguf", "seedvr2_ema_3b_fp8_e4m3fn.safetensors", "seedvr2_ema_3b_fp16.safetensors",
+  "seedvr2_ema_7b-Q4_K_M.gguf", "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors", "seedvr2_ema_7b_fp16.safetensors",
+  "seedvr2_ema_7b_sharp-Q4_K_M.gguf", "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors", "seedvr2_ema_7b_sharp_fp16.safetensors",
+  "ema_vae_fp16.safetensors"
+]);
 
 const presets = {
-  fast: { dit: "fast", preScale: 1, targetScale: 1.5, maxShort: 1280, blocksToSwap: 16, tileSize: 768 },
-  balanced: { dit: "balanced", preScale: 0.7, targetScale: 2, maxShort: 2048, blocksToSwap: 32, tileSize: 1024 },
-  high: { dit: "high", preScale: 0.7, targetScale: 3, maxShort: 2816, blocksToSwap: 36, tileSize: 1024 }
+  fast: { preScale: 1, targetScale: 1.5, maxShort: 1280, blocksToSwap: 16, tileSize: 768 },
+  balanced: { preScale: 0.7, targetScale: 2, maxShort: 2048, blocksToSwap: 32, tileSize: 1024 },
+  high: { preScale: 0.7, targetScale: 3, maxShort: 2816, blocksToSwap: 36, tileSize: 1024 }
 };
 
 export const upscaleNodeClasses = ["SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler"];
 export const faceDetailNodeClasses = ["FaceDetailer", "UltralyticsDetectorProvider", "SAMLoader"];
 
-const hfRepo = process.env.HEISS_SEEDVR2_HF_REPO || process.env.JAI_SEEDVR2_HF_REPO || "numz/SeedVR2_comfyUI";
+const repoOverride = process.env.HEISS_SEEDVR2_HF_REPO || process.env.JAI_SEEDVR2_HF_REPO || "";
 
 export function normalizeQuality(value = "") {
   const quality = String(value || "").toLowerCase();
@@ -34,7 +82,8 @@ export function normalizeQuality(value = "") {
 }
 
 function downloadUrl(file) {
-  return `https://huggingface.co/${hfRepo}/resolve/main/${encodeURIComponent(file)}?download=true`;
+  const repo = (repoOverride && modelFiles[file].repo === "numz/SeedVR2_comfyUI") ? repoOverride : modelFiles[file].repo;
+  return `https://huggingface.co/${repo}/resolve/main/${encodeURIComponent(file)}?download=true`;
 }
 
 /**
@@ -51,58 +100,77 @@ export function seedvr2ModelDir() {
   return path.join(path.dirname(path.resolve(comfyOutputDir)), "models", "SEEDVR2");
 }
 
-function fileOnDisk(file) {
-  const dir = seedvr2ModelDir();
-  if (!dir) return "";
-  const resolved = path.join(dir, file);
+function fileSize(file) {
   try {
-    return fs.existsSync(resolved) && fs.statSync(resolved).isFile() ? resolved : "";
+    const stat = fs.statSync(file);
+    return stat.isFile() ? stat.size : 0;
   } catch {
-    return "";
+    return 0;
   }
 }
 
-function installedDitOptions(info) {
-  return optionsFor(info, "SeedVR2LoadDiTModel", "model").map(String);
+/** A known file only counts when it is complete; a stray short copy is not a model. */
+function onDisk(dir, file) {
+  if (!dir) return false;
+  const size = fileSize(path.join(dir, file));
+  return size > 0 && (!modelFiles[file] || size === modelFiles[file].bytes);
 }
 
-function installedVaeOptions(info) {
-  return optionsFor(info, "SeedVR2LoadVAEModel", "model").map(String);
+function partialBytes(dir, file) {
+  return dir ? fileSize(path.join(dir, `${file}.part`)) : 0;
 }
 
-function modelPresent(file, options) {
-  return options.some((option) => path.basename(option) === file) || Boolean(fileOnDisk(file));
+function diskDitFiles(dir) {
+  if (!dir) return [];
+  try {
+    return fs.readdirSync(dir).filter((name) => /seedvr2/i.test(name) && /\.(safetensors|gguf)$/i.test(name) && onDisk(dir, name));
+  } catch {
+    return [];
+  }
 }
 
 /**
- * Any DiT weight the user already has beats a multi-gigabyte download, so a tier
- * whose preferred file is missing falls back to whatever SeedVR2 already lists.
+ * What SeedVR2 can load right now, by the name its loader expects. With a known
+ * local models folder that is the disk plus whatever the node discovered on
+ * other model paths. A remote ComfyUI (no folder) has to be taken at its word;
+ * its node downloads anything missing on first use.
  */
-function resolveDitFile(quality, info) {
-  const preferred = ditModels[presets[quality].dit].file;
-  const options = installedDitOptions(info);
-  if (modelPresent(preferred, options)) {
-    return { file: options.find((option) => path.basename(option) === preferred) || preferred, downloaded: false };
-  }
-  const fallback = options.find((option) => /seedvr2/i.test(option));
-  return fallback ? { file: fallback, substituted: true } : { file: preferred, missing: true };
+function available(info, dir) {
+  const ditOptions = optionsFor(info, "SeedVR2LoadDiTModel", "model").map(String);
+  const vaeOptions = optionsFor(info, "SeedVR2LoadVAEModel", "model").map(String);
+  if (!dir) return { dit: ditOptions.filter((name) => /seedvr2/i.test(name)), vae: vaeOptions, remote: true };
+  const discovered = (options) => options.filter((name) => !nodeRegistryNames.has(path.basename(name)));
+  const dit = [...new Set([...diskDitFiles(dir), ...discovered(ditOptions).filter((name) => /seedvr2/i.test(name))])];
+  const vae = [...new Set([...(onDisk(dir, vaeFile) ? [vaeFile] : []), ...discovered(vaeOptions)])];
+  return { dit, vae, remote: false };
 }
 
-function resolveVaeFile(info) {
-  const options = installedVaeOptions(info);
-  if (modelPresent(vaeModel.file, options)) {
-    return { file: options.find((option) => path.basename(option) === vaeModel.file) || vaeModel.file };
+const byBase = (list, file) => list.find((name) => path.basename(name) === file);
+
+/** The tier's own weight when present, then its alternates, then any SeedVR2 weight at all. */
+function resolveDit(quality, have) {
+  for (const file of ditTiers[quality]) {
+    const found = byBase(have.dit, file);
+    if (found) return { file: found };
   }
-  const fallback = options[0];
-  return fallback ? { file: fallback, substituted: true } : { file: vaeModel.file, missing: true };
+  return have.dit[0] ? { file: have.dit[0], substituted: true } : { file: ditTiers[quality][0], missing: true };
 }
 
-export function requiredModelsFor(quality, info) {
-  const dit = ditModels[presets[normalizeQuality(quality)].dit];
+function resolveVae(have) {
+  const found = byBase(have.vae, vaeFile) || have.vae[0];
+  return found ? { file: found } : { file: vaeFile, missing: true };
+}
+
+/** The files this tier would download: its preferred DiT (unless a tier alternate is here) and the VAE. */
+export function requiredModelsFor(quality, info, dir = seedvr2ModelDir()) {
+  const tier = ditTiers[normalizeQuality(quality)];
+  const have = available(info, dir);
+  const ditPresent = tier.some((file) => byBase(have.dit, file));
+  const ditFile = tier.find((file) => byBase(have.dit, file)) || tier[0];
   return [
-    { key: "dit", ...dit, present: modelPresent(dit.file, installedDitOptions(info)) },
-    { key: "vae", ...vaeModel, present: modelPresent(vaeModel.file, installedVaeOptions(info)) }
-  ];
+    { key: "dit", file: ditFile, present: ditPresent },
+    { key: "vae", file: vaeFile, present: Boolean(byBase(have.vae, vaeFile) || have.vae.length) }
+  ].map((model) => ({ ...model, ...modelFiles[model.file], partialBytes: model.present ? 0 : partialBytes(dir, model.file) }));
 }
 
 function missingNodeClasses(info, classes) {
@@ -118,26 +186,45 @@ function detectedSeedVR2Nodes(info) {
   return Object.keys(info || {}).filter((name) => /seedvr2/i.test(name)).sort();
 }
 
+/** Free space where the models would land; the nearest existing parent answers for a folder not made yet. */
+export function freeBytesAt(dir) {
+  if (!dir || typeof fs.statfsSync !== "function") return null;
+  let current = path.resolve(dir);
+  for (let depth = 0; depth < 8; depth += 1) {
+    try {
+      const stats = fs.statfsSync(current);
+      return Number(stats.bavail) * Number(stats.bsize);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      current = parent;
+    }
+  }
+  return null;
+}
+
 export function upscaleStatus(info = {}, quality = "balanced") {
   const normalized = normalizeQuality(quality);
   const missingNodes = missingNodeClasses(info, upscaleNodeClasses);
-  const models = requiredModelsFor(normalized, info);
-  const missingModels = models.filter((model) => !model.present);
   const modelDir = seedvr2ModelDir();
+  const have = available(info, modelDir);
+  const models = requiredModelsFor(normalized, info, modelDir);
+  const missingModels = models.filter((model) => !model.present);
   // A tier can still run on a weight the user already has, so only demand a
-  // download when SeedVR2 offers nothing at all.
-  const hasAnyDit = installedDitOptions(info).some((option) => /seedvr2/i.test(option));
-  const hasAnyVae = installedVaeOptions(info).length > 0;
-  const canSubstitute = hasAnyDit && hasAnyVae;
+  // download when SeedVR2 has nothing at all to load.
+  const canSubstitute = have.dit.length > 0 && have.vae.length > 0;
   return {
     quality: normalized,
     nodesInstalled: missingNodes.length === 0,
     missingNodes,
     detectedNodes: detectedSeedVR2Nodes(info),
     modelDir,
+    remote: have.remote,
     canDownload: Boolean(modelDir),
-    models: models.map(({ key, file, label, approxBytes, present }) => ({ key, file, label, approxBytes, present })),
+    freeBytes: freeBytesAt(modelDir),
+    models: models.map(({ key, file, label, detail, bytes, present, partialBytes }) => ({ key, file, label, detail, bytes, present, partialBytes })),
     missingModels: missingModels.map((model) => model.key),
+    downloadBytes: missingModels.reduce((sum, model) => sum + model.bytes - model.partialBytes, 0),
     needsDownload: missingModels.length > 0 && !canSubstitute,
     substituting: missingModels.length > 0 && canSubstitute,
     ready: missingNodes.length === 0 && (missingModels.length === 0 || canSubstitute),
@@ -158,98 +245,194 @@ let install = null;
 function installSnapshot() {
   if (!install) return null;
   const { controller, ...rest } = install;
-  return rest;
+  return { ...rest, files: rest.files?.map((file) => ({ ...file })) };
 }
 
-export async function probeDownloadSizes(quality, info) {
-  const missing = requiredModelsFor(quality, info).filter((model) => !model.present);
-  const files = [];
-  for (const model of missing) {
-    let bytes = model.approxBytes;
-    let exact = false;
-    try {
-      const response = await fetch(downloadUrl(model.file), { method: "HEAD", redirect: "follow" });
-      const length = Number(response.headers.get("content-length") || 0);
-      if (response.ok && length > 0) {
-        bytes = length;
-        exact = true;
-      }
-    } catch {
-      // Fall back to the published approximate size when the CDN is unreachable.
-    }
-    files.push({ key: model.key, file: model.file, label: model.label, bytes, exact });
-  }
-  return { files, totalBytes: files.reduce((sum, file) => sum + file.bytes, 0) };
+export function installState() {
+  return installSnapshot();
 }
 
-async function downloadOne(file, dir, onProgress, signal) {
-  const target = path.join(dir, file);
+class VerifyError extends Error {}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Hashes what an earlier attempt left behind so a resumed file is still checked end to end. */
+async function hashExisting(file, hash, signal) {
+  await pipeline(fs.createReadStream(file), new Transform({
+    transform(chunk, _encoding, done) { hash.update(chunk); done(); }
+  }), { signal });
+}
+
+/**
+ * One file, resumable: a `.part` from a cancelled or failed attempt is picked up
+ * with a Range request instead of starting over. Bytes are hashed as they
+ * stream, so verification costs nothing extra, and the write respects
+ * backpressure so a fast link cannot balloon memory.
+ */
+async function downloadOne(entry, dir, onProgress, signal) {
+  const spec = modelFiles[entry.file];
+  const target = path.join(dir, entry.file);
   const partial = `${target}.part`;
-  const response = await fetch(downloadUrl(file), { redirect: "follow", signal });
-  if (!response.ok || !response.body) {
-    throw new Error(`Could not download ${file} from Hugging Face (${response.status}). Place it in ${dir} manually and try again.`);
+  let offset = fileSize(partial);
+  if (offset > spec.bytes) {
+    fs.rmSync(partial, { force: true });
+    offset = 0;
   }
-  const total = Number(response.headers.get("content-length") || 0);
-  let received = 0;
-  const out = fs.createWriteStream(partial);
-  try {
-    for await (const chunk of Readable.fromWeb(response.body)) {
-      out.write(chunk);
-      received += chunk.length;
-      onProgress(received, total);
+  let hash = crypto.createHash("sha256");
+  if (offset) {
+    entry.phase = "resuming";
+    await hashExisting(partial, hash, signal);
+  }
+  entry.phase = "downloading";
+  let received = offset;
+  onProgress(received);
+  if (offset < spec.bytes) {
+    const response = await fetch(downloadUrl(entry.file), { redirect: "follow", signal, headers: offset ? { range: `bytes=${offset}-` } : {} });
+    if (offset && response.status === 200) {
+      // The server ignored the range: start this file over.
+      offset = 0;
+      received = 0;
+      hash = crypto.createHash("sha256");
     }
-  } finally {
-    await new Promise((resolve) => out.end(resolve));
+    if (!response.ok || !response.body) {
+      throw new Error(`Hugging Face answered ${response.status} for ${entry.file}. Place it in ${dir} by hand, or try again.`);
+    }
+    await pipeline(
+      Readable.fromWeb(response.body),
+      new Transform({
+        transform(chunk, _encoding, done) {
+          hash.update(chunk);
+          received += chunk.length;
+          onProgress(received);
+          done(null, chunk);
+        }
+      }),
+      fs.createWriteStream(partial, { flags: offset ? "a" : "w" }),
+      { signal }
+    );
+  }
+  entry.phase = "verifying";
+  const digest = hash.digest("hex");
+  if (received !== spec.bytes || digest !== spec.sha256) {
+    fs.rmSync(partial, { force: true });
+    throw new VerifyError(`${entry.file} did not match its published checksum, so it was thrown away.`);
   }
   fs.renameSync(partial, target);
-  return received;
+  rememberValidated(dir, entry.file, spec);
+  entry.phase = "verified";
+}
+
+/**
+ * The SeedVR2 node re-hashes a registry model on first use unless its cache
+ * already vouches for it. We just verified the same hash, so record it the way
+ * the node does and spare the first upscale a multi-gigabyte re-read.
+ */
+function rememberValidated(dir, file, spec) {
+  if (!nodeRegistryNames.has(file)) return;
+  const cachePath = path.join(dir, ".validation_cache.json");
+  try {
+    let cache = {};
+    try { cache = JSON.parse(fs.readFileSync(cachePath, "utf8")) || {}; } catch { cache = {}; }
+    const stat = fs.statSync(path.join(dir, file));
+    cache[file] = { size: stat.size, mtime: stat.mtimeMs / 1000, hash: spec.sha256 };
+    fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2));
+  } catch {
+    // Only a speed-up; the node validates on its own without it.
+  }
+}
+
+/** Retries network hiccups with backoff; a checksum miss gets one clean retry from zero. */
+async function downloadWithRetry(entry, dir, onProgress, signal) {
+  let verifyRetries = 1;
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await downloadOne(entry, dir, onProgress, signal);
+    } catch (error) {
+      if (signal.aborted) throw error;
+      if (error instanceof VerifyError) {
+        if (verifyRetries-- <= 0) throw error;
+        continue;
+      }
+      if (attempt >= 3) throw error;
+      entry.phase = "retrying";
+      await sleep(1500 * (attempt + 1));
+    }
+  }
+}
+
+export function downloadPlan(quality, info) {
+  const dir = seedvr2ModelDir();
+  const files = requiredModelsFor(quality, info, dir)
+    .filter((model) => !model.present)
+    .map(({ key, file, label, detail, bytes, partialBytes }) => ({ key, file, label, detail, bytes, partialBytes }));
+  const totalBytes = files.reduce((sum, file) => sum + file.bytes, 0);
+  const remainingBytes = files.reduce((sum, file) => sum + file.bytes - file.partialBytes, 0);
+  return { quality: normalizeQuality(quality), modelDir: dir, files, totalBytes, remainingBytes, freeBytes: freeBytesAt(dir) };
 }
 
 export function startModelInstall(quality, info) {
   if (install?.status === "running") return installSnapshot();
-  const dir = seedvr2ModelDir();
+  const plan = downloadPlan(quality, info);
+  const dir = plan.modelDir;
   if (!dir) throw new Error("Set the ComfyUI output folder (or HEISS_SEEDVR2_MODEL_DIR) so HEISS UI knows where to install SeedVR2 models.");
-  const missing = requiredModelsFor(quality, info).filter((model) => !model.present);
-  if (!missing.length) {
-    install = { status: "done", files: [], receivedBytes: 0, totalBytes: 0, startedAt: Date.now(), finishedAt: Date.now() };
+  if (!plan.files.length) {
+    install = { status: "done", quality: plan.quality, files: [], receivedBytes: 0, totalBytes: 0, startedAt: Date.now(), finishedAt: Date.now() };
     return installSnapshot();
+  }
+  // Leave room to breathe: a disk filled to the last byte takes ComfyUI down with it.
+  const headroom = 512 * 1024 * 1024;
+  if (plan.freeBytes !== null && plan.freeBytes < plan.remainingBytes + headroom) {
+    const gb = (bytes) => `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+    throw new Error(`Not enough disk space: the models need ${gb(plan.remainingBytes)} but only ${gb(plan.freeBytes)} is free on that drive.`);
   }
   fs.mkdirSync(dir, { recursive: true });
   const controller = new AbortController();
   install = {
     status: "running",
     dir,
-    quality: normalizeQuality(quality),
-    current: missing[0].file,
-    files: missing.map((model) => ({ file: model.file, label: model.label, bytes: 0, totalBytes: model.approxBytes, done: false })),
-    receivedBytes: 0,
-    totalBytes: missing.reduce((sum, model) => sum + model.approxBytes, 0),
+    quality: plan.quality,
+    current: plan.files[0].file,
+    files: plan.files.map((file) => ({ file: file.file, label: file.label, detail: file.detail, bytes: file.partialBytes, totalBytes: file.bytes, phase: "queued", done: false })),
+    receivedBytes: plan.totalBytes - plan.remainingBytes,
+    totalBytes: plan.totalBytes,
+    bytesPerSecond: 0,
     startedAt: Date.now(),
     error: "",
     controller
   };
+  const state = install;
+  let sampleAt = Date.now();
+  let sampleBytes = state.receivedBytes;
   (async () => {
     try {
-      for (const entry of install.files) {
-        install.current = entry.file;
-        await downloadOne(entry.file, dir, (received, total) => {
+      for (const entry of state.files) {
+        state.current = entry.file;
+        await downloadWithRetry(entry, dir, (received) => {
           entry.bytes = received;
-          if (total) entry.totalBytes = total;
-          install.receivedBytes = install.files.reduce((sum, item) => sum + item.bytes, 0);
-          install.totalBytes = install.files.reduce((sum, item) => sum + item.totalBytes, 0);
+          state.receivedBytes = state.files.reduce((sum, item) => sum + item.bytes, 0);
+          const now = Date.now();
+          if (now - sampleAt >= 500) {
+            const rate = Math.max(0, (state.receivedBytes - sampleBytes) / ((now - sampleAt) / 1000));
+            state.bytesPerSecond = state.bytesPerSecond ? state.bytesPerSecond * 0.7 + rate * 0.3 : rate;
+            sampleAt = now;
+            sampleBytes = state.receivedBytes;
+          }
         }, controller.signal);
         entry.done = true;
         entry.bytes = entry.totalBytes;
       }
-      install = { ...installSnapshot(), status: "done", current: "", finishedAt: Date.now(), restartHint: true };
+      if (install === state) install = { ...installSnapshot(), status: "done", current: "", bytesPerSecond: 0, finishedAt: Date.now() };
     } catch (error) {
       const canceled = controller.signal.aborted;
-      install = {
-        ...installSnapshot(),
-        status: canceled ? "canceled" : "error",
-        error: canceled ? "" : error.message || "Model download failed.",
-        finishedAt: Date.now()
-      };
+      if (install === state) {
+        install = {
+          ...installSnapshot(),
+          status: canceled ? "canceled" : "error",
+          bytesPerSecond: 0,
+          error: canceled ? "" : error.message || "Model download failed.",
+          finishedAt: Date.now()
+        };
+      }
     }
   })();
   return installSnapshot();
@@ -257,10 +440,6 @@ export function startModelInstall(quality, info) {
 
 export function cancelModelInstall() {
   install?.controller?.abort();
-  return installSnapshot();
-}
-
-export function installState() {
   return installSnapshot();
 }
 
@@ -289,7 +468,6 @@ export function upscalePlan({ width, height, quality = "balanced" }) {
   const preScale = Math.min(1, Math.max(preset.preScale, 256 / shortSide));
   return {
     quality: normalized,
-    ditKey: preset.dit,
     preScale: Number(preScale.toFixed(3)),
     resolution,
     maxResolution: resolution,
@@ -365,11 +543,28 @@ function faceDetailStack(graph, body, imageSource, info) {
   return ["17", 0];
 }
 
+/**
+ * The loaders list the devices this machine actually has (cuda:N, mps) and
+ * whether a separate offload device exists. Block swapping needs one, and on
+ * Apple silicon there is none, so it switches off there instead of failing.
+ */
+function devicesFor(info, nodeClass) {
+  const devices = optionsFor(info, nodeClass, "device").map(String);
+  const offloads = optionsFor(info, nodeClass, "offload_device").map(String);
+  const device = devices.find((name) => name !== "none" && name !== "cpu") || devices[0] || "cuda:0";
+  const offload = offloads.length ? (offloads.includes("cpu") && device !== "cpu" ? "cpu" : "none") : "cpu";
+  return { device, offload };
+}
+
 export function upscaleGraph(body, info = {}) {
   const plan = upscalePlan(body);
-  const dit = resolveDitFile(plan.quality, info);
-  const vae = resolveVaeFile(info);
+  const have = available(info, seedvr2ModelDir());
+  const dit = resolveDit(plan.quality, have);
+  const vae = resolveVae(have);
   if (dit.missing || vae.missing) throw new Error("SeedVR2 models are not installed yet.");
+  const ditDevices = devicesFor(info, "SeedVR2LoadDiTModel");
+  const vaeDevices = devicesFor(info, "SeedVR2LoadVAEModel");
+  const swap = ditDevices.offload !== "none";
   const graph = {
     "1": { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } },
     "2": { class_type: "ImageScaleBy", inputs: { image: ["1", 0], upscale_method: "bicubic", scale_by: plan.preScale } },
@@ -377,10 +572,10 @@ export function upscaleGraph(body, info = {}) {
       class_type: "SeedVR2LoadDiTModel",
       inputs: {
         model: dit.file,
-        device: "cuda:0",
-        blocks_to_swap: plan.blocksToSwap,
-        swap_io_components: true,
-        offload_device: "cpu",
+        device: ditDevices.device,
+        blocks_to_swap: swap ? plan.blocksToSwap : 0,
+        swap_io_components: swap,
+        offload_device: ditDevices.offload,
         cache_model: false,
         attention_mode: "sdpa"
       }
@@ -389,7 +584,7 @@ export function upscaleGraph(body, info = {}) {
       class_type: "SeedVR2LoadVAEModel",
       inputs: {
         model: vae.file,
-        device: "cuda:0",
+        device: vaeDevices.device,
         encode_tiled: true,
         encode_tile_size: plan.tileSize,
         encode_tile_overlap: 128,
@@ -397,7 +592,7 @@ export function upscaleGraph(body, info = {}) {
         decode_tile_size: plan.tileSize,
         decode_tile_overlap: 128,
         tile_debug: "false",
-        offload_device: "cpu",
+        offload_device: vaeDevices.offload,
         cache_model: false
       }
     },
@@ -417,7 +612,7 @@ export function upscaleGraph(body, info = {}) {
         prepend_frames: 0,
         input_noise_scale: 0,
         latent_noise_scale: 0,
-        offload_device: "cpu",
+        offload_device: devicesFor(info, "SeedVR2VideoUpscaler").offload,
         enable_debug: false
       }
     }

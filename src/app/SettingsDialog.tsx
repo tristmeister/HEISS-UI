@@ -7,7 +7,8 @@ import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
 import { apiJson } from './api';
-import type { ModelFile, Models, OutputFolderReport } from './types';
+import type { ModelFile, Models, OutputFolderReport, UpscaleInstall, UpscaleStatus } from './types';
+import { formatBytes, upscaleEfforts } from './useUpscale';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
@@ -76,52 +77,35 @@ function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad
   return <span className={cn('set-status', tone && `is-${tone}`)}><i aria-hidden="true" />{children}</span>;
 }
 
-/* ------------------------------------------------------------ Helpers */
+/* ------------------------------------------------------------ Upscale */
 
-function formatInstallBytes(bytes = 0) {
-  if (!bytes) return '0 MB';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let value = bytes;
-  let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
-    unit += 1;
-  }
-  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
-}
-
-const upscaleEfforts = [
-  { value: 'fast', label: 'Fast', detail: '1.5× with the 3B model. Lowest VRAM.' },
-  { value: 'balanced', label: 'Balanced', detail: '2× with the 7B fp8 model.' },
-  { value: 'high', label: 'High', detail: '3× with the 7B fp16 model. Slowest, needs the most VRAM.' }
-] as const;
-
-function UpscaleReadiness({ status, reason, install, onRefresh, onCancel, onSetup }: { status: any; reason?: string; install: any; onRefresh: () => void; onCancel: () => void; onSetup: () => void }) {
+/**
+ * One line on where smart upscale stands. Anything that needs doing opens the
+ * setup dialog, which owns installing nodes, downloading and verifying.
+ */
+function UpscaleReadiness({ status, reason, install, onOpenSetup }: { status: UpscaleStatus | null; reason?: string; install: UpscaleInstall; onOpenSetup: () => void }) {
   if (install?.status === 'running') {
-    const ratio = install.totalBytes ? Math.min(1, install.receivedBytes / install.totalBytes) : 0;
+    const ratio = install.totalBytes ? Math.min(1, (install.receivedBytes || 0) / install.totalBytes) : 0;
     return (
-      <Row label={`Downloading ${install.current}`} description={`${formatInstallBytes(install.receivedBytes)} of ${formatInstallBytes(install.totalBytes)}`} stacked>
+      <Row label={<Status tone="warn">Downloading the model</Status>} description={`${formatBytes(install.receivedBytes)} of ${formatBytes(install.totalBytes)}`} stacked>
         <div className="set-progress"><div style={{ width: `${Math.round(ratio * 100)}%` }} /></div>
-        <button className="btn" onClick={onCancel}>Cancel download</button>
+        <button className="btn" onClick={onOpenSetup}>Show progress</button>
       </Row>
     );
   }
-  if (install?.status === 'error' && install.error) return <Row label={<Status tone="bad">Download failed</Status>} description={install.error}><button className="btn" onClick={() => onRefresh()}>Re-check</button></Row>;
-  if (install?.status === 'done' && install.restartHint) return <Row label={<Status tone="ok">Models installed</Status>} description="Restart ComfyUI if the upscale still reports them as missing."><button className="btn" onClick={() => onRefresh()}>Re-check</button></Row>;
-  if (!status || typeof status.nodesInstalled !== 'boolean') return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale is unavailable right now.'}><button className="btn" onClick={() => onRefresh()}>Re-check</button></Row>;
+  if (!status) {
+    return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale is unavailable right now.'}><button className="btn" onClick={onOpenSetup}>Open setup</button></Row>;
+  }
   if (!status.nodesInstalled) {
-    return (
-      <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="ComfyUI does not have them installed yet.">
-        <button className="btn" onClick={() => onRefresh()}>Re-check</button>
-        <button className="btn is-primary" onClick={onSetup}>How to install</button>
-      </Row>
-    );
+    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install in ComfyUI Manager."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+  }
+  if (install?.status === 'error' && !status.ready) {
+    return <Row label={<Status tone="bad">Download stopped</Status>} description={install.error}><button className="btn is-primary" onClick={onOpenSetup}>Resume</button></Row>;
   }
   if (status.needsDownload) {
-    const missing = (status.models || []).filter((model: any) => !model.present).map((model: any) => model.label).join(' and ');
-    return <Row label={<Status tone="warn">Ready after a download</Status>} description={`The first upscale at this effort downloads ${missing} into ${status.modelDir || 'the ComfyUI models folder'}.`} />;
+    return <Row label={<Status tone="warn">Needs a download</Status>} description={`${formatBytes(status.downloadBytes)} of SeedVR2 weights, once.`}><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
   }
-  if (status.substituting) return <Row label={<Status tone="ok">Ready</Status>} description="Using the SeedVR2 weights already installed instead of this effort's preferred model." />;
+  if (status.substituting) return <Row label={<Status tone="ok">Ready</Status>} description="Runs on the SeedVR2 weights already installed, since this effort's own model is not downloaded." />;
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
 }
 
@@ -292,7 +276,7 @@ function formatDay(value: string) {
 export function SettingsDialog({ view, open, section, onSectionChange, onClose }: { view: Record<string, any>; open: boolean; section: SettingsSection; onSectionChange: (section: SettingsSection) => void; onClose: () => void }) {
   const {
     prefs, setPrefs, setZenMode, zenGalleryOpen, setZenGalleryOpen,
-    upscaleStatus, upscaleUnavailableReason, upscaleInstall, refreshUpscaleStatus, cancelUpscaleInstall, setUpscaleSetupOpen,
+    upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
     gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings,
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
@@ -456,14 +440,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   </Row>
                   <SwitchRow
                     label="Face detail pass"
-                    description={faceDetailReady ? 'Run the Impact Pack FaceDetailer after the upscale.' : 'Needs the ComfyUI Impact Pack and Impact Subpack nodes.'}
+                    description={faceDetailReady
+                      ? 'After the upscale, finds each face, re-renders it up close with the model and prompt that made the image, and blends it back. Sharper eyes and skin, same face.'
+                      : 'Re-renders faces up close after the upscale. Needs the ComfyUI Impact Pack and Impact Subpack nodes.'}
                     checked={Boolean(prefs.upscaleFaceDetail) && faceDetailReady}
                     disabled={!faceDetailReady}
                     onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
                   />
                 </Group>
                 <Group title="Status">
-                  <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onRefresh={refreshUpscaleStatus} onCancel={cancelUpscaleInstall} onSetup={() => setUpscaleSetupOpen(true)} />
+                  <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} />
                 </Group>
               </>
             ) : null}

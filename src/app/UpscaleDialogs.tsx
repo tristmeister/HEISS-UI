@@ -1,62 +1,69 @@
-import React, { useState } from 'react';
-import { Check, Copy, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Check, Copy, ExternalLink, FolderOpen, RefreshCw } from 'lucide-react';
 import { Modal } from './Modal';
+import { UpscaleHero } from './UpscaleHero';
 import { copyText } from './api';
-import { formatBytes, upscaleQualityLabel } from './useUpscale';
-import type { UpscaleDownloadPreview } from './types';
+import { cn } from './format';
+import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
+import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
+import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
 
 const repositoryUrl = "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git";
 
-/** Every upscale dialog is the shared Modal with the upscale hero on top. */
-function UpscaleDialogShell({
-  open,
-  onOpenChange,
-  title,
-  description,
-  children,
-  actions
-}: React.PropsWithChildren<{
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  title: string;
-  description: React.ReactNode;
-  actions: React.ReactNode;
-}>) {
+const STEPS = [
+  { label: "Nodes", stages: ["checking", "offline", "nodes"] },
+  { label: "Model", stages: ["models", "downloading", "error"] },
+  { label: "Check", stages: ["verifying"] }
+] as const;
+
+/** Three steps joined by a dotted run of cells; the active one smoulders. */
+function SetupSteps({ stage }: { stage: UpscaleSetupStage }) {
+  const current = stage === "ready" ? STEPS.length : STEPS.findIndex((step) => (step.stages as readonly string[]).includes(stage));
   return (
-    <Modal
-      open={open}
-      onOpenChange={onOpenChange}
-      size="form"
-      className="upscale-modal"
-      hero={<img className="modal-hero" src="/upscale-hero.webp" alt="" aria-hidden="true" draggable={false} />}
-      title={title}
-      description={description}
-      footer={actions}
-    >
-      {children}
-    </Modal>
+    <ol className="upscale-stepper" aria-label="Setup steps">
+      {STEPS.map((step, index) => {
+        const state = index < current ? "done" : index === current ? "active" : "todo";
+        return (
+          <li key={step.label} className={`is-${state}`} aria-current={state === "active" ? "step" : undefined}>
+            <i aria-hidden="true">{state === "done" ? <Check size={10} strokeWidth={3} /> : null}</i>
+            <span>{step.label}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
-export function UpscaleSetupDialog({
-  open,
-  missingNodes = [],
-  detectedNodes = [],
-  onOpenChange,
-  onRecheck,
-  showToast
-}: {
-  open: boolean;
-  missingNodes?: string[];
-  detectedNodes?: string[];
-  onOpenChange: (open: boolean) => void;
-  onRecheck: () => void;
-  showToast: (message: string, tone?: "default" | "success" | "error") => void;
-}) {
+/** A progress bar cut into cells, so it reads as the same material as the hero. */
+function CellBar({ value, tone = "ember" }: { value: number; tone?: "ember" | "done" }) {
+  return (
+    <div className={cn("cell-bar", tone === "done" && "is-done")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)}>
+      <div style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
+    </div>
+  );
+}
+
+/** "Checked 3s ago" that keeps counting while setup waits on ComfyUI. */
+function Watcher({ children, lastChecked }: React.PropsWithChildren<{ lastChecked?: number }>) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const timer = window.setInterval(() => tick((n) => n + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const ago = lastChecked ? Math.max(0, Math.round((Date.now() - lastChecked) / 1000)) : null;
+  return (
+    <div className="upscale-watcher" role="status">
+      <i aria-hidden="true" />
+      <span>{children}</span>
+      {ago !== null ? <em>{ago < 2 ? "just now" : `${ago}s ago`}</em> : null}
+    </div>
+  );
+}
+
+function CopyUrl({ showToast }: { showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
   const [copied, setCopied] = useState(false);
-  const copyUrl = async () => {
-    const ok = await copyText(repositoryUrl);
-    if (!ok) {
+  const copy = async () => {
+    if (!(await copyText(repositoryUrl))) {
       showToast("Copy failed", "error");
       return;
     }
@@ -64,82 +71,259 @@ export function UpscaleSetupDialog({
     window.setTimeout(() => setCopied(false), 1600);
   };
   return (
-    <UpscaleDialogShell
-      open={open}
-      onOpenChange={onOpenChange}
-      title="Smart upscale needs the SeedVR2 nodes"
-      description={`ComfyUI does not have ${missingNodes.length ? "some of " : ""}the SeedVR2 nodes installed yet, so there is nothing to upscale with.`}
-      actions={
-        <>
-          <button className="btn" onClick={onRecheck}><RefreshCw size={13} /> Re-check</button>
-          <button className="btn is-primary" onClick={() => onOpenChange(false)}>Done</button>
-        </>
-      }
-    >
-      <ol className="upscale-setup-steps">
-        <li>Open <strong>ComfyUI Manager</strong> in ComfyUI.</li>
-        <li>Click <strong>Install via Git URL</strong>.</li>
-        <li>Paste this repository URL:</li>
-      </ol>
-      <div className="upscale-setup-url">
-        <code>{repositoryUrl}</code>
-        <button type="button" className={copied ? "is-copied" : ""} onClick={copyUrl} aria-label="Copy the repository URL">
-          {copied ? <Check size={14} /> : <Copy size={14} />}
-          <span>{copied ? "Copied" : "Copy"}</span>
-        </button>
-      </div>
-      <p className="upscale-setup-note">
-        Restart ComfyUI once it finishes installing. If smart upscale still reports the nodes as missing, reload HEISS UI too.
-      </p>
-      {detectedNodes.length ? (
-        <p className="upscale-setup-missing">
-          ComfyUI does load other SeedVR2 nodes ({detectedNodes.join(", ")}), so a different or older SeedVR2 pack is installed. Smart upscale needs the one above.
-        </p>
-      ) : missingNodes.length ? (
-        <p className="upscale-setup-missing">Missing: {missingNodes.join(", ")}</p>
-      ) : null}
-    </UpscaleDialogShell>
+    <div className="upscale-url">
+      <code>{repositoryUrl}</code>
+      <button type="button" className={copied ? "is-copied" : ""} onClick={copy} aria-label="Copy the repository URL">
+        {copied ? <Check size={13} /> : <Copy size={13} />}
+        <span>{copied ? "Copied" : "Copy"}</span>
+      </button>
+    </div>
   );
 }
 
-export function UpscaleInstallDialog({
-  preview,
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "";
+  if (seconds < 60) return "under a minute";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `about ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return `about ${hours} h ${minutes % 60} min`;
+}
+
+function fileLine(file: UpscaleInstallFile) {
+  switch (file.phase) {
+    case "queued": return "Waiting";
+    case "resuming": return "Checking what already arrived";
+    case "retrying": return "Connection dropped, retrying";
+    case "verifying": return "Verifying checksum";
+    case "verified": return "Verified";
+    default: return `${formatBytes(file.bytes)} of ${formatBytes(file.totalBytes)}`;
+  }
+}
+
+const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean): { title: string; description: string } => {
+  switch (stage) {
+    case "checking": return { title: "Setting up smart upscale", description: "Checking what ComfyUI already has." };
+    case "offline": return { title: "Waiting for ComfyUI", description: "Smart upscale runs inside ComfyUI, and it is not answering right now. Setup carries on by itself as soon as it is back." };
+    case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale restores real detail with SeedVR2. Its nodes install once through ComfyUI Manager, and HEISS UI notices by itself when they arrive." };
+    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights. They download once from Hugging Face and are checked before first use.` };
+    case "downloading": return { title: "Downloading SeedVR2", description: pending ? "Your image upscales the moment this finishes. You can close this; the download keeps going." : "You can close this; the download keeps going in the background." };
+    case "verifying": return { title: "Checking the download", description: "Matching every file against its published checksum and making sure ComfyUI can load it." };
+    case "ready": return { title: "Smart upscale is ready", description: pending ? "Starting your upscale now." : "Every finished image has an upscale arrow in its corner. The original is always kept." };
+    case "error": return { title: "The download stopped", description: "What already arrived stays on disk, so trying again picks up where it left off." };
+  }
+};
+
+export function UpscaleSetupDialog({
+  setup,
+  status,
+  install,
+  reason,
   quality,
-  onOpenChange,
-  onConfirm
+  comfyUrl,
+  onQualityChange,
+  onOpenLibrary,
+  showToast
 }: {
-  preview: UpscaleDownloadPreview | null;
-  quality: string;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
+  setup: UpscaleSetup;
+  status: UpscaleStatus | null;
+  install: UpscaleInstall;
+  reason: string;
+  quality: UpscaleQuality;
+  comfyUrl?: string;
+  onQualityChange: (quality: UpscaleQuality) => void;
+  onOpenLibrary: () => void;
+  showToast: (message: string, tone?: "default" | "success" | "error") => void;
 }) {
-  return (
-    <UpscaleDialogShell
-      open={Boolean(preview)}
-      onOpenChange={onOpenChange}
-      title="Install the smart upscale models"
-      description={`${upscaleQualityLabel(quality)} upscaling needs weights that are not on this machine yet. They download once and stay installed.`}
-      actions={
-        <>
-          <button className="btn" onClick={() => onOpenChange(false)}>Cancel</button>
-          <button className="btn is-primary" onClick={onConfirm}>Download {preview ? formatBytes(preview.totalBytes) : ""}</button>
-        </>
-      }
-    >
-      <ul className="upscale-model-list">
-        {(preview?.files || []).map((file) => (
-          <li key={file.key}>
-            <span>{file.label}</span>
-            <em>{formatBytes(file.bytes)}</em>
+  const { stage, pending } = setup;
+  const progress = install?.totalBytes ? (install.receivedBytes || 0) / install.totalBytes : 0;
+  const { title, description } = copyFor(stage, quality, Boolean(pending));
+  const close = setup.closeSetup;
+  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Hide" : "Later"}</button>;
+  const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} /> Check now</button>;
+
+  const missingModels = (status?.models || []).filter((model) => !model.present);
+  const remaining = missingModels.reduce((sum, model) => sum + model.bytes - (model.partialBytes || 0), 0);
+  const resumable = missingModels.some((model) => model.partialBytes > 0);
+  const freeBytes = status?.freeBytes ?? null;
+  const tooBig = freeBytes !== null && freeBytes < remaining + 512 * 1024 ** 2;
+
+  let body: React.ReactNode = null;
+  let footer: React.ReactNode = later;
+
+  if (stage === "checking") {
+    body = <Watcher>Asking ComfyUI what it has</Watcher>;
+  } else if (stage === "offline") {
+    body = (
+      <>
+        <Watcher lastChecked={setup.lastChecked}>Waiting for ComfyUI{comfyUrl ? <> at <code>{comfyUrl.replace(/^https?:\/\//, "")}</code></> : null}</Watcher>
+        {reason && !/offline/i.test(reason) ? <p className="upscale-fine">{reason}</p> : null}
+      </>
+    );
+    footer = <>{later}{recheck}</>;
+  } else if (stage === "nodes") {
+    body = (
+      <>
+        <ol className="upscale-steps">
+          <li>
+            <span className="upscale-step-n">1</span>
+            <div>In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>. Searching the node list for <strong>SeedVR2</strong> works too.</div>
           </li>
-        ))}
-      </ul>
-      <div className="upscale-setup-url is-path">
-        <code>{preview?.modelDir || ""}</code>
+          <li>
+            <span className="upscale-step-n">2</span>
+            <div>
+              Paste the SeedVR2 repository:
+              <CopyUrl showToast={showToast} />
+            </div>
+          </li>
+          <li>
+            <span className="upscale-step-n">3</span>
+            <div><strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.</div>
+          </li>
+        </ol>
+        <Watcher lastChecked={setup.lastChecked}>Watching ComfyUI for the SeedVR2 nodes</Watcher>
+        {status?.detectedNodes?.length ? (
+          <p className="upscale-fine">
+            ComfyUI loads other SeedVR2 nodes ({status.detectedNodes.join(", ")}), so a different or older SeedVR2 pack is installed. Smart upscale needs the one above.
+          </p>
+        ) : null}
+      </>
+    );
+    footer = (
+      <>
+        {later}
+        {recheck}
+        {comfyUrl ? <a className="btn is-primary" href={comfyUrl} target="_blank" rel="noreferrer">Open ComfyUI <ExternalLink size={13} /></a> : null}
+      </>
+    );
+  } else if (stage === "models") {
+    body = !status?.canDownload ? (
+      <div className="upscale-callout">
+        <strong>HEISS UI does not know where ComfyUI keeps its models yet.</strong>
+        <span>Set the ComfyUI output folder under Library and the models folder next to it is found automatically.</span>
       </div>
-      <p className="upscale-setup-note">
-        ComfyUI may need a restart afterwards before the models appear.
-      </p>
-    </UpscaleDialogShell>
+    ) : (
+      <>
+        <div className="upscale-efforts" role="radiogroup" aria-label="Upscale effort">
+          {upscaleEfforts.map((effort) => (
+            <button
+              key={effort.value}
+              type="button"
+              role="radio"
+              aria-checked={quality === effort.value}
+              className={cn(quality === effort.value && "is-active")}
+              onClick={() => onQualityChange(effort.value)}
+            >
+              <strong>{effort.label}<em>{effort.scale}</em></strong>
+              <span>{effort.model}</span>
+              <small>{formatBytes(effort.downloadBytes)}</small>
+            </button>
+          ))}
+        </div>
+        <ul className="upscale-files">
+          {missingModels.map((model) => (
+            <li key={model.file}>
+              <div>
+                <strong>{model.label}{model.detail ? <em>{model.detail}</em> : null}</strong>
+                <code>{model.file}</code>
+              </div>
+              <span>{model.partialBytes ? `${formatBytes(model.bytes - model.partialBytes)} left` : formatBytes(model.bytes)}</span>
+            </li>
+          ))}
+        </ul>
+        <div className={cn("upscale-dest", tooBig && "is-short")}>
+          <FolderOpen size={14} aria-hidden="true" />
+          <code title={status.modelDir}>{status.modelDir}</code>
+          {freeBytes !== null ? <span>{formatBytes(freeBytes)} free</span> : null}
+        </div>
+        {tooBig ? <p className="upscale-fine is-warn">That drive needs {formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)} more free space, or pick a lighter effort.</p> : null}
+        {setup.startError ? <p className="upscale-fine is-warn">{setup.startError}</p> : null}
+      </>
+    );
+    footer = status?.canDownload ? (
+      <>
+        {later}
+        <button className="btn is-primary" onClick={setup.startDownload} disabled={tooBig || !missingModels.length}>
+          {resumable ? `Resume · ${formatBytes(remaining)} left` : `Download ${formatBytes(remaining)}`}
+        </button>
+      </>
+    ) : (
+      <>{later}<button className="btn is-primary" onClick={onOpenLibrary}>Open Library settings</button></>
+    );
+  } else if (stage === "downloading" || stage === "verifying") {
+    const files = install?.files || [];
+    const speed = install?.bytesPerSecond || 0;
+    const eta = speed > 0 ? ((install?.totalBytes || 0) - (install?.receivedBytes || 0)) / speed : 0;
+    body = (
+      <>
+        {stage === "downloading" ? (
+          <div className="upscale-meter">
+            <strong>{Math.floor(progress * 100)}<small>%</small></strong>
+            <div>
+              <span>{formatBytes(install?.receivedBytes)} of {formatBytes(install?.totalBytes)}</span>
+              <span>{speed > 0 ? `${formatBytes(speed)}/s · ${formatDuration(eta)} left` : "Connecting to Hugging Face"}</span>
+            </div>
+          </div>
+        ) : (
+          <Watcher>Making sure ComfyUI can load the new weights</Watcher>
+        )}
+        <ul className="upscale-files is-live">
+          {files.map((file) => {
+            const done = stage === "verifying" || file.phase === "verified";
+            return (
+              <li key={file.file} className={cn(done && "is-done")}>
+                <div>
+                  <strong>{file.label}{file.detail ? <em>{file.detail}</em> : null}</strong>
+                  <CellBar value={done ? 1 : file.totalBytes ? file.bytes / file.totalBytes : 0} tone={done ? "done" : "ember"} />
+                </div>
+                <span>{done ? <><Check size={12} strokeWidth={3} /> Verified</> : fileLine(file)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </>
+    );
+    footer = stage === "downloading" ? (
+      <>
+        <button className="btn is-ghost" onClick={setup.cancelInstall}>Cancel</button>
+        <button className="btn is-primary" onClick={close}>Continue in background</button>
+      </>
+    ) : null;
+  } else if (stage === "ready") {
+    body = pending ? (
+      <div className="upscale-pending">
+        {pending.thumbnailUrl || pending.url ? <img src={pending.thumbnailUrl || pending.url} alt="" draggable={false} /> : null}
+        <div>
+          <strong>Upscaling with {upscaleQualityLabel(quality)}</strong>
+          <span>It shows up on the tile when it is done. The original stays as it is.</span>
+        </div>
+      </div>
+    ) : status?.substituting ? (
+      <p className="upscale-fine">Runs on the SeedVR2 weights already installed, since this effort's own model is not downloaded.</p>
+    ) : null;
+    footer = pending ? null : <button className="btn is-primary" onClick={close}>Done</button>;
+  } else if (stage === "error") {
+    body = <div className="upscale-callout is-danger"><strong>{install?.error || "The download failed."}</strong></div>;
+    footer = <>{later}<button className="btn is-primary" onClick={setup.startDownload}>Try again</button></>;
+  }
+
+  return (
+    <Modal
+      open={setup.open}
+      onOpenChange={(next) => { if (!next) close(); }}
+      size="form"
+      className="upscale-modal"
+      hero={
+        <div className="upscale-hero-wrap">
+          <UpscaleHero className="upscale-hero" stage={stage} progress={progress} />
+          <SetupSteps stage={stage} />
+        </div>
+      }
+      title={title}
+      description={description}
+      footer={footer}
+    >
+      <div className="upscale-body" key={stage}>{body}</div>
+    </Modal>
   );
 }
