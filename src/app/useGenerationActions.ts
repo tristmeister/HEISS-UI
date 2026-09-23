@@ -265,7 +265,7 @@ export function useGenerationActions(view: any) {
     galleryRemove([item.id, item.url].filter(Boolean));
     if (active?.id === item.id) setActive(null);
     const response = await fetch(`/api/gallery/${encodeURIComponent(item.id)}`, { method: "DELETE" }).catch(() => null);
-    showToast(response?.ok ? "Deleted from gallery" : "Delete failed", response?.ok ? "success" : "error");
+    if (!response?.ok) showToast("Delete failed", "error");
   }
 
   return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem };
