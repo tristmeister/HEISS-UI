@@ -154,7 +154,7 @@
   gap: 7px;
   min-width: 0;
   height: 30px;
-  padding: 0 4px 0 12px;
+  padding: 0 12px;
   border: 0;
   background: transparent;
   color: hsl(var(--foreground));
@@ -162,18 +162,22 @@
   font-weight: 550;
   cursor: pointer;
 }
-.lora-chip-name { min-width: 0; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lora-chip-load em { font-style: normal; font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
+.lora-chip-name { min-width: 0; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lora-chip-load em { min-width: 12px; text-align: center; transition: opacity var(--dur-fast); font-style: normal; font-size: 11px; font-weight: 600; color: hsl(var(--muted-foreground)); font-variant-numeric: tabular-nums; }
 .lora-chip.is-active .lora-chip-load { color: var(--action-ink); }
 .lora-chip.is-active .lora-chip-load em { color: rgb(10 10 10 / .5); }
 /* Modified: a small ember square, the same status marker used everywhere. */
 .lora-chip.is-modified .lora-chip-load::before { content: ""; width: 6px; height: 6px; flex: none; background: var(--ember); }
+/* The x takes the count's place on hover, so chips never reserve room for it. */
 .lora-chip-remove {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  translate: 0 -50%;
   width: 22px;
   height: 22px;
   display: grid;
   place-items: center;
-  margin-right: 4px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -182,8 +186,10 @@
   cursor: pointer;
   transition: opacity var(--dur-fast), background var(--dur-fast);
 }
+.lora-chip:hover .lora-chip-load em,
+.lora-chip:focus-within .lora-chip-load em { opacity: 0; }
 .lora-chip:hover .lora-chip-remove,
-.lora-chip-remove:focus-visible { opacity: 1; }
+.lora-chip:focus-within .lora-chip-remove { opacity: 1; }
 .lora-chip-remove:hover { background: var(--danger-fill); color: var(--danger-ink); }
 .lora-chip.is-active .lora-chip-remove { color: rgb(10 10 10 / .55); }
 .lora-chip.is-active .lora-chip-remove:hover { background: rgb(10 10 10 / .1); color: var(--action-ink); }
@@ -208,10 +214,23 @@
 .lora-save-chip span { font-weight: 500; color: hsl(var(--muted-foreground)); }
 .lora-save-chip:hover { background: var(--control-fill); border-color: rgb(255 255 255 / .3); }
 
-.lora-stack-changes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 30px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.lora-stack-changes > span { flex: 1 1 140px; min-width: 0; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lora-stack-changes { display: flex; align-items: center; gap: 2px; min-height: 26px; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.lora-stack-changes > span { flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .lora-stack-changes > span i { width: 6px; height: 6px; flex: none; background: var(--ember); }
-.lora-stack-changes strong { font-weight: 550; color: hsl(var(--foreground)); overflow: hidden; text-overflow: ellipsis; }
+.lora-text-action {
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.lora-text-action:hover { background: var(--control-hover); color: #fff; }
+.lora-text-action.is-strong { color: hsl(var(--foreground)); }
 
 .lora-name-field {
   display: flex;
@@ -245,76 +264,94 @@
 .lora-chip-action.is-primary:hover:not(:disabled) { background: #fff; }
 .lora-chip-action:disabled { opacity: .4; cursor: default; }
 
-/* Cards */
-.lora-list { display: grid; gap: 8px; }
+/* Cards: one left edge for name, slider and warnings. The grip lives in the
+   card's left margin and, like remove, only shows on hover or focus. */
+.lora-list { display: grid; gap: 6px; }
 .lora-card {
   position: relative;
   display: grid;
-  gap: 8px;
-  padding: 10px 10px 12px 6px;
+  gap: 6px;
+  padding: 10px 12px 12px 16px;
   border-radius: calc(var(--r-item) + 2px);
   background: rgb(255 255 255 / .035);
   box-shadow: inset 0 0 0 1px var(--surface-border);
   list-style: none;
-  transition: background var(--dur-fast), opacity var(--dur-fast);
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
 }
-.lora-card.is-off { background: transparent; }
-.lora-card.is-off .lora-name strong { color: hsl(var(--muted-foreground)); }
+.lora-card:hover { background: rgb(255 255 255 / .05); }
 .lora-card.has-warning { box-shadow: inset 0 0 0 1px rgb(255 154 82 / .24); }
-.lora-card-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.lora-card.is-off .lora-name,
+.lora-card.is-off .lora-strength { opacity: .45; }
+
 .lora-grip {
-  flex: none;
-  width: 22px;
-  height: 32px;
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 16px;
   display: grid;
   place-items: center;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   background: transparent;
-  color: hsl(var(--muted-foreground) / .6);
+  color: hsl(var(--muted-foreground) / .7);
+  opacity: 0;
   cursor: grab;
   touch-action: none;
+  transition: opacity var(--dur-fast), color var(--dur-fast);
 }
-.lora-grip:hover { color: hsl(var(--foreground)); background: var(--control-hover); }
+.lora-card:hover .lora-grip,
+.lora-grip:focus-visible { opacity: 1; }
+.lora-grip:hover { color: hsl(var(--foreground)); }
 .lora-grip:active { cursor: grabbing; }
+
+.lora-card-top { display: flex; align-items: center; gap: 4px; min-width: 0; min-height: 26px; }
 .lora-name {
   flex: 1;
   min-width: 0;
-  display: grid;
-  gap: 1px;
-  padding: 4px 6px;
+  margin-left: -6px;
+  padding: 3px 6px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 7px;
   background: transparent;
-  color: inherit;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 550;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
+  transition: background var(--dur-fast), opacity var(--dur-fast);
 }
 .lora-name:hover { background: var(--control-hover); }
-.lora-name strong { font-size: 13px; font-weight: 550; color: hsl(var(--foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lora-name span { font-size: 11px; color: hsl(var(--muted-foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lora-remove {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: var(--r-pill);
+  border-radius: 50%;
   background: transparent;
   color: hsl(var(--muted-foreground));
+  opacity: 0;
   cursor: pointer;
+  transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
+.lora-card:hover .lora-remove,
+.lora-remove:focus-visible { opacity: 1; }
 .lora-remove:hover { background: var(--danger-fill); color: var(--danger-ink); }
-.lora-warning { display: flex; align-items: center; gap: 6px; margin: 0 0 0 28px; font-size: 11.5px; color: var(--ember); }
+.lora-card-top .switch { margin-left: 4px; }
+.lora-warning { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11.5px; color: var(--ember); }
 
-/* Strength: a slider plus a value you can type into. */
-.lora-strength { display: flex; align-items: center; gap: 10px; padding-left: 28px; }
+/* Strength: a slim slider and a value that reads as text until you edit it. */
+.lora-strength { display: flex; align-items: center; gap: 8px; transition: opacity var(--dur-fast); }
 .lora-strength input[type="range"] {
   flex: 1;
   min-width: 0;
-  height: 22px;
+  height: 18px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -326,41 +363,45 @@
   cursor: pointer;
 }
 .lora-strength input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
+  height: 3px;
   border-radius: var(--r-pill);
-  background: linear-gradient(to right, hsl(var(--foreground)) var(--fill), rgb(255 255 255 / .1) var(--fill));
+  background: linear-gradient(to right, hsl(var(--foreground) / .85) var(--fill), rgb(255 255 255 / .1) var(--fill));
 }
-.lora-strength input[type="range"]::-moz-range-track { height: 4px; border-radius: var(--r-pill); background: rgb(255 255 255 / .1); }
-.lora-strength input[type="range"]::-moz-range-progress { height: 4px; border-radius: var(--r-pill); background: hsl(var(--foreground)); }
+.lora-strength input[type="range"]::-moz-range-track { height: 3px; border-radius: var(--r-pill); background: rgb(255 255 255 / .1); }
+.lora-strength input[type="range"]::-moz-range-progress { height: 3px; border-radius: var(--r-pill); background: hsl(var(--foreground) / .85); }
 .lora-strength input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
-  margin-top: -5px;
+  width: 12px;
+  height: 12px;
+  margin-top: -4.5px;
   border-radius: 50%;
   background: #fff;
-  box-shadow: 0 1px 4px rgb(0 0 0 / .5);
+  box-shadow: 0 1px 3px rgb(0 0 0 / .5);
   transition: scale 120ms;
 }
-.lora-strength input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border: 0; border-radius: 50%; background: #fff; }
-.lora-strength input[type="range"]:hover::-webkit-slider-thumb { scale: 1.15; }
+.lora-strength input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #fff; }
+.lora-strength input[type="range"]:hover::-webkit-slider-thumb,
+.lora-strength input[type="range"]:active::-webkit-slider-thumb { scale: 1.2; }
 .lora-strength input[type="range"]:focus-visible { outline: none; }
 .lora-strength input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus-ring); }
-.lora-strength.is-disabled { opacity: .45; }
 .lora-strength-value {
   flex: none;
-  width: 54px;
-  height: 30px;
+  width: 44px;
+  height: 24px;
+  margin-right: -6px;
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 9px;
-  background: var(--well);
-  color: hsl(var(--foreground));
-  font: 550 12.5px/1 "Geist Mono", ui-monospace, Menlo, monospace;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: hsl(var(--foreground) / .85);
+  font: 500 12px/1 "Geist Mono", ui-monospace, Menlo, monospace;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  cursor: text;
+  transition: background var(--dur-fast);
 }
-.lora-strength-value:focus { outline: none; border-color: rgb(255 255 255 / .2); }
+.lora-strength-value:hover { background: var(--control-fill); }
+.lora-strength-value:focus { outline: none; background: var(--well); color: #fff; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18); }
 
 .lora-undo {
   display: flex;
@@ -478,6 +519,8 @@
 .lora-picker-foot > span { font-size: 11.5px; color: hsl(var(--muted-foreground)); }
 
 @media (hover: none) {
+  .lora-grip,
+  .lora-remove,
   .lora-chip-remove,
   .lora-option-star { opacity: 1; }
 }

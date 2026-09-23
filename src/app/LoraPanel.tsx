@@ -43,7 +43,7 @@ const round = (value: number) => Math.round(value * 100) / 100;
 
 /* ------------------------------------------------------------------ Card */
 
-function StrengthControl({ value, onChange, disabled }: { value: number; onChange: (next: number) => void; disabled?: boolean }) {
+function StrengthControl({ value, onChange, disabled, label }: { value: number; onChange: (next: number) => void; disabled?: boolean; label: string }) {
   const [draft, setDraft] = useState<string | null>(null);
   const fill = Math.max(0, Math.min(1, (value - strengthMin) / (strengthMax - strengthMin)));
   const commit = () => {
@@ -56,7 +56,7 @@ function StrengthControl({ value, onChange, disabled }: { value: number; onChang
     <div className={cn('lora-strength', disabled && 'is-disabled')}>
       <input
         type="range"
-        aria-label="Strength"
+        aria-label={`${label} strength`}
         min={strengthMin}
         max={strengthMax}
         step={0.05}
@@ -65,30 +65,37 @@ function StrengthControl({ value, onChange, disabled }: { value: number; onChang
         onChange={(event) => onChange(round(Number(event.target.value)))}
         onDoubleClick={() => onChange(defaultLoraStrength)}
       />
-      <input
-        className="lora-strength-value is-bare"
-        aria-label="Strength value"
-        inputMode="decimal"
-        value={draft ?? value.toFixed(2)}
-        onFocus={(event) => { setDraft(value.toFixed(2)); requestAnimationFrame(() => event.target.select()); }}
-        onChange={(event) => setDraft(event.target.value)}
-        onBlur={commit}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter') { event.preventDefault(); commit(); (event.target as HTMLInputElement).blur(); }
-          if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); (event.target as HTMLInputElement).blur(); }
-          if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-            event.preventDefault();
-            const step = event.shiftKey ? 0.1 : 0.01;
-            const next = round(value + (event.key === 'ArrowUp' ? step : -step));
-            onChange(next);
-            setDraft(next.toFixed(2));
-          }
-        }}
-      />
+      <Tip content="Type a value. Arrow keys nudge by 0.01, Shift by 0.1">
+        <input
+          className="lora-strength-value is-bare"
+          aria-label={`${label} strength value`}
+          inputMode="decimal"
+          value={draft ?? value.toFixed(2)}
+          onFocus={(event) => { setDraft(value.toFixed(2)); requestAnimationFrame(() => event.target.select()); }}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') { event.preventDefault(); commit(); (event.target as HTMLInputElement).blur(); }
+            if (event.key === 'Escape') { event.stopPropagation(); setDraft(null); (event.target as HTMLInputElement).blur(); }
+            if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+              event.preventDefault();
+              const step = event.shiftKey ? 0.1 : 0.01;
+              const next = round(value + (event.key === 'ArrowUp' ? step : -step));
+              onChange(next);
+              setDraft(next.toFixed(2));
+            }
+          }}
+        />
+      </Tip>
     </div>
   );
 }
 
+/**
+ * One LoRA: name and its on/off switch on top, strength underneath, all on
+ * one left edge. The grip and remove button stay out of the way until the
+ * card is hovered or focused.
+ */
 function LoraCard({ item, index, count, missing, overLimit, onChange, onRemove, onSwap, onMove }: {
   item: LoraSelection;
   index: number;
@@ -102,31 +109,31 @@ function LoraCard({ item, index, count, missing, overLimit, onChange, onRemove, 
 }) {
   const controls = useDragControls();
   const folder = folderOf(item.name);
+  const label = fileName(item.name);
   return (
     <Reorder.Item as="div" value={item} dragListener={false} dragControls={controls} className={cn('lora-card', !item.enabled && 'is-off', (missing || overLimit) && 'has-warning')}>
-      <div className="lora-card-top">
+      {count > 1 ? (
         <button
           type="button"
           className="lora-grip"
-          aria-label={`Reorder ${fileName(item.name)}. Use the arrow keys to move it.`}
+          aria-label={`Reorder ${label}. Use the arrow keys to move it.`}
           onPointerDown={(event) => controls.start(event)}
           onKeyDown={(event) => {
             if (event.key === 'ArrowUp' && index > 0) { event.preventDefault(); onMove(index - 1); }
             if (event.key === 'ArrowDown' && index < count - 1) { event.preventDefault(); onMove(index + 1); }
           }}
         >
-          <GripVertical size={14} />
+          <GripVertical size={13} />
         </button>
-        <Tip content="Choose a different LoRA">
-          <button type="button" className="lora-name" onClick={onSwap}>
-            <strong>{fileName(item.name)}</strong>
-            {folder ? <span>{folder}</span> : null}
-          </button>
+      ) : null}
+      <div className="lora-card-top">
+        <Tip content={folder ? `${folder} · click to swap` : 'Click to swap for another LoRA'}>
+          <button type="button" className="lora-name" onClick={onSwap}>{label}</button>
         </Tip>
-        <Switch label={item.enabled ? `Turn off ${fileName(item.name)}` : `Turn on ${fileName(item.name)}`} checked={item.enabled} onChange={(enabled) => onChange({ enabled })} />
-        <Tip content="Remove"><button type="button" className="lora-remove" aria-label={`Remove ${fileName(item.name)}`} onClick={onRemove}><X size={14} /></button></Tip>
+        <Tip content="Remove"><button type="button" className="lora-remove" aria-label={`Remove ${label}`} onClick={onRemove}><X size={13} /></button></Tip>
+        <Switch size="sm" label={item.enabled ? `Turn off ${label}` : `Turn on ${label}`} checked={item.enabled} onChange={(enabled) => onChange({ enabled })} />
       </div>
-      <StrengthControl value={item.strength} disabled={!item.enabled} onChange={(strength) => onChange({ strength })} />
+      <StrengthControl label={label} value={item.strength} disabled={!item.enabled} onChange={(strength) => onChange({ strength })} />
       {missing ? <p className="lora-warning"><AlertTriangle size={12} /> Not found in ComfyUI's LoRA folder</p> : null}
       {!missing && overLimit ? <p className="lora-warning"><AlertTriangle size={12} /> Over this workflow's limit, so it won't be used</p> : null}
     </Reorder.Item>
@@ -284,19 +291,21 @@ function LoraPicker({ options, profile, current, favorites, recents, remaining, 
 
 /* ---------------------------------------------------------------- Stacks */
 
-/** A readable default name from the LoRAs themselves: "Film Grain + Portrait Light +1". */
+/** A short default name from the LoRAs themselves: "Anime Watercolor +1". */
 function suggestStackName(loras: LoraSelection[], taken: string[]) {
-  const words = loras.filter((item) => item.enabled).map((item) => fileName(item.name)
+  const pretty = (item: LoraSelection) => fileName(item.name)
     .replace(/[-_.]+/g, ' ')
     .replace(/\b(v\d+(\.\d+)*|lora|loha|lycoris|epoch\s*\d+|e\d+|\d{3,})\b/gi, '')
     .replace(/\s+/g, ' ').trim()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase()))
-    .filter(Boolean);
-  let name = words.slice(0, 2).join(' + ') + (words.length > 2 ? ` +${words.length - 2}` : '');
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const enabled = loras.filter((item) => item.enabled);
+  const lead = [...(enabled.length ? enabled : loras)].sort((x, y) => y.strength - x.strength)[0];
+  let name = lead ? pretty(lead) : '';
   if (!name) name = 'My stack';
-  if (name.length > 40) name = `${name.slice(0, 38).trim()}…`;
+  if (name.length > 22) name = `${name.slice(0, 21).trim()}…`;
+  if (loras.length > 1) name += ` +${loras.length - 1}`;
   let unique = name;
-  for (let n = 2; taken.includes(unique); n++) unique = `${name} ${n}`;
+  for (let n = 2; taken.includes(unique); n++) unique = `${name} (${n})`;
   return unique;
 }
 
@@ -390,9 +399,9 @@ function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
         />
       ) : modified && active ? (
         <div className="lora-stack-changes">
-          <span><i aria-hidden="true" />Changed from <strong>{active.name}</strong></span>
-          <button type="button" className="lora-chip-action is-primary" onClick={() => library.updateStack(active.id)}>Update</button>
-          <button type="button" className="lora-chip-action" onClick={() => setNaming({ mode: 'new' })}>Save as new</button>
+          <span><i aria-hidden="true" />Unsaved changes</span>
+          <Tip content={`Save these LoRAs into ${active.name}`}><button type="button" className="lora-text-action is-strong" onClick={() => library.updateStack(active.id)}>Update</button></Tip>
+          <button type="button" className="lora-text-action" onClick={() => setNaming({ mode: 'new' })}>Save as new</button>
         </div>
       ) : canSaveNew ? (
         <button type="button" className="lora-save-chip" onClick={() => setNaming({ mode: 'new' })}>

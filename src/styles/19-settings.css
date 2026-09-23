@@ -155,6 +155,9 @@
 .switch[aria-checked="true"] { background: var(--action); box-shadow: none; }
 .switch[aria-checked="true"] .switch-thumb { transform: translateX(16px); background: var(--action-ink); }
 .switch:disabled { opacity: .4; cursor: default; }
+.switch.is-sm { width: 30px; height: 18px; }
+.switch.is-sm .switch-thumb { top: 2px; left: 2px; width: 14px; height: 14px; }
+.switch.is-sm[aria-checked="true"] .switch-thumb { transform: translateX(12px); }
 .switch:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ------------------------------------------------------------- Segmented */
