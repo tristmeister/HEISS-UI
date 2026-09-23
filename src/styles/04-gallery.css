@@ -169,7 +169,7 @@
 }
 /* Text spans on a tile (caption, status labels) truncate on one line. Tile controls
    are spans too; :not(:where()) keeps them out without raising this rule's specificity. */
-.tile span:not(:where(.tile-upscale, .tile-upscale-ring, .tile-hover-actions, .tile-delete, .handles)) { display: block; color: hsl(var(--muted-foreground)); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile span:not(:where(.tile-upscale, .tile-upscale-ring, .tile-hover-actions, .tile-delete)) { display: block; color: hsl(var(--muted-foreground)); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-caption {
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 24px 10px 8px;

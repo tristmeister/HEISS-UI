@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Copy, Download, LockKeyhole, Loader2, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
-import { Handles, Tip } from './components';
+import { Tip } from './components';
 import { GenerationMedia } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
 import type { GalleryItem } from './types';
@@ -102,7 +102,6 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
       }}
     >
       <button className={cn("tile", item.status)} style={{ width: "100%", height: "100%" } as React.CSSProperties} onClick={() => item.status !== "pending" && openItem(item)}>
-        <Handles />
         {!item.vaultLocked && (item.status === "pending" || item.status === "done") ? (
           <GenerationMedia item={item} muted>
           <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>

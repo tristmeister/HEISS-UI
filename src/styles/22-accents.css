@@ -1,9 +1,9 @@
 /* ---------------------------------------------------------------------------
    Website accents, kept quiet
 
-   Three things carried over from the HEISS UI site: the warm ember, square
-   markers instead of round dots, and design-tool selection handles. Focus and
-   selection stay neutral white; ember only marks status and heat.
+   Two things carried over from the HEISS UI site: the warm ember and square
+   markers instead of round dots. Focus and selection stay neutral white;
+   ember only marks status and heat.
 --------------------------------------------------------------------------- */
 
 /* ------------------------------------------------------------ Selection */
@@ -16,42 +16,6 @@
   outline: 2px solid rgb(255 255 255 / .55);
   outline-offset: 2px;
 }
-
-/* -------------------------------------------------------------- Handles */
-
-.handles {
-  position: absolute;
-  inset: 5px;
-  z-index: 3;
-  pointer-events: none;
-  --h: 6px;
-}
-.handles i {
-  position: absolute;
-  width: var(--h);
-  height: var(--h);
-  background: rgb(10 10 10 / .7);
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .55);
-  transition: background var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
-}
-.handles i:nth-child(1) { left: 0; top: 0; }
-.handles i:nth-child(2) { right: 0; top: 0; }
-.handles i:nth-child(3) { left: 0; bottom: 0; }
-.handles i:nth-child(4) { right: 0; bottom: 0; }
-
-/* Workflow gallery: the selected card's thumbnail. */
-.wf-card.active .handles i { background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); }
-
-/* Zen strip: the image on stage. */
-.zen-gallery-strip button { position: relative; }
-.zen-gallery-strip button .handles { inset: 3px; --h: 4px; }
-.zen-gallery-strip button.active .handles i { background: #fff; box-shadow: none; }
-
-/* Gallery tiles show handles only when reached with the keyboard. */
-.tile > .handles { opacity: 0; transition: opacity var(--dur-fast); }
-.tile:focus-visible { outline: none; }
-.tile:focus-visible > .handles { opacity: 1; }
-.tile:focus-visible > .handles i { background: #fff; box-shadow: 0 0 0 1px rgb(0 0 0 / .35); }
 
 /* ---------------------------------------------------- Mosaic skeletons
    Loading tiles resolve like the generation preview: a quiet pixel mosaic

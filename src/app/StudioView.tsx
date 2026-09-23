@@ -3,7 +3,7 @@ import { Toaster } from 'sonner';
 import { BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
-import { GallerySkeleton, Handles, Media, Skeleton, Tip } from './components';
+import { GallerySkeleton, Media, Skeleton, Tip } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
@@ -286,7 +286,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                 {zenGallery.map((item: GalleryItem) => (
                   <Tip key={item.id} content={item.bundle ? `${item.bundle.reasonLabel} · ${item.bundle.count} outputs` : titleFromPrompt(item.prompt || item.filename)}><button data-zen-id={item.id} className={cn(item.id === zenItem?.id && "active", item.bundle && "is-run")} onClick={(event) => { event.stopPropagation(); selectZenItem(item.id); }} onDragStart={(event) => event.preventDefault()}>
                     <Media item={item} muted />
-                    {item.id === zenItem?.id ? <Handles /> : null}
                     {item.bundle ? <span className="zen-run-count" aria-hidden="true"><Layers size={9} />{item.bundle.count}</span> : null}
                   </button></Tip>
                 ))}
