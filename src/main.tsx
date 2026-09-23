@@ -61,6 +61,8 @@ function App() {
   const [model, setModel] = useState(String(initialDraft.model || ""));
   const [paths, setPaths] = useState<Paths>({});
   const [textEncoder, setTextEncoder] = useState(String(initialDraft.textEncoder || ""));
+  // Built-in families can need several encoders (Flux.1 two, HiDream four), one per slot.
+  const [textEncoders, setTextEncoders] = useState<string[]>(Array.isArray(initialDraft.textEncoders) ? initialDraft.textEncoders.map(String) : []);
   const [vae, setVae] = useState(String(initialDraft.vae || ""));
   const [clipType, setClipType] = useState(String(initialDraft.clipType || ""));
   const [weightDtype, setWeightDtype] = useState(String(initialDraft.weightDtype || "default"));
@@ -299,6 +301,7 @@ function App() {
       negative: privacyStatus?.enabled ? "" : negative,
       model,
       textEncoder,
+      textEncoders,
       vae,
       clipType,
       weightDtype,
@@ -336,7 +339,7 @@ function App() {
     } catch {
       localStorage.setItem("heiss-ui-draft", JSON.stringify({ ...draft, startImage: "", startImageId }));
     }
-  }, [mode, prompt, negative, model, textEncoder, vae, clipType, weightDtype, width, height, steps, cfg, denoise, seed, count, frames, fps, sampler, scheduler, loras, customSize, startImageId, startImageName, referenceAssets, advanced, showDetails, showGenerationSettings, showNegativePrompt, zenGalleryOpen, zenControls, zenSelectedId, privateGeneration, privacyStatus?.enabled]);
+  }, [mode, prompt, negative, model, textEncoder, textEncoders, vae, clipType, weightDtype, width, height, steps, cfg, denoise, seed, count, frames, fps, sampler, scheduler, loras, customSize, startImageId, startImageName, referenceAssets, advanced, showDetails, showGenerationSettings, showNegativePrompt, zenGalleryOpen, zenControls, zenSelectedId, privateGeneration, privacyStatus?.enabled]);
 
   useEffect(() => {
     if (!active) return;
@@ -636,6 +639,7 @@ function App() {
     if (setModelId) setModel(profile.id);
     setCustomSize(false);
     setTextEncoder(String(profile.defaults.textEncoder || ""));
+    setTextEncoders((profile.encoderSlots || []).map((slot) => slot.default));
     setVae(String(profile.defaults.vae || ""));
     setClipType(String(profile.defaults.clipType || ""));
     setWeightDtype(String(profile.defaults.weightDtype || "default"));
@@ -815,10 +819,16 @@ function App() {
   const zenDisplayItem = zenItem;
   const missingReferenceInput = referenceInputs.find((input) => (input.required || (input.min || 0) > 0) && !composerReferenceAssets.some((item) => item.slot === input.id));
   const missingRequiredReference = Boolean(missingReferenceInput);
-  const modelSetupMissing = Boolean(currentProfile && ((currentProfile.capabilities.textEncoder && !textEncoder) || (currentProfile.capabilities.vae && !vae)));
+  // Built-in families say exactly what they lack; custom workflows fall back to their encoder/VAE fields.
+  const modelMissingParts = currentProfile?.missing || [];
+  const modelSetupMissing = Boolean(currentProfile && (currentProfile.ready === false
+    || (!currentProfile.encoderSlots && ((currentProfile.capabilities.textEncoder && !textEncoder) || (currentProfile.capabilities.vae && !vae)))));
   const generateDisabled = !currentProfile || modelSetupMissing || missingRequiredReference;
-  const generateDisabledReason = missingRequiredReference ? `${missingReferenceInput?.label || "Reference image"} is required` : modelSetupMissing ? "Model setup is missing required files" : !currentProfile ? "Choose a workflow" : undefined;
-  const loraActiveCount = mode === "image" && currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
+  const generateDisabledReason = missingRequiredReference ? `${missingReferenceInput?.label || "Reference image"} is required`
+    : modelMissingParts.length ? `Needs ${modelMissingParts.map((item) => item.label).join(", ")}`
+    : modelSetupMissing ? "Model setup is missing required files"
+    : !currentProfile ? "Choose a workflow" : undefined;
+  const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
     if (!hasMoreGallery) return;
@@ -933,12 +943,12 @@ function App() {
 
 
   const generationActions = useGenerationActions({
-    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, privateGeneration, prompt, referenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, vae, clipType, weightDtype, width
+    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, privateGeneration, prompt, referenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width
   });
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem } = generationActions;
 
   const viewerActions = useViewerControls({
-    active, deleteItem, doneGallery: zenGallery, generate, generateDisabled, height, lastTapRef, mode, models, prefs, setActive, setCfg, setClipType, setCount, setCustomSize, setDenoise, setFps, setFrames, setHeight, setIsDraggingViewer, setLoras: setLorasWithMemory, setMode, setModel, setNegative, setPrompt, setSampler, setScheduler, setSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth, setZenSelectedId, showToast, touchGestureRef, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef
+    active, deleteItem, doneGallery: zenGallery, generate, generateDisabled, height, lastTapRef, mode, models, prefs, setActive, setCfg, setClipType, setCount, setCustomSize, setDenoise, setFps, setFrames, setHeight, setIsDraggingViewer, setLoras: setLorasWithMemory, setMode, setModel, setNegative, setPrompt, setSampler, setScheduler, setSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth, setZenSelectedId, showToast, touchGestureRef, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef
   });
   const { resetViewer, openItem, applyAllSettings, applyLoras, moveZen, moveViewer, goLatestZen, submitZenPrompt, startZenStripDrag, dragZenStrip, stopZenStripDrag, selectZenItem, zoomViewer, wheelViewer, clickViewer, startViewerDrag, dragViewer, stopViewerDrag, startViewerTouch, moveViewerTouch, endViewerTouch } = viewerActions;
 
@@ -967,7 +977,7 @@ function App() {
     toggleFavorite: (name: string) => { toggleLoraFavorite(name); bumpLoraLibrary(); },
     recordRecents: (names: string[]) => { recordLoraRecents(names); bumpLoraLibrary(); }
   };
-  const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab }} />;
+  const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab }} />;
 
   const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); }, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 

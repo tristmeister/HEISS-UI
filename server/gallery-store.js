@@ -499,6 +499,7 @@ export function generationSettings(body) {
     scheduler: body.scheduler || "",
     seed: body.seed || "Random",
     textEncoder: body.textEncoder || "",
+    ...(Array.isArray(body.encoders) && body.encoders.length > 1 ? { textEncoders: body.encoders.map(String) } : {}),
     vae: body.vae || "",
     clipType: body.clipType || "",
     weightDtype: body.weightDtype || "",
@@ -506,16 +507,16 @@ export function generationSettings(body) {
     referenceAssets: Array.isArray(body.referenceAssets) ? body.referenceAssets.map(({ slot, assetId, source, name }) => ({ slot, assetId, source, name })) : [],
     promptPolicy: body.promptPolicy || null
   };
+  const loras = Array.isArray(body.loras)
+    ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 8).map((item) => ({
+      name: String(item.name || ""),
+      enabled: true,
+      strength: Number(item.strength ?? 0.7)
+    }))
+    : [];
+  if (loras.length) settings.loras = loras;
   if (body.kind === "image") {
     settings.count = Number(body.count || 1);
-    const loras = Array.isArray(body.loras)
-      ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 8).map((item) => ({
-        name: String(item.name || ""),
-        enabled: true,
-        strength: Number(item.strength ?? 0.7)
-      }))
-      : [];
-    if (loras.length) settings.loras = loras;
     if (body.startImage || body.startImageId) settings.denoise = Number(body.denoise || 0);
   }
   if (body.kind === "video") {

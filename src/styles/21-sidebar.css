@@ -533,3 +533,49 @@
 button.lora-pill { cursor: pointer; transition: background var(--dur-fast); }
 button.lora-pill:hover { background: #151515; }
 button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ---------------------------------------------------------- Model setup
+   What the selected model still needs, each with its download. */
+
+.model-setup {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border-radius: calc(var(--r-item) + 4px);
+  background: var(--ember-soft);
+  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .22);
+}
+.model-setup-head { display: grid; gap: 3px; }
+.model-setup-head strong { font-size: 13px; font-weight: 600; color: var(--ember); }
+.model-setup-head span { font-size: 12px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+.model-setup-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.model-setup-item {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--r-item);
+  background: rgb(0 0 0 / .28);
+}
+.model-setup-copy { display: grid; gap: 2px; min-width: 0; }
+.model-setup-copy strong { font-size: 12.5px; font-weight: 550; }
+.model-setup-copy span { font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+.model-setup-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.model-setup .btn { height: 32px; min-height: 32px; padding: 0 12px; font-size: 12px; }
+.model-setup .btn.is-icon { width: 32px; padding: 0; flex: none; }
+.model-setup-progress {
+  flex: 1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .1);
+}
+.model-setup-progress i {
+  display: block;
+  height: 100%;
+  background: var(--ember);
+  transform-origin: left;
+  transition: transform 400ms var(--ease-out);
+}
+.model-setup-meta { flex: none; min-width: 42px; font-size: 11.5px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); text-align: right; }
+.model-setup-note { margin: 0; font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+.encoder-slot-builtin { font-size: 12px; color: hsl(var(--muted-foreground)); }

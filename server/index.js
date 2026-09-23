@@ -10,6 +10,8 @@ import { promisify } from "node:util";
 import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
+import { catalogDownload } from './family-profiles.js';
+import { cancelDownload, downloadState, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
@@ -235,6 +237,32 @@ app.put("/api/models/types", async (req, res) => {
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
+});
+
+app.get("/api/models/downloads", (_req, res) => {
+  res.json({ ok: true, ...downloadState() });
+});
+
+// Fetches a missing text encoder or VAE. Only ids from HEISS's own catalog are
+// accepted, so the server never downloads from a URL a request supplies.
+app.post("/api/models/downloads", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const spec = catalogDownload(req.body?.id);
+  if (!spec) {
+    res.status(400).json({ ok: false, error: "HEISS does not know that file." });
+    return;
+  }
+  try {
+    res.json({ ok: true, download: startDownload(spec), ...downloadState() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/models/downloads/cancel", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  cancelDownload(String(req.body?.id || ""));
+  res.json({ ok: true, ...downloadState() });
 });
 
 app.get("/api/paths", async (_req, res) => {

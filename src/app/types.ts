@@ -88,10 +88,26 @@ export type Profile = {
   aspectPolicy?: "manual" | "reference";
   /** LoRAs the workflow's loader accepts; rgthree stacks take 4. */
   maxLoras?: number;
+  /** Built-in families: where the file sits, which variant it is, and what fills its parts. */
+  source?: ModelSource;
+  variant?: string;
+  variantLabel?: string;
+  encoderSlots?: EncoderSlot[];
+  encoderBuiltIn?: boolean;
+  vaeBuiltIn?: boolean;
+  detectedBy?: string;
+  missing?: MissingPart[];
+  /** False while a part the model needs is missing; generation stays off until then. */
+  ready?: boolean;
 };
+export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
+export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number };
+export type MissingPart = { part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[] };
+export type ModelDownload = { id: string; file: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled"; receivedBytes: number; totalBytes: number; error?: string };
+export type DownloadState = { active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
-export type ModelFile = { name: string; source: ModelSource; type: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string };
+export type ModelFile = { name: string; source: ModelSource; family: string; choice: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string; missing?: string[] };
 export type Models = {
   imageModels: SelectOption[];
   videoModels: SelectOption[];
@@ -116,7 +132,7 @@ export type Health = { ok: boolean; comfyUrl?: string; error?: string };
 export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean };
 export type UpdateStatus = { ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string };
 export type AspectPreset = { label: string; value: string; w: number; h: number };
-export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[] };
+export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[] };
 export type WorkflowSummary = {
   id: string;
   profileId: string;

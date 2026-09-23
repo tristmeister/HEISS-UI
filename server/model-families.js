@@ -2,27 +2,20 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfy, comfyModelsDir } from './comfy.js';
 import { dataDir } from './gallery-store.js';
+import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, variantFor } from './family-catalog.js';
 
 /**
- * Which built-in graph a model file belongs to. Filenames lie (fine-tunes get
- * renamed, "flux1-krea-dev" is a Flux model), so the weights themselves are the
- * first witness: a safetensors header lists every tensor name and shape, and the
- * same key signatures ComfyUI's model_detection.py uses identify the architecture.
+ * Which family (and variant) a model file belongs to, and which parts an
+ * all-in-one checkpoint carries. Filenames lie (fine-tunes get renamed,
+ * "flux1-krea-dev" is a Flux model), so the weights are the first witness.
  *
  * Resolution order, strongest first:
  *   1. choice   - the user picked "Use as …" for this file
  *   2. file     - tensor keys read from the local file (ComfyUI on this machine)
- *   3. metadata - modelspec.architecture via ComfyUI's /view_metadata (remote ComfyUI)
+ *   3. metadata - modelspec fields via ComfyUI's /view_metadata (remote ComfyUI)
  *   4. name     - filename patterns
- *   5. default  - checkpoints fall back to the SD-style checkpoint graph
+ *   5. default  - checkpoints fall back to the SD family, which loads itself
  */
-
-export const modelTypes = {
-  krea2: { label: "Krea 2", sources: ["unet", "checkpoint"] },
-  "z-image": { label: "Z-Image", sources: ["unet"] },
-  wan: { label: "Wan video", sources: ["unet"] },
-  checkpoint: { label: "SD / SDXL checkpoint", sources: ["checkpoint"] }
-};
 
 export const modelSources = ["unet", "checkpoint"];
 
@@ -34,8 +27,13 @@ const sourceFolders = {
 // ComfyUI's /view_metadata folder names for the same sources.
 const metadataFolders = { unet: "diffusion_models", checkpoint: "checkpoints" };
 
+/* ------------------------------------------------------------ Choices */
+
 const choicesPath = () => path.join(dataDir, "model-types.json");
 let choicesCache = null;
+
+// Earlier builds stored coarser type names; read them as today's families.
+const legacyChoices = { "z-image": "zimage", wan: "wan22_5b", checkpoint: "" };
 
 function choiceKey(source, name) {
   return `${source}:${name}`;
@@ -52,78 +50,52 @@ export function loadModelChoices() {
   return choicesCache;
 }
 
-/** Remember "Use as …" for one file; an empty type goes back to detection. */
-export function setModelChoice(source, name, type) {
-  const safeSource = String(source || "");
-  const safeName = String(name || "").trim();
-  const safeType = String(type || "");
-  if (!modelSources.includes(safeSource)) throw new Error("Unknown model folder.");
-  if (!safeName || safeName.length > 1024) throw new Error("Choose a model file.");
-  if (safeType && !modelTypes[safeType]?.sources.includes(safeSource)) {
-    throw new Error(`${modelTypes[safeType]?.label || "That type"} cannot load from this folder.`);
-  }
-  const next = { ...loadModelChoices() };
-  if (safeType) next[choiceKey(safeSource, safeName)] = safeType;
-  else delete next[choiceKey(safeSource, safeName)];
+function saveChoices(next) {
   fs.mkdirSync(dataDir, { recursive: true });
   fs.writeFileSync(choicesPath(), JSON.stringify(next, null, 2));
   choicesCache = next;
+}
+
+/** "family" or "family/variant", checked against what that folder can load. */
+function parseChoice(value, source) {
+  if (typeof value !== "string") return null;
+  const raw = Object.hasOwn(legacyChoices, value) ? legacyChoices[value] : value;
+  if (!raw) return null;
+  const [familyId, variantId = ""] = raw.split("/");
+  const family = families[familyId];
+  if (!family || !family.sources.includes(source)) return null;
+  if (variantId && !family.variants.some((variant) => variant.id === variantId)) return null;
+  return { family: familyId, variant: variantId };
+}
+
+/** Remember "Use as …" for one file; an empty choice goes back to detection. */
+export function setModelChoice(source, name, choice) {
+  const safeSource = String(source || "");
+  const safeName = String(name || "").trim();
+  const safeChoice = String(choice || "");
+  if (!modelSources.includes(safeSource)) throw new Error("Unknown model folder.");
+  if (!safeName || safeName.length > 1024) throw new Error("Choose a model file.");
+  if (safeChoice && !parseChoice(safeChoice, safeSource)) {
+    const family = families[safeChoice.split("/")[0]];
+    throw new Error(family ? `${family.label} cannot load from this folder.` : "Unknown model type.");
+  }
+  const next = { ...loadModelChoices() };
+  if (safeChoice) next[choiceKey(safeSource, safeName)] = safeChoice;
+  else delete next[choiceKey(safeSource, safeName)];
+  saveChoices(next);
   return next;
 }
 
-/* ------------------------------------------------------------ Filenames */
-
-function isKrea2Name(name = "") {
-  // FLUX.1 Krea [dev] is a Flux fine-tune, not Krea 2.
-  return /krea/i.test(name) && !/flux|krea[-_ .]?1(?!\d)/i.test(name);
-}
-
-/**
- * Raw (the undistilled base) and Turbo share every tensor, so only the filename
- * can tell them apart. Anything not clearly Raw is treated as Turbo, the model
- * most people run.
- */
-export function isKrea2RawName(name = "") {
-  const base = String(name).split(/[\\/]/).pop() || "";
-  return /raw|base/i.test(base) && !/turbo|tdm|distill/i.test(base);
-}
-
-/**
- * Raw samples with a resolution-dependent timestep shift: mu runs linearly from
- * 0.5 at 256 image tokens to 1.15 at 6400 (16 px per token), like diffusers'
- * Krea2Pipeline. Turbo is distilled for a fixed 1.15, which ComfyUI already uses.
- */
-export function krea2RawShift(width, height) {
-  const tokens = Math.ceil(Number(width || 1024) / 16) * Math.ceil(Number(height || 1024) / 16);
-  const mu = 0.5 + (tokens - 256) * (1.15 - 0.5) / (6400 - 256);
-  return Math.round(mu * 1000) / 1000;
-}
-
-/**
- * Z-Image Base versus Turbo, again by name alone. The official base file has no
- * marker ("z_image_bf16"), so a bare z_image plus precision tags counts as Base
- * too. Everything else is Turbo, which most fine-tunes build on.
- */
-export function isZImageBaseName(name = "") {
-  const base = String(name).split(/[\\/]/).pop() || "";
-  if (/turbo|distill|lightning|\d+[-_ ]?steps?/i.test(base)) return false;
-  if (/base|raw/i.test(base)) return true;
-  return /^z[-_ ]?image(?:[-_](?:bf16|fp16|fp32|fp8\w*|nvfp4|int8|scaled|e4m3fn))*\.safetensors$/i.test(base);
-}
-
-function isZImageName(name = "") {
-  return /z[-_ ]?anime|z[-_ ]?image/i.test(name);
-}
-
-function isWanName(name = "") {
-  return /wan/i.test(name);
-}
-
-function typeFromName(name = "") {
-  if (isKrea2Name(name)) return "krea2";
-  if (isZImageName(name)) return "z-image";
-  if (isWanName(name)) return "wan";
-  return "";
+/** Options for the "Use as …" picker: every family, and each variant where there is a choice to make. */
+export function modelTypeChoices() {
+  return Object.fromEntries(modelSources.map((source) => [
+    source,
+    Object.entries(families)
+      .filter(([, family]) => family.sources.includes(source))
+      .flatMap(([id, family]) => family.variants.length > 1
+        ? family.variants.map((variant) => ({ value: `${id}/${variant.id}`, label: `${family.label} · ${variant.label}` }))
+        : [{ value: id, label: family.label }])
+  ]));
 }
 
 /* ------------------------------------------------------------ Tensor headers */
@@ -154,73 +126,67 @@ export function readSafetensorsHeader(file) {
   }
 }
 
-/**
- * The architecture a header describes: one of our types, "other" for weights we
- * recognise as something else, or "" when there is nothing to go on. Keys may
- * carry a prefix (model.diffusion_model. in all-in-one checkpoints), so match
- * on the suffix.
- */
-export function typeFromHeader(header) {
-  if (!header || typeof header !== "object") return "";
-  const keys = Object.keys(header).filter((key) => key !== "__metadata__");
-  if (!keys.length) return "";
-  const find = (suffix) => keys.find((key) => key === suffix || key.endsWith(`.${suffix}`));
-  if (find("txtfusion.projector.weight")) return "krea2";
-  const capEmbedder = find("cap_embedder.1.weight");
-  // Lumina 2 and Z-Image share a layout; Z-Image is the 3840-wide one. Any
-  // other width is a variant we have not seen, so let the filename decide.
-  if (capEmbedder && find("noise_refiner.0.attention.k_norm.weight")) {
-    const width = Number(header[capEmbedder]?.shape?.[0]);
-    return width === 3840 ? "z-image" : width === 2304 ? "other" : "";
-  }
-  if (find("head.modulation")) return "wan";
-  if (keys.some((key) => key.includes("input_blocks."))) return "checkpoint";
-  return "other";
-}
-
 function localModelFile(source, name) {
   const modelsDir = comfyModelsDir();
   if (!modelsDir || !/\.safetensors$/i.test(name)) return "";
   const parts = String(name).split(/[\\/]/).filter(Boolean);
   if (parts.some((part) => part === "..")) return "";
   for (const folder of sourceFolders[source] || []) {
-    const base = path.join(modelsDir, folder);
-    const file = path.join(base, ...parts);
-    try {
-      if (fs.statSync(file).isFile()) return file;
-    } catch {
-      // Not in this folder.
-    }
+    const file = path.join(modelsDir, folder, ...parts);
+    try { if (fs.statSync(file).isFile()) return file; } catch { /* next folder */ }
   }
   return "";
 }
 
-function typeFromLocalFile(source, name) {
+/** The local header of a model file, cached by size and mtime; null when out of reach. */
+export function modelHeader(source, name) {
   const file = localModelFile(source, name);
-  if (!file) return "";
+  if (!file) return null;
   let stat;
-  try { stat = fs.statSync(file); } catch { return ""; }
+  try { stat = fs.statSync(file); } catch { return null; }
   const key = `${file}:${stat.size}:${stat.mtimeMs}`;
-  if (headerCache.has(key)) return headerCache.get(key);
-  let type = "";
-  try { type = typeFromHeader(readSafetensorsHeader(file)); } catch { type = ""; }
-  headerCache.set(key, type);
-  return type;
+  if (!headerCache.has(key)) {
+    let header = null;
+    try { header = readSafetensorsHeader(file); } catch { header = null; }
+    headerCache.set(key, header);
+  }
+  return headerCache.get(key);
+}
+
+/**
+ * Which parts an all-in-one checkpoint carries, from its tensor prefixes
+ * (ComfyUI's text_encoder_key_prefix / vae_key_prefix). null when unreadable.
+ */
+export function bundledParts(header) {
+  if (!header) return null;
+  const keys = Object.keys(header);
+  const encoder = keys.some((key) => key.startsWith("text_encoders.") || key.startsWith("cond_stage_model.") || key.startsWith("conditioner.embedders."));
+  const vae = keys.some((key) => key.startsWith("first_stage_model.") || key.startsWith("vae."));
+  return { encoder, vae };
 }
 
 /* ------------------------------------------------------------ ComfyUI metadata */
 
-// source:name -> architecture string ("" when the file carries none).
+// source:name -> __metadata__ block ({} when the file carries none).
 const metadataCache = new Map();
 
-export function typeFromArchitecture(architecture = "") {
-  const text = String(architecture || "").trim();
+/** A family from safetensors metadata (modelspec, kohya ss_* fields), or "". */
+export function familyFromMetadata(metadata = {}) {
+  const text = [metadata["modelspec.architecture"], metadata["modelspec.title"], metadata.ss_base_model_version]
+    .filter(Boolean).join(" ").toLowerCase();
   if (!text) return "";
-  if (/krea[-_ .]?2/i.test(text)) return "krea2";
-  if (/z[-_ ]?image/i.test(text)) return "z-image";
-  if (/\bwan/i.test(text)) return "wan";
-  if (/stable-diffusion|sdxl|sd[-_ ]?1|sd[-_ ]?2/i.test(text)) return "checkpoint";
-  return "other";
+  if (/krea[-_ .]?2/.test(text)) return "krea2";
+  if (/z[-_ ]?image/.test(text)) return "zimage";
+  if (/qwen[-_ ]?image/.test(text)) return "qwen_image";
+  if (/chroma/.test(text)) return "chroma";
+  if (/hidream/.test(text)) return "hidream";
+  if (/flux[-_. ]?2|klein/.test(text)) return "";
+  if (/flux/.test(text)) return "flux1";
+  if (/stable-diffusion-v3|sd3/.test(text)) return "sd3";
+  if (/xl/.test(text)) return "sdxl";
+  if (/stable-diffusion-v2|sd_?v?2/.test(text)) return "sd2";
+  if (/stable-diffusion-v1|sd_?v?1/.test(text)) return "sd15";
+  return "";
 }
 
 /**
@@ -234,7 +200,7 @@ export async function primeModelMetadata(lists = {}, { concurrency = 6 } = {}) {
     for (const name of lists[source] || []) {
       const key = choiceKey(source, name);
       if (metadataCache.has(key) || !/\.safetensors$/i.test(name)) continue;
-      if (typeFromLocalFile(source, name)) continue;
+      if (modelHeader(source, name)) continue;
       queue.push({ source, name, key });
     }
   }
@@ -243,44 +209,97 @@ export async function primeModelMetadata(lists = {}, { concurrency = 6 } = {}) {
       const { source, name, key } = queue.shift();
       try {
         const metadata = await comfy(`/view_metadata/${metadataFolders[source]}?filename=${encodeURIComponent(name)}`);
-        metadataCache.set(key, String(metadata?.["modelspec.architecture"] || ""));
+        metadataCache.set(key, metadata && typeof metadata === "object" ? metadata : {});
       } catch (error) {
         // 404 means "no metadata block" and is worth remembering; anything else
         // (ComfyUI restarting, timeouts) gets retried on the next scan.
-        if (/Comfy 404/.test(error?.message || "")) metadataCache.set(key, "");
+        if (/Comfy 404/.test(error?.message || "")) metadataCache.set(key, {});
       }
     }
   }
   await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
 }
 
+/* ------------------------------------------------------------ Learned facts */
+
+// Checkpoints that turned out to lack a text encoder or VAE when ComfyUI loaded
+// them. Only needed where the header is out of reach; kept with the choices.
+const learnedKey = (name) => `learned:${name}`;
+
+export function rememberMissingParts(name, missing = {}) {
+  const current = loadModelChoices()[learnedKey(name)] || {};
+  saveChoices({ ...loadModelChoices(), [learnedKey(name)]: { encoder: Boolean(current.encoder || missing.encoder), vae: Boolean(current.vae || missing.vae) } });
+}
+
+/** Which parts a checkpoint carries: its header, what a failed run taught us, or an assumption. */
+function bundledFor(name, header) {
+  const fromHeader = bundledParts(header);
+  if (fromHeader) return { ...fromHeader, known: true };
+  const learned = loadModelChoices()[learnedKey(name)];
+  if (learned) return { encoder: !learned.encoder, vae: !learned.vae, known: true };
+  // Unknown until ComfyUI tries: assume all-in-one, which is what checkpoints/ usually holds.
+  return { encoder: true, vae: true, known: false };
+}
+
 /* ------------------------------------------------------------ Resolution */
 
-/** { type, via } for one file. type is "" when no built-in graph fits. */
+/**
+ * Everything HEISS knows about one model file:
+ *   family   - a key of `families` (runnable), a `knownFamilies` id, or ""
+ *   variant  - the variant object within the family
+ *   via      - how we know: choice, file, metadata, name, default
+ *   bundled  - { encoder, vae, known } for checkpoints, null for diffusion models
+ *   detail   - family-specific facts from the header (e.g. Flux schnell)
+ */
 export function classifyModel(source, name) {
-  const allowed = (type) => Boolean(type && modelTypes[type]?.sources.includes(source));
-  const fallback = source === "checkpoint" ? "checkpoint" : "";
-  const chosen = loadModelChoices()[choiceKey(source, name)];
-  if (allowed(chosen)) return { type: chosen, via: "choice" };
+  const base = String(name).split(/[\\/]/).pop() || "";
+  const header = modelHeader(source, name);
+  const bundled = source === "checkpoint" ? bundledFor(name, header) : null;
+  const finish = (familyId, via, detail = null, variantId = "") => {
+    let id = familyId || "";
+    // Wan 2.1 14B and Wan 2.2 14B share every key; the high/low-noise pair shows in the name.
+    if (id === "wan21" && /(high|low)[-_ ]?noise/i.test(base)) id = "wan22_14b";
+    const family = families[id];
+    const variant = family
+      ? (variantId && family.variants.find((item) => item.id === variantId)) || variantFor(id, base, header, detail)
+      : null;
+    return { family: id, variant, via, bundled, detail, header };
+  };
 
-  // A readable header is the truth, including "this is something else": a Flux
-  // file named after Krea must not be routed to the Krea graph.
-  const fromFile = typeFromLocalFile(source, name);
-  if (fromFile) return { type: allowed(fromFile) ? fromFile : fallback, via: "file" };
+  const chosen = parseChoice(loadModelChoices()[choiceKey(source, name)], source);
+  if (chosen) return finish(chosen.family, "choice", null, chosen.variant);
 
-  const fromMetadata = typeFromArchitecture(metadataCache.get(choiceKey(source, name)));
-  if (fromMetadata) return { type: allowed(fromMetadata) ? fromMetadata : fallback, via: "metadata" };
+  if (header) {
+    const { family, detail } = familyFromHeader(header);
+    if (family && family !== "other") return finish(family, "file", detail);
+    // A checkpoint ComfyUI can load but we cannot place still runs as an SD-family file.
+    if (family === "other") return source === "checkpoint" ? finish("sdxl", "default") : finish("other", "file");
+  }
 
-  const fromName = typeFromName(name);
-  if (allowed(fromName)) return { type: fromName, via: "name" };
-  return { type: fallback, via: fallback ? "default" : "" };
+  const fromMetadata = familyFromMetadata(metadataCache.get(choiceKey(source, name)) || {});
+  if (fromMetadata && families[fromMetadata]?.sources.includes(source)) return finish(fromMetadata, "metadata");
+
+  const fromName = familyFromName(name, source);
+  if (fromName === "sdxl_or_sd15") return finish(/1[._]?5|sd15|v1[-_]5/i.test(base) ? "sd15" : "sdxl", "default");
+  if (fromName && families[fromName]?.sources.includes(source)) return finish(fromName, "name");
+  return finish("", "");
 }
 
-export function modelTypeChoices() {
-  return Object.fromEntries(modelSources.map((source) => [
-    source,
-    Object.entries(modelTypes)
-      .filter(([, type]) => type.sources.includes(source))
-      .map(([value, type]) => ({ value, label: type.label }))
-  ]));
+export function familyLabel(id) {
+  return families[id]?.label || knownFamilies[id] || "";
 }
+
+/* ------------------------------------------------------------ Krea 2 Raw shift */
+
+/**
+ * Raw samples with a resolution-dependent timestep shift: mu runs linearly from
+ * 0.5 at 256 image tokens to 1.15 at 6400 (16 px per token), like diffusers'
+ * Krea2Pipeline. Turbo is distilled for a fixed 1.15, which ComfyUI already uses.
+ */
+export function krea2RawShift(width, height) {
+  const tokens = Math.ceil(Number(width || 1024) / 16) * Math.ceil(Number(height || 1024) / 16);
+  const mu = 0.5 + (tokens - 256) * (1.15 - 0.5) / (6400 - 256);
+  return Math.round(mu * 1000) / 1000;
+}
+
+export { isKrea2Raw as isKrea2RawName, isZImageBase as isZImageBaseName };

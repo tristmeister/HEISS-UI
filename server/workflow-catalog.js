@@ -166,7 +166,15 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       favorite: preferences.favorites.includes(id),
       lastUsedAt: preferences.lastUsed[id] || "",
       thumbnail: latestThumbnailFor(id, profile.workflow, preferences),
-      validation: { ok: true, unverified: !online, issues: [], warnings: [], missingNodes: [] }
+      // Built-in families know exactly which files they still lack.
+      validation: {
+        ok: profile.ready !== false,
+        unverified: !online,
+        issues: (profile.missing || []).map((item) => item.detail || item.label),
+        warnings: [],
+        missingNodes: [],
+        missingFiles: (profile.missing || []).filter((item) => item.part !== "comfy").map((item) => item.label)
+      }
     };
     summary.tags = automaticTags(summary, preferences);
     summaries.push(summary);

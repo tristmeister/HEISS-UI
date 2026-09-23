@@ -2,7 +2,6 @@ import { missingNodes, nodeRange, optionsFor } from './comfy.js';
 import { inferModels } from './models.js';
 import { workflowFor, workflowIds } from './workflow-registry.js';
 import { getCustomWorkflow } from './custom-workflows.js';
-import { isKrea2RawName } from './model-families.js';
 
 export function clampNumber(value, fallback, min, max) {
   const number = Number(value);
@@ -40,7 +39,7 @@ export function ensureOption(info, node, key, value, label) {
 }
 
 function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", maxLoras = 8) {
-  if (kind !== "image" || !profile?.capabilities?.lora) return [];
+  if (!profile?.capabilities?.lora) return [];
   const installed = optionsFor(info, "LoraLoader", "lora_name");
   if (!installed.length) return [];
   const strengthRange = nodeRange(info, "LoraLoader", "strength_model", { default: 0.7, min: -100, max: 100, step: 0.01 });
@@ -60,7 +59,79 @@ function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", ma
   return sanitized;
 }
 
+/**
+ * A built-in family request, checked against the profile HEISS built for that
+ * model file: encoders must be files that fit their slot, the VAE must fit (or
+ * be the checkpoint's own), and nothing the model needs may be missing.
+ */
+function sanitizeFamilyBody(input, info, stats) {
+  const kind = input.kind === "video" ? "video" : "image";
+  const prompt = String(input.prompt || "").trim();
+  if (!prompt) throw new Error("Prompt is required.");
+  const profiles = inferModels(info, stats).profiles || [];
+  const profile = profiles.find((item) => item.id === input.profileId)
+    || profiles.find((item) => item.workflow === input.workflow && item.model === input.model);
+  if (!profile) throw new Error("ComfyUI does not currently expose this model. Rescan models and try again.");
+  if (profile.kind !== kind) throw new Error(`The selected model is not a ${kind} model.`);
+  if (!profile.ready) {
+    throw new Error(`${profile.displayName} still needs: ${profile.missing.map((item) => item.label).join(", ")}.`);
+  }
+  const requested = Array.isArray(input.textEncoders) ? input.textEncoders : [input.textEncoder];
+  const encoders = profile.encoderSlots.map((slot, index) => {
+    const wanted = String(requested[index] || "");
+    if (wanted && !slot.options.includes(wanted)) throw new Error(`${wanted} does not fit the ${slot.label} slot of this model.`);
+    return wanted || slot.default;
+  });
+  const vae = String(input.vae || "");
+  if (vae && !profile.options.vaes.includes(vae)) throw new Error(`${vae} is not a VAE this model can use.`);
+  const resolvedVae = vae || (profile.vaeBuiltIn ? "" : profile.defaults.vae);
+  if (input.sampler) ensureOption(info, "KSampler", "sampler_name", input.sampler, "Sampler");
+  if (input.scheduler) ensureOption(info, "KSampler", "scheduler", input.scheduler, "Scheduler");
+  const c = profile.constraints || {};
+  const referenceAssets = Array.isArray(input.referenceAssets) ? input.referenceAssets.slice(0, 8) : [];
+  return {
+    kind,
+    workflow: profile.workflow,
+    profileId: profile.id,
+    family: profile.family,
+    variant: profile.variant,
+    source: profile.source,
+    model: profile.model,
+    bundled: profile.source === "checkpoint" ? { encoder: profile.encoderBuiltIn, vae: profile.vaeBuiltIn } : null,
+    encoders,
+    textEncoder: encoders[0] || "",
+    clipType: profile.defaults.clipType || "",
+    vae: resolvedVae,
+    audioVae: profile.audioVae,
+    pairModel: profile.pairModel,
+    vpredPatch: profile.vpredPatch,
+    krea2Enhancer: profile.family === "krea2" && Boolean(info["ComfyUI-Krea2T-Enhancer"]),
+    weightDtype: String(input.weightDtype || "default"),
+    prompt,
+    negative: String(input.negative || ""),
+    width: snapInteger(input.width, c.width?.default, c.width),
+    height: snapInteger(input.height, c.height?.default, c.height),
+    steps: snapInteger(input.steps, profile.defaults.steps, c.steps),
+    cfg: snapNumber(input.cfg, profile.defaults.cfg, c.cfg),
+    denoise: snapNumber(input.denoise, profile.defaults.denoise ?? 1, c.denoise),
+    sampler: String(input.sampler || profile.defaults.sampler || ""),
+    scheduler: String(input.scheduler || profile.defaults.scheduler || ""),
+    seed: String(input.seed || ""),
+    count: profile.capabilities.variations === false ? 1 : snapInteger(input.count, 1, c.count),
+    frames: kind === "video" ? snapInteger(input.frames, c.frames?.default, c.frames) : 0,
+    fps: kind === "video" ? snapInteger(input.fps, c.fps?.default, c.fps) : 0,
+    startImage: profile.capabilities.startImage ? String(input.startImage || "") : "",
+    startImageId: profile.capabilities.startImage ? String(input.startImageId || "") : "",
+    startImageName: String(input.startImageName || ""),
+    referenceAssets,
+    promptPolicy: null,
+    loras: sanitizeLoras(input, info, profile, kind, 8),
+    profileLabel: profile.displayName
+  };
+}
+
 export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
+  if (String(input.workflow || "").startsWith("family:")) return sanitizeFamilyBody(input, info, stats);
   const kind = input.kind === "video" ? "video" : "image";
   const workflow = String(input.workflow || "");
   const customWorkflow = workflow.startsWith("custom:") ? getCustomWorkflow(workflow) : null;
@@ -132,10 +203,7 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     modelName: String(input.modelName || customWorkflow?.defaults?.model || ""),
     textEncoder: String(input.textEncoder || ""),
     vae: String(input.vae || ""),
-    clipType: workflowInfo.family === "krea2" ? "krea2" : String(input.clipType || "wan"),
-    // Decided here from ComfyUI's node list so a client cannot ask for a node that is not there.
-    krea2Enhancer: workflowInfo.family === "krea2" && Boolean(info["ComfyUI-Krea2T-Enhancer"]),
-    krea2Raw: workflowInfo.family === "krea2" && isKrea2RawName(input.model) && Boolean(info.ModelSamplingFlux),
+    clipType: String(input.clipType || "wan"),
     weightDtype: String(input.weightDtype || "default"),
     width: snapInteger(input.width, widthRange.default, widthRange),
     height: snapInteger(input.height, heightRange.default, heightRange),

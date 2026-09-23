@@ -4,6 +4,7 @@ import { cn } from './format';
 import { maxLoras } from './loras';
 import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import { LoraPanel } from './LoraPanel';
+import { ModelSetup } from './ModelSetup';
 import { workflowState } from './workflowStatus';
 import type { WorkflowSummary } from './types';
 
@@ -49,6 +50,7 @@ export function SidebarControls({ view }: { view: any }) {
     setScheduler, setSeed, setSteps, setTextEncoder, setVae,
     setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
     width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
+    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast,
     sidebarTab: tab, setSidebarTab: setTab
   } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void };
 
@@ -57,8 +59,8 @@ export function SidebarControls({ view }: { view: any }) {
     .map((option: unknown) => typeof option === "string" ? option : String((option as { name?: string })?.name || ""))
     .filter(Boolean);
   const loraLimit = Math.min(maxLoras, currentProfile?.maxLoras || maxLoras);
-  const loraUnavailable = mode !== "image"
-    ? "LoRAs work with image workflows. Switch to Image to use them."
+  const loraUnavailable = currentProfile && !currentProfile.capabilities.lora && mode !== "image"
+    ? "This video workflow has no LoRA loader. Built-in video models take LoRAs."
     : currentProfile && !currentProfile.capabilities.lora
       ? "This workflow has no LoRA loader, so it can't take LoRAs. Pick one that does in the workflow gallery."
       : !loraOptions.length
@@ -73,6 +75,10 @@ export function SidebarControls({ view }: { view: any }) {
       </div>
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />
+
+      {currentProfile?.missing?.length ? (
+        <ModelSetup profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
+      ) : null}
 
       <div className="sidebar-subtabs" role="tablist" aria-label="Sidebar sections">
         {(["basics", "advanced", "loras"] as SidebarTab[]).map((id) => (
@@ -122,8 +128,27 @@ export function SidebarControls({ view }: { view: any }) {
                   <Skeleton className="skeleton-control" />
                 </>
               ) : null}
-              {currentProfile?.capabilities.textEncoder ? <Field label="Text encoder"><Select value={textEncoder} onChange={setTextEncoder} options={profileOptions.textEncoders || models?.textEncoders || []} /></Field> : null}
-              {currentProfile?.capabilities.vae ? <Field label="VAE"><Select value={vae} onChange={setVae} options={profileOptions.vaes || models?.vaes || []} /></Field> : null}
+              {currentProfile?.encoderSlots
+                ? currentProfile.encoderSlots.filter((slot: { options: string[] }) => slot.options.length).map((slot: { slot: string; label: string; options: string[]; default: string }, index: number) => (
+                  <Field key={slot.slot} label={currentProfile.encoderSlots.length > 1 ? slot.label : "Text encoder"}>
+                    <Select value={textEncoders?.[index] || slot.default} onChange={(value: string) => setTextEncoders((current: string[]) => {
+                      const next = [...(current || [])];
+                      next[index] = value;
+                      return next;
+                    })} options={slot.options} />
+                  </Field>
+                ))
+                : currentProfile?.capabilities.textEncoder ? <Field label="Text encoder"><Select value={textEncoder} onChange={setTextEncoder} options={profileOptions.textEncoders || models?.textEncoders || []} /></Field> : null}
+              {currentProfile?.encoderBuiltIn ? <Field label="Text encoder"><span className="encoder-slot-builtin">Built into the checkpoint</span></Field> : null}
+              {currentProfile?.capabilities.vae && (currentProfile.vaeBuiltIn || (profileOptions.vaes || []).length) ? (
+                <Field label="VAE">
+                  <Select
+                    value={vae || (currentProfile.vaeBuiltIn ? "__builtin" : "")}
+                    onChange={(value: string) => setVae(value === "__builtin" ? "" : value)}
+                    options={[...(currentProfile.vaeBuiltIn ? [{ label: "Built into the checkpoint", value: "__builtin" }] : []), ...(profileOptions.vaes || models?.vaes || [])]}
+                  />
+                </Field>
+              ) : null}
               {currentProfile?.capabilities.weightDtype ? <Field label="Weight dtype"><Select value={weightDtype} onChange={setWeightDtype} options={profileOptions.weightDtypes || models?.weightDtypes || []} /></Field> : null}
               <NumberPicker label="CFG" value={cfg} onChange={setCfg} min={cfgMeta.min ?? 0} max={cfgMeta.max ?? 30} step={cfgMeta.step || 0.5} precision={1} fill />
             </div>

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { comfy } from './comfy.js';
 import { getCustomWorkflow } from './custom-workflows.js';
 import { startImageDataUrl } from './start-images.js';
-import { krea2RawShift } from './model-families.js';
+import { familyGraph } from './family-graph.js';
 
 export async function uploadReferenceImage(dataUrl) {
   if (!dataUrl || !dataUrl.includes(",")) return "";
@@ -35,9 +35,18 @@ export function composeWorkflowPrompt(workflow, userPrompt = "") {
 
 export async function imageGraph(body) {
   if (body.workflow?.startsWith("custom:")) return customWorkflowGraph(body);
-  if (body.workflow === "checkpoint-image") return checkpointImageGraph(body);
-  if (body.workflow === "krea2-image" || body.workflow === "krea2-checkpoint") return krea2ImageGraph(body);
-  return unetImageGraph(body);
+  return builtInGraph(body);
+}
+
+export async function videoGraph(body) {
+  if (body.workflow?.startsWith("custom:")) return customWorkflowGraph(body);
+  return builtInGraph(body);
+}
+
+/** Every built-in family; a start image is uploaded to ComfyUI first so the graph can load it by name. */
+async function builtInGraph(body) {
+  const startImageComfy = (body.startImage || body.startImageId) ? await uploadBodyStartImage(body) : "";
+  return familyGraph({ ...body, startImageComfy });
 }
 
 function cloneGraph(graph) {
@@ -98,34 +107,6 @@ function enabledLoras(body, limit = maxLoras) {
     : [];
 }
 
-function applyLoraStack(graph, body, { startId, modelSource, clipSource, modelTargets, clipTargets }) {
-  const loras = enabledLoras(body);
-  if (!loras.length) return;
-  let currentModel = modelSource;
-  let currentClip = clipSource;
-  loras.forEach((lora, index) => {
-    const id = String(startId + index);
-    graph[id] = {
-      class_type: "LoraLoader",
-      inputs: {
-        model: currentModel,
-        clip: currentClip,
-        lora_name: lora.name,
-        strength_model: Number(lora.strength ?? 0.7),
-        strength_clip: Number(lora.strength ?? 0.7)
-      }
-    };
-    currentModel = [id, 0];
-    currentClip = [id, 1];
-  });
-  for (const target of modelTargets) {
-    if (graph[target.node]) graph[target.node].inputs[target.input] = currentModel;
-  }
-  for (const target of clipTargets) {
-    if (graph[target.node]) graph[target.node].inputs[target.input] = currentClip;
-  }
-}
-
 function applyPowerLoraStack(graph, body, config) {
   if (!config) return;
   const node = graph[config.node];
@@ -172,197 +153,4 @@ export async function customWorkflowGraph(body) {
   if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);
   else applyPowerLoraStack(graph, body, workflow.loraStack);
   return graph;
-}
-
-export async function unetImageGraph(body) {
-  const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
-  const count = Math.max(1, Math.min(8, Number(body.count || 1)));
-  const graph = {
-    "1": { class_type: "UNETLoader", inputs: { unet_name: body.model, weight_dtype: body.weightDtype || "default" } },
-    "2": { class_type: "CLIPLoader", inputs: { clip_name: body.textEncoder, type: body.clipType || "wan", device: body.clipDevice || "default" } },
-    "3": { class_type: "VAELoader", inputs: { vae_name: body.vae } },
-    "4": { class_type: "CLIPTextEncode", inputs: { text: body.prompt || "", clip: ["2", 0] } },
-    "5": { class_type: "CLIPTextEncode", inputs: { text: body.negative || "", clip: ["2", 0] } },
-    "6": { class_type: "EmptySD3LatentImage", inputs: { width: Number(body.width || 1024), height: Number(body.height || 1024), batch_size: count } },
-    "7": {
-      class_type: "KSampler",
-      inputs: {
-        model: ["1", 0],
-        seed,
-        steps: Number(body.steps || 8),
-        cfg: Number(body.cfg || 1),
-        sampler_name: body.sampler || "euler_ancestral",
-        scheduler: body.scheduler || "beta",
-        positive: ["4", 0],
-        negative: ["5", 0],
-        latent_image: ["6", 0],
-        denoise: Number(body.denoise || 1)
-      }
-    },
-    "8": { class_type: "VAEDecode", inputs: { samples: ["7", 0], vae: ["3", 0] } },
-    "9": { class_type: "SaveImage", inputs: { images: ["8", 0], filename_prefix: "heiss-ui/image" } }
-  };
-  applyLoraStack(graph, body, {
-    startId: 10,
-    modelSource: ["1", 0],
-    clipSource: ["2", 0],
-    modelTargets: [{ node: "7", input: "model" }],
-    clipTargets: [{ node: "4", input: "clip" }, { node: "5", input: "clip" }]
-  });
-  return graph;
-}
-
-export async function checkpointImageGraph(body) {
-  const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
-  const count = Math.max(1, Math.min(8, Number(body.count || 1)));
-  const graph = {
-    "1": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: body.model } },
-    "2": { class_type: "CLIPTextEncode", inputs: { text: body.prompt || "", clip: ["1", 1] } },
-    "3": { class_type: "CLIPTextEncode", inputs: { text: body.negative || "", clip: ["1", 1] } },
-    "4": { class_type: "EmptyLatentImage", inputs: { width: Number(body.width || 1024), height: Number(body.height || 1024), batch_size: count } },
-    "5": {
-      class_type: "KSampler",
-      inputs: {
-        model: ["1", 0],
-        seed,
-        steps: Number(body.steps || 20),
-        cfg: Number(body.cfg || 7),
-        sampler_name: body.sampler || "dpmpp_2m",
-        scheduler: body.scheduler || "karras",
-        positive: ["2", 0],
-        negative: ["3", 0],
-        latent_image: ["4", 0],
-        denoise: Number(body.denoise || 1)
-      }
-    },
-    "6": { class_type: "VAEDecode", inputs: { samples: ["5", 0], vae: ["1", 2] } },
-    "7": { class_type: "SaveImage", inputs: { images: ["6", 0], filename_prefix: "heiss-ui/image" } }
-  };
-
-  if (body.startImage || body.startImageId) {
-    const imageName = await uploadBodyStartImage(body);
-    graph["6"] = { class_type: "LoadImage", inputs: { image: imageName } };
-    graph["8"] = { class_type: "VAEEncode", inputs: { pixels: ["6", 0], vae: ["1", 2] } };
-    graph["5"].inputs.latent_image = ["8", 0];
-    graph["5"].inputs.denoise = Number(body.denoise || 0.65);
-    graph["9"] = graph["7"];
-    graph["7"] = { class_type: "VAEDecode", inputs: { samples: ["5", 0], vae: ["1", 2] } };
-    graph["9"].inputs.images = ["7", 0];
-  }
-
-  applyLoraStack(graph, body, {
-    startId: 10,
-    modelSource: ["1", 0],
-    clipSource: ["1", 1],
-    modelTargets: [{ node: "5", input: "model" }],
-    clipTargets: [{ node: "2", input: "clip" }, { node: "3", input: "clip" }]
-  });
-
-  return graph;
-}
-
-/**
- * Krea 2: a single-stream DiT with a Qwen3-VL text encoder. Loads either as a
- * diffusion model with its own encoder and VAE, or from an all-in-one checkpoint.
- * The Krea2T enhancer sits between the model and the LoRAs when ComfyUI has it;
- * validation decides that and Raw vs Turbo server-side, not the client.
- */
-export function krea2ImageGraph(body) {
-  const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
-  const count = Math.max(1, Math.min(8, Number(body.count || 1)));
-  const fromCheckpoint = body.workflow === "krea2-checkpoint";
-  const graph = fromCheckpoint
-    ? { "1": { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: body.model } } }
-    : {
-      "1": { class_type: "UNETLoader", inputs: { unet_name: body.model, weight_dtype: body.weightDtype || "default" } },
-      "2": { class_type: "CLIPLoader", inputs: { clip_name: body.textEncoder, type: "krea2", device: "default" } },
-      "3": { class_type: "VAELoader", inputs: { vae_name: body.vae } }
-    };
-  let model = ["1", 0];
-  const clip = fromCheckpoint ? ["1", 1] : ["2", 0];
-  const vae = fromCheckpoint ? ["1", 2] : ["3", 0];
-  if (body.krea2Enhancer) {
-    graph["4"] = { class_type: "ComfyUI-Krea2T-Enhancer", inputs: { model, enabled: true, strength: 1.5, debug: false } };
-    model = ["4", 0];
-  }
-  graph["5"] = { class_type: "CLIPTextEncode", inputs: { text: body.prompt || "", clip } };
-  graph["6"] = { class_type: "CLIPTextEncode", inputs: { text: body.negative || "", clip } };
-  graph["7"] = { class_type: "EmptyLatentImage", inputs: { width: Number(body.width || 1024), height: Number(body.height || 1024), batch_size: count } };
-  graph["8"] = {
-    class_type: "KSampler",
-    inputs: {
-      model,
-      seed,
-      steps: Number(body.steps || 8),
-      cfg: Number(body.cfg || 1),
-      sampler_name: body.sampler || "euler",
-      scheduler: body.scheduler || "simple",
-      positive: ["5", 0],
-      negative: ["6", 0],
-      latent_image: ["7", 0],
-      denoise: Number(body.denoise || 1)
-    }
-  };
-  graph["9"] = { class_type: "VAEDecode", inputs: { samples: ["8", 0], vae } };
-  graph["10"] = { class_type: "SaveImage", inputs: { images: ["9", 0], filename_prefix: "heiss-ui/image" } };
-  // Raw's shift depends on the image size. With both ends of ModelSamplingFlux's
-  // ramp set to the same value it applies exactly that shift, patched last so it
-  // sits after the LoRAs.
-  let samplerModel = { node: "8", input: "model" };
-  if (body.krea2Raw) {
-    const width = Number(body.width || 1024);
-    const height = Number(body.height || 1024);
-    const shift = krea2RawShift(width, height);
-    graph["30"] = { class_type: "ModelSamplingFlux", inputs: { model, max_shift: shift, base_shift: shift, width, height } };
-    graph["8"].inputs.model = ["30", 0];
-    samplerModel = { node: "30", input: "model" };
-  }
-  applyLoraStack(graph, body, {
-    startId: 11,
-    modelSource: model,
-    clipSource: clip,
-    modelTargets: [samplerModel],
-    clipTargets: [{ node: "5", input: "clip" }, { node: "6", input: "clip" }]
-  });
-  return graph;
-}
-
-export function videoGraph(body) {
-  if (body.workflow?.startsWith("custom:")) return customWorkflowGraph(body);
-  const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
-  return {
-    "1": { class_type: "UNETLoader", inputs: { unet_name: body.model, weight_dtype: body.weightDtype || "default" } },
-    "2": { class_type: "CLIPLoader", inputs: { clip_name: body.textEncoder, type: body.clipType || "wan", device: body.clipDevice || "default" } },
-    "3": { class_type: "VAELoader", inputs: { vae_name: body.vae } },
-    "4": { class_type: "CLIPTextEncode", inputs: { text: body.prompt || "", clip: ["2", 0] } },
-    "5": { class_type: "CLIPTextEncode", inputs: { text: body.negative || "", clip: ["2", 0] } },
-    "6": {
-      class_type: "Wan22ImageToVideoLatent",
-      inputs: {
-        vae: ["3", 0],
-        width: Number(body.width || 512),
-        height: Number(body.height || 288),
-        length: Number(body.frames || 33),
-        batch_size: 1
-      }
-    },
-    "7": {
-      class_type: "KSampler",
-      inputs: {
-        model: ["1", 0],
-        seed,
-        steps: Number(body.steps || 12),
-        cfg: Number(body.cfg || 5),
-        sampler_name: body.sampler || "uni_pc",
-        scheduler: body.scheduler || "simple",
-        positive: ["4", 0],
-        negative: ["5", 0],
-        latent_image: ["6", 0],
-        denoise: Number(body.denoise || 1)
-      }
-    },
-    "8": { class_type: "VAEDecode", inputs: { samples: ["7", 0], vae: ["3", 0] } },
-    "9": { class_type: "CreateVideo", inputs: { images: ["8", 0], fps: Number(body.fps || 16) } },
-    "10": { class_type: "SaveVideo", inputs: { video: ["9", 0], filename_prefix: "heiss-ui/video", format: "mp4", codec: "h264" } }
-  };
 }

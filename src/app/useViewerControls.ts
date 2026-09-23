@@ -11,7 +11,7 @@ export function useViewerControls(view: any) {
     models, prefs, setActive, setCfg, setClipType, setCount, setCustomSize, setDenoise, setFps,
     setFrames, setHeight, setIsDraggingViewer, setLoras, setMode, setModel, setNegative, setPrompt,
     setSampler, setScheduler, setSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps,
-    setTextEncoder, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth,
+    setTextEncoder, setTextEncoders, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth,
     setZenSelectedId, showToast, touchGestureRef, viewerDragEndRef, viewerDragRef, viewerPan,
     viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef
   } = view;
@@ -51,6 +51,8 @@ export function useViewerControls(view: any) {
     if (itemSettings.sampler) setSampler(String(itemSettings.sampler));
     if (itemSettings.scheduler) setScheduler(String(itemSettings.scheduler));
     if (itemSettings.textEncoder) setTextEncoder(String(itemSettings.textEncoder));
+    if (Array.isArray(itemSettings.textEncoders)) setTextEncoders?.(itemSettings.textEncoders.map(String));
+    else if (itemSettings.textEncoder) setTextEncoders?.([String(itemSettings.textEncoder)]);
     if (itemSettings.vae) setVae(String(itemSettings.vae));
     if (itemSettings.clipType) setClipType(String(itemSettings.clipType));
     if (itemSettings.weightDtype) setWeightDtype(String(itemSettings.weightDtype));

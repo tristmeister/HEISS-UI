@@ -16,7 +16,7 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, privateGeneration, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, textEncoder, vae, clipType, weightDtype, width
+    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -92,6 +92,7 @@ export function useGenerationActions(view: any) {
         model: currentProfile?.model || model,
         workflow: currentProfile?.workflow || "",
         textEncoder,
+        textEncoders,
         vae,
         clipType,
         weightDtype,

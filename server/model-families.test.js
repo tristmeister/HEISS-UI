@@ -8,19 +8,62 @@ import test from "node:test";
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-model-types-"));
 process.env.HEISS_COMFY_ROOT = path.join(scratch, "ComfyUI");
 process.env.HEISS_DATA_DIR = path.join(scratch, "data");
-const unetDir = path.join(scratch, "ComfyUI", "models", "diffusion_models");
-const checkpointDir = path.join(scratch, "ComfyUI", "models", "checkpoints");
-fs.mkdirSync(unetDir, { recursive: true });
-fs.mkdirSync(checkpointDir, { recursive: true });
+const dirs = Object.fromEntries(["diffusion_models", "checkpoints", "text_encoders", "vae"].map((name) => {
+  const dir = path.join(scratch, "ComfyUI", "models", name);
+  fs.mkdirSync(dir, { recursive: true });
+  return [name, dir];
+}));
 test.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
-const { classifyModel, isKrea2RawName, isZImageBaseName, krea2RawShift, readSafetensorsHeader, setModelChoice, typeFromArchitecture, typeFromHeader } = await import("./model-families.js");
+const { classifyModel, krea2RawShift, readSafetensorsHeader, setModelChoice } = await import("./model-families.js");
+const { familyFromHeader } = await import("./family-catalog.js");
+const { encoderKindFromHeader, vaeLayoutFromHeader } = await import("./model-components.js");
 const { inferModels } = await import("./models.js");
-const { krea2ImageGraph } = await import("./graphs.js");
+const { familyGraph } = await import("./family-graph.js");
+const { sanitizeGenerateBody } = await import("./validation.js");
 
-const tensor = (shape) => ({ dtype: "F16", shape, data_offsets: [0, 0] });
-const krea2Header = { "txtfusion.projector.weight": tensor([3072, 12]), "first.weight": tensor([3072, 64]) };
-const fluxHeader = { "double_blocks.0.img_attn.qkv.weight": tensor([9216, 3072]) };
+/* ------------------------------------------------------------ fixtures */
+
+const t = (shape) => ({ dtype: "F16", shape, data_offsets: [0, 0] });
+// Real checkpoints carry thousands of prefixed keys; ComfyUI only trusts a prefix used more than five times.
+const filler = Object.fromEntries(Array.from({ length: 8 }, (_, index) => [`filler.${index}.weight`, { dtype: "F16", shape: [1], data_offsets: [0, 0] }]));
+const prefixed = (prefix, header) => Object.fromEntries(Object.entries({ ...header, ...filler }).map(([key, value]) => [`${prefix}${key}`, value]));
+
+const headers = {
+  krea2: { "txtfusion.projector.weight": t([3072, 12]), "first.weight": t([3072, 64]) },
+  zimage: { "cap_embedder.1.weight": t([3840, 2560]), "noise_refiner.0.attention.k_norm.weight": t([128]) },
+  fluxDev: { "double_blocks.0.img_attn.norm.key_norm.scale": t([128]), "img_in.weight": t([3072, 64]), "guidance_in.in_layer.weight": t([3072, 256]) },
+  fluxSchnell: { "double_blocks.0.img_attn.norm.key_norm.scale": t([128]), "img_in.weight": t([3072, 64]) },
+  klein4b: { "double_blocks.0.img_attn.norm.key_norm.scale": t([128]), "img_in.weight": t([3072, 128]), "double_stream_modulation_img.lin.weight": t([1, 1]), "txt_in.weight": t([3072, 7680]) },
+  chroma: { "double_blocks.0.img_attn.norm.key_norm.scale": t([128]), "distilled_guidance_layer.norms.0.scale": t([1]) },
+  sd3: { "joint_blocks.0.context_block.attn.qkv.weight": t([1, 1]) },
+  wan5b: { "head.modulation": t([1, 2, 3072]), "head.head.weight": t([192, 3072]) },
+  wan14b: { "head.modulation": t([1, 2, 5120]), "head.head.weight": t([64, 5120]), "patch_embedding.weight": t([5120, 16, 1, 2, 2]) },
+  h3: { "video_patch_proj.weight": t([1, 1]), "audio_patch_proj.weight": t([1, 1]) },
+  qwenImage: { "txt_norm.weight": t([3584]), "img_in.weight": t([3072, 64]) },
+  hidream: { "caption_projection.0.linear.weight": t([1, 1]) },
+  aura: { "double_layers.0.attn.w1q.weight": t([1, 1]) },
+  sdxlUnet: { "input_blocks.0.0.weight": t([320, 4, 3, 3]), "input_blocks.4.1.transformer_blocks.0.attn2.to_k.weight": t([640, 2048]) },
+  sd15Unet: { "input_blocks.0.0.weight": t([320, 4, 3, 3]), "input_blocks.1.1.transformer_blocks.0.attn2.to_k.weight": t([320, 768]) }
+};
+
+const encoders = {
+  clip_l: { "text_model.encoder.layers.0.mlp.fc1.weight": t([3072, 768]) },
+  clip_g: { "text_model.encoder.layers.30.mlp.fc1.weight": t([5120, 1280]) },
+  t5xxl: { "encoder.block.23.layer.1.DenseReluDense.wi_1.weight": t([10240, 4096]), "shared.weight": t([32128, 4096]) },
+  umt5: { "encoder.block.23.layer.1.DenseReluDense.wi_1.weight": t([10240, 4096]), "encoder.block.1.layer.0.SelfAttention.relative_attention_bias.weight": t([32, 64]) },
+  qwen3_4b: { "model.layers.0.post_attention_layernorm.weight": t([2560]), "model.layers.0.self_attn.q_norm.weight": t([128]) },
+  qwen3vl_4b: { "model.visual.deepstack_merger_list.0.norm.weight": t([1]), "model.visual.merger.linear_fc2.weight": t([2560, 1]) },
+  qwen25vl: { "model.layers.0.self_attn.k_proj.bias": t([512]) }
+};
+
+const vaes = {
+  kl4: { "decoder.conv_in.weight": t([512, 4, 3, 3]) },
+  kl16: { "decoder.conv_in.weight": t([512, 16, 3, 3]) },
+  flux2: { "decoder.conv_in.weight": t([512, 32, 3, 3]), "bn.running_mean": t([128]) },
+  wan16: { "decoder.middle.0.residual.0.gamma": t([384]) },
+  wan48: { "decoder.middle.0.residual.0.gamma": t([384]), "decoder.upsamples.0.upsamples.0.residual.2.weight": t([1]) }
+};
 
 function writeSafetensors(file, header) {
   const json = Buffer.from(JSON.stringify(header));
@@ -29,187 +72,225 @@ function writeSafetensors(file, header) {
   fs.writeFileSync(file, Buffer.concat([length, json]));
 }
 
-function choices(values) {
-  return { input: { required: values } };
+function put(folder, name, header) {
+  writeSafetensors(path.join(dirs[folder], name), header);
+  return name;
 }
 
-function fakeObjectInfo({ unets = [], checkpoints = [], clipTypes = ["krea2", "lumina2", "qwen_image", "wan"], extra = {} } = {}) {
+const list = (values) => ({ input: { required: values } });
+const node = () => list({});
+
+function objectInfo({ unets = [], checkpoints = [], clips = [], vaeFiles = [], clipTypes, extra = {} } = {}) {
+  const nodes = ["CLIPTextEncode", "VAEDecode", "SaveImage", "EmptyLatentImage", "EmptySD3LatentImage", "EmptyFlux2LatentImage", "Flux2Scheduler",
+    "SamplerCustomAdvanced", "CFGGuider", "BasicGuider", "BasicScheduler", "KSamplerSelect", "RandomNoise", "FluxGuidance", "ConditioningZeroOut",
+    "ModelSamplingFlux", "ModelSamplingAuraFlow", "ModelSamplingSD3", "ModelSamplingDiscrete", "CLIPSetLastLayer", "KSamplerAdvanced",
+    "EmptyHunyuanLatentVideo", "Wan22ImageToVideoLatent", "CreateVideo", "SaveVideo", "TripleCLIPLoader", "QuadrupleCLIPLoader", "T5TokenizerOptions",
+    "LoadImage", "VAEEncode", "MiniMaxH3ImageToVideo", "VAEDecodeAudio", "EmptyHunyuanVideo15Latent"];
   return {
-    UNETLoader: choices({ unet_name: [unets], weight_dtype: [["default", "fp8_e4m3fn"]] }),
-    CheckpointLoaderSimple: choices({ ckpt_name: [checkpoints] }),
-    CLIPLoader: choices({ clip_name: [["qwen3VL4B.safetensors", "qwen_3_4b.safetensors", "umt5.safetensors"]], type: [clipTypes] }),
-    VAELoader: choices({ vae_name: [["ae.safetensors", "qwen_image_vae.safetensors"]] }),
-    LoraLoader: choices({ lora_name: [["style.safetensors"]] }),
-    KSampler: choices({ sampler_name: [["euler", "res_multistep", "dpmpp_2m"]], scheduler: [["simple", "karras"]] }),
-    CLIPTextEncode: choices({}),
-    EmptyLatentImage: choices({}),
-    EmptySD3LatentImage: choices({}),
-    VAEDecode: choices({}),
-    SaveImage: choices({}),
-    ModelSamplingFlux: choices({}),
+    ...Object.fromEntries(nodes.map((name) => [name, node()])),
+    UNETLoader: list({ unet_name: [unets], weight_dtype: [["default", "fp8_e4m3fn"]] }),
+    CheckpointLoaderSimple: list({ ckpt_name: [checkpoints] }),
+    CLIPLoader: list({ clip_name: [clips], type: [clipTypes || ["stable_diffusion", "lumina2", "krea2", "qwen_image", "wan", "flux2", "chroma", "minimax"]] }),
+    DualCLIPLoader: list({ clip_name1: [clips], clip_name2: [clips], type: [["sdxl", "flux", "hunyuan_video_15"]] }),
+    VAELoader: list({ vae_name: [vaeFiles] }),
+    LoraLoader: list({ lora_name: [["style.safetensors"]] }),
+    KSampler: list({ sampler_name: [["euler", "euler_ancestral", "res_multistep", "uni_pc", "dpmpp_2m", "lcm", "ddim"]], scheduler: [["simple", "normal", "karras", "sgm_uniform", "beta"]] }),
     ...extra
   };
 }
 
+/* ------------------------------------------------------------ recognition */
+
 test("safetensors headers are read from disk", () => {
-  const file = path.join(scratch, "roundtrip.safetensors");
-  writeSafetensors(file, { __metadata__: { format: "pt" }, ...krea2Header });
-  assert.deepEqual(readSafetensorsHeader(file)["txtfusion.projector.weight"].shape, [3072, 12]);
+  const file = put("diffusion_models", "roundtrip.safetensors", { __metadata__: { format: "pt" }, ...headers.krea2 });
+  assert.deepEqual(readSafetensorsHeader(path.join(dirs.diffusion_models, file))["txtfusion.projector.weight"].shape, [3072, 12]);
 });
 
-test("tensor keys identify the architecture, prefix or not", () => {
-  assert.equal(typeFromHeader(krea2Header), "krea2");
-  assert.equal(typeFromHeader({ "model.diffusion_model.txtfusion.projector.weight": tensor([1, 1]) }), "krea2");
-  const lumina = (width) => ({ "cap_embedder.1.weight": tensor([width, 2560]), "noise_refiner.0.attention.k_norm.weight": tensor([128]) });
-  assert.equal(typeFromHeader(lumina(3840)), "z-image");
-  assert.equal(typeFromHeader(lumina(2304)), "other");
-  assert.equal(typeFromHeader(lumina(1234)), "", "an unseen Lumina width defers to the filename");
-  assert.equal(typeFromHeader({ "head.modulation": tensor([1, 2, 5120]) }), "wan");
-  assert.equal(typeFromHeader({ "model.diffusion_model.input_blocks.0.0.weight": tensor([320, 4, 3, 3]) }), "checkpoint");
-  assert.equal(typeFromHeader(fluxHeader), "other");
-  assert.equal(typeFromHeader({}), "");
+test("model families come from the weights, in ComfyUI's order", () => {
+  const family = (header) => familyFromHeader(header).family;
+  assert.equal(family(headers.krea2), "krea2");
+  assert.equal(family(headers.zimage), "zimage");
+  assert.equal(family({ ...headers.zimage, "cap_embedder.1.weight": t([2304, 2304]) }), "lumina2");
+  assert.equal(family(headers.fluxDev), "flux1");
+  assert.equal(familyFromHeader(headers.fluxSchnell).detail.schnell, true);
+  assert.equal(family(headers.klein4b), "flux2_klein_4b");
+  assert.equal(family({ ...headers.klein4b, "txt_in.weight": t([3072, 12288]) }), "flux2_klein_9b");
+  assert.equal(family({ ...headers.klein4b, "txt_in.weight": t([6144, 15360]) }), "flux2_dev");
+  assert.equal(family(headers.chroma), "chroma");
+  assert.equal(family(headers.sd3), "sd3");
+  assert.equal(family(headers.wan5b), "wan22_5b");
+  assert.equal(family(headers.wan14b), "wan21");
+  assert.equal(family(headers.h3), "minimax_h3");
+  assert.equal(family(headers.qwenImage), "qwen_image");
+  assert.equal(family(headers.hidream), "hidream");
+  assert.equal(family(headers.aura), "auraflow");
+  assert.equal(family(prefixed("model.diffusion_model.", headers.sdxlUnet)), "sdxl", "all-in-one checkpoints carry a prefix");
+  assert.equal(family(prefixed("model.diffusion_model.", headers.sd15Unet)), "sd15");
 });
 
-test("modelspec architecture strings map to types", () => {
-  assert.equal(typeFromArchitecture("krea2"), "krea2");
-  assert.equal(typeFromArchitecture("stable-diffusion-xl-v1-base"), "checkpoint");
-  assert.equal(typeFromArchitecture("Flux.1-dev"), "other");
-  assert.equal(typeFromArchitecture(""), "");
+test("text encoders and VAEs are told apart by shape", () => {
+  assert.equal(encoderKindFromHeader(encoders.clip_l), "clip_l");
+  assert.equal(encoderKindFromHeader(encoders.clip_g), "clip_g");
+  assert.equal(encoderKindFromHeader(encoders.t5xxl), "t5xxl");
+  assert.equal(encoderKindFromHeader(encoders.umt5), "umt5xxl", "UMT5 keeps a position bias in every block");
+  assert.equal(encoderKindFromHeader(encoders.qwen3_4b), "qwen3_4b");
+  assert.equal(encoderKindFromHeader(encoders.qwen3vl_4b), "qwen3vl_4b");
+  assert.equal(encoderKindFromHeader(encoders.qwen25vl), "qwen25vl_7b");
+  assert.equal(vaeLayoutFromHeader(vaes.kl4), "kl4");
+  assert.equal(vaeLayoutFromHeader(vaes.kl16), "kl16");
+  assert.equal(vaeLayoutFromHeader(vaes.flux2), "flux2");
+  assert.equal(vaeLayoutFromHeader(vaes.wan16), "wan16");
+  assert.equal(vaeLayoutFromHeader(vaes.wan48), "wan48");
 });
 
-test("the weights win over the filename in both directions", () => {
-  writeSafetensors(path.join(unetDir, "myRealismMix_v2.safetensors"), krea2Header);
-  writeSafetensors(path.join(unetDir, "krea2_but_actually_flux.safetensors"), fluxHeader);
-  assert.deepEqual(classifyModel("unet", "myRealismMix_v2.safetensors"), { type: "krea2", via: "file" });
-  assert.deepEqual(classifyModel("unet", "krea2_but_actually_flux.safetensors"), { type: "", via: "file" });
+test("the weights win over the filename, and names fill in when files are out of reach", () => {
+  put("diffusion_models", "krea2_but_actually_flux.safetensors", headers.fluxDev);
+  put("diffusion_models", "myRealismMix_v2.safetensors", headers.krea2);
+  assert.equal(classifyModel("unet", "krea2_but_actually_flux.safetensors").family, "flux1");
+  assert.deepEqual([classifyModel("unet", "myRealismMix_v2.safetensors").family, classifyModel("unet", "myRealismMix_v2.safetensors").via], ["krea2", "file"]);
+  assert.equal(classifyModel("unet", "remote/flux1-krea-dev.safetensors").family, "flux1", "FLUX.1 Krea is Flux");
+  assert.equal(classifyModel("unet", "remote/z_image_turbo_bf16.safetensors").variant.id, "turbo");
+  assert.equal(classifyModel("unet", "remote/z_image_bf16.safetensors").variant.id, "base");
+  assert.equal(classifyModel("unet", "remote/krea2_raw_bf16.safetensors").variant.id, "raw");
+  assert.equal(classifyModel("unet", "remote/wan2.2_t2v_high_noise_14B_fp8.safetensors").family, "wan22_14b");
+  const unknownCheckpoint = classifyModel("checkpoint", "remote/cyberrealisticPony_v8.safetensors");
+  assert.deepEqual([unknownCheckpoint.family, unknownCheckpoint.variant.id], ["sdxl", "pony"]);
 });
 
-test("filenames decide when the file is out of reach", () => {
-  assert.deepEqual(classifyModel("unet", "remote/krea2TurboFP8.safetensors"), { type: "krea2", via: "name" });
-  assert.equal(classifyModel("unet", "flux1-krea-dev.safetensors").type, "", "FLUX.1 Krea is a Flux model");
-  assert.equal(classifyModel("unet", "z_image_turbo_bf16.safetensors").type, "z-image");
-  assert.deepEqual(classifyModel("checkpoint", "juggernautXL.safetensors"), { type: "checkpoint", via: "default" });
-  assert.deepEqual(classifyModel("checkpoint", "krea2_aio.safetensors"), { type: "krea2", via: "name" });
-});
-
-test("a chosen type overrides detection and can be undone", () => {
-  setModelChoice("unet", "mystery.safetensors", "krea2");
-  assert.deepEqual(classifyModel("unet", "mystery.safetensors"), { type: "krea2", via: "choice" });
+test("a chosen type (and variant) overrides detection and can be undone", () => {
+  setModelChoice("unet", "mystery.safetensors", "krea2/raw");
+  const chosen = classifyModel("unet", "mystery.safetensors");
+  assert.deepEqual([chosen.family, chosen.variant.id, chosen.via], ["krea2", "raw", "choice"]);
   setModelChoice("unet", "mystery.safetensors", "");
-  assert.equal(classifyModel("unet", "mystery.safetensors").type, "");
-  assert.throws(() => setModelChoice("checkpoint", "x.safetensors", "wan"), /cannot load from this folder/);
+  assert.equal(classifyModel("unet", "mystery.safetensors").family, "");
+  assert.throws(() => setModelChoice("unet", "x.safetensors", "sd2"), /cannot load from this folder/);
   assert.throws(() => setModelChoice("loras", "x.safetensors", "krea2"), /Unknown model folder/);
 });
 
-test("Krea 2 models become profiles, unrecognised ones are listed", () => {
-  const info = fakeObjectInfo({
-    unets: ["myRealismMix_v2.safetensors", "krea2TurboFP8.safetensors", "mystery.safetensors"],
-    checkpoints: ["krea2_aio.safetensors", "juggernautXL.safetensors"]
+test("checkpoints report which parts they carry", () => {
+  put("checkpoints", "juggernautXL.safetensors", {
+    ...prefixed("model.diffusion_model.", headers.sdxlUnet),
+    "conditioner.embedders.0.transformer.text_model.x": t([1]),
+    "first_stage_model.decoder.conv_in.weight": t([512, 4, 3, 3])
   });
-  const models = inferModels(info);
-  const krea = models.profiles.filter((profile) => profile.family === "krea2");
-  assert.deepEqual(krea.map((profile) => profile.id).sort(), [
-    "image:krea2-checkpoint:krea2_aio.safetensors",
-    "image:krea2:krea2TurboFP8.safetensors",
-    "image:krea2:myRealismMix_v2.safetensors"
-  ]);
-  const unet = krea.find((profile) => profile.workflow === "krea2-image");
-  assert.equal(unet.defaults.textEncoder, "qwen3VL4B.safetensors");
-  assert.equal(unet.defaults.vae, "qwen_image_vae.safetensors");
-  assert.equal(unet.defaults.clipType, "krea2");
-  assert.equal(unet.capabilities.lora, true);
-  assert.equal(models.profiles.find((profile) => profile.model === "juggernautXL.safetensors")?.workflow, "checkpoint-image");
-  assert.deepEqual(models.unsupportedModels, ["mystery.safetensors"]);
-  const mystery = models.modelFiles.find((file) => file.name === "mystery.safetensors");
-  assert.equal(mystery.supported, false);
-  assert.ok(models.modelTypeChoices.unet.some((choice) => choice.value === "krea2"));
+  put("checkpoints", "zImageRealism_fp8.safetensors", headers.zimage);
+  assert.deepEqual(classifyModel("checkpoint", "juggernautXL.safetensors").bundled, { encoder: true, vae: true, known: true });
+  const bare = classifyModel("checkpoint", "zImageRealism_fp8.safetensors");
+  assert.deepEqual([bare.family, bare.bundled.encoder, bare.bundled.vae], ["zimage", false, false]);
 });
 
-test("a ComfyUI without Krea 2 support explains why the model is unused", () => {
-  const models = inferModels(fakeObjectInfo({ unets: ["krea2TurboFP8.safetensors"], clipTypes: ["wan"] }));
-  assert.equal(models.profiles.some((profile) => profile.family === "krea2"), false);
-  assert.match(models.modelFiles[0].reason, /too old for Krea 2/);
+/* ------------------------------------------------------------ profiles */
+
+test("profiles fill missing parts from compatible files, abliterated first", () => {
+  const clips = [
+    put("text_encoders", "qwen_3_4b.safetensors", encoders.qwen3_4b),
+    put("text_encoders", "qwen3-4b-heretic_fp8_e4m3fn.safetensors", encoders.qwen3_4b),
+    put("text_encoders", "qwen3VL4BAbliteratedComfyui_v10.safetensors", encoders.qwen3vl_4b)
+  ];
+  const vaeFiles = [put("vae", "ae.safetensors", vaes.kl16), put("vae", "qwen_image_vae.safetensors", vaes.wan16)];
+  const models = inferModels(objectInfo({ unets: ["myRealismMix_v2.safetensors"], checkpoints: ["zImageRealism_fp8.safetensors", "juggernautXL.safetensors"], clips, vaeFiles }));
+  const z = models.profiles.find((profile) => profile.model === "zImageRealism_fp8.safetensors");
+  assert.equal(z.ready, true);
+  assert.deepEqual(z.encoderSlots[0].options, ["qwen3-4b-heretic_fp8_e4m3fn.safetensors", "qwen_3_4b.safetensors"], "heretic (abliterated) first, Krea's VL encoder left out");
+  assert.equal(z.defaults.vae, "ae.safetensors");
+  assert.equal(z.defaults.sampler, "res_multistep");
+  const krea = models.profiles.find((profile) => profile.model === "myRealismMix_v2.safetensors");
+  assert.deepEqual([krea.encoderSlots[0].default, krea.defaults.vae], ["qwen3VL4BAbliteratedComfyui_v10.safetensors", "qwen_image_vae.safetensors"]);
+  const xl = models.profiles.find((profile) => profile.model === "juggernautXL.safetensors");
+  assert.deepEqual([xl.encoderBuiltIn, xl.vaeBuiltIn, xl.encoderSlots.length, xl.defaults.vae], [true, true, 0, ""]);
+  assert.equal(xl.id, "image:checkpoint:juggernautXL.safetensors", "existing ids survive for gallery history");
 });
 
-test("Krea 2 graph chains core LoRA loaders behind the optional enhancer", () => {
-  const body = { workflow: "krea2-image", model: "k2.safetensors", textEncoder: "te.safetensors", vae: "vae.safetensors", prompt: "a cat", seed: 7, loras: [{ name: "a.safetensors", strength: 0.5 }, { name: "b.safetensors", strength: 0.8 }] };
-  const plain = krea2ImageGraph(body);
-  assert.equal(plain["2"].inputs.type, "krea2");
-  assert.equal(plain["4"], undefined);
-  assert.deepEqual(plain["11"].inputs.model, ["1", 0]);
-  assert.equal(plain["11"].inputs.strength_clip, 0.5);
-  assert.deepEqual(plain["12"].inputs.model, ["11", 0]);
-  assert.deepEqual(plain["8"].inputs.model, ["12", 0]);
-  assert.deepEqual(plain["5"].inputs.clip, ["12", 1]);
-
-  const enhanced = krea2ImageGraph({ ...body, krea2Enhancer: true });
-  assert.equal(enhanced["4"].class_type, "ComfyUI-Krea2T-Enhancer");
-  assert.deepEqual(enhanced["11"].inputs.model, ["4", 0]);
-
-  const checkpoint = krea2ImageGraph({ ...body, workflow: "krea2-checkpoint", loras: [] });
-  assert.equal(checkpoint["1"].class_type, "CheckpointLoaderSimple");
-  assert.equal(checkpoint["2"], undefined);
-  assert.deepEqual(checkpoint["9"].inputs.vae, ["1", 2]);
-  assert.deepEqual(checkpoint["8"].inputs.model, ["1", 0]);
+test("missing parts are named, with downloads, and keep the model from running", () => {
+  const models = inferModels(objectInfo({ unets: ["flux1-dev-fp8.safetensors"], clips: [], vaeFiles: [] }));
+  const flux = models.profiles.find((profile) => profile.family === "flux1");
+  assert.equal(flux.ready, false);
+  assert.deepEqual(flux.missing.map((item) => item.label), ["CLIP-L text encoder", "T5-XXL text encoder", "Flux VAE (ae)"]);
+  assert.match(flux.missing[1].downloads[0].url, /t5xxl/);
+  assert.equal(flux.missing[1].downloads[0].id, "encoder:t5xxl:0");
+  assert.equal(models.defaults.imageModel, flux.id);
+  assert.throws(() => sanitizeGenerateBody({ kind: "image", workflow: flux.workflow, profileId: flux.id, model: flux.model, prompt: "a cat" },
+    objectInfo({ unets: ["flux1-dev-fp8.safetensors"] })), /still needs: CLIP-L text encoder/);
 });
 
-test("the enhancer follows ComfyUI's node list, not the request", async () => {
-  const { sanitizeGenerateBody } = await import("./validation.js");
-  const request = { kind: "image", workflow: "krea2-image", model: "krea2TurboFP8.safetensors", prompt: "a cat", textEncoder: "qwen3VL4B.safetensors", vae: "qwen_image_vae.safetensors", clipType: "wan", krea2Enhancer: true };
-  const without = sanitizeGenerateBody(request, fakeObjectInfo({ unets: ["krea2TurboFP8.safetensors"] }));
-  assert.equal(without.krea2Enhancer, false);
-  assert.equal(without.clipType, "krea2");
-  const withNode = sanitizeGenerateBody(request, fakeObjectInfo({ unets: ["krea2TurboFP8.safetensors"], extra: { "ComfyUI-Krea2T-Enhancer": choices({}) } }));
-  assert.equal(withNode.krea2Enhancer, true);
+test("an old ComfyUI is told to update instead of failing mid-run", () => {
+  const models = inferModels(objectInfo({ unets: ["myRealismMix_v2.safetensors"], clips: ["qwen3VL4BAbliteratedComfyui_v10.safetensors"], vaeFiles: ["qwen_image_vae.safetensors"], clipTypes: ["wan"] }));
+  const krea = models.profiles.find((profile) => profile.family === "krea2");
+  assert.deepEqual(krea.missing.map((item) => item.part), ["comfy"]);
 });
 
-test("Raw is told apart from Turbo by name and gets its own sampling", () => {
-  assert.equal(isKrea2RawName("krea2_raw_bf16.safetensors"), true);
-  assert.equal(isKrea2RawName("Krea-2-Base-fp8.safetensors"), true);
-  assert.equal(isKrea2RawName("krea2_turbo_fp8_scaled.safetensors"), false);
-  assert.equal(isKrea2RawName("krea2_raw_turbo_merge.safetensors"), false);
-  assert.equal(isKrea2RawName("base/krea2_turbo.safetensors"), false, "only the file name counts, not its folder");
-  assert.equal(krea2RawShift(256, 256), 0.5);
-  assert.equal(krea2RawShift(1280, 1280), 1.15);
+test("Wan 2.2 14B appears once and runs its high/low-noise pair", () => {
+  const unets = ["wan2.2_t2v_high_noise_14B_fp8_scaled.safetensors", "wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors"];
+  const clips = [put("text_encoders", "umt5_xxl_fp8_e4m3fn_scaled.safetensors", encoders.umt5)];
+  const vaeFiles = [put("vae", "wan_2.1_vae.safetensors", vaes.wan16)];
+  const models = inferModels(objectInfo({ unets, clips, vaeFiles }));
+  const wan = models.profiles.filter((profile) => profile.family === "wan22_14b");
+  assert.equal(wan.length, 1);
+  assert.equal(wan[0].pairModel, unets[1]);
+  assert.equal(wan[0].ready, true);
+  const graph = familyGraph({ family: "wan22_14b", variant: "standard", source: "unet", model: unets[0], pairModel: unets[1], encoders: clips, vae: vaeFiles[0], prompt: "a fox", steps: 20, cfg: 3.5, seed: 1, width: 832, height: 480, frames: 81, fps: 16 });
+  const samplers = Object.values(graph).filter((item) => item.class_type === "KSamplerAdvanced");
+  assert.deepEqual(samplers.map((item) => [item.inputs.start_at_step, item.inputs.end_at_step, item.inputs.add_noise]), [[0, 10, "enable"], [10, 10000, "disable"]]);
+  assert.equal(Object.values(graph).filter((item) => item.class_type === "UNETLoader").length, 2);
+});
+
+/* ------------------------------------------------------------ graphs */
+
+const byType = (graph, type) => Object.values(graph).filter((item) => item.class_type === type);
+
+test("Flux.1 loads its two encoders, applies guidance, and zeroes the negative", () => {
+  const graph = familyGraph({ family: "flux1", variant: "dev", source: "unet", model: "flux1-dev.safetensors", encoders: ["clip_l.safetensors", "t5xxl_fp16.safetensors"], vae: "ae.safetensors", prompt: "a cat", width: 1024, height: 1024, steps: 20, cfg: 1, seed: 3 });
+  assert.deepEqual(byType(graph, "DualCLIPLoader")[0].inputs, { clip_name1: "clip_l.safetensors", clip_name2: "t5xxl_fp16.safetensors", type: "flux", device: "default" });
+  assert.equal(byType(graph, "FluxGuidance")[0].inputs.guidance, 3.5);
+  assert.equal(byType(graph, "ConditioningZeroOut").length, 1);
+  assert.equal(byType(graph, "EmptySD3LatentImage").length, 1);
+});
+
+test("an all-in-one SDXL checkpoint uses its own parts; Pony gets clip skip 2", () => {
+  const graph = familyGraph({ family: "sdxl", variant: "pony", source: "checkpoint", bundled: { encoder: true, vae: true }, model: "ponyDiffusionV6XL.safetensors", prompt: "score_9", negative: "", width: 832, height: 1216, steps: 25, cfg: 7, seed: 5 });
+  const [loader] = Object.entries(graph).find(([, item]) => item.class_type === "CheckpointLoaderSimple");
+  assert.deepEqual(byType(graph, "CLIPSetLastLayer")[0].inputs, { clip: [loader, 1], stop_at_clip_layer: -2 });
+  assert.deepEqual(byType(graph, "VAEDecode")[0].inputs.vae, [loader, 2]);
+  assert.equal(byType(graph, "VAELoader").length, 0);
+});
+
+test("a model-only checkpoint gets separate encoder and VAE loaders", () => {
+  const graph = familyGraph({ family: "zimage", variant: "turbo", source: "checkpoint", bundled: { encoder: false, vae: false }, model: "zImageRealism_fp8.safetensors", encoders: ["qwen_3_4b.safetensors"], vae: "ae.safetensors", prompt: "a cat", steps: 8, cfg: 1, seed: 1 });
+  assert.equal(byType(graph, "CLIPLoader")[0].inputs.type, "lumina2");
+  assert.equal(byType(graph, "VAELoader")[0].inputs.vae_name, "ae.safetensors");
+  assert.equal(byType(graph, "CheckpointLoaderSimple").length, 1);
+});
+
+test("Flux.2 Klein samples through its own scheduler and guider", () => {
+  const graph = familyGraph({ family: "flux2_klein_4b", variant: "distilled", source: "unet", model: "flux-2-klein-4b.safetensors", encoders: ["qwen_3_4b.safetensors"], vae: "flux2-vae.safetensors", prompt: "a cat", width: 1024, height: 1024, steps: 4, cfg: 1, seed: 1 });
+  assert.deepEqual(byType(graph, "Flux2Scheduler")[0].inputs, { steps: 4, width: 1024, height: 1024 });
+  assert.equal(byType(graph, "CFGGuider")[0].inputs.cfg, 1);
+  assert.equal(byType(graph, "SamplerCustomAdvanced").length, 1);
+  assert.equal(byType(graph, "EmptyFlux2LatentImage").length, 1);
+});
+
+test("Krea 2 Raw patches the shift after the LoRAs, behind the enhancer", () => {
+  const graph = familyGraph({ family: "krea2", variant: "raw", source: "unet", model: "krea2_raw.safetensors", encoders: ["te.safetensors"], vae: "vae.safetensors", prompt: "a cat", width: 1024, height: 1024, steps: 28, cfg: 4.5, seed: 1, krea2Enhancer: true, loras: [{ name: "a.safetensors", strength: 0.5 }] });
+  const ids = Object.fromEntries(Object.entries(graph).map(([id, item]) => [item.class_type, id]));
+  assert.deepEqual(graph[ids.LoraLoader].inputs.model, [ids["ComfyUI-Krea2T-Enhancer"], 0]);
+  assert.deepEqual(graph[ids.ModelSamplingFlux].inputs.model, [ids.LoraLoader, 0]);
+  assert.equal(graph[ids.ModelSamplingFlux].inputs.max_shift, krea2RawShift(1024, 1024));
+  assert.deepEqual(graph[ids.KSampler].inputs.model, [ids.ModelSamplingFlux, 0]);
   assert.equal(krea2RawShift(1024, 1024), 0.906);
-
-  const models = inferModels(fakeObjectInfo({ unets: ["krea2_raw_bf16.safetensors", "krea2_turbo_fp8_scaled.safetensors"] }));
-  const raw = models.profiles.find((profile) => profile.model === "krea2_raw_bf16.safetensors");
-  const turbo = models.profiles.find((profile) => profile.model === "krea2_turbo_fp8_scaled.safetensors");
-  assert.deepEqual([raw.defaults.steps, raw.defaults.cfg], [28, 4.5]);
-  assert.deepEqual([turbo.defaults.steps, turbo.defaults.cfg], [8, 1]);
 });
 
-test("Raw graphs patch the shift after the LoRAs; Turbo keeps ComfyUI's", async () => {
-  const body = { workflow: "krea2-image", model: "krea2_raw.safetensors", textEncoder: "te", vae: "vae", prompt: "a cat", width: 1024, height: 1024, krea2Raw: true, loras: [{ name: "a.safetensors", strength: 0.5 }] };
-  const graph = krea2ImageGraph(body);
-  assert.equal(graph["30"].class_type, "ModelSamplingFlux");
-  assert.equal(graph["30"].inputs.max_shift, 0.906);
-  assert.equal(graph["30"].inputs.base_shift, 0.906);
-  assert.deepEqual(graph["30"].inputs.model, ["11", 0]);
-  assert.deepEqual(graph["8"].inputs.model, ["30", 0]);
-  assert.equal(krea2ImageGraph({ ...body, krea2Raw: false })["30"], undefined);
-
-  const { sanitizeGenerateBody } = await import("./validation.js");
-  const info = fakeObjectInfo({ unets: ["krea2_raw_bf16.safetensors", "krea2TurboFP8.safetensors"] });
-  const request = { kind: "image", workflow: "krea2-image", prompt: "a cat", textEncoder: "qwen3VL4B.safetensors", vae: "qwen_image_vae.safetensors" };
-  assert.equal(sanitizeGenerateBody({ ...request, model: "krea2_raw_bf16.safetensors" }, info).krea2Raw, true);
-  assert.equal(sanitizeGenerateBody({ ...request, model: "krea2TurboFP8.safetensors", krea2Raw: true }, info).krea2Raw, false);
+test("MiniMax H3 decodes video and audio from the same latent", () => {
+  const graph = familyGraph({ family: "minimax_h3", variant: "standard", source: "unet", model: "h3.safetensors", encoders: ["qwen3vl_32b.safetensors"], vae: "h3v.safetensors", audioVae: "h3a.safetensors", prompt: "waves", width: 1344, height: 768, frames: 56, fps: 24, steps: 20, seed: 1 });
+  const video = byType(graph, "CreateVideo")[0].inputs;
+  assert.ok(video.audio && video.images);
+  assert.equal(byType(graph, "MiniMaxH3ImageToVideo")[0].inputs.length, 56);
+  assert.equal(byType(graph, "VAELoader").length, 2);
 });
 
-test("Z-Image Base and Turbo get Tongyi's settings", () => {
-  assert.equal(isZImageBaseName("z_image_bf16.safetensors"), true, "the official base file has no marker");
-  assert.equal(isZImageBaseName("z_image_fp8_scaled.safetensors"), true);
-  assert.equal(isZImageBaseName("zImageBase_realism_v2.safetensors"), true);
-  assert.equal(isZImageBaseName("z_image_turbo_bf16.safetensors"), false);
-  assert.equal(isZImageBaseName("zImageRealism_v2.safetensors"), false, "unmarked fine-tunes are assumed Turbo");
-  assert.equal(isZImageBaseName("z_image_base_8steps.safetensors"), false);
-
-  const models = inferModels(fakeObjectInfo({ unets: ["z_image_bf16.safetensors", "z_image_turbo_bf16.safetensors"] }));
-  const base = models.profiles.find((profile) => profile.model === "z_image_bf16.safetensors");
-  const turbo = models.profiles.find((profile) => profile.model === "z_image_turbo_bf16.safetensors");
-  assert.deepEqual([base.defaults.steps, base.defaults.cfg], [30, 4]);
-  assert.deepEqual([turbo.defaults.steps, turbo.defaults.cfg, turbo.defaults.sampler, turbo.defaults.scheduler], [8, 1, "res_multistep", "simple"]);
-  assert.equal(turbo.defaults.clipType, "lumina2");
-  assert.equal(turbo.defaults.textEncoder, "qwen_3_4b.safetensors", "Krea's Qwen3-VL encoder is not Z-Image's");
+test("validation fills encoders from the profile and rejects files that do not fit", () => {
+  const info = objectInfo({ checkpoints: ["zImageRealism_fp8.safetensors"], clips: ["qwen_3_4b.safetensors", "qwen3-4b-heretic_fp8_e4m3fn.safetensors"], vaeFiles: ["ae.safetensors"] });
+  const profile = inferModels(info).profiles.find((item) => item.family === "zimage");
+  const body = sanitizeGenerateBody({ kind: "image", workflow: profile.workflow, profileId: profile.id, model: profile.model, prompt: "a cat" }, info);
+  assert.deepEqual([body.encoders, body.vae, body.source, body.bundled], [["qwen3-4b-heretic_fp8_e4m3fn.safetensors"], "ae.safetensors", "checkpoint", { encoder: false, vae: false }]);
+  assert.throws(() => sanitizeGenerateBody({ kind: "image", workflow: profile.workflow, profileId: profile.id, prompt: "a cat", textEncoders: ["ae.safetensors"] }, info), /does not fit/);
 });

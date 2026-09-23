@@ -1,4 +1,5 @@
 import { comfy, comfyUrl, normalizeComfyError } from './comfy.js';
+import { rememberMissingParts } from './model-families.js';
 import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
 import { storePrivateOutputsWithKey } from './vault.js';
@@ -188,7 +189,7 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
       }
       if (message.type === "execution_error") {
         const context = data.node_type ? ` (${data.node_type}${data.node_id ? `, node ${data.node_id}` : ""})` : "";
-        const error = normalizeComfyError(`${data.exception_message || "ComfyUI execution failed"}${context}`);
+        const error = learnFromFailure(jobBodies.get(id), data.exception_message) || normalizeComfyError(`${data.exception_message || "ComfyUI execution failed"}${context}`);
         setTerminalJob(id, { status: "error", error });
         updateGalleryJob(id, { status: "error", filename: error });
       }
@@ -199,7 +200,27 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
   return socket;
 }
 
+// What each running job asked for, so a failure can be read against it.
+const jobBodies = new Map();
+
+/**
+ * A checkpoint assumed to be all-in-one (its header was out of reach) that
+ * turns out to lack its text encoder or VAE: remember that for the file, so the
+ * next scan asks for the missing part, and say so plainly.
+ */
+function learnFromFailure(body, message = "") {
+  if (body?.source !== "checkpoint" || !body.bundled) return "";
+  const text = String(message || "");
+  const noEncoder = /clip input is invalid: None|does not contain a valid clip|no CLIP\/text encoder/i.test(text);
+  const noVae = /VAE is invalid: None|vae.*is None|does not contain a valid vae/i.test(text);
+  if (!noEncoder && !noVae) return "";
+  rememberMissingParts(body.model, { encoder: noEncoder, vae: noVae });
+  const part = noEncoder ? "text encoder" : "VAE";
+  return `This checkpoint has no ${part} built in. HEISS now knows to use a separate one: rescan models, pick it in Advanced (or download it), and generate again.`;
+}
+
 async function runJob(id, body) {
+  jobBodies.set(id, body);
   let socket = null;
   try {
     const prompt = body.kind === "video" ? await videoGraph(body) : await imageGraph(body);
@@ -245,10 +266,13 @@ async function runJob(id, body) {
       await new Promise((resolve) => setTimeout(resolve, 1600));
     }
   } catch (error) {
-    const message = normalizeComfyError(error.message);
+    const message = learnFromFailure(body, error.message) || normalizeComfyError(error.message);
     setTerminalJob(id, { status: "error", error: message });
     updateGalleryJob(id, { status: "error", filename: message });
     socket?.close();
+  } finally {
+    // The progress socket can report an error a moment after this loop ends.
+    setTimeout(() => jobBodies.delete(id), 60_000).unref?.();
   }
 }
 

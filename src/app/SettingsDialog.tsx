@@ -288,7 +288,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
   // Models nothing picked up, plus the ones you assigned by hand so they can be undone.
   const modelList = models as Models | null;
-  const typedModels = (modelList?.modelFiles || []).filter((file) => !file.supported || file.via === 'choice');
+  // Models nothing picked up, ones still missing a part, and ones you assigned by hand (so they can be undone).
+  const typedModels = (modelList?.modelFiles || []).filter((file) => !file.supported || file.via === 'choice' || (file.missing?.length || 0) > 0);
   const [typeBusy, setTypeBusy] = React.useState('');
   const setModelType = async (file: ModelFile, type: string) => {
     const key = `${file.source}:${file.name}`;
@@ -570,20 +571,20 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
             </Group>
             {typedModels.length ? (
-              <Group title="Model types" note="HEISS reads each model file to tell which workflow runs it. Pick one here when it could not tell, or guessed wrong.">
+              <Group title="Model types" note="HEISS reads each model file to tell what it is and which text encoders and VAE it needs. Pick a type here when it could not tell, or guessed wrong.">
                 {typedModels.map((file) => {
                   const key = `${file.source}:${file.name}`;
                   const folder = file.source === 'checkpoint' ? 'Checkpoint' : 'Diffusion model';
-                  const status = file.via === 'choice'
-                    ? `${folder} · set by you${file.reason ? `. ${file.reason}` : ''}`
-                    : `${folder} · ${file.reason || 'Not recognised. Pick what it is to use it.'}`;
+                  const how = file.via === 'choice' ? 'set by you' : file.via === 'file' ? 'read from its weights' : file.via === 'name' ? 'guessed from its name' : '';
+                  const status = [folder, file.label ? `${file.label}${how ? ` (${how})` : ''}` : '', file.reason || (file.supported ? '' : 'Not recognised. Pick what it is to use it.')]
+                    .filter(Boolean).join(' · ');
                   return (
                     <Row key={key} label={<span className="set-model-name" title={file.name}>{file.name.split(/[\\/]/).pop()}</span>} description={status} disabled={typeBusy === key}>
                       <div className="set-type-picker">
                         <StudioSelect
-                          value={file.via === 'choice' ? file.type : 'auto'}
+                          value={file.via === 'choice' ? file.choice : 'auto'}
                           onChange={(type) => setModelType(file, type)}
-                          options={[{ label: file.via === 'choice' ? 'Detect again' : 'Not used', value: 'auto' }, ...(modelList?.modelTypeChoices?.[file.source] || [])]}
+                          options={[{ label: file.via === 'choice' ? 'Detect again' : file.supported ? 'Automatic' : 'Not used', value: 'auto' }, ...(modelList?.modelTypeChoices?.[file.source] || [])]}
                         />
                       </div>
                     </Row>
