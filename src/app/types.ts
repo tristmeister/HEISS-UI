@@ -240,7 +240,16 @@ export type UpscaleStatus = {
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
   /** Only while the nodes are missing: whether Manager is on, and the terminal route otherwise. */
-  nodeSetup?: { manager: boolean; exact: boolean; customNodesDir: string; python: string; cloned: boolean; command: string };
+  nodeSetup?: {
+    manager: boolean;
+    exact: boolean;
+    customNodesDir: string;
+    python: string;
+    cloned: boolean;
+    needsGit: boolean;
+    /** One per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
+    commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }>;
+  };
 };
 export type UpscaleDownloadPreview = {
   quality: UpscaleQuality;

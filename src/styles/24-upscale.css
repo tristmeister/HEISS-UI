@@ -194,6 +194,9 @@
 }
 .upscale-routes button:hover { color: hsl(var(--foreground)); }
 .upscale-routes button.is-active { background: var(--selected); color: hsl(var(--foreground)); }
+.upscale-routes.is-small { display: flex; width: max-content; margin: 8px 0 0; padding: 2px; }
+.upscale-routes.is-small button { height: 24px; padding: 0 11px; font-size: 11.5px; }
+.upscale-routes.is-small + .upscale-url { margin-top: 6px; }
 
 /* A live line for whatever setup is waiting on. */
 .upscale-watcher {

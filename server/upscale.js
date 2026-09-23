@@ -205,35 +205,51 @@ export function comfyRootDir() {
 export function comfyPython(root, platform = process.platform) {
   if (!root) return "";
   const win = platform === "win32";
+  const paths = win ? path.win32 : path.posix;
   const candidates = win
     ? [[".venv", "Scripts", "python.exe"], ["venv", "Scripts", "python.exe"], ["..", "python_embeded", "python.exe"], ["..", "python_embedded", "python.exe"]]
     : [[".venv", "bin", "python"], ["venv", "bin", "python"], ["..", "standalone-env", "bin", "python3"], ["..", ".venv", "bin", "python"]];
-  const found = candidates.map((parts) => path.join(root, ...parts)).find((file) => fileSize(file) > 0 || fs.existsSync(file));
-  return found ? path.resolve(found) : "";
+  const found = candidates.map((parts) => paths.join(root, ...parts)).find((file) => fs.existsSync(file));
+  return found ? paths.resolve(found) : "";
 }
 
-const quote = (value) => `"${value}"`;
-
 /**
- * Setup without ComfyUI Manager: one command that clones the pack into
- * custom_nodes and installs its requirements with ComfyUI's own Python.
- * On a machine we can see, the paths are the real ones; if the pack folder is
- * already there but the nodes do not load, only the requirements are missing.
+ * Setup without ComfyUI Manager: clone the pack into custom_nodes and install
+ * its requirements with ComfyUI's own Python. On a machine we can see, the
+ * paths are the real ones; if the pack folder is already there but the nodes
+ * do not load, only the requirements are missing.
+ *
+ * Windows gets two spellings. Windows Terminal opens PowerShell 5.1, which
+ * knows neither `cd /d` nor `&&` and will not run a quoted path without `&`;
+ * `if ($?)` chains steps there the way `&&` does in cmd. Elsewhere a missing
+ * environment falls back to `python3`, since many Linux systems have no `python`.
  */
 export function nodeInstallPlan(root = comfyRootDir(), platform = process.platform) {
   const win = platform === "win32";
-  const join = win ? path.win32.join : path.posix.join;
-  const customNodes = root ? join(root, "custom_nodes") : "";
+  const paths = win ? path.win32 : path.posix;
+  const customNodes = root ? paths.join(root, "custom_nodes") : "";
   const python = comfyPython(root, platform);
-  const cloned = Boolean(customNodes) && fs.existsSync(join(customNodes, seedvr2Folder));
-  const pip = `${python ? quote(python) : "python"} -m pip install -r ${win ? `${seedvr2Folder}\\requirements.txt` : `${seedvr2Folder}/requirements.txt`}`;
-  const cd = customNodes ? `cd ${win ? "/d " : ""}${quote(customNodes)}` : `cd ComfyUI${win ? "\\" : "/"}custom_nodes`;
+  const cloned = Boolean(customNodes) && fs.existsSync(paths.join(customNodes, seedvr2Folder));
+  const requirements = paths.join(seedvr2Folder, "requirements.txt");
+  const folder = customNodes || paths.join("ComfyUI", "custom_nodes");
+  const clone = `git clone ${seedvr2Repository}`;
+  const commands = [];
+  if (win) {
+    const exe = python ? `"${python}"` : "python";
+    const steps = [`Set-Location "${folder}"`, ...(cloned ? [] : [clone]), `${python ? "& " : ""}${exe} -m pip install -r ${requirements}`];
+    commands.push({ shell: "powershell", label: "PowerShell", command: steps.map((step, i) => (i ? `if ($?) { ${step} }` : step)).join("; ") });
+    commands.push({ shell: "cmd", label: "Command Prompt", command: [`cd /d "${folder}"`, ...(cloned ? [] : [clone]), `${exe} -m pip install -r ${requirements}`].join(" && ") });
+  } else {
+    const exe = python ? `"${python}"` : "python3";
+    commands.push({ shell: "sh", label: "Terminal", command: [`cd "${folder}"`, ...(cloned ? [] : [clone]), `${exe} -m pip install -r ${requirements}`].join(" && ") });
+  }
   return {
     exact: Boolean(customNodes && python),
     customNodesDir: customNodes,
     python,
     cloned,
-    command: cloned ? `${cd} && ${pip}` : `${cd} && git clone ${seedvr2Repository} && ${pip}`
+    needsGit: !cloned,
+    commands
   };
 }
 

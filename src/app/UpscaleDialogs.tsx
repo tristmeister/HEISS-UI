@@ -89,6 +89,9 @@ function CopyRow({ text, label, block, showToast }: { text: string; label: strin
 function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
   const plan = status?.nodeSetup;
   const [route, setRoute] = useState<"manager" | "terminal">(plan && !plan.manager ? "terminal" : "manager");
+  const [shellIndex, setShellIndex] = useState(0);
+  const commands = plan?.commands?.length ? plan.commands : [{ shell: "sh" as const, label: "Terminal", command: `cd ComfyUI/custom_nodes && git clone ${repositoryUrl}` }];
+  const shell = commands[Math.min(shellIndex, commands.length - 1)];
   const seen = React.useRef(Boolean(plan));
   // The first report decides the default; after that the choice is the user's.
   useEffect(() => {
@@ -132,9 +135,17 @@ function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; show
             <span className="upscale-step-n">1</span>
             <div>
               {plan?.cloned
-                ? <>The SeedVR2 folder is already in <code>custom_nodes</code> but does not load, which usually means its Python packages are missing. Run this in a terminal:</>
-                : <>Run this in a terminal. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? " with ComfyUI's own Python" : ""}:</>}
-              <CopyRow text={plan?.command || `cd ComfyUI/custom_nodes && git clone ${repositoryUrl}`} label="Copy the install command" block showToast={showToast} />
+                ? <>The SeedVR2 folder is already in <code>custom_nodes</code>. If it still does not show up after a restart, its Python packages are missing; this installs them:</>
+                : <>Run this in {commands.length > 1 ? "a terminal" : "Terminal"}. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? " with ComfyUI's own Python" : ""}:</>}
+              {commands.length > 1 ? (
+                <div className="upscale-routes is-small" role="tablist" aria-label="Shell">
+                  {commands.map((item, index) => (
+                    <button key={item.shell} type="button" role="tab" aria-selected={item === shell} className={cn(item === shell && "is-active")} onClick={() => setShellIndex(index)}>{item.label}</button>
+                  ))}
+                </div>
+              ) : null}
+              <CopyRow text={shell.command} label={`Copy the ${shell.label} command`} block showToast={showToast} />
+              {plan?.needsGit ? <p className="upscale-fine">Needs <code>git</code>. Without it, the ComfyUI Manager route does the same.</p> : null}
               {plan && !plan.exact ? (
                 <p className="upscale-fine">
                   {plan.customNodesDir ? null : <>Run it from the folder that holds ComfyUI. </>}
@@ -145,7 +156,7 @@ function NodeInstall({ status, showToast }: { status: UpscaleStatus | null; show
           </li>
           <li>
             <span className="upscale-step-n">2</span>
-            <div><strong>Restart ComfyUI</strong>. That is it: this dialog moves on by itself.</div>
+            <div><strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.</div>
           </li>
         </ol>
       )}
