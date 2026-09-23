@@ -227,12 +227,15 @@ app.get("/api/stats", async (_req, res) => {
   res.json({ ok: true, version: appVersion, sinceRelease: since, stats: galleryStats(gallery) });
 });
 
+// When this server process started, so the app can tell a restart (e.g. after an update) happened.
+const serverStartedAt = Date.now();
+
 app.get("/api/health", async (_req, res) => {
   try {
     const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats });
+    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt });
   } catch (error) {
-    res.status(503).json({ ok: false, error: error.message });
+    res.status(503).json({ ok: false, error: error.message, startedAt: serverStartedAt });
   }
 });
 

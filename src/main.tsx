@@ -44,6 +44,8 @@ function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[
 }
 
 
+const updateInstalledKey = "heiss-ui:update-installed";
+
 function App() {
   const now = Date.now();
   const initialDraft = useMemo(() => loadDraft(), []);
@@ -159,21 +161,35 @@ function App() {
     loadGallery();
   }, [loadGallery]);
 
-  // The LoRA library lives on the server and syncs edit by edit. Say once when
-  // edits are stuck on this device, and once when they have gone through.
+  // After "Install update" the server has to restart; once this page sees a server
+  // that started after the install, say the update landed.
+  useEffect(() => {
+    let pending: { at: number } | null = null;
+    try { pending = JSON.parse(localStorage.getItem(updateInstalledKey) || "null"); } catch { pending = null; }
+    if (!pending?.at) return;
+    fetch("/api/health").then((response) => response.json()).then((data: { startedAt?: number }) => {
+      if (!data?.startedAt || data.startedAt < pending!.at) return;
+      try { localStorage.removeItem(updateInstalledKey); } catch { /* nothing to clear */ }
+      showToast("HEISS UI is updated and running the new version", "success");
+    }).catch(() => null);
+  }, []);
+
+  // The LoRA library lives on the server and syncs edit by edit. Speak up only
+  // when edits are actually stuck (a server restart with nothing to sync is not
+  // worth an error), and say so again once they have gone through.
   const loraSyncFailing = useRef(false);
   useEffect(() => {
     const stop = startLoraSync();
     const offLibrary = subscribeLoraLibrary(() => setLoraSnapshotRevision((value) => value + 1));
     const offSync = subscribeLoraSync((sync: LoraSyncStatus) => {
-      if (sync.failing && !loraSyncFailing.current) {
+      if (sync.failing && sync.pending > 0 && !loraSyncFailing.current) {
         showToast(sync.locked
           ? "LoRA changes are saved on this device. Unlock HEISS UI to sync them."
           : "Could not reach HEISS UI. LoRA changes are saved on this device and sync when it is back.", "error");
       } else if (!sync.failing && loraSyncFailing.current && !sync.pending) {
         showToast("LoRA changes synced", "success");
       }
-      loraSyncFailing.current = sync.failing;
+      if (!sync.failing || sync.pending > 0) loraSyncFailing.current = sync.failing && sync.pending > 0;
     });
     return () => { stop(); offLibrary(); offSync(); };
   }, []);
@@ -638,6 +654,9 @@ function App() {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
       setUpdateStatus(data);
+      if (data.updated) {
+        try { localStorage.setItem(updateInstalledKey, JSON.stringify({ at: Date.now() })); } catch { /* the success toast just won't show */ }
+      }
       showToast(data.updated ? "Update installed. Restart the server to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Update failed", "error");
