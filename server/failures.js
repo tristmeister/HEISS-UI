@@ -48,8 +48,16 @@ function headline(text) {
   return line.replace(/^(\w+(Error|Exception)):\s*/, "").slice(0, 240);
 }
 
-export function describeFailure({ message = "", nodeType = "", nodeId = "", exceptionType = "", traceback = [], learned = "" } = {}) {
+export function describeFailure({ message = "", nodeType = "", nodeId = "", exceptionType = "", traceback = [], learned = "", noOutput = false } = {}) {
   const raw = String(message || "ComfyUI execution failed");
+  if (noOutput) {
+    return {
+      title: "Nothing was saved",
+      summary: raw,
+      hint: "The run ended without an image HEISS can show. The workflow may end in a preview node instead of Save Image, or ComfyUI skipped a step. Check the workflow's output, or run it once in ComfyUI to see what it does.",
+      nodeType: "", nodeId: "", exceptionType: "", detail: raw, traceback: "", at: Date.now()
+    };
+  }
   const match = hints.find((item) => item.test.test(`${exceptionType} ${raw}`));
   const trace = (Array.isArray(traceback) ? traceback.join("") : String(traceback || "")).split(/\r?\n/).filter(Boolean).slice(-40).join("\n");
   return {

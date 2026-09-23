@@ -266,6 +266,10 @@ async function runJob(id, body) {
       }
       if (entry) {
         const outputs = outputsFrom(history[queued.prompt_id]);
+        // Replacing the placeholder with nothing would delete the tile; keep it as a failure that says why.
+        if (!outputs.length) {
+          throw Object.assign(new Error("ComfyUI finished the run but saved no image."), { noOutput: true });
+        }
         const completed = body.privateVault
           ? storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey)
           : replaceGalleryJob(id, outputs, body, jobs);
@@ -282,7 +286,7 @@ async function runJob(id, body) {
     const known = jobs.get(id)?.failure;
     const learned = learnFromFailure(body, error.message);
     const from = error.comfyFailure || {};
-    const failure = known || describeFailure({ message: learned ? error.message : normalizeComfyError(error.message), nodeType: from.node_type, nodeId: from.node_id, exceptionType: from.exception_type, traceback: from.traceback, learned });
+    const failure = known || (error.noOutput ? describeFailure({ message: error.message, noOutput: true }) : null) || describeFailure({ message: learned ? error.message : normalizeComfyError(error.message), nodeType: from.node_type, nodeId: from.node_id, exceptionType: from.exception_type, traceback: from.traceback, learned });
     setTerminalJob(id, { status: "error", error: failure.summary, failure });
     updateGalleryJob(id, { status: "error", filename: failure.title, failure });
     socket?.close();
