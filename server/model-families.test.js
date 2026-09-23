@@ -14,7 +14,7 @@ fs.mkdirSync(unetDir, { recursive: true });
 fs.mkdirSync(checkpointDir, { recursive: true });
 test.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
-const { classifyModel, isKrea2RawName, krea2RawShift, readSafetensorsHeader, setModelChoice, typeFromArchitecture, typeFromHeader } = await import("./model-families.js");
+const { classifyModel, isKrea2RawName, isZImageBaseName, krea2RawShift, readSafetensorsHeader, setModelChoice, typeFromArchitecture, typeFromHeader } = await import("./model-families.js");
 const { inferModels } = await import("./models.js");
 const { krea2ImageGraph } = await import("./graphs.js");
 
@@ -33,14 +33,14 @@ function choices(values) {
   return { input: { required: values } };
 }
 
-function fakeObjectInfo({ unets = [], checkpoints = [], clipTypes = ["krea2", "qwen_image", "wan"], extra = {} } = {}) {
+function fakeObjectInfo({ unets = [], checkpoints = [], clipTypes = ["krea2", "lumina2", "qwen_image", "wan"], extra = {} } = {}) {
   return {
     UNETLoader: choices({ unet_name: [unets], weight_dtype: [["default", "fp8_e4m3fn"]] }),
     CheckpointLoaderSimple: choices({ ckpt_name: [checkpoints] }),
-    CLIPLoader: choices({ clip_name: [["qwen3VL4B.safetensors", "umt5.safetensors"]], type: [clipTypes] }),
+    CLIPLoader: choices({ clip_name: [["qwen3VL4B.safetensors", "qwen_3_4b.safetensors", "umt5.safetensors"]], type: [clipTypes] }),
     VAELoader: choices({ vae_name: [["ae.safetensors", "qwen_image_vae.safetensors"]] }),
     LoraLoader: choices({ lora_name: [["style.safetensors"]] }),
-    KSampler: choices({ sampler_name: [["euler", "dpmpp_2m"]], scheduler: [["simple", "karras"]] }),
+    KSampler: choices({ sampler_name: [["euler", "res_multistep", "dpmpp_2m"]], scheduler: [["simple", "karras"]] }),
     CLIPTextEncode: choices({}),
     EmptyLatentImage: choices({}),
     EmptySD3LatentImage: choices({}),
@@ -195,4 +195,21 @@ test("Raw graphs patch the shift after the LoRAs; Turbo keeps ComfyUI's", async 
   const request = { kind: "image", workflow: "krea2-image", prompt: "a cat", textEncoder: "qwen3VL4B.safetensors", vae: "qwen_image_vae.safetensors" };
   assert.equal(sanitizeGenerateBody({ ...request, model: "krea2_raw_bf16.safetensors" }, info).krea2Raw, true);
   assert.equal(sanitizeGenerateBody({ ...request, model: "krea2TurboFP8.safetensors", krea2Raw: true }, info).krea2Raw, false);
+});
+
+test("Z-Image Base and Turbo get Tongyi's settings", () => {
+  assert.equal(isZImageBaseName("z_image_bf16.safetensors"), true, "the official base file has no marker");
+  assert.equal(isZImageBaseName("z_image_fp8_scaled.safetensors"), true);
+  assert.equal(isZImageBaseName("zImageBase_realism_v2.safetensors"), true);
+  assert.equal(isZImageBaseName("z_image_turbo_bf16.safetensors"), false);
+  assert.equal(isZImageBaseName("zImageRealism_v2.safetensors"), false, "unmarked fine-tunes are assumed Turbo");
+  assert.equal(isZImageBaseName("z_image_base_8steps.safetensors"), false);
+
+  const models = inferModels(fakeObjectInfo({ unets: ["z_image_bf16.safetensors", "z_image_turbo_bf16.safetensors"] }));
+  const base = models.profiles.find((profile) => profile.model === "z_image_bf16.safetensors");
+  const turbo = models.profiles.find((profile) => profile.model === "z_image_turbo_bf16.safetensors");
+  assert.deepEqual([base.defaults.steps, base.defaults.cfg], [30, 4]);
+  assert.deepEqual([turbo.defaults.steps, turbo.defaults.cfg, turbo.defaults.sampler, turbo.defaults.scheduler], [8, 1, "res_multistep", "simple"]);
+  assert.equal(turbo.defaults.clipType, "lumina2");
+  assert.equal(turbo.defaults.textEncoder, "qwen_3_4b.safetensors", "Krea's Qwen3-VL encoder is not Z-Image's");
 });

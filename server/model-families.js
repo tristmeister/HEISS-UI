@@ -99,6 +99,18 @@ export function krea2RawShift(width, height) {
   return Math.round(mu * 1000) / 1000;
 }
 
+/**
+ * Z-Image Base versus Turbo, again by name alone. The official base file has no
+ * marker ("z_image_bf16"), so a bare z_image plus precision tags counts as Base
+ * too. Everything else is Turbo, which most fine-tunes build on.
+ */
+export function isZImageBaseName(name = "") {
+  const base = String(name).split(/[\\/]/).pop() || "";
+  if (/turbo|distill|lightning|\d+[-_ ]?steps?/i.test(base)) return false;
+  if (/base|raw/i.test(base)) return true;
+  return /^z[-_ ]?image(?:[-_](?:bf16|fp16|fp32|fp8\w*|nvfp4|int8|scaled|e4m3fn))*\.safetensors$/i.test(base);
+}
+
 function isZImageName(name = "") {
   return /z[-_ ]?anime|z[-_ ]?image/i.test(name);
 }

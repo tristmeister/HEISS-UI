@@ -1,7 +1,7 @@
 import { missingNodes, nodeRange, optionsFor, textRange } from './comfy.js';
 import { workflowFor } from './workflow-registry.js';
 import { loadCustomWorkflows, workflowOptionIssues } from './custom-workflows.js';
-import { classifyModel, isKrea2RawName, modelTypeChoices, modelTypes } from './model-families.js';
+import { classifyModel, isKrea2RawName, isZImageBaseName, modelTypeChoices, modelTypes } from './model-families.js';
 
 export function modelBasename(name = "") {
   return String(name).split(/[\\/]/).pop() || name;
@@ -178,26 +178,33 @@ export function inferModels(info, stats = {}) {
     fps: nodeRange(info, "CreateVideo", "fps", { default: 30, min: 1, max: 120, step: 1 })
   };
 
+  // Tongyi's and ComfyUI's own settings: Turbo is distilled for 8 guidance-free
+  // steps, Base wants 28-50 steps at cfg 3-5 with a real negative prompt. Both
+  // run res_multistep/simple; ComfyUI already applies Z-Image's shift of 3.
+  const zImageEncoder = clips.find((clip) => /qwen[-_ ]?3[-_ ]?4b/i.test(clip) && !/vl/i.test(clip))
+    || clips.find((clip) => /qwen/i.test(clip) && !/vl/i.test(clip))
+    || clips.find((clip) => /qwen/i.test(clip)) || clips[0] || "";
   for (const name of canRunUnetImage ? unetsOfType("z-image") : []) {
+    const zBase = isZImageBaseName(name);
     profiles.push(buildProfile({
       id: `image:unet-z:${name}`,
       kind: "image",
       label: `${prettyModelName(name)} · Z image`,
       displayName: prettyModelName(name),
-      description: "Z image workflow",
+      description: `Z-Image ${zBase ? "Base" : "Turbo"} workflow`,
       model: name,
       workflow: unetImageWorkflow.id,
       family: unetImageWorkflow.family,
       defaults: {
         width: detectedDefault(sd3Range.width, 1024),
         height: detectedDefault(sd3Range.height, 1024),
-        steps: 8,
-        cfg: 1,
-        sampler: "euler_ancestral",
-        scheduler: "beta",
-        textEncoder: clips.find((clip) => /qwen/i.test(clip)) || clips[0] || "",
+        steps: zBase ? 30 : 8,
+        cfg: zBase ? 4 : 1,
+        sampler: samplers.includes("res_multistep") ? "res_multistep" : samplers.includes("euler") ? "euler" : samplers[0] || "euler",
+        scheduler: schedulers.includes("simple") ? "simple" : schedulers[0] || "normal",
+        textEncoder: zImageEncoder,
         vae: vaes.find((vae) => /ae\.safetensors|flux/i.test(vae)) || vaes[0] || "",
-        clipType: clipTypes.includes("qwen_image") ? "qwen_image" : "wan",
+        clipType: clipTypes.includes("lumina2") ? "lumina2" : clipTypes.includes("qwen_image") ? "qwen_image" : "wan",
         weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default"
       },
       aspects: aspectSet({ width: detectedDefault(sd3Range.width, 1024), height: detectedDefault(sd3Range.height, 1024) }, [
