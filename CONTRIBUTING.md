@@ -36,6 +36,21 @@ Until the public 1.0 release, versions stay at `0.x.y`:
 - **Patch** (`0.2.0` → `0.2.1`): fixes only, safe to take without reading the notes.
 - **1.0.0** is reserved for the public announcement. The release script refuses a plain `major` bump before then, so it can only happen on purpose.
 
+### When to release
+
+- **Patch:** the same day a fix matters to people running a release, like a generation that fails, settings that get lost or a download that breaks.
+- **Minor:** when a feature people will notice is finished and tested on real models. Batch them instead of releasing every commit; while the app changes quickly that is roughly every one to two weeks.
+- **Not yet:** anything still waiting on a test with real models, or with an empty **Unreleased** section.
+
+Before every release, on a real ComfyUI with GPU:
+
+1. Generate with three or four model families, including one all-in-one checkpoint and one model-only file.
+2. Run one smart upscale.
+3. Unpack the release zip (`npm run package` builds it) in a fresh folder and start it with its launcher.
+4. Check that **Settings › About** shows the version and the update check answers.
+
+### Cutting a release
+
 To cut a release, from an up-to-date `main` with the notes written under **Unreleased**:
 
 ```bash
