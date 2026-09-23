@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { comfyModelsDir } from './comfy.js';
+import { modelFolders } from './comfy.js';
 import { readSafetensorsHeader } from './model-families.js';
 
 /**
@@ -139,13 +139,12 @@ export function vaeLayoutFromHeader(header) {
 
 const headerCache = new Map();
 
-function localFile(folders, name) {
-  const modelsDir = comfyModelsDir();
-  if (!modelsDir || !/\.safetensors$/i.test(name)) return "";
+function localFile(kind, subfolders, name) {
+  if (!/\.safetensors$/i.test(name)) return "";
   const parts = String(name).split(/[\\/]/).filter(Boolean);
   if (parts.some((part) => part === "..")) return "";
-  for (const folder of folders) {
-    const file = path.join(modelsDir, folder, ...parts);
+  for (const dir of modelFolders(kind, subfolders)) {
+    const file = path.join(dir, ...parts);
     try { if (fs.statSync(file).isFile()) return file; } catch { /* next folder */ }
   }
   return "";
@@ -177,7 +176,7 @@ function encoderKindFromName(name = "") {
 
 /** What one text encoder file is, and how sure we are ("file" beats "name"). */
 export function classifyEncoder(name) {
-  const file = localFile(["text_encoders", "clip"], name);
+  const file = localFile("text_encoders", ["text_encoders", "clip"], name);
   const header = file ? cachedHeader(file) : null;
   const fromHeader = header ? encoderKindFromHeader(header) : "";
   if (fromHeader && fromHeader !== "other") return { name, kind: fromHeader, via: "file" };
@@ -214,7 +213,7 @@ function vaeKindsForLayout(layout) {
  */
 export function classifyVae(name) {
   const base = String(name).split(/[\\/]/).pop() || "";
-  const file = localFile(["vae"], name);
+  const file = localFile("vae", ["vae"], name);
   const header = file ? cachedHeader(file) : null;
   const layout = header ? vaeLayoutFromHeader(header) : "";
   const hinted = vaeNameHints.filter(([, pattern]) => pattern.test(base)).map(([kind]) => kind);

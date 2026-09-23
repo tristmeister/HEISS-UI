@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { comfy, comfyModelsDir } from './comfy.js';
+import { comfy, modelFolders } from './comfy.js';
 import { dataDir } from './gallery-store.js';
 import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, variantFor } from './family-catalog.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
@@ -20,9 +20,10 @@ import { readJsonFile, writeJsonFile } from './json-store.js';
 
 export const modelSources = ["unet", "checkpoint"];
 
+// ComfyUI folder kind and its subfolders under models/, per source.
 const sourceFolders = {
-  unet: ["diffusion_models", "unet"],
-  checkpoint: ["checkpoints"]
+  unet: ["diffusion_models", ["diffusion_models", "unet"]],
+  checkpoint: ["checkpoints", ["checkpoints"]]
 };
 
 // ComfyUI's /view_metadata folder names for the same sources.
@@ -128,12 +129,11 @@ export function readSafetensorsHeader(file) {
 }
 
 function localModelFile(source, name) {
-  const modelsDir = comfyModelsDir();
-  if (!modelsDir || !/\.safetensors$/i.test(name)) return "";
+  if (!sourceFolders[source] || !/\.safetensors$/i.test(name)) return "";
   const parts = String(name).split(/[\\/]/).filter(Boolean);
   if (parts.some((part) => part === "..")) return "";
-  for (const folder of sourceFolders[source] || []) {
-    const file = path.join(modelsDir, folder, ...parts);
+  for (const dir of modelFolders(...sourceFolders[source])) {
+    const file = path.join(dir, ...parts);
     try { if (fs.statSync(file).isFile()) return file; } catch { /* next folder */ }
   }
   return "";

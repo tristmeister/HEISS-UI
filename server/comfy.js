@@ -57,6 +57,33 @@ export function comfyModelsDir() {
   return "";
 }
 
+// ComfyUI's model folders by kind, from its /internal/folder_paths: its own
+// models/ folder plus every extra_model_paths.yaml location (shared model
+// drives, an A1111 install). Empty until the first scan, or when ComfyUI is remote.
+let comfyFolderPaths = {};
+
+export function setComfyFolderPaths(map = {}) {
+  const next = {};
+  for (const [kind, value] of Object.entries(map || {})) {
+    // Older ComfyUI answers [paths, extensions]; newer ones just the paths.
+    const list = Array.isArray(value?.[0]) ? value[0] : value;
+    if (Array.isArray(list)) next[kind] = list.filter((item) => typeof item === "string");
+  }
+  comfyFolderPaths = next;
+}
+
+/**
+ * Folders on this machine that hold one kind of model, ComfyUI's list first,
+ * then ComfyUI/models/<subfolder> as found from the output folder.
+ */
+export function modelFolders(kind, subfolders = [kind]) {
+  const models = comfyModelsDir();
+  const dirs = [...(comfyFolderPaths[kind] || []), ...(models ? subfolders.map((sub) => path.join(models, sub)) : [])];
+  return [...new Set(dirs)].filter((dir) => {
+    try { return fs.statSync(dir).isDirectory(); } catch { return false; }
+  });
+}
+
 export const localHosts = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
 export const allowLanActions = process.env.HEISS_ALLOW_LAN === "1" || process.env.JAI_ALLOW_LAN === "1" || host === "0.0.0.0" || host === "::";
 

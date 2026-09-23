@@ -16,6 +16,10 @@ section into the next version and uses it as the GitHub release notes.
   reference, and a Change slider next to the image sets how much it may change.
 
 ### Fixed
+- Models, text encoders and VAEs in folders added through ComfyUI's
+  `extra_model_paths.yaml` (a shared model drive, an A1111 install) were
+  never read, so HEISS could not tell what they were. It now reads every
+  folder ComfyUI loads from.
 - A reference image added to a built-in model was ignored; it now becomes the
   start image.
 - The workflow menu showed the gallery through its top half instead of frosted

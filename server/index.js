@@ -7,7 +7,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyOutputDir } from './comfy.js';
+import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -41,6 +41,8 @@ async function loadComfyContext({ force = false } = {}) {
   if (fresh) return comfyCache;
   const info = await comfy("/object_info");
   const stats = await comfy("/system_stats").catch(() => ({}));
+  // Where ComfyUI keeps models, extra_model_paths.yaml included, so headers can be read there too.
+  setComfyFolderPaths(await comfy("/internal/folder_paths").catch(() => ({})));
   // Model-type detection is synchronous; fetch what it needs from a remote ComfyUI first.
   await primeModelMetadata({
     unet: optionsFor(info, "UNETLoader", "unet_name"),
