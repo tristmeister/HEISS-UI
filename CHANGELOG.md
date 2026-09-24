@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-24
+
 ### Added
 - **Works on a phone.** The viewer closes with a corner button, a swipe down,
   a tap beside the picture or Back, and swipes sideways between images. The
@@ -473,7 +475,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.0...v0.5.1
