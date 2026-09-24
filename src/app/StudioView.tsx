@@ -210,11 +210,11 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </AnimatePresence>
       </div>
       <ComfyConnectionDot status={comfyStatus} retrying={Boolean(comfyRetrying)} onClick={retryComfyStatus} />
-      <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden" : "Hidden · locked" : "Hidden"}>
+      <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden · unlocked" : "Hidden · locked" : "Hidden"}>
         <button
           data-hidden-dock
           className={cn("icon-button hidden-dock-button", hiddenSpace && "active", hidden.enabled && hidden.unlocked && "is-open")}
-          aria-label={hiddenSpace ? "Leave Hidden" : "Open Hidden"}
+          aria-label={hiddenSpace ? "Leave Hidden" : hidden.enabled && hidden.unlocked ? "Open Hidden, unlocked" : "Open Hidden"}
           aria-pressed={hiddenSpace}
           onClick={toggleHiddenSpace}
         >

@@ -22,6 +22,7 @@ import { upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/us
 import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
+import { useKeyboardInset } from './hooks/use-keyboard-inset';
 import { memoLatest } from './lib/memo-latest';
 
 // Rebuilt from scratch on every App render (each keystroke in the prompt); skips unless its data changed.
@@ -56,6 +57,7 @@ const updateInstalledKey = "heiss-ui:update-installed";
 const formatUpdateBytes = (bytes = 0) => `${(bytes / 1024 ** 2).toFixed(bytes > 100 * 1024 ** 2 ? 0 : 1)} MB`;
 
 function App() {
+  useKeyboardInset();
   const now = Date.now();
   const initialDraft = useMemo(() => loadDraft(), []);
   const [mode, setMode] = useState<Mode>(initialDraft.mode === "video" ? "video" : "image");

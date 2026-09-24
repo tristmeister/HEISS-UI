@@ -119,7 +119,8 @@ export function useViewerControls(view: any) {
   }
 
   function startZenStripDrag(event: React.PointerEvent<HTMLDivElement>) {
-    if (!zenStripRef.current) return;
+    // Touch scrolls the strip natively, with momentum; a tap selects via onClick.
+    if (!zenStripRef.current || event.pointerType === "touch") return;
     event.currentTarget.setPointerCapture(event.pointerId);
     zenStripDragRef.current = { id: event.pointerId, x: event.clientX, scrollLeft: zenStripRef.current.scrollLeft, moved: false };
   }

@@ -344,8 +344,9 @@ export function ComposerBar(props: ComposerBarProps) {
               data-open-trigger
               type="button"
               className={cn("negative-toggle", showNegativePrompt && "active", !canUseNegativePrompt && "is-unavailable", plan.negative.density !== "full" && `is-density-${plan.negative.density}`)}
-              aria-label={showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}
-              onClick={() => setShowNegativePrompt((value: boolean) => !value)}
+              aria-label={!canUseNegativePrompt ? "Negative prompt unavailable for this workflow" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}
+              aria-disabled={!canUseNegativePrompt || undefined}
+              onClick={() => { if (canUseNegativePrompt) setShowNegativePrompt((value: boolean) => !value); }}
             >
               <ChevronUp size={13} className={cn(!showNegativePrompt && "flip")} />
               {plan.negative.density === "full" ? "Negative" : null}

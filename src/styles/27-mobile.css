@@ -196,3 +196,182 @@
     pointer-events: none;
   }
 }
+
+/* ------------------------------------------------------ Touch: text fields */
+
+/* iOS zooms the whole page when a field under 16px is focused. Many fields set
+   12-14px with selectors more specific than the old phone fix, and sideways
+   phones were wider than its breakpoint, so this covers every coarse pointer. */
+@media (pointer: coarse) {
+  input:not([type="range"], [type="checkbox"], [type="radio"], [type="color"], [type="file"]),
+  textarea,
+  select,
+  [contenteditable="true"] {
+    font-size: max(16px, 1em) !important;
+  }
+}
+
+/* ------------------------------------------------- The on-screen keyboard */
+
+/* iOS leaves fixed elements under the keyboard; the composer lifts by the
+   covered height (use-keyboard-inset.ts), and the deck steps aside meanwhile. */
+.zen-prompt { translate: 0 calc(-1 * var(--kb-inset, 0px)); }
+.kb-open :is(.studio-dock, .zen-control-button, .zen-zoom-dock, .dock-transients) {
+  opacity: 0;
+  pointer-events: none;
+}
+/* The locked-Hidden rule sets its own translate; keep its slide-away. */
+.is-hidden-locked .zen-prompt { translate: 0 16px; }
+
+/* -------------------------------------------------------------- Safe areas */
+
+/* viewport-fit=cover puts the page under notches and rounded corners; anything
+   pinned to an edge keeps clear of them at every width, not only on phones. */
+.hidden-bar,
+.hidden-lockscreen-back {
+  top: max(var(--deck-gap, 18px), env(safe-area-inset-top));
+  left: max(var(--deck-gap, 18px), env(safe-area-inset-left));
+}
+.zen-shell .hidden-bar {
+  top: max(14px, env(safe-area-inset-top));
+  left: max(14px, env(safe-area-inset-left));
+}
+.zen-gallery-restore {
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+}
+.zen-run-badge { top: max(18px, calc(env(safe-area-inset-top) + 8px)); }
+.studio-dock { right: max(var(--deck-gap), env(safe-area-inset-right)); }
+:is(.app-shell, .zen-shell) .zen-control-button { left: max(var(--deck-gap), env(safe-area-inset-left)); }
+.stage-gallery {
+  padding-left: max(10px, env(safe-area-inset-left));
+  padding-right: max(10px, env(safe-area-inset-right));
+}
+@media (max-width: 760px) {
+  .stage-gallery {
+    padding-left: max(6px, env(safe-area-inset-left));
+    padding-right: max(6px, env(safe-area-inset-right));
+  }
+  /* The strip sits under the Hidden bar here; give the run badge and strip room. */
+  .zen-shell:has(.zen-gallery-wrap) .zen-run-badge { top: calc(env(safe-area-inset-top) + 120px); }
+  .is-hidden-space .zen-gallery-wrap { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }
+}
+
+/* ------------------------------------------------------- Touch: tap targets */
+
+/* Small icon buttons keep their look but get an invisible 44px hit area. The
+   :where() position is zero-specificity: it only applies to buttons that are
+   not already positioned, so absolutely placed ones stay where they are. */
+@media (pointer: coarse) {
+  :where(.model-menu-clear, .lora-chip-remove, .mf-notice-close, .lora-remove, .upscale-notice-close,
+    .bundle-cell-download, .bundle-cover-set, .lora-head-action, .lora-text-action, .lora-chip-action,
+    .ref-menu-remove, .reference-tile-delete, .model-star, .bundle-head-button, .readout-copy, .udw-close,
+    .wf-search button, .wf-filters button, .model-setup .btn, .tile-action, .switch,
+    .zen-controls .number-picker-btn) { position: relative; }
+  :is(.model-menu-clear, .lora-chip-remove, .mf-notice-close, .lora-remove, .upscale-notice-close,
+    .bundle-cell-download, .bundle-cover-set, .lora-head-action, .lora-text-action, .lora-chip-action,
+    .ref-menu-remove, .reference-tile-delete, .model-star, .bundle-head-button, .readout-copy, .udw-close,
+    .wf-search button, .wf-filters button, .model-setup .btn, .tile-action, .switch,
+    .zen-controls .number-picker-btn)::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    translate: -50% -50%;
+  }
+
+  /* Sliders: a thumb you can find with a finger. */
+  .lora-strength input[type="range"],
+  .ref-strength input[type="range"] { height: 32px; }
+  .ref-strength input[type="range"] { width: 96px; }
+  .lora-strength input[type="range"]::-webkit-slider-thumb,
+  .ref-strength input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9.5px; }
+  .lora-strength input[type="range"]::-moz-range-thumb,
+  .ref-strength input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; }
+
+  /* No grey flash on every tap; the controls have their own pressed states. */
+  button, a, [role="button"], summary, label { -webkit-tap-highlight-color: transparent; }
+}
+
+/* ------------------------------------------------------ Touch: performance */
+
+/* Dozens of live blur layers (one per tile control) make scrolling stutter on
+   phones. Tile, bundle and LoRA-card controls go solid; floating surfaces keep
+   a lighter blur. (-webkit- first: the minifier keeps only the last of a pair.) */
+@media (pointer: coarse) {
+  :is(.tile-upscale, .tile-hover-actions .tile-icon, .tile-hover-actions .tile-delete, .tile-action, .tile-more,
+    .bundle-count, .bundle-cell-download, .bundle-cover-set, .lora-card) {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    background-color: rgb(14 14 14 / .82);
+  }
+  :root { --surface-float-blur: blur(16px) saturate(1.4); }
+}
+/* One GPU layer per tile adds up to a lot of memory in a long gallery; only a
+   tile that is still easing in keeps its layer. */
+.tile-motion-wrap,
+.tile img,
+.tile video { will-change: auto; }
+.tile-motion-wrap:has(.media-loading) { will-change: transform; }
+
+/* The gallery lets the page be pinch-zoomed for reading, while still panning. */
+@media (max-width: 760px) {
+  .stage-gallery { touch-action: pan-y pinch-zoom; }
+}
+
+/* ------------------------------------------------- Short screens (landscape) */
+
+@media (max-height: 520px) {
+  /* The sidebar becomes a full-height sheet instead of a sliver above the deck. */
+  .zen-controls {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    z-index: 15;
+    width: min(360px, calc(100vw - 16px));
+    max-height: none;
+    overflow-y: auto;
+    /* It covers the composer here, so it is a solid sheet, not glass. */
+    background: var(--surface-modal);
+  }
+  .zen-prompt textarea { max-height: 72px; }
+  .negative-drawer.open { max-height: 64px; }
+  .negative-drawer textarea { height: 40px; }
+  /* Dialogs drop their desktop padding and header height. */
+  .modal-wide,
+  .modal-sheet { height: calc(100dvh - 16px); max-height: none; }
+  /* The lock screen's mark scales with the height it has. */
+  .hidden-lock-stage .stage-mark { width: min(520px, 92%, calc(40dvh * 2.5)); }
+  .hidden-lock-stage .stage-copy { min-height: 0; }
+}
+
+/* ------------------------------------------------------------- Menus: dvh */
+
+/* vh counts the space under Safari's toolbars; dvh is what is actually visible. */
+@media (max-width: 620px) {
+  .aspect-menu,
+  .model-menu { max-height: min(72dvh, 560px); }
+}
+@media (min-width: 481px) {
+  .empty,
+  .stage-empty { min-height: calc(100dvh - 260px); }
+}
+
+/* ----------------------------------------------------------- Settings nav */
+
+@media (max-width: 760px) {
+  /* Sections past the edge fade out, so the row reads as scrollable. */
+  .set-nav {
+    padding-right: 28px;
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  }
+}
+
+/* ------------------------------------------------------------ The composer */
+
+/* A negative prompt the workflow cannot take: the toggle is inert, no dot. */
+.negative-toggle.is-unavailable { opacity: .45; cursor: not-allowed; }
+.negative-toggle.is-unavailable::after { display: none !important; }
