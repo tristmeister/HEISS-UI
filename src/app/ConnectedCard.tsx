@@ -12,10 +12,16 @@ const SHOW_MS = 2600;
 const PLUG = [[0, 4], [1, 4], [2, 3], [2, 4], [2, 5], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5], [6, 6], [6, 7], [7, 2], [8, 2], [7, 6], [8, 6]];
 const SOCKET = [[13, 1], [13, 3], [13, 4], [13, 5], [13, 7], [14, 1], [14, 3], [14, 4], [14, 5], [14, 7], [15, 1], [15, 2], [15, 3], [15, 4], [15, 5], [15, 6], [15, 7], [16, 1], [16, 2], [16, 3], [16, 4], [16, 5], [16, 6], [16, 7], [17, 3], [17, 4], [17, 5], [18, 4], [19, 4], [20, 4], [21, 4]];
 
+// The last reconnect shown. The card unmounts whenever the gallery empties or
+// Hidden locks (crossing between the gallery and Hidden does both), and must
+// not replay the same reconnect when it comes back.
+let played = 0;
+
 export function ConnectedCard({ at, device }: { at: number; device?: string }) {
   const [shown, setShown] = useState<number>(0);
   useEffect(() => {
-    if (!at) return;
+    if (!at || at === played) return;
+    played = at;
     setShown(at);
     const timer = window.setTimeout(() => setShown(0), SHOW_MS);
     return () => window.clearTimeout(timer);
