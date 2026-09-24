@@ -299,6 +299,8 @@ export type StrayModelFolder = {
   label: string;
   name: string;
   layout: "comfy" | "stability" | "a1111";
+  /** ComfyUI already reads part of this folder; only the listed kinds are new to it. */
+  partlyRead?: boolean;
   app: string;
   source: string;
   kinds: Array<{ kind: string; name: string; dir: string; count: number; bytes: number; examples: string[] }>;

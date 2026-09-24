@@ -20,7 +20,29 @@ import { isInside, pathKey, samePath } from "./paths.js";
 const modelFile = /\.(safetensors|ckpt|pt|pth|gguf|sft|bin)$/i;
 // Kinds that are not models, or not ones a person drops in by hand.
 const skipKinds = new Set(["custom_nodes", "configs", "input", "output", "temp"]);
-const legacy = { unet: "diffusion_models", clip: "text_encoders" };
+const legacy = { unet: "diffusion_models", clip: "text_encoders", ...derivedKinds() };
+
+/**
+ * Kinds a custom node builds from a core kind at load time. ComfyUI-GGUF sets
+ * unet_gguf to diffusion_models' folders (and clip_gguf to text_encoders'),
+ * replacing whatever extra_model_paths.yaml gave unet_gguf, so a folder added
+ * under the derived name is never read. Such folders are added under the core
+ * kind instead, which the derived one then inherits.
+ */
+function derivedKinds() {
+  return { unet_gguf: "diffusion_models", clip_gguf: "text_encoders" };
+}
+
+/** Rewrites derived kinds in HEISS's own sections to their core kind; other text is left alone. */
+export function migrateDerivedKinds(text = "") {
+  let changed = [];
+  const next = text.replace(/# >>> Added by HEISS UI: ([^\r\n]*)([\s\S]*?)# <<< HEISS UI/g, (block, dir, body) => {
+    const fixed = body.replace(/^(    )(unet_gguf|clip_gguf):/gm, (_m, indent, kind) => `${indent}${derivedKinds()[kind]}:`);
+    if (fixed !== body) changed.push(dir.trim());
+    return `# >>> Added by HEISS UI: ${dir}${fixed}# <<< HEISS UI`;
+  });
+  return { text: next, changed };
+}
 
 // Other apps' model folders, by their own names, mapped to ComfyUI's kinds.
 const layouts = {
@@ -424,6 +446,9 @@ export async function modelFolderReport({ local = true, scan = {} } = {}) {
       name: folder.label || (path.basename(folder.dir).toLowerCase() === "models" ? parent : path.basename(folder.dir)),
       layout: folder.layout,
       app: folder.label,
+      // ComfyUI already reads some of this folder (its own models folder, say):
+      // only the listed subfolders are new to it.
+      partlyRead: readDirs.some((dir) => isInside(folder.dir, dir)),
       source: folder.source,
       kinds,
       count: kinds.reduce((sum, item) => sum + item.count, 0),
@@ -466,8 +491,10 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   const already = new Set(heissSections(text).map((section) => pathKey(section.path)));
   const backup = text ? `${file}.heiss-backup` : "";
-  let next = text && !text.endsWith("\n") ? `${text}${eol}` : text;
-  const added = [];
+  // Sections an older HEISS wrote under a derived kind never took; fix them in place.
+  const migrated = migrateDerivedKinds(text);
+  let next = migrated.text && !migrated.text.endsWith("\n") ? `${migrated.text}${eol}` : migrated.text;
+  const added = [...migrated.changed];
   for (const folder of chosen) {
     if (already.has(pathKey(folder.path))) continue;
     already.add(pathKey(folder.path));

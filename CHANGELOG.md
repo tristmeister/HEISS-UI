@@ -10,6 +10,15 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Fixed
+- **GGUF models in `models/unet_gguf` kept being offered as "not read".**
+  HEISS added that folder under ComfyUI-GGUF's `unet_gguf` name, which the
+  pack replaces with the diffusion model folders when it loads, so ComfyUI
+  never saw it and the prompt came back after every restart. Such folders
+  are now added as diffusion models (which the GGUF loader inherits), and an
+  entry written the old way is corrected the next time you press Add. When
+  the folder is ComfyUI's own, the dialog says only its subfolder is new.
+
 ## [0.6.0] - 2026-09-24
 
 ### Added

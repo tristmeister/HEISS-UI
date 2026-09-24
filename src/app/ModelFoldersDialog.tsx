@@ -68,8 +68,10 @@ function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: Mo
     case 'found': return {
       title: `Add ${plural(count, 'model')}`,
       description: folders.length === 1
-        ? `They’re in ${folders[0].name}, which ComfyUI doesn’t read.`
-        : `They’re in ${plural(folders.length, 'folder')} ComfyUI doesn’t read.`
+        ? folders[0].partlyRead
+          ? `ComfyUI reads ${folders[0].name}’s models folder, but not ${folders[0].kinds.length === 1 ? `its ${folders[0].kinds[0].name} subfolder` : 'these subfolders'}.`
+          : `They’re in ${folders[0].name}, which ComfyUI doesn’t read.`
+        : `They’re in ${plural(folders.length, 'folder')} ComfyUI doesn’t fully read.`
     };
     case 'none': return { title: 'No models found outside ComfyUI', description: 'Keep models somewhere else? Choose the folder.' };
     case 'remote': return { title: 'ComfyUI runs on another computer', description: 'HEISS UI can only look through the folders of the computer it runs on.' };
