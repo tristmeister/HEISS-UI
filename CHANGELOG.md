@@ -30,6 +30,19 @@ section into the next version and uses it as the GitHub release notes.
   server, but browsers only allow Touch ID and Windows Hello on a name.
 - Hidden's setup, lock screen and settings use shorter, plainer copy, and
   the website describes Hidden instead of Private Vault.
+- Moving into or out of Hidden is a short fade instead of the pixel curtain,
+  which showed the gallery through it as a grid. The lock screen and empty
+  Hidden use a quieter lock mark, and unlocking is quicker.
+- **A faster gallery, especially a large one.** Thumbnails of images on this
+  computer come straight from their cache instead of downloading the full
+  image from ComfyUI each time, and loading a page no longer checks every
+  image's file one by one. The app no longer reloads or redraws the gallery
+  while nothing changes, pauses its checks while the tab is in the
+  background, and typing in the prompt no longer redraws the gallery,
+  sidebar and composer. Generating keeps the server responsive and no
+  longer piles up preview frames in memory.
+- Stop can now stop a running upscale: the upscale button shows a stop
+  square while it runs, and the dock's Stop includes upscales.
 
 ### Fixed
 - Clearing the gallery while the vault was locked deleted the files and then
@@ -41,6 +54,14 @@ section into the next version and uses it as the GitHub release notes.
 - Private prompts leaked through tile titles and the workflow card's
   thumbnail; a locked session could not delete anything.
 - Run grouping only applied once a vault existed.
+- With any run grouped, the gallery reloaded itself every few seconds.
+- Restarting ComfyUI reported that ComfyUI-Manager was missing with the
+  Manager built into current ComfyUI.
+- Upscales left running by a server restart spun forever.
+- The ComfyUI connected card replayed every time you moved between the
+  gallery and Hidden.
+- A model folder picked on Windows could not be added when its path came
+  back with other casing or as an 8.3 short name.
 
 ## [0.4.1] - 2026-09-24
 
