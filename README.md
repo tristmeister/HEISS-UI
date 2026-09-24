@@ -69,7 +69,7 @@ npm install
 npm start
 ```
 
-`npm start` builds the app the first time. Then open **http://127.0.0.1:8787**. Your models, samplers and VAEs show up on their own.
+`npm start` builds the app the first time. Then open **http://localhost:8787**. Your models, samplers and VAEs show up on their own.
 
 ComfyUI on another port or machine? Copy `.env.example` to `.env` and set `COMFY_URL`.
 
@@ -91,7 +91,7 @@ Please do the full local setup for me:
 7. Set COMFY_URL to my ComfyUI URL, usually http://127.0.0.1:8188.
 8. Run npm run build.
 9. Start the app with npm start.
-10. Open http://127.0.0.1:8787 and verify the app can reach ComfyUI, detect models, and load the gallery.
+10. Open http://localhost:8787 and verify the app can reach ComfyUI, detect models, and load the gallery.
 11. For future updates, use Settings -> Update, or run git pull, npm install, and npm run build.
 
 Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.
@@ -204,7 +204,7 @@ if (-not (Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction Silent
   Start-Process node "server/index.js" -WorkingDirectory $appRoot -WindowStyle Hidden
 }
 
-Start-Process "http://127.0.0.1:8787/"
+Start-Process "http://localhost:8787/"
 ```
 
 </details>

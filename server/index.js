@@ -1433,7 +1433,9 @@ if (fs.existsSync(dist)) {
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 
 app.listen(port, host, () => {
-  const shownHost = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
+  // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
+  // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
+  const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
   // Under `npm run dev*` the page comes from Vite; this server only answers the API.
   const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
   printBanner({ version: appVersion, url: `http://${shownHost}:${dev ? 5173 : port}`, comfyUrl });
