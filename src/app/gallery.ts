@@ -21,9 +21,18 @@ export function dedupeGalleryItems(items: GalleryItem[]) {
   });
 }
 
+// Sorting parses createdAt inside the comparator; items are replaced rather than
+// mutated, so the parsed time can be remembered per item object.
+const parsedTimes = new WeakMap<GalleryItem, number>();
+
 export function galleryTime(item: GalleryItem) {
-  const parsed = Date.parse(item.createdAt || "");
-  return Number.isFinite(parsed) ? parsed : 0;
+  let time = parsedTimes.get(item);
+  if (time === undefined) {
+    const parsed = Date.parse(item.createdAt || "");
+    time = Number.isFinite(parsed) ? parsed : 0;
+    parsedTimes.set(item, time);
+  }
+  return time;
 }
 
 export function sortGalleryItems(items: GalleryItem[]) {

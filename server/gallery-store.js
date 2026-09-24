@@ -90,7 +90,10 @@ function bumpRevision(changes = {}) {
   const upserts = Array.isArray(changes.upserts) ? changes.upserts : [];
   const removes = Array.isArray(changes.removes) ? changes.removes : [];
   if (upserts.length || removes.length || changes.reset) {
-    galleryChanges.push({ revision: galleryRevision, upserts, removes, reset: Boolean(changes.reset) });
+    // Live previews are base64 frames: the log keeps up to changeLogLimit entries, so
+    // they stay out of it and a delta attaches the item's current one instead.
+    const logged = upserts.map((item) => (item.preview ? withoutPreview(item) : item));
+    galleryChanges.push({ revision: galleryRevision, upserts: logged, removes, reset: Boolean(changes.reset) });
     if (galleryChanges.length > changeLogLimit) galleryChanges.splice(0, galleryChanges.length - changeLogLimit);
   }
   return galleryRevision;
@@ -101,6 +104,10 @@ export function markGalleryReset() {
   return bumpRevision({ reset: true });
 }
 
+function withoutPreview({ preview, ...rest }) {
+  return rest;
+}
+
 function diffGallery(before, after) {
   const beforeMap = new Map(before.map((item) => [galleryKey(item), item]).filter(([key]) => key));
   const afterMap = new Map(after.map((item) => [galleryKey(item), item]).filter(([key]) => key));
@@ -108,6 +115,7 @@ function diffGallery(before, after) {
   const removes = [];
   for (const [key, item] of afterMap) {
     const previous = beforeMap.get(key);
+    if (previous === item) continue;
     if (!previous || JSON.stringify(previous) !== JSON.stringify(item)) upserts.push(item);
   }
   for (const key of beforeMap.keys()) {
@@ -224,6 +232,11 @@ export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
     return item.status !== "canceled" && !item.privateVault && !isGalleryHidden(item);
+  }).map((item) => {
+    if (item.status !== "pending" && item.status !== "running") return item;
+    const key = galleryKey(item);
+    const preview = gallery.find((live) => galleryKey(live) === key)?.preview;
+    return preview ? { ...item, preview } : item;
   });
   return { revision: galleryRevision, reset: false, upserts, removes: [...removes] };
 }
@@ -674,18 +687,22 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
   return completed;
 }
 
+// Progress and previews arrive several times a second per job, so these patch
+// only the job's own items and log just those, instead of diffing the gallery.
 export function updateGalleryJob(id, patch, options = {}) {
   let changed = false;
-  const before = gallery;
+  const upserts = [];
   gallery = gallery.map((item) => {
     if (item.jobId === id || item.id === id || item.url === id) {
       changed = true;
-      return { ...item, ...patch };
+      const next = { ...item, ...patch };
+      if (JSON.stringify(item) !== JSON.stringify(next)) upserts.push(next);
+      return next;
     }
     return item;
   });
   if (changed) {
-    bumpRevision(diffGallery(before, gallery));
+    if (upserts.length) bumpRevision({ upserts });
     if (options.persist !== false) saveGallery();
   }
   return changed;
@@ -693,18 +710,18 @@ export function updateGalleryJob(id, patch, options = {}) {
 
 export function updateGalleryJobPreviews(id, previews = []) {
   if (!Array.isArray(previews) || !previews.length) return false;
-  let changed = false;
+  const upserts = [];
   let fallbackIndex = 0;
-  const before = gallery;
   gallery = gallery.map((item) => {
     if (item.jobId !== id) return item;
     const index = Number.isInteger(item.index) ? item.index : fallbackIndex;
     fallbackIndex += 1;
     const preview = previews[index];
     if (!preview || item.preview === preview) return item;
-    changed = true;
-    return { ...item, preview };
+    const next = { ...item, preview };
+    upserts.push(next);
+    return next;
   });
-  if (changed) bumpRevision(diffGallery(before, gallery));
-  return changed;
+  if (upserts.length) bumpRevision({ upserts });
+  return upserts.length > 0;
 }

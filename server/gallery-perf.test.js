@@ -8,7 +8,7 @@ import test from "node:test";
 const outputDir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-output-"));
 process.env.COMFY_OUTPUT_DIR = outputDir;
 process.env.HEISS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-data-"));
-const { filterVisibleGallery, galleryDelta, galleryRevisionValue, markGalleryReset } = await import("./gallery-store.js");
+const { filterVisibleGallery, galleryDelta, galleryRevisionValue, markGalleryReset, setGallery, updateGalleryJob } = await import("./gallery-store.js");
 const { getThumbnail } = await import("./thumbnails.js");
 const { loadSharp } = await import("./sharp-loader.js");
 
@@ -62,4 +62,16 @@ test("a local output's cached thumbnail is served without fetching the original"
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("a live preview reaches other browsers while rendering, and is not kept once done", () => {
+  setGallery([{ id: "job-1:0", jobId: "job-1", status: "pending", type: "image", createdAt: new Date().toISOString() }], { persist: false });
+  const since = galleryRevisionValue();
+  updateGalleryJob("job-1", { preview: "data:image/jpeg;base64,AAAA" }, { persist: false });
+  assert.equal(galleryDelta({ since }).upserts[0].preview, "data:image/jpeg;base64,AAAA");
+  const before = galleryRevisionValue();
+  updateGalleryJob("job-1", { preview: "data:image/jpeg;base64,AAAA" }, { persist: false });
+  assert.equal(galleryRevisionValue(), before, "an unchanged patch does not bump the revision");
+  updateGalleryJob("job-1", { status: "done", preview: undefined }, { persist: false });
+  assert.deepEqual(galleryDelta({ since }).upserts.map((item) => [item.status, item.preview]), [["done", undefined]]);
 });

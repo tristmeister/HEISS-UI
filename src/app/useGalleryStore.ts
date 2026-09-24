@@ -54,10 +54,23 @@ function itemKey(item: GalleryItem) {
   return item.id || item.url || item.outputName || item.filename;
 }
 
+/** Field by field, so a big preview string is compared in place rather than serialised with the whole item. */
 function sameItem(a?: GalleryItem, b?: GalleryItem) {
   if (!a || !b) return false;
   if (a === b) return true;
-  return JSON.stringify(a) === JSON.stringify(b);
+  const aKeys = Object.keys(a) as (keyof GalleryItem)[];
+  if (aKeys.length !== Object.keys(b).length) return false;
+  return aKeys.every((key) => {
+    const left = a[key];
+    const right = b[key];
+    if (left === right) return true;
+    return typeof left === "object" && typeof right === "object" && JSON.stringify(left) === JSON.stringify(right);
+  });
+}
+
+/** Whether an update can move an item in the sorted order (see sortGalleryItems). */
+function sortFieldsChanged(a: GalleryItem, b: GalleryItem) {
+  return a.createdAt !== b.createdAt || a.index !== b.index || a.jobId !== b.jobId || a.id !== b.id;
 }
 
 function orderedIds(itemsById: Record<string, GalleryItem>) {
@@ -75,6 +88,12 @@ function mergeItems(current: Record<string, GalleryItem>, items: GalleryItem[]) 
     changed = true;
   }
   return changed ? next : current;
+}
+
+/** The same state object when the revision did not move, so React skips the re-render. */
+function withRevision(state: GalleryState, revision?: number) {
+  const next = Number(revision || state.revision);
+  return next === state.revision ? state : { ...state, revision: next };
 }
 
 function galleryReducer(state: GalleryState, action: GalleryAction): GalleryState {
@@ -129,11 +148,15 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
   if (action.type === "upsert") {
     const itemsById = mergeItems(state.itemsById, action.items);
     // An empty delta must not hand React a new state object: that re-renders the whole app every poll.
-    if (itemsById === state.itemsById && Number(action.revision || state.revision) === state.revision) return state;
+    if (itemsById === state.itemsById) return withRevision(state, action.revision);
+    const reorder = action.items.some((item) => {
+      const previous = state.itemsById[itemKey(item)];
+      return !previous || sortFieldsChanged(previous, item);
+    });
     return {
       ...state,
       itemsById,
-      sortedIds: itemsById === state.itemsById ? state.sortedIds : orderedIds(itemsById),
+      sortedIds: reorder ? orderedIds(itemsById) : state.sortedIds,
       revision: Number(action.revision || state.revision),
       totalApprox: Math.max(state.totalApprox, Object.keys(itemsById).length),
     };
@@ -152,7 +175,7 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
     }
     return changed
       ? { ...state, itemsById, sortedIds: orderedIds(itemsById), revision: Number(action.revision || state.revision), totalApprox: Math.max(0, state.totalApprox - removed) }
-      : { ...state, revision: Number(action.revision || state.revision) };
+      : withRevision(state, action.revision);
   }
   if (action.type === "removeWhere") {
     let changed = false;
@@ -166,10 +189,11 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
     }
     return changed
       ? { ...state, itemsById, sortedIds: orderedIds(itemsById), revision: Number(action.revision || state.revision), totalApprox: Math.max(0, state.totalApprox - removed) }
-      : { ...state, revision: Number(action.revision || state.revision) };
+      : withRevision(state, action.revision);
   }
   if (action.type === "patch") {
     let changed = false;
+    let reorder = false;
     const itemsById = { ...state.itemsById };
     for (const [key, item] of Object.entries(state.itemsById)) {
       const updated = action.update(item);
@@ -178,10 +202,12 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
       if (updatedKey !== key) delete itemsById[key];
       itemsById[updatedKey] = updated;
       changed = true;
+      // Progress and previews change every tick during a run; they never move an item.
+      reorder ||= updatedKey !== key || sortFieldsChanged(item, updated);
     }
     return changed
-      ? { ...state, itemsById, sortedIds: orderedIds(itemsById), revision: Number(action.revision || state.revision) }
-      : { ...state, revision: Number(action.revision || state.revision) };
+      ? { ...state, itemsById, sortedIds: reorder ? orderedIds(itemsById) : state.sortedIds, revision: Number(action.revision || state.revision) }
+      : withRevision(state, action.revision);
   }
   return state;
 }

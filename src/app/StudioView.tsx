@@ -31,6 +31,43 @@ import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import type { GalleryItem } from './types';
 import type { HiddenState } from './useHidden';
+import { memoLatest } from '@/lib/memo-latest';
+
+// App rebuilds every prop on each render (a keystroke in the prompt, a poll);
+// these skip re-rendering unless their data actually changed.
+const StableGallery = memoLatest(VirtualMasonryGallery);
+const StableComposerBar = memoLatest(ComposerBar);
+
+type ZenStripProps = {
+  items: GalleryItem[];
+  activeId?: string;
+  stripRef: React.Ref<HTMLDivElement>;
+  onPointerDown: React.PointerEventHandler<HTMLDivElement>;
+  onPointerMove: React.PointerEventHandler<HTMLDivElement>;
+  onPointerUp: React.PointerEventHandler<HTMLDivElement>;
+  onSelect: (id: string) => void;
+  titleFromPrompt: (text: string) => string;
+};
+
+const ZenStrip = memoLatest(function ZenStrip({ items, activeId, stripRef, onPointerDown, onPointerMove, onPointerUp, onSelect, titleFromPrompt }: ZenStripProps) {
+  return (
+    <div
+      ref={stripRef}
+      className="zen-gallery-strip"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+    >
+      {items.map((item) => (
+        <Tip key={item.id} content={item.bundle ? `${item.bundle.reasonLabel} · ${item.bundle.count} outputs` : titleFromPrompt(item.prompt || item.filename || "")}><button data-zen-id={item.id} className={cn(item.id === activeId && "active", item.bundle && "is-run")} onClick={(event) => { event.stopPropagation(); onSelect(item.id); }} onDragStart={(event) => event.preventDefault()}>
+          <Media item={item} muted />
+          {item.bundle ? <span className="zen-run-count" aria-hidden="true"><Layers size={9} />{item.bundle.count}</span> : null}
+        </button></Tip>
+      ))}
+    </div>
+  );
+});
 
 function comfyStatusLabel(status: any) {
   if (status?.checking) return "Checking ComfyUI...";
@@ -334,7 +371,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               </div>
               <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
             </div>
-            <ComposerBar
+            <StableComposerBar
               models={models}
               model={model}
               modelProfiles={modelProfiles}
@@ -389,21 +426,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div data-open-surface className="zen-gallery-wrap">
               <Tip content="Hide gallery"><button className="zen-gallery-toggle" aria-label="Hide gallery" onClick={() => setZenGalleryOpen(false)}><ChevronUp size={16} /></button></Tip>
               {zenGallery[0]?.id !== zenItem?.id ? <Tip content="Jump to latest output"><button className="zen-latest" onClick={goLatestZen}>Latest</button></Tip> : null}
-              <div
-                ref={zenStripRef}
-                className="zen-gallery-strip"
+              <ZenStrip
+                items={zenGallery}
+                activeId={zenItem?.id}
+                stripRef={zenStripRef}
                 onPointerDown={startZenStripDrag}
                 onPointerMove={dragZenStrip}
                 onPointerUp={stopZenStripDrag}
-                onPointerCancel={stopZenStripDrag}
-              >
-                {zenGallery.map((item: GalleryItem) => (
-                  <Tip key={item.id} content={item.bundle ? `${item.bundle.reasonLabel} · ${item.bundle.count} outputs` : titleFromPrompt(item.prompt || item.filename)}><button data-zen-id={item.id} className={cn(item.id === zenItem?.id && "active", item.bundle && "is-run")} onClick={(event) => { event.stopPropagation(); selectZenItem(item.id); }} onDragStart={(event) => event.preventDefault()}>
-                    <Media item={item} muted />
-                    {item.bundle ? <span className="zen-run-count" aria-hidden="true"><Layers size={9} />{item.bundle.count}</span> : null}
-                  </button></Tip>
-                ))}
-              </div>
+                onSelect={selectZenItem}
+                titleFromPrompt={titleFromPrompt}
+              />
             </div>
           ) : null}
         </>
@@ -411,7 +443,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         <>
           <main ref={galleryStageRef} className="stage-gallery" onScroll={onGalleryScroll}>
           {hiddenLocked ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
-            <VirtualMasonryGallery
+            <StableGallery
               cancelJob={cancelJob}
               expandedBundles={expandedBundles}
               gatheringIds={gatheringIds}
@@ -480,7 +512,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               </div>
               <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
             </div>
-            <ComposerBar
+            <StableComposerBar
               models={models}
               model={model}
               modelProfiles={modelProfiles}
