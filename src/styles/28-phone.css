@@ -486,7 +486,19 @@
 }
 .phone-control-label { font-size: 15px; font-weight: 600; }
 .phone-control-label b { float: right; font-variant-numeric: tabular-nums; }
-.phone-control-hint { display: flex; justify-content: space-between; color: hsl(var(--muted-foreground)); font-size: 12px; }
+.phone-control-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: hsl(var(--muted-foreground)); font-size: 12px; }
+/* Back to what the workflow suggests, one tap; greyed out when it already is. */
+.phone-step-default {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 18px;
+  background: rgb(255 255 255 / .07);
+  color: hsl(var(--foreground));
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.phone-step-default:disabled { opacity: .45; }
 .phone-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 .phone-seg button {
   min-height: 48px;

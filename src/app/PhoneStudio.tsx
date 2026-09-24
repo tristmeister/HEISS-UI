@@ -325,6 +325,23 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
 
 /* ------------------------------------------------------------ Create */
 
+/**
+ * A slider range worth having. A workflow's own limit is usually ComfyUI's
+ * technical maximum (10000), which makes the slider useless; the range here
+ * is built around the workflow's default instead: a turbo model at 4 steps
+ * gets 1-24, one at 20 gets 1-60. It still reaches whatever is set now, and
+ * never goes past the workflow's real limit.
+ */
+function practicalStepRange(profile: Profile | null | undefined, meta: { min?: number; max?: number; default?: number } | undefined, current: number) {
+  const hardMin = Math.max(1, Number(meta?.min || 1));
+  const hardMax = Math.max(hardMin, Number(meta?.max || 10000));
+  const recommended = Number(profile?.defaults?.steps || meta?.default || 0);
+  const base = recommended || 20;
+  const practical = Math.min(100, Math.max(12, base * 3, base + 20));
+  const max = Math.min(hardMax, Math.max(practical, Number(current) || 0));
+  return { min: hardMin, max, recommended: recommended && recommended >= hardMin && recommended <= hardMax ? recommended : 0 };
+}
+
 function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }: { view: Record<string, any>; open: boolean; onClose: () => void; canUseNegativePrompt: boolean; comfyOffline: boolean }) {
   const {
     prompt, setPrompt, promptLimit, clampText, negative, setNegative, negativeLimit, currentProfile, hiddenSpace,
@@ -337,8 +354,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const restarting = Boolean(comfyStatus?.restarting);
   const variations = mode === 'image' && currentProfile?.capabilities?.variations !== false;
   const maxCount = Math.max(1, Math.min(4, Number(countMeta?.max || 4)));
-  const stepMin = Number(stepsMeta?.min || 1);
-  const stepMax = Math.max(stepMin, Number(stepsMeta?.max || 60));
+  const { min: stepMin, max: stepMax, recommended: stepDefault } = practicalStepRange(currentProfile, stepsMeta, steps);
   const aspect = (aspectOptions as AspectPreset[] || []).find((option) => option.value === aspectPickerValue);
   const reason = restarting ? 'ComfyUI is restarting. Back in a few seconds.' : comfyOffline ? 'ComfyUI is offline.' : !prompt.trim() ? '' : generateDisabled ? generateDisabledReason : '';
 
@@ -440,7 +456,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
       <div className="phone-control">
         <span className="phone-control-label">Steps <b>{steps}</b></span>
         <input className="phone-slider" type="range" min={stepMin} max={stepMax} step={1} value={steps} aria-label="Steps" onChange={(event) => setSteps(Number(event.target.value))} />
-        <span className="phone-control-hint"><span>Faster</span><span>More detail</span></span>
+        <span className="phone-control-hint"><span>Faster</span>{stepDefault ? <button type="button" className="phone-step-default" onClick={() => setSteps(stepDefault)} disabled={steps === stepDefault}>Workflow default {stepDefault}</button> : null}<span>More detail</span></span>
       </div>
 
       <button type="button" className="phone-link is-strong" onClick={() => setSheet('advanced')}>

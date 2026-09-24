@@ -10,6 +10,12 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Fixed
+- **The phone's steps slider ran from 1 to 10,000.** It took the workflow's
+  technical limit (ComfyUI's maximum). The range is now built around the
+  workflow's default (a 4-step turbo model gets 1–24, a 20-step one 1–60),
+  and a "Workflow default" chip puts it back in one tap.
+
 ## [0.7.0] - 2026-09-24
 
 ### Added
