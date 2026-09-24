@@ -27,6 +27,8 @@ type GalleryState = {
   hasMore: boolean;
   loaded: boolean;
   totalApprox: number;
+  /** Emptied by a crossing between the gallery and Hidden, not by a first load. */
+  crossing?: boolean;
 };
 
 type GalleryAction =
@@ -38,7 +40,8 @@ type GalleryAction =
   | { type: "patch"; update: (item: GalleryItem) => GalleryItem; revision?: number }
   | { type: "replace"; items: GalleryItem[]; revision?: number }
   | { type: "loaded" }
-  | { type: "clear" };
+  | { type: "clear" }
+  | { type: "cross"; restore: GalleryState | null };
 
 const initialState: GalleryState = {
   itemsById: {},
@@ -99,6 +102,7 @@ function withRevision(state: GalleryState, revision?: number) {
 function galleryReducer(state: GalleryState, action: GalleryAction): GalleryState {
   if (action.type === "loaded") return { ...state, loaded: true };
   if (action.type === "clear") return initialState;
+  if (action.type === "cross") return action.restore || { ...initialState, crossing: true };
   if (action.type === "reset") {
     const pageItems = action.page.items || action.page.outputs || [];
     // Keep the existing object for an unchanged item, so memoised tiles skip re-rendering.
@@ -218,13 +222,20 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
   const [state, dispatch] = useReducer(galleryReducer, initialState);
   const includeFailed = showFailedItems ? "1" : "0";
   const hidden = space === "hidden";
-  // Moving between the gallery and Hidden starts from nothing, and a page still
-  // on its way from the space just left is dropped when it lands.
+  // Moving between the gallery and Hidden swaps the list, and a page still on
+  // its way from the space just left is dropped when it lands. The gallery is
+  // kept aside while in Hidden so coming back shows it at once and only syncs;
+  // Hidden itself is never kept once left.
   const spaceRef = useRef(space);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const gallerySnapshot = useRef<GalleryState | null>(null);
   useEffect(() => {
     if (spaceRef.current === space) return;
+    if (spaceRef.current === "gallery" && stateRef.current.loaded) gallerySnapshot.current = stateRef.current;
     spaceRef.current = space;
-    dispatch({ type: "clear" });
+    dispatch({ type: "cross", restore: space === "gallery" ? gallerySnapshot.current : null });
+    if (space === "gallery") gallerySnapshot.current = null;
   }, [space]);
 
   const gallery = useMemo(() => state.sortedIds.map((id) => state.itemsById[id]).filter(Boolean), [state.itemsById, state.sortedIds]);
@@ -278,6 +289,7 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
     visibleGallery,
     renderedGallery: visibleGallery,
     galleryLoaded: state.loaded,
+    galleryCrossing: !state.loaded && Boolean(state.crossing),
     hasMoreGallery: state.hasMore,
     galleryTotalApprox: state.totalApprox,
     galleryRevision: state.revision,
