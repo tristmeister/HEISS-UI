@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-24
+
 ### Added
 - **Restart ComfyUI** from Settings, and wherever a setup step ends in a
   restart, when ComfyUI-Manager is installed. If the control is off, it says
@@ -179,5 +181,6 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tristmeister/HEISS-UI/releases/tag/v0.2.0
