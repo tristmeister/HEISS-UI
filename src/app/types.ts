@@ -273,7 +273,7 @@ export type UpscaleDownloadPreview = {
   files: Array<{ key: string; file: string; label: string; detail?: string; bytes: number; partialBytes: number }>;
 };
 
-export type HiddenPasskey = { id: string; name?: string; createdAt?: string; lastUsedAt?: string };
+export type HiddenPasskey = { id: string; name?: string; kind?: "prf" | "device"; createdAt?: string; lastUsedAt?: string };
 /** Hidden, as this browser sees it. Locked, it learns nothing about what is inside. */
 export type PrivacyStatus = {
   enabled: boolean;

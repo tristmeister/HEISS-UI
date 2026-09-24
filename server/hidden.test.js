@@ -144,4 +144,31 @@ test("old sealed gallery prompts open once with the key", () => {
   assert.equal(privacy.openLegacyPrompt(item, crypto.randomBytes(32)), null);
 });
 
+test("a device passkey unlocks only with its secret and a fresh signature from it", () => {
+  privacy.erasePrivacy();
+  const key = privacy.setupPrivacy("device test pw");
+  const { publicKey, privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
+  const spki = publicKey.export({ format: "der", type: "spki" }).toString("base64url");
+  const { secret } = privacy.addDevicePasskey(key, { id: "dev-1", name: "Touch ID", publicKey: spki });
+  const origin = "http://localhost:5173";
+  const assertion = (challenge, signer = privateKey, flags = 0x05) => {
+    const clientDataJSON = Buffer.from(JSON.stringify({ type: "webauthn.get", challenge, origin }));
+    const authenticatorData = Buffer.concat([crypto.createHash("sha256").update("localhost").digest(), Buffer.from([flags]), Buffer.alloc(4)]);
+    const signature = crypto.sign("sha256", Buffer.concat([authenticatorData, crypto.createHash("sha256").update(clientDataJSON).digest()]), signer);
+    return { id: "dev-1", secret, clientDataJSON: clientDataJSON.toString("base64url"), authenticatorData: authenticatorData.toString("base64url"), signature: signature.toString("base64url") };
+  };
+  const good = assertion(privacy.issueChallenge());
+  assert.deepEqual(privacy.unlockWithDevicePasskey(good, origin), key);
+  // The same challenge never works twice.
+  assert.equal(privacy.unlockWithDevicePasskey(good, origin), null);
+  // Someone else's key, a challenge never issued, no user verification, the wrong secret, another origin.
+  assert.equal(privacy.unlockWithDevicePasskey(assertion(privacy.issueChallenge(), crypto.generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey), origin), null);
+  assert.equal(privacy.unlockWithDevicePasskey(assertion("made-up"), origin), null);
+  assert.equal(privacy.unlockWithDevicePasskey(assertion(privacy.issueChallenge(), privateKey, 0x01), origin), null);
+  assert.equal(privacy.unlockWithDevicePasskey({ ...assertion(privacy.issueChallenge()), secret: crypto.randomBytes(32).toString("base64url") }, origin), null);
+  assert.equal(privacy.unlockWithDevicePasskey(assertion(privacy.issueChallenge()), "http://evil.example"), null);
+  vault.eraseVault();
+  privacy.erasePrivacy();
+});
+
 test.after(() => fs.rmSync(temporary, { recursive: true, force: true }));

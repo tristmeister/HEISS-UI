@@ -112,7 +112,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
           ) : <button className="btn" disabled={!unlocked} onClick={() => setChanging(true)}>Change</button>}
         </Row>
         {passkeys.map((passkey) => (
-          <Row key={passkey.id} label={<span className="hidden-way"><Fingerprint size={14} /> {passkey.name || "Passkey"}</span>} description={unlocked ? [passkey.createdAt ? `Added ${when(passkey.createdAt)}` : "", passkey.lastUsedAt ? `last used ${when(passkey.lastUsedAt)}` : ""].filter(Boolean).join(", ") : undefined}>
+          <Row key={passkey.id} label={<span className="hidden-way"><Fingerprint size={14} /> {passkey.name || "Passkey"}</span>} description={unlocked ? [passkey.kind === "device" ? "Tied to this browser" : "", passkey.createdAt ? `added ${when(passkey.createdAt)}` : "", passkey.lastUsedAt ? `last used ${when(passkey.lastUsedAt)}` : ""].filter(Boolean).join(", ").replace(/^a/, "A") : undefined}>
             <button className="btn is-ghost" aria-label={`Remove ${passkey.name || "passkey"}`} disabled={!unlocked} onClick={() => removeBiometric(passkey.id, passkey.name || "this passkey")}><Trash2 size={14} /></button>
           </Row>
         ))}

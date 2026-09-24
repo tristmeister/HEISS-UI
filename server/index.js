@@ -23,7 +23,7 @@ import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, 
 import { galleryStats } from './stats.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
-import { addPasskey, changePassword, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
+import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
 import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, retireVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
 import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
@@ -215,13 +215,15 @@ app.post("/api/privacy/unlock", async (req, res) => {
 
 app.get("/api/privacy/passkeys/options", (req, res) => {
   if (!requireTrustedAccess(req, res)) return;
-  res.json({ ok: true, passkeys: passkeyUnlockOptions() });
+  res.json({ ok: true, passkeys: passkeyUnlockOptions(), challenge: issueChallenge() });
 });
 
 app.post("/api/privacy/passkeys/unlock", async (req, res) => {
   if (!requireTrustedAccess(req, res)) return;
   await slowDownGuessing();
-  const key = unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""));
+  const key = req.body?.secret
+    ? unlockWithDevicePasskey(req.body, String(req.headers.origin || ""))
+    : unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""));
   if (!key) {
     res.status(401).json({ ok: false, locked: true, error: "That passkey is not one Hidden knows. Use your password." });
     return;
@@ -241,6 +243,11 @@ app.post("/api/privacy/passkeys", async (req, res) => {
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
+    if (req.body?.mode === "device") {
+      const { passkey, secret } = addDevicePasskey(key, req.body || {});
+      res.json({ ok: true, passkey, secret, ...(await privacyPayload(req, key)) });
+      return;
+    }
     const passkey = addPasskey(key, req.body || {});
     res.json({ ok: true, passkey, ...(await privacyPayload(req, key)) });
   } catch (error) {

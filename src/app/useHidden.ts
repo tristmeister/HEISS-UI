@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
-import { passkeyCancelled, passkeySupport, registerPasskey, unlockWithPasskey, type PasskeySupport } from './passkeys';
+import { forgetDeviceSecret, keepDeviceSecret, passkeyCancelled, passkeySupport, registerPasskey, unlockWithPasskey, type PasskeyOption, type PasskeySupport } from './passkeys';
 import type { GalleryItem, PrivacyStatus } from './types';
 import type { GallerySpace } from './useGalleryStore';
 
@@ -99,23 +99,25 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
 
   // Fetched ahead of time: Safari only shows its Touch ID sheet straight from a
   // click, and a network round trip first would spend that click.
-  const passkeyOptions = useRef<Array<{ id: string; salt: string }>>([]);
+  type Options = { passkeys: PasskeyOption[]; challenge: string };
+  const passkeyOptions = useRef<Options | null>(null);
   const passkeyCount = status?.passkeys?.length || 0;
+  const fetchOptions = useCallback(() => apiJson<Options>("/api/privacy/passkeys/options"), []);
   useEffect(() => {
-    if (!enabled || !passkeyCount) { passkeyOptions.current = []; return; }
-    apiJson<{ passkeys: Array<{ id: string; salt: string }> }>("/api/privacy/passkeys/options")
-      .then((data) => { passkeyOptions.current = data.passkeys || []; })
-      .catch(() => null);
-  }, [enabled, passkeyCount]);
+    passkeyOptions.current = null;
+    if (!enabled || !passkeyCount || unlocked) return;
+    fetchOptions().then((data) => { passkeyOptions.current = data; }).catch(() => null);
+  }, [enabled, fetchOptions, passkeyCount, unlocked]);
 
   const unlockBiometric = useCallback(async () => {
     setUnlockStage("asking");
     setUnlockError("");
     try {
-      const passkeys = passkeyOptions.current.length
-        ? passkeyOptions.current
-        : (await apiJson<{ passkeys: Array<{ id: string; salt: string }> }>("/api/privacy/passkeys/options")).passkeys;
-      const answer = await unlockWithPasskey(passkeys);
+      // Each challenge works once; the next try gets a fresh one.
+      const options = passkeyOptions.current || await fetchOptions();
+      passkeyOptions.current = null;
+      fetchOptions().then((data) => { passkeyOptions.current = data; }).catch(() => null);
+      const answer = await unlockWithPasskey(options.passkeys, options.challenge);
       setUnlockStage("checking");
       opened(await apiJson<PrivacyStatus>("/api/privacy/passkeys/unlock", json({ ...answer, sessionSeconds })));
       return true;
@@ -127,7 +129,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
       failed(error instanceof Error ? error.message : "That did not open Hidden.");
       return false;
     }
-  }, [failed, opened, sessionSeconds]);
+  }, [failed, fetchOptions, opened, sessionSeconds]);
 
   const lock = useCallback(async (quiet = false) => {
     try {
@@ -176,13 +178,17 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
   /** Adds this device's Touch ID or Windows Hello as a way into Hidden. */
   const addBiometric = useCallback(async (name?: string) => {
     const made = await registerPasskey();
-    const next = await apiJson<PrivacyStatus>("/api/privacy/passkeys", json({ ...made, name: name || support?.label || "Passkey" }));
-    setStatus(next);
-    return next;
+    const next = await apiJson<PrivacyStatus & { secret?: string }>("/api/privacy/passkeys", json({ ...made, name: name || support?.label || "Passkey" }));
+    // A device passkey's secret lives only in this browser, sealed under a key it cannot export.
+    if (made.mode === "device" && next.secret) await keepDeviceSecret(made.id, next.secret);
+    const { secret, ...rest } = next;
+    setStatus(rest);
+    return rest;
   }, [support?.label]);
 
   const removeBiometric = useCallback(async (id: string) => {
     const next = await apiJson<PrivacyStatus>(`/api/privacy/passkeys/${encodeURIComponent(id)}`, { method: "DELETE" });
+    await forgetDeviceSecret(id);
     setStatus(next);
   }, []);
 

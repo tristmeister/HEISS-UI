@@ -1,9 +1,9 @@
 /**
  * Touch ID, Windows Hello and phone passkeys for Hidden, through WebAuthn's
  * PRF extension: the authenticator turns a salt into a secret only it can
- * make, and that secret is what unwraps Hidden's key on the server. A passkey
- * that cannot do PRF is refused rather than used as a plain yes/no, because a
- * yes/no would need the key stored somewhere it could be read without one.
+ * make, and that secret is what unwraps Hidden's key on the server. Where the
+ * authenticator cannot do PRF (Chrome's and Arc's on-device store, many Windows
+ * setups), a device passkey stands in: see below.
  */
 
 export type PasskeySupport = {
@@ -42,10 +42,6 @@ export async function passkeySupport(): Promise<PasskeySupport> {
   }
   try {
     const platform = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    const capabilities = await (PublicKeyCredential as unknown as { getClientCapabilities?: () => Promise<Record<string, boolean>> }).getClientCapabilities?.().catch(() => null);
-    if (capabilities && capabilities["extension:prf"] === false) {
-      return { available: false, label, localhostUrl: "", reason: `This browser cannot unlock with ${label} yet. Chrome, Edge and Safari can.` };
-    }
     if (!platform) return { available: false, label, localhostUrl: "", reason: `${label} is not set up on this device.` };
   } catch {
     return { available: false, label, localhostUrl: "", reason: `${label} is not available in this browser.` };
@@ -93,8 +89,64 @@ async function evaluate(id: string, salt: string) {
   return { id: toBase64url(assertion.rawId), prf: toBase64url(first) };
 }
 
-/** Makes a passkey on this device and gets its secret, asking for the finger or face at most twice. */
-export async function registerPasskey(): Promise<{ id: string; salt: string; prf: string }> {
+/* Device passkeys: for authenticators without PRF. The secret the server
+   hands out is kept in IndexedDB, encrypted under an AES key the browser
+   can use but never export. Unlocking needs that secret and a fresh
+   Touch ID signature, which the server checks. */
+
+const secretDb = "heiss-hidden";
+const secretStore = "passkey-secrets";
+
+function openSecrets(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(secretDb, 1);
+    request.onupgradeneeded = () => request.result.createObjectStore(secretStore);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function secretsTx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+  const db = await openSecrets();
+  return new Promise((resolve, reject) => {
+    const request = run(db.transaction(secretStore, mode).objectStore(secretStore));
+    request.onsuccess = () => { resolve(request.result); db.close(); };
+    request.onerror = () => { reject(request.error); db.close(); };
+  });
+}
+
+type StoredSecret = { key: CryptoKey; iv: Uint8Array; data: ArrayBuffer };
+
+export async function keepDeviceSecret(id: string, secret: string) {
+  const key = await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, fromBase64url(secret));
+  await secretsTx("readwrite", (store) => store.put({ key, iv, data } satisfies StoredSecret, id));
+}
+
+async function deviceSecret(id: string) {
+  const stored = await secretsTx<StoredSecret | undefined>("readonly", (store) => store.get(id)).catch(() => undefined);
+  if (!stored) return "";
+  return toBase64url(await crypto.subtle.decrypt({ name: "AES-GCM", iv: stored.iv as BufferSource }, stored.key, stored.data));
+}
+
+export async function hasDeviceSecret(id: string) {
+  return Boolean(await secretsTx("readonly", (store) => store.getKey(id)).catch(() => undefined));
+}
+
+export async function forgetDeviceSecret(id: string) {
+  await secretsTx("readwrite", (store) => store.delete(id)).catch(() => undefined);
+}
+
+export type RegisteredPasskey =
+  | { mode: "prf"; id: string; salt: string; prf: string }
+  | { mode: "device"; id: string; publicKey: string };
+
+/**
+ * Makes a passkey on this device. With PRF its secret becomes the key; without
+ * it, the passkey signs challenges instead and the browser keeps a secret.
+ */
+export async function registerPasskey(): Promise<RegisteredPasskey> {
   const salt = toBase64url(crypto.getRandomValues(new Uint8Array(32)));
   const credential = await navigator.credentials.create({
     publicKey: {
@@ -111,26 +163,52 @@ export async function registerPasskey(): Promise<{ id: string; salt: string; prf
   const id = toBase64url(credential.rawId);
   const prf = prfOf(credential);
   // Chrome answers with the secret straight away; Safari and Windows only say it is possible.
-  if (prf?.results?.first) return { id, salt, prf: toBase64url(prf.results.first) };
-  if (prf && prf.enabled === false) throw new PasskeyWithoutSecretError("This passkey cannot return a secret.");
-  const evaluated = await evaluate(id, salt);
-  return { id, salt, prf: evaluated.prf };
+  if (prf?.results?.first) return { mode: "prf", id, salt, prf: toBase64url(prf.results.first) };
+  if (prf?.enabled) {
+    const evaluated = await evaluate(id, salt).catch(() => null);
+    if (evaluated) return { mode: "prf", id, salt, prf: evaluated.prf };
+  }
+  const publicKey = (credential.response as AuthenticatorAttestationResponse).getPublicKey?.();
+  if (!publicKey) throw new PasskeyWithoutSecretError("This passkey shares neither a secret nor its public key.");
+  return { mode: "device", id, publicKey: toBase64url(publicKey) };
 }
 
-/** Asks for any of Hidden's passkeys and returns the secret of the one that answered. */
-export async function unlockWithPasskey(passkeys: Array<{ id: string; salt: string }>): Promise<{ id: string; prf: string }> {
-  if (!passkeys.length) throw new Error("No passkey is set up for Hidden.");
+export type PasskeyOption = { id: string; kind: "prf" | "device"; salt?: string };
+export type PasskeyAnswer = { id: string; prf: string } | { id: string; secret: string; clientDataJSON: string; authenticatorData: string; signature: string };
+
+/** Asks for any of Hidden's passkeys that this browser can use, and returns what unlocks with it. */
+export async function unlockWithPasskey(passkeys: PasskeyOption[], challenge: string): Promise<PasskeyAnswer> {
+  // A device passkey only works where its secret was kept, so only those are offered here.
+  const usable: PasskeyOption[] = [];
+  for (const passkey of passkeys) {
+    if (passkey.kind !== "device" || await hasDeviceSecret(passkey.id)) usable.push(passkey);
+  }
+  if (!usable.length) throw new Error("No passkey for Hidden is set up in this browser. Use your password.");
+  const prfKeys = usable.filter((passkey) => passkey.kind === "prf" && passkey.salt);
   const assertion = await navigator.credentials.get({
     publicKey: {
-      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      challenge: challenge ? fromBase64url(challenge) : crypto.getRandomValues(new Uint8Array(32)),
       rpId: window.location.hostname,
-      allowCredentials: passkeys.map((passkey) => ({ type: "public-key" as const, id: fromBase64url(passkey.id) })),
+      allowCredentials: usable.map((passkey) => ({ type: "public-key" as const, id: fromBase64url(passkey.id) })),
       userVerification: "required",
       timeout: 60_000,
-      extensions: { prf: { evalByCredential: Object.fromEntries(passkeys.map((passkey) => [passkey.id, { first: fromBase64url(passkey.salt) }])) } } as AuthenticationExtensionsClientInputs
+      ...(prfKeys.length ? { extensions: { prf: { evalByCredential: Object.fromEntries(prfKeys.map((passkey) => [passkey.id, { first: fromBase64url(passkey.salt!) }])) } } as AuthenticationExtensionsClientInputs } : {})
     }
   }) as PublicKeyCredential | null;
-  const first = assertion ? prfOf(assertion)?.results?.first : undefined;
-  if (!assertion || !first) throw new PasskeyWithoutSecretError("This passkey did not return a secret.");
-  return { id: toBase64url(assertion.rawId), prf: toBase64url(first) };
+  if (!assertion) throw new Error("No passkey answered.");
+  const id = toBase64url(assertion.rawId);
+  const used = usable.find((passkey) => passkey.id === id);
+  if (used?.kind === "device") {
+    const response = assertion.response as AuthenticatorAssertionResponse;
+    return {
+      id,
+      secret: await deviceSecret(id),
+      clientDataJSON: toBase64url(response.clientDataJSON),
+      authenticatorData: toBase64url(response.authenticatorData),
+      signature: toBase64url(response.signature)
+    };
+  }
+  const first = prfOf(assertion)?.results?.first;
+  if (!first) throw new PasskeyWithoutSecretError("This passkey did not return a secret.");
+  return { id, prf: toBase64url(first) };
 }

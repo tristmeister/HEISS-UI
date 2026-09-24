@@ -15,8 +15,8 @@ import { readJsonFile, writeJsonFile } from './json-store.js';
  *
  * A passkey unlocks through the WebAuthn PRF extension: the authenticator
  * turns a per-passkey salt into 32 secret bytes that only it can produce, and
- * those bytes wrap the master key. No PRF, no passkey: a passkey is never used
- * as a mere yes/no gate, because then the key would have to sit on disk.
+ * those bytes wrap the master key. Browsers whose passkeys cannot do PRF get
+ * the weaker device passkey described further down.
  *
  * An unlocked browser holds the master key sealed in an HttpOnly cookie under
  * this install's session secret; nothing keeps a copy in server memory.
@@ -132,7 +132,7 @@ export function isPrivacyEnabled() {
 }
 
 function publicPasskey(passkey) {
-  return { id: passkey.id, name: passkey.name || "Passkey", createdAt: passkey.createdAt || "", lastUsedAt: passkey.lastUsedAt || "" };
+  return { id: passkey.id, name: passkey.name || "Passkey", kind: passkey.kind === "device" ? "device" : "prf", createdAt: passkey.createdAt || "", lastUsedAt: passkey.lastUsedAt || "" };
 }
 
 export function privacyStatusFor(req) {
@@ -152,7 +152,69 @@ export function privacyStatusFor(req) {
 export function passkeyUnlockOptions() {
   const config = readConfig();
   if (!config?.enabled) return [];
-  return (config.passkeys || []).map((passkey) => ({ id: passkey.id, salt: passkey.salt }));
+  return (config.passkeys || []).map((passkey) => passkey.kind === "device"
+    ? { id: passkey.id, kind: "device" }
+    : { id: passkey.id, kind: "prf", salt: passkey.salt });
+}
+
+/* Browser passkeys that cannot do PRF (Chrome's and Arc's own on-device
+   store, many Windows setups) unlock another way: Touch ID signs a one-time
+   challenge, checked here against the passkey's public key, and the browser
+   sends a secret it keeps under a key it can use but never export. Both are
+   needed. Weaker than PRF, since that browser key lives in the browser
+   profile, and Settings says so. */
+
+const challenges = new Map();
+const challengeTtlMs = 10 * 60 * 1000;
+
+export function issueChallenge() {
+  const now = Date.now();
+  for (const [value, expires] of challenges) if (expires < now) challenges.delete(value);
+  const challenge = base64url(crypto.randomBytes(32));
+  challenges.set(challenge, now + challengeTtlMs);
+  return challenge;
+}
+
+function consumeChallenge(value) {
+  const expires = challenges.get(value);
+  challenges.delete(value);
+  return Boolean(expires && expires >= Date.now());
+}
+
+/** Checks a WebAuthn assertion: our challenge, this page, the user verified, and signed by this passkey. */
+function verifyAssertion(passkey, { clientDataJSON = "", authenticatorData = "", signature = "" }, origin) {
+  try {
+    const clientBytes = fromBase64url(clientDataJSON);
+    const client = JSON.parse(clientBytes.toString("utf8"));
+    if (client.type !== "webauthn.get" || !origin || client.origin !== origin) return false;
+    if (!consumeChallenge(String(client.challenge || ""))) return false;
+    const auth = fromBase64url(authenticatorData);
+    if (auth.length < 37) return false;
+    const rpIdHash = crypto.createHash("sha256").update(new URL(origin).hostname).digest();
+    if (!auth.subarray(0, 32).equals(rpIdHash)) return false;
+    // User present and user verified: a fingerprint, a face or the device password, not just a tap.
+    if ((auth[32] & 0x05) !== 0x05) return false;
+    const signed = Buffer.concat([auth, crypto.createHash("sha256").update(clientBytes).digest()]);
+    const key = crypto.createPublicKey({ key: fromBase64url(passkey.publicKey), format: "der", type: "spki" });
+    return crypto.verify("sha256", signed, key, fromBase64url(signature));
+  } catch {
+    return false;
+  }
+}
+
+export function unlockWithDevicePasskey(body = {}, origin = "") {
+  const config = readConfig();
+  if (!config?.enabled || config.version !== 2) return null;
+  const passkey = (config.passkeys || []).find((item) => item.id === body.id && item.kind === "device");
+  const secret = fromBase64url(body.secret || "");
+  if (!passkey || secret.length < 32 || !verifyAssertion(passkey, body, origin)) { noteUnlock(false); return null; }
+  const key = open(passkey.wrapped, passkeyWrapKey(secret, passkey.salt), `passkey:${passkey.id}`);
+  noteUnlock(Boolean(key));
+  if (key) {
+    passkey.lastUsedAt = new Date().toISOString();
+    writeConfig(config);
+  }
+  return key;
 }
 
 function migrateLegacy(config, password, key) {
@@ -202,7 +264,7 @@ export function unlockWithPassword(password = "") {
 export function unlockWithPasskey(id = "", prf = "") {
   const config = readConfig();
   if (!config?.enabled || config.version !== 2) return null;
-  const passkey = (config.passkeys || []).find((item) => item.id === id);
+  const passkey = (config.passkeys || []).find((item) => item.id === id && item.kind !== "device");
   const secret = fromBase64url(prf);
   if (!passkey || secret.length < 32) { noteUnlock(false); return null; }
   const key = open(passkey.wrapped, passkeyWrapKey(secret, passkey.salt), `passkey:${passkey.id}`);
@@ -245,6 +307,32 @@ export function changePassword(key, password = "") {
   writeConfig(config);
 }
 
+/**
+ * A passkey that cannot do PRF: keeps its public key to check signatures, and
+ * hands back the secret the browser will hold. The secret is never stored here.
+ */
+export function addDevicePasskey(key, { id = "", name = "", publicKey = "" } = {}) {
+  const config = readConfig();
+  if (!config?.enabled || config.version !== 2 || !key) throw new Error("Unlock Hidden first.");
+  if (!id || !publicKey) throw new Error("This passkey did not share its public key.");
+  try { crypto.createPublicKey({ key: fromBase64url(publicKey), format: "der", type: "spki" }); } catch { throw new Error("This passkey uses a key type Hidden cannot check."); }
+  const secret = crypto.randomBytes(32);
+  const salt = base64url(crypto.randomBytes(32));
+  const passkeys = (config.passkeys || []).filter((item) => item.id !== id);
+  passkeys.push({
+    id,
+    kind: "device",
+    name: String(name || "Passkey").slice(0, 60),
+    salt,
+    publicKey,
+    wrapped: seal(key, passkeyWrapKey(secret, salt), `passkey:${id}`),
+    createdAt: new Date().toISOString()
+  });
+  config.passkeys = passkeys.slice(-8);
+  writeConfig(config);
+  return { passkey: publicPasskey(passkeys.at(-1)), secret: base64url(secret) };
+}
+
 export function addPasskey(key, { id = "", name = "", salt = "", prf = "" } = {}) {
   const config = readConfig();
   if (!config?.enabled || config.version !== 2 || !key) throw new Error("Unlock Hidden first.");
@@ -274,7 +362,11 @@ export function removePasskey(id = "") {
 
 /** Forgets the key ring. Without it nothing in Hidden can ever be opened again. */
 export function erasePrivacy() {
-  try { fs.unlinkSync(privacyPath); } catch { /* already gone */ }
+  // The JSON store keeps a .bak and reads it when the file is missing; it has to go too,
+  // or the old key ring comes straight back.
+  for (const file of [privacyPath, `${privacyPath}.bak`]) {
+    try { fs.unlinkSync(file); } catch { /* already gone */ }
+  }
 }
 
 export function setUnlockCookie(res, key, seconds = defaultSessionSeconds) {
