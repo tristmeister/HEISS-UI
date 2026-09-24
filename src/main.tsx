@@ -23,6 +23,7 @@ import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
+import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
 import { memoLatest } from './lib/memo-latest';
 
 // Rebuilt from scratch on every App render (each keystroke in the prompt); skips unless its data changed.
@@ -56,8 +57,13 @@ function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[
 const updateInstalledKey = "heiss-ui:update-installed";
 const formatUpdateBytes = (bytes = 0) => `${(bytes / 1024 ** 2).toFixed(bytes > 100 * 1024 ** 2 ? 0 : 1)} MB`;
 
+// Another dialog on top owns the keyboard. The viewer is a dialog too, but it is
+// the surface these shortcuts drive, so it does not count (data-focus-trap).
+const OPEN_DIALOG = '[role="dialog"]:not([data-focus-trap]), [role="alertdialog"]';
+
 function App() {
   useKeyboardInset();
+  useArrowKeyGroups();
   const now = Date.now();
   const initialDraft = useMemo(() => loadDraft(), []);
   const [mode, setMode] = useState<Mode>(initialDraft.mode === "video" ? "video" : "image");
@@ -330,7 +336,7 @@ function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (document.querySelector(OPEN_DIALOG)) return;
       if (event.key !== "Escape") return;
       if (settings) {
         event.preventDefault();
@@ -389,7 +395,7 @@ function App() {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (document.querySelector(OPEN_DIALOG)) return;
       if (settings || active) return;
       // AltGr types @ { \ € on many layouts; Windows reports it as Ctrl+Alt.
       const altGraph = event.getModifierState("AltGraph") || (event.ctrlKey && event.altKey);
@@ -483,7 +489,7 @@ function App() {
     const viewerItems = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
     const currentIndex = viewerItems.findIndex((item) => item.id === activeItem.id);
     function onKeyDown(event: KeyboardEvent) {
-      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (document.querySelector(OPEN_DIALOG)) return;
       if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
       if (event.key === "ArrowRight" && currentIndex >= 0) {
         event.preventDefault();
@@ -525,7 +531,7 @@ function App() {
     const zenItems = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
     const currentIndex = Math.max(0, zenItems.findIndex((item) => item.id === zenSelectedId));
     function onKeyDown(event: KeyboardEvent) {
-      if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
+      if (document.querySelector(OPEN_DIALOG)) return;
       if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
       if (event.key === "ArrowRight" && zenItems.length) {
         event.preventDefault();

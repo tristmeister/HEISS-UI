@@ -357,10 +357,13 @@ export function useViewerControls(view: any) {
       viewerDragEndRef.current = Date.now();
       const { dx, dy } = gesture;
       if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) {
-        moveViewer(dx < 0 ? 1 : -1);
+        setViewerPan({ x: 0, y: 0 });
+        // The same gesture steps through zen's stage when no viewer is open.
+        if (active) moveViewer(dx < 0 ? 1 : -1);
+        else moveZen(dx < 0 ? 1 : -1);
         return;
       }
-      if (dy > 90 && dy > Math.abs(dx) * 1.4) {
+      if (active && dy > 90 && dy > Math.abs(dx) * 1.4) {
         setActive(null);
         return;
       }

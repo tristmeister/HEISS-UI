@@ -30,6 +30,7 @@ import { ConnectedCard } from './ConnectedCard';
 import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import { useHistoryDismiss } from './useHistoryDismiss';
+import { useFocusTrap } from './useFocusTrap';
 import type { GalleryItem } from './types';
 import type { HiddenState } from './useHidden';
 import { memoLatest } from '@/lib/memo-latest';
@@ -130,6 +131,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
   // Back closes the viewer and the workflow gallery rather than leaving the app.
   useHistoryDismiss(Boolean(active), () => setActive(null));
+  const viewerRef = React.useRef<HTMLDivElement | null>(null);
+  useFocusTrap(viewerRef, Boolean(active));
   useHistoryDismiss(Boolean(workflowGalleryOpen), () => setWorkflowGalleryOpen(false));
   const [settingsSection, setSettingsSection] = React.useState<SettingsSection>("general");
   const openSettings = React.useCallback((section?: SettingsSection) => {
@@ -154,6 +157,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const viewerWheelRef = useWheelRef<HTMLElement>(wheelViewer);
   // Only Ctrl+wheel (page zoom) is swallowed, so the details panel still scrolls.
   const scrimWheelRef = useWheelRef<HTMLDivElement>((event) => { if (event.ctrlKey) event.preventDefault(); });
+  const setViewerNode = React.useCallback((node: HTMLDivElement | null) => {
+    viewerRef.current = node;
+    return scrimWheelRef(node);
+  }, [scrimWheelRef]);
   // A plain wheel scrolls the zen thumbnail strip sideways.
   useHorizontalWheel(zenStripRef, Boolean(prefs.zenMode && zenGallery.length && zenGalleryOpen));
   // .bottom-fade is fixed and full width: keep it off the gallery's scrollbar.
@@ -257,6 +264,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           <div className="zen-stage">
             {hiddenLocked ? null : zenDisplayItem ? (
               <button
+                aria-label={zenDisplayItem.status === "pending" ? "Generating" : "Open in the viewer"}
                 className={cn("zen-output", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging", zenDisplayItem.status === "pending" && "is-pending")}
                 onClick={() => {
                   if (zenDisplayItem.status === "pending") return;
@@ -345,7 +353,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <Tip content="Next output"><button aria-label="Next output" onClick={() => moveZen(1)}><ChevronRight size={22} /></button></Tip>
             </div>
           ) : null}
-          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
+          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
           {zenItem ? (
@@ -363,16 +371,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {studioDock}
           {hiddenBar}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside data-open-surface className={cn("zen-controls", zenControls && "open")}>
+          <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately..." : "Describe what to make..."} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately..." : "Describe what to make..."} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
-                <textarea value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid..." : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid..." : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
               <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
             </div>
@@ -503,20 +511,20 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </main>
           {studioDock}
           {hiddenBar}
-          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
+          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside data-open-surface className={cn("zen-controls", zenControls && "open")}>
+          <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately..." : "Describe what to make..."} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately..." : "Describe what to make..."} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
-                <textarea value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid..." : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid..." : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
               <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
             </div>
@@ -597,11 +605,11 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
         const hasNeighbors = viewerItems.length > 1;
         return (
-          <div className="scrim" onClick={(event) => {
+          <div className="scrim" role="dialog" aria-modal="true" aria-label="Image viewer" data-focus-trap tabIndex={-1} onClick={(event) => {
             if (event.target !== event.currentTarget) return;
             if (Date.now() - viewerDragEndRef.current < 200) return;
             setActive(null);
-          }} ref={scrimWheelRef}>
+          }} ref={setViewerNode}>
             <div className="viewer-shell" onClick={(event) => event.stopPropagation()}>
               <div className={cn("viewer-stage", showDetails && "with-side")} data-viewer-empty>
                 <div

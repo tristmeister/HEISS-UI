@@ -131,7 +131,7 @@ button:not(:disabled):active { scale: .96; }
   padding: 8px;
 }
 .zen-prompt textarea { min-height: 48px; padding: 8px 10px 5px; font-size: 15px; line-height: 1.4; }
-.zen-prompt textarea::placeholder { color: rgb(255 255 255 / .34); }
+.zen-prompt textarea::placeholder { color: rgb(255 255 255 / .5); }
 .zen-prompt-actions { padding: 2px; }
 /* The density ladder in 12-composer.css keeps this on one line; it must not
    wrap, because a wrapped bar is exactly what the ladder exists to avoid. */

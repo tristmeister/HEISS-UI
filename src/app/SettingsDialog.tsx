@@ -501,13 +501,25 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const connected = Boolean(health?.ok);
   const updateLabel = updateStatus?.error || (updateStatus?.available ? `${updateStatus.behind || 1} update${updateStatus.behind === 1 ? '' : 's'} available` : updateStatus?.ok ? 'Up to date' : 'Not checked yet');
 
+  // On phones the section row scrolls sideways; keep the chosen one in view.
+  React.useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      const item = document.querySelector<HTMLElement>(`.set-nav [data-section="${section}"]`);
+      const nav = item?.parentElement;
+      if (!item || !nav || nav.scrollWidth <= nav.clientWidth) return;
+      nav.scrollTo({ left: Math.max(0, item.offsetLeft - (nav.clientWidth - item.offsetWidth) / 2), behavior: 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open, section]);
+
   return (
     <Modal open={open} onOpenChange={(next) => { if (!next) onClose(); }} size="sheet" className="settings-modal" bodyClassName="set-layout" title="Settings">
       <nav className="set-nav" aria-label="Settings sections">
         {SETTINGS_SECTIONS.map((item) => {
           const Icon = item.icon;
           return (
-            <button key={item.id} type="button" className={cn('set-nav-item', section === item.id && 'active')} aria-current={section === item.id ? 'page' : undefined} onClick={() => onSectionChange(item.id)}>
+            <button key={item.id} type="button" className={cn('set-nav-item', section === item.id && 'active')} aria-current={section === item.id ? 'page' : undefined} aria-controls="settings-panel" data-section={item.id} onClick={() => onSectionChange(item.id)}>
               <Icon size={15} />
               <span>{item.label}</span>
             </button>
@@ -515,9 +527,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         })}
       </nav>
 
-      <div className="set-panel" key={section}>
+      {/* A region named by its heading, so a screen reader hears where it landed. */}
+      <div className="set-panel" key={section} id="settings-panel" role="region" aria-labelledby="settings-panel-title">
         <header className="set-page-head">
-          <h3>{current.label}</h3>
+          <h3 id="settings-panel-title">{current.label}</h3>
           <p>{current.description}</p>
         </header>
 

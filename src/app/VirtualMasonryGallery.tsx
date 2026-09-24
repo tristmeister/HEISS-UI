@@ -149,6 +149,21 @@ export function VirtualMasonryGallery({
     <section
       ref={containerRef}
       className="gallery virtual-gallery"
+      aria-label="Gallery"
+      onKeyDown={(event) => {
+        // Tab walks the masonry column by column; arrows follow time instead:
+        // right or down for older, left or up for newer.
+        if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) return;
+        const tile = (event.target as HTMLElement).closest<HTMLElement>("[data-tile-id]");
+        if (!tile || (event.target as HTMLElement).closest(".tile-overlay")) return;
+        const index = items.findIndex((item) => item.id === tile.dataset.tileId);
+        const next = items[index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1)];
+        const target = next ? document.querySelector<HTMLElement>(`[data-tile-id="${CSS.escape(next.id)}"] .tile`) : null;
+        if (!target) return;
+        event.preventDefault();
+        target.focus();
+        target.scrollIntoView({ block: "nearest" });
+      }}
       style={{ "--gallery-columns": safeColumns, "--gallery-gap": `${spacing}px` } as React.CSSProperties}
     >
       {columnItems.map((column, index) => (

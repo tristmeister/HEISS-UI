@@ -286,7 +286,7 @@
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
-  color: rgb(255 255 255 / .42);
+  color: rgb(255 255 255 / .6);
 }
 .model-menu-search {
   flex: none;

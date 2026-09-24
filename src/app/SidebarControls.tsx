@@ -72,8 +72,8 @@ export function SidebarControls({ view }: { view: any }) {
   return (
     <>
       <div className="mode-tabs" role="tablist" aria-label="Generation mode">
-        <Tip content="Image generation"><button className={cn(mode === "image" && "active")} onClick={() => changeMode("image")}>Image</button></Tip>
-        <Tip content="Video generation"><button className={cn(mode === "video" && "active")} onClick={() => changeMode("video")}>Video</button></Tip>
+        <Tip content="Image generation"><button type="button" role="tab" aria-selected={mode === "image"} className={cn(mode === "image" && "active")} onClick={() => changeMode("image")}>Image</button></Tip>
+        <Tip content="Video generation"><button type="button" role="tab" aria-selected={mode === "video"} className={cn(mode === "video" && "active")} onClick={() => changeMode("video")}>Video</button></Tip>
       </div>
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />

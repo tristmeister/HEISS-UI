@@ -20,7 +20,7 @@ export function useDismiss(refs: Refs, open: boolean, onDismiss: () => void) {
       const dialog = target instanceof Element ? target.closest('[role="dialog"], [role="alertdialog"]') : null;
       return Boolean(dialog && !owns(dialog));
     };
-    const dialogOpen = () => Array.from(document.querySelectorAll('[role="dialog"], [role="alertdialog"]')).some((dialog) => !owns(dialog));
+    const dialogOpen = () => Array.from(document.querySelectorAll('[role="dialog"]:not([data-focus-trap]), [role="alertdialog"]')).some((dialog) => !owns(dialog));
     function onPointerDown(event: PointerEvent) {
       if (inForeignDialog(event.target)) return;
       if (!inside(event.target as Node)) onDismiss();

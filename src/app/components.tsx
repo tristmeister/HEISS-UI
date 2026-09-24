@@ -253,6 +253,8 @@ export function NumberPicker({
         aria-label={`Decrease ${labelLower}`}
         disabled={value <= min}
         onPointerDown={(event) => { event.preventDefault(); startHold(-1); }}
+        // Enter or Space from the keyboard: a click with no pointer behind it (detail 0).
+        onClick={(event) => { if (event.detail === 0) stepBy(-1); }}
         onPointerUp={clearHold}
         onPointerLeave={clearHold}
         onPointerCancel={clearHold}
@@ -286,6 +288,8 @@ export function NumberPicker({
         aria-label={`Increase ${labelLower}`}
         disabled={value >= max}
         onPointerDown={(event) => { event.preventDefault(); startHold(1); }}
+        // Enter or Space from the keyboard: a click with no pointer behind it (detail 0).
+        onClick={(event) => { if (event.detail === 0) stepBy(1); }}
         onPointerUp={clearHold}
         onPointerLeave={clearHold}
         onPointerCancel={clearHold}
@@ -302,18 +306,36 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   const close = useCallback(() => setOpen(false), []);
   useDismiss(pickerRef, open, close);
   const label = selected ? selected.label : isDefault ? "Default" : "Free";
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      const current = document.activeElement;
+      if (!current || current === document.body || pickerRef.current?.contains(current)) triggerRef.current?.focus({ preventScroll: true });
+    }
+    wasOpen.current = open;
+  }, [open]);
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}><button type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}`} onClick={() => setOpen((next) => !next)}>
+      <Tip content={density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
           {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
           {density === "full" ? <span>{label}</span> : null}
           {density === "mini" ? null : <ChevronDown size={14} className={cn(open && "flip")} />}
         </button></Tip>
       {open ? (
-        <div className="aspect-menu" data-open-surface>
+        <div className="aspect-menu" data-open-surface role="listbox" aria-label="Aspect ratio" onKeyDown={(event) => {
+          // Up and down move between options; the menu opens with focus on the chosen one.
+          if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+          event.preventDefault();
+          const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button.aspect-option"));
+          const index = items.indexOf(document.activeElement as HTMLButtonElement);
+          items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+        }} ref={(node) => { if (node && !node.contains(document.activeElement)) (node.querySelector<HTMLButtonElement>("button.aspect-option.active") || node.querySelector<HTMLButtonElement>("button.aspect-option"))?.focus({ preventScroll: true }); }}>
           <Tip content="Use the model's detected default size"><button
               type="button"
               className={cn("aspect-option", value === "default" && "active")}
+              role="option"
+              aria-selected={value === "default"}
               onClick={() => {
                 onChange("default");
                 setOpen(false);
@@ -327,6 +349,8 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
             <Tip key={option.value} content={`${option.label} ${option.value}`}><button
                 type="button"
                 className={cn("aspect-option", option.value === value && "active")}
+                role="option"
+                aria-selected={option.value === value}
                 onClick={() => {
                   onChange(option.value);
                   setOpen(false);
@@ -385,6 +409,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
   const close = useCallback(() => { setOpen(false); setQuery(""); setCursor(-1); }, []);
   useDismiss(pickerRef, open, close);
   const searchable = profiles.length >= menuSearchFrom;
+  const menuId = React.useId();
 
   const sections = React.useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -413,10 +438,21 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() => {
-      searchRef.current?.focus({ preventScroll: true });
+      // Without a search field, focus the list itself so the arrow keys work.
+      (searchRef.current || listRef.current)?.focus({ preventScroll: true });
       listRef.current?.querySelector<HTMLElement>(".model-option.active")?.scrollIntoView({ block: "nearest" });
     });
     return () => cancelAnimationFrame(frame);
+  }, [open]);
+  // Closing hands focus back to the trigger, unless it already went somewhere else.
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      const current = document.activeElement;
+      if (!current || current === document.body || pickerRef.current?.contains(current)) triggerRef.current?.focus({ preventScroll: true });
+    }
+    wasOpen.current = open;
   }, [open]);
   useEffect(() => { setCursor(query ? 0 : -1); }, [query]);
   useEffect(() => {
@@ -445,7 +481,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
   let rowIndex = -1;
   return (
     <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button type="button" data-open-trigger className="model-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+      <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button ref={triggerRef} type="button" data-open-trigger className="model-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
           {compact ? (
             <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No model"}</strong></span>
           ) : (
@@ -468,12 +504,12 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
           {searchable ? (
             <label className="model-menu-search">
               <Search size={14} aria-hidden="true" />
-              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" spellCheck={false} autoComplete="off" />
+              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined} spellCheck={false} autoComplete="off" />
               {query ? <button type="button" className="model-menu-clear" aria-label="Clear search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={12} /></button> : null}
             </label>
           ) : null}
           {profiles.length ? (
-            <div className="model-menu-list" ref={listRef} role="listbox" aria-label="Models">
+            <div className="model-menu-list" ref={listRef} role="listbox" aria-label="Models" tabIndex={-1} aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined}>
               {sections.map((section) => (
                 <div key={section.id} className="model-menu-section" role="group" aria-label={section.label || undefined}>
                   {section.label ? <div className="model-menu-label">{section.label}</div> : null}
@@ -488,6 +524,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                             role="option"
                             aria-selected={profile.id === value}
                             data-row={rowIndex}
+                            id={`${menuId}-row-${rowIndex}`}
                             className={cn("model-option", profile.id === value && "active", rowIndex === cursor && "is-cursor")}
                             onClick={() => pick(profile.id)}
                           >

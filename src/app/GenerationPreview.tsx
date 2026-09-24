@@ -42,7 +42,7 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   return (
     <div className={`generation-surface${pending ? ' is-pending' : ''}${resolving ? ' is-resolving' : ''}`}>
       {item.status === 'done' && item.type === 'image' && source && failedSource !== source ? (
-        <img src={source} alt="" draggable={false} className="generation-result"
+        <img src={source} alt={muted ? "" : item.prompt ? `Generated from: ${item.prompt.slice(0, 160)}` : "Generated image"} draggable={false} className="generation-result"
           onLoad={() => setLoadedSource(source)}
           onError={() => {
             if (isThumbnail) { setUseFullImage(true); return; }
