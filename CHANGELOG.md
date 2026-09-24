@@ -29,6 +29,13 @@ section into the next version and uses it as the GitHub release notes.
   computer. Smart upscale's SeedVR2 setup uses the same button. The manual
   steps are still there for a ComfyUI on another machine.
 - MODELS.md documents how a new model family gets added.
+- Models in a folder ComfyUI does not read are found and added in one
+  step. HEISS looks through shared folders, other ComfyUI installs, the
+  ComfyUI Desktop app, Stability Matrix, A1111 and external drives. It says
+  what it found in the sidebar, the model menu and Settings. It then adds
+  the folder to ComfyUI's `extra_model_paths.yaml` (backed up, in a marked
+  section Settings can remove again), restarts ComfyUI and shows when the
+  models are there.
 
 ### Fixed
 - With ComfyUI stopped or restarting, every image in the gallery broke,

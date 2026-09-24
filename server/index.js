@@ -29,6 +29,7 @@ import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { nodePack } from './node-packs.js';
+import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
@@ -1046,6 +1047,53 @@ app.post("/api/cache/clear", async (_req, res) => {
   await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
   await comfy("/free", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }) }).catch(() => null);
   res.json({ ok: true, outputs: revealGalleryItemsForRequest(gallery, _req) });
+});
+
+// Model folders ComfyUI is not reading, and adding them to its extra_model_paths.yaml.
+// HEISS can only look at (and change) the machine it runs on, so a remote ComfyUI gets none of this.
+const comfyIsLocal = () => {
+  try { return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(new URL(comfyUrl).hostname); } catch { return false; }
+};
+
+app.get("/api/model-folders", async (_req, res) => {
+  try {
+    res.json(await modelFolderReport({ local: comfyIsLocal() }));
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/model-folders", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    const paths = Array.isArray(req.body?.paths) ? req.body.paths : [];
+    res.json(await linkModelFolders(paths, { picked: String(req.body?.picked || "") }));
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.delete("/api/model-folders", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    res.json(await unlinkModelFolder(String(req.body?.path || "")));
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+// The person points at a folder the scan missed; it still has to read as a models folder.
+app.post("/api/model-folders/pick", async (req, res) => {
+  if (!isLocalClient(req.socket.remoteAddress || "")) {
+    res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
+    return;
+  }
+  try {
+    const picked = await pickFolder("", "Choose the folder that holds your models");
+    res.json(picked ? { ok: true, path: picked } : { ok: true, canceled: true });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
 });
 
 // One-click node pack installs, by registry id only (see pack-installer.js).
