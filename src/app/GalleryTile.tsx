@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, Download, Eye, EyeOff, Loader2, MoreHorizontal, Square, Trash2 } from 'lucide-react';
+import { Check, Copy, Download, Eye, EyeOff, Loader2, MoreHorizontal, Square, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
@@ -18,7 +18,14 @@ import { useDismiss } from './useDismiss';
  * The phone studio's tiles: no corner buttons, a long press opens the tile's
  * actions as a sheet instead. Null everywhere else.
  */
-export const TileLongPressContext = React.createContext<((item: GalleryItem) => void) | null>(null);
+export type PhoneTiles = {
+  onLongPress: (item: GalleryItem) => void;
+  /** Selecting several: a tap toggles the tile instead of opening it. */
+  selecting: boolean;
+  selected: Set<string>;
+  toggle: (item: GalleryItem) => void;
+};
+export const TileLongPressContext = React.createContext<PhoneTiles | null>(null);
 
 type GalleryTileProps = {
   item: GalleryItem;
@@ -108,7 +115,12 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   useDismiss(overlayRef, menuOpen, closeMenu);
   const act = (run: () => void) => { setMenuOpen(false); run(); };
-  const onLongPress = React.useContext(TileLongPressContext);
+  const phoneTiles = React.useContext(TileLongPressContext);
+  const selectable = item.status === "done" || item.status === "error";
+  const selecting = Boolean(phoneTiles?.selecting);
+  const isSelected = Boolean(selecting && phoneTiles?.selected.has(item.id));
+  // While selecting, a long press toggles too, so a slow tap never gets lost.
+  const onLongPress = phoneTiles ? (selecting ? (selectable ? phoneTiles.toggle : null) : phoneTiles.onLongPress) : null;
   const press = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null);
   const cancelPress = () => { if (press.current) window.clearTimeout(press.current.timer); };
   const longPress = onLongPress && item.status !== "pending" ? {
@@ -142,14 +154,16 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
       }}
     >
       <button
-        className={cn("tile", item.status, onLongPress && "is-pressable")}
+        className={cn("tile", item.status, phoneTiles && "is-pressable", selecting && "is-selecting", isSelected && "is-selected")}
         style={{ width: "100%", height: "100%" } as React.CSSProperties}
         {...longPress}
         onClick={() => {
           // A long press already opened the actions; the lift that ends it is not a tap.
           if (press.current?.fired) { press.current = null; return; }
+          if (selecting) { if (selectable) phoneTiles!.toggle(item); return; }
           if (item.status !== "pending") openItem(item);
         }}
+        aria-pressed={selecting && selectable ? isSelected : undefined}
       >
         {item.status === "pending" || item.status === "done" ? (
           <GenerationMedia item={item} muted>
@@ -187,7 +201,8 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
       </button>
       {/* Controls are siblings of the tile's button, never inside it: a button
           inside a button is invalid and unreachable by keyboard. */}
-      <div ref={overlayRef} className={cn("tile-overlay", menuOpen && "is-menu-open", onLongPress && "is-phone")}>
+      <div ref={overlayRef} className={cn("tile-overlay", menuOpen && "is-menu-open", phoneTiles && "is-phone")}>
+        {selecting && selectable ? <span className={cn("tile-check", isSelected && "is-on")} aria-hidden="true">{isSelected ? <Check size={16} strokeWidth={3} /> : null}</span> : null}
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} onCancelUpscale={onCancelUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
         {item.status === "pending" ? <Tip content="Stop generation"><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}

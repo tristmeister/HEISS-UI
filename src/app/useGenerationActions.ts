@@ -399,5 +399,40 @@ export function useGenerationActions(view: any) {
     });
   }
 
-  return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem };
+  /** Several at once (the phone's selection): one question, one undo for all of them. */
+  async function deleteItems(items: GalleryItem[]) {
+    const targets = items.filter(Boolean);
+    if (!targets.length) return;
+    if (targets.length === 1) return deleteItem(targets[0]);
+    const hiddenOnes = targets.some((item) => item.privateVault);
+    if (!await confirmAction({
+      title: `Delete ${targets.length} images?`,
+      description: hiddenOnes ? "They and their upscales are erased. There’s no other copy." : "Their files are deleted from disk, not only from the gallery.",
+      action: `Delete ${targets.length}`,
+      destructive: true
+    })) return;
+    if (active && targets.some((item) => item.id === active.id)) setActive(null);
+    galleryRemove(targets.flatMap((item) => [item.id, item.url]).filter(Boolean));
+    const timers = targets.map((item) => {
+      const timer = window.setTimeout(() => {
+        pendingDeletes.current.delete(item.id);
+        commitDelete(item);
+      }, UNDO_MS);
+      pendingDeletes.current.set(item.id, { item, timer });
+      return timer;
+    });
+    toast(`${targets.length} images deleted`, {
+      duration: UNDO_MS,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          timers.forEach((timer) => window.clearTimeout(timer));
+          targets.forEach((item) => pendingDeletes.current.delete(item.id));
+          galleryUpsert(targets);
+        }
+      }
+    });
+  }
+
+  return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems };
 }

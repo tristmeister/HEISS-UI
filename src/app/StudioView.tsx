@@ -28,6 +28,7 @@ import { LockMark } from './LockMark';
 import { downloadUrl, TileLongPressContext } from './GalleryTile';
 import { PhoneShell, PhoneViewerBar, type PhoneItemActions } from './PhoneStudio';
 import { usePhone } from './device';
+import { haptic } from './phoneControls';
 import { ConnectedCard } from './ConnectedCard';
 import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
@@ -130,7 +131,26 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const phone = phoneDevice && !prefs.fullStudioOnPhone;
   const [phoneCreate, setPhoneCreate] = React.useState(false);
   const [phoneActionsFor, setPhoneActionsFor] = React.useState<GalleryItem | null>(null);
-  const openTileActions = React.useCallback((item: GalleryItem) => setPhoneActionsFor(item), []);
+  const openTileActions = React.useCallback((item: GalleryItem) => { haptic('press'); setPhoneActionsFor(item); }, []);
+  // Selecting several on the phone: null when not selecting.
+  const [phoneSelection, setPhoneSelection] = React.useState<Set<string> | null>(null);
+  const toggleSelected = React.useCallback((item: GalleryItem) => {
+    haptic('tap');
+    setPhoneSelection((current) => {
+      const next = new Set(current || []);
+      if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+      return next;
+    });
+  }, []);
+  useHistoryDismiss(Boolean(phone && phoneSelection), () => setPhoneSelection(null));
+  // Leaving the phone studio or crossing into Hidden ends a selection.
+  React.useEffect(() => { setPhoneSelection(null); }, [phone, hiddenSpace]);
+  const phoneTiles = React.useMemo(() => phone ? {
+    onLongPress: openTileActions,
+    selecting: Boolean(phoneSelection),
+    selected: phoneSelection || new Set<string>(),
+    toggle: toggleSelected
+  } : null, [phone, openTileActions, phoneSelection, toggleSelected]);
   const phoneItemActions: PhoneItemActions = {
     showToast,
     smartUpscale: prefs.smartUpscale !== false,
@@ -355,7 +375,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   return (
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <HiddenActionsContext.Provider value={hiddenActions}>
-    <TileLongPressContext.Provider value={phone ? openTileActions : null}>
+    <TileLongPressContext.Provider value={phoneTiles}>
     <div className={cn(phone ? "phone-shell" : prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && canUseNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
       {phone ? (
         <PhoneShell
@@ -370,6 +390,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           itemActions={phoneItemActions}
           actionsFor={phoneActionsFor}
           setActionsFor={setPhoneActionsFor}
+          selection={phoneSelection}
+          setSelection={setPhoneSelection}
         />
       ) : prefs.zenMode ? (
         <>
@@ -797,7 +819,19 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   </aside>
                 ) : null}
                 {phone ? (
-                  <PhoneViewerBar item={active} actions={phoneItemActions} showDetails={Boolean(showDetails)} onToggleDetails={() => setShowDetails((value: boolean) => !value)} />
+                  <>
+                    {upscaleNotices?.get(active.id) ? (
+                      <div className="viewer-phone-notice"><UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /></div>
+                    ) : null}
+                    <PhoneViewerBar
+                      item={active}
+                      actions={phoneItemActions}
+                      showDetails={Boolean(showDetails)}
+                      onToggleDetails={() => setShowDetails((value: boolean) => !value)}
+                      compareOpen={Boolean(compareOpen)}
+                      onToggleCompare={() => { setCompareOpen((value) => !value); if (!compareOpen) resetViewer(); }}
+                    />
+                  </>
                 ) : (
                 <div data-open-trigger className={cn("viewer-dock", showDetails && "with-side")}>
                   <Tip content="Zoom out (-)"><button className="icon-button is-zoom-control" aria-label="Zoom out" onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>

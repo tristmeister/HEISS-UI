@@ -10,6 +10,26 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **Select several on the phone.** Long press › "Select several", then tap
+  more images and Save, Hide or Delete them together (one question, one
+  Undo). All/None and Back work as expected.
+- **Progress while you browse.** A ring around the phone's Generate button
+  fills as images render, the pill says which step they are on, and a small
+  "Ready" card slides up when a result lands, tap to open.
+- **Haptic feedback on Android phones:** a tick on Generate and selecting, a
+  firmer one on long press, a double pulse when an image is ready, and a
+  warning buzz on delete. (iPhones do not let web pages vibrate.)
+
+### Changed
+- The phone's Advanced sheet is its own layout: Image/Video, sampler and
+  scheduler as native pickers, prompt strength and denoise as sliders with
+  plain-language ends, a numeric seed field, size and video sliders, model
+  parts, and LoRAs with bigger controls.
+- Shared dialogs come up as bottom sheets on the phone (confirmations, the
+  Hidden unlock, failure details), the viewer gets Compare for upscaled images
+  and shows upscale notices above its bar, and Info moved to the top corner.
+
 ### Fixed
 - **No way back to the phone studio.** After "Use the full studio" the only
   return was a Settings switch that showed only when the screen was narrow

@@ -620,3 +620,217 @@
 @media (prefers-reduced-motion: reduce) {
   .phone-status span { animation: none !important; }
 }
+
+/* ------------------------------------------------------------ Advanced */
+
+.phone-advanced-controls { display: grid; }
+.phone-mode { margin-bottom: 6px; }
+.phone-advanced-controls .phone-section { margin-top: 20px; }
+.phone-advanced-controls .phone-control { margin-bottom: 10px; }
+
+/* A native <select> laid invisibly over the row: the tap opens the phone's own picker. */
+.phone-select { position: relative; }
+.phone-select select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  font-size: 16px;
+  cursor: pointer;
+  appearance: none;
+}
+.phone-select:focus-within { box-shadow: inset 0 0 0 2px rgb(255 255 255 / .25); }
+
+.phone-seed-field input {
+  width: 7.5em;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(255 255 255 / .06);
+  box-shadow: none;
+  color: hsl(var(--foreground));
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* The LoRA panel keeps its logic and gets thumb-sized parts. */
+.phone-loras { display: grid; gap: 10px; }
+.phone-loras button { min-height: 44px; }
+.phone-loras input[type="range"] { height: 40px; }
+.phone-loras input[type="range"]::-webkit-slider-thumb { width: 26px; height: 26px; margin-top: -11px; }
+.phone-loras .lora-card { padding: 12px; border-radius: 16px; }
+/* The picker replaces the list in place; on a phone it may use most of the screen. */
+.phone-loras .lora-picker { max-height: none; }
+
+/* ----------------------------------------------------------- Selecting */
+
+.phone-bar.is-behind { display: none; }
+.phone-bar.is-selecting { background: linear-gradient(#0a0a0a 65%, rgb(10 10 10 / 0)); }
+.phone-select-bar {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 20;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+  padding: 6px;
+  border-radius: 28px;
+  background: #1c1c1c;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 14px 40px rgb(0 0 0 / .55);
+}
+.phone-select-bar button {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 4px;
+  min-height: 58px;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 600;
+}
+.phone-select-bar button:active { background: rgb(255 255 255 / .08); }
+.phone-select-bar button:disabled { opacity: .35; }
+.phone-select-bar button.is-danger { color: #ff9c8a; }
+
+.tile.is-selecting { transition: scale 160ms var(--ease-out), opacity 160ms var(--ease-out); }
+.tile.is-selecting:not(.is-selected) { opacity: .72; }
+.tile.is-selected { scale: .94; outline: 3px solid #f2f2f2; outline-offset: -3px; opacity: 1; }
+.tile-check {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / .45);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / .85);
+  color: #0b0b0b;
+  pointer-events: none;
+}
+.tile-check.is-on { background: #f2f2f2; box-shadow: none; }
+
+/* ------------------------------------------------ Progress while browsing */
+
+/* A ring around Generate fills as the running images move through their steps. */
+.phone-go.is-working {
+  background:
+    radial-gradient(closest-side, #f2f2f2 calc(100% - 4px), transparent calc(100% - 3px)),
+    conic-gradient(hsl(38 92% 60%) calc(var(--progress, 0) * 360deg), rgb(255 255 255 / .18) 0);
+}
+.phone-step-line { color: hsl(38 92% 70%); font-variant-numeric: tabular-nums; }
+
+.phone-peek {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 76px);
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 64px;
+  padding: 8px 14px 8px 8px;
+  border: 0;
+  border-radius: 22px;
+  background: #242424;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), 0 16px 40px rgb(0 0 0 / .6);
+  color: hsl(var(--foreground));
+  text-align: left;
+}
+.phone-peek-thumb {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #111;
+}
+.phone-peek-thumb img,
+.phone-peek-thumb video { width: 100%; height: 100%; object-fit: cover; }
+.phone-peek-text { flex: 1; display: grid; gap: 1px; }
+.phone-peek-text strong { font-size: 16px; }
+.phone-peek-text small { color: hsl(var(--muted-foreground)); font-size: 13px; }
+
+/* ------------------------------------------- Shared dialogs, phone-shaped */
+
+/* Dialogs render outside the phone shell, so they key off the page holding it:
+   confirmations, the Hidden unlock and the rest come up as bottom sheets. */
+body:has(.phone-shell) .modal-scrim:has(.modal:not(.modal-sheet, .modal-wide)) {
+  place-items: end stretch;
+  padding: 0;
+}
+body:has(.phone-shell) .modal:not(.modal-sheet, .modal-wide) {
+  width: 100%;
+  max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - var(--kb-inset, 0px));
+  margin-bottom: var(--kb-inset, 0px);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-width: 1px 0 0;
+  border-radius: 24px 24px 0 0;
+  animation: phone-sheet-up 280ms var(--ease-out);
+}
+@keyframes phone-sheet-up { from { translate: 0 40px; opacity: 0; } }
+body:has(.phone-shell) .modal-close { width: 44px; height: 44px; }
+body:has(.phone-shell) .modal-foot { gap: 8px; }
+body:has(.phone-shell) .modal-foot .btn { flex: 1; min-height: 52px; font-size: 16px; }
+body:has(.phone-shell) .modal.has-hero .modal-hero { max-height: 180px; }
+
+/* The Hidden password field: one frame, not a ring inside a ring. */
+body:has(.phone-shell) .hidden-unlock-field { min-height: 56px; }
+.hidden-unlock-field input:focus,
+.hidden-unlock-field input:focus-visible { border: 0; outline: none; box-shadow: none; }
+body:has(.phone-shell) .hidden-unlock-field button,
+body:has(.phone-shell) .hidden-unlock-primary { min-height: 48px; font-size: 16px; }
+
+/* A failed generation in the viewer: readable and with big buttons. */
+.scrim .viewer-stage:has(.viewer-phone-bar) .failure-panel { width: calc(100% - 16px); max-height: calc(100% - 24px); overflow-y: auto; }
+.scrim .viewer-stage:has(.viewer-phone-bar) .failure-actions .btn { flex: 1; min-height: 48px; font-size: 15px; }
+
+/* Viewer extras on the phone: Info top left (opposite Close), notices above the bar,
+   and a comparison line you can grab. */
+.viewer-phone-bar .viewer-phone-info {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  width: var(--dock-h);
+  height: var(--dock-h);
+  min-height: 0;
+  border-radius: var(--r-pill);
+  background: rgb(22 22 22 / .86);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), 0 6px 20px rgb(0 0 0 / .4);
+}
+.viewer-phone-notice {
+  position: absolute;
+  left: max(12px, env(safe-area-inset-left));
+  right: max(12px, env(safe-area-inset-right));
+  bottom: calc(96px + env(safe-area-inset-bottom));
+  z-index: 8;
+}
+.viewer-phone-notice .upscale-notice {
+  position: relative;
+  inset: auto;
+  translate: none;
+  width: 100%;
+  max-width: none;
+}
+.scrim .viewer-stage:has(.viewer-phone-bar) .upscale-compare-line::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 44px;
+  translate: -50% 0;
+}
+.scrim .viewer-stage:has(.viewer-phone-bar) .viewer-side { top: calc(max(10px, env(safe-area-inset-top)) + var(--dock-h) + 8px); }

@@ -1,13 +1,15 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowUp, Check, ChevronRight, CircleStop, Dices, Download, Eye, EyeOff, ImagePlus, Info, LockKeyhole, MoreHorizontal, RefreshCw, Search, Share, SlidersHorizontal, Square, Star, Trash2, Wand2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, CircleStop, Dices, Download, Eye, EyeOff, ImagePlus, Info, LockKeyhole, MoreHorizontal, RefreshCw, Search, Share, SlidersHorizontal, Square, Star, Trash2, Wand2, X } from 'lucide-react';
 import { cn, aspectIconStyle } from './format';
 import { familyLabel } from './components';
 import { downloadUrl } from './GalleryTile';
 import { canUpscaleItem } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { ReferenceSlots } from './ReferenceMediaPicker';
+import { haptic } from './phoneControls';
+import { Media } from './components';
 import { useFocusTrap } from './useFocusTrap';
 import { useHistoryDismiss } from './useHistoryDismiss';
 import type { AspectPreset, GalleryItem, Profile } from './types';
@@ -160,6 +162,39 @@ export async function shareItem(item: GalleryItem, showToast: Toast) {
   if (!canShareFiles) showToast('Saved to your downloads');
 }
 
+/** Several files: one share sheet where possible, otherwise one download after another. */
+export async function shareItems(items: GalleryItem[], showToast: Toast) {
+  const ready = items.filter((item) => item.status === 'done' && item.url);
+  if (!ready.length) return;
+  if (ready.length === 1) return shareItem(ready[0], showToast);
+  if (canShareFiles) {
+    try {
+      ready.forEach(prefetchShare);
+      const files = await Promise.all(ready.map(async (item) => {
+        const blob = await shareBlobs.get(downloadUrl(item))!;
+        return new File([blob], fileNameFor(item, blob.type), { type: blob.type || 'image/png' });
+      }));
+      if (!navigator.canShare || navigator.canShare({ files })) {
+        await navigator.share({ files });
+        return;
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+    }
+  }
+  for (const item of ready) {
+    const link = document.createElement('a');
+    link.href = downloadUrl(item);
+    link.download = fileNameFor(item);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    // Browsers drop downloads fired in one burst.
+    await new Promise((resolve) => setTimeout(resolve, 450));
+  }
+  showToast(`Saved ${ready.length} images to your downloads`);
+}
+
 /* ------------------------------------------------------------ Item actions */
 
 export type PhoneItemActions = {
@@ -182,7 +217,7 @@ function upscaleLabel(item: GalleryItem) {
 }
 
 /** What a long press on a tile offers, as one sheet of big labelled rows. */
-export function ItemActionSheet({ item, onClose, actions }: { item: GalleryItem | null; onClose: () => void; actions: PhoneItemActions }) {
+export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: GalleryItem | null; onClose: () => void; actions: PhoneItemActions; onSelect?: (item: GalleryItem) => void }) {
   React.useEffect(() => { prefetchShare(item); }, [item]);
   const done = item?.status === 'done' && Boolean(item?.url);
   const run = (action: () => void) => { onClose(); action(); };
@@ -207,7 +242,8 @@ export function ItemActionSheet({ item, onClose, actions }: { item: GalleryItem 
               ? <button type="button" className="phone-row" onClick={() => run(() => actions.unhide(item))}><Eye size={20} /><span>Move to gallery</span></button>
               : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Hide</span></button>
           ) : null}
-          <button type="button" className="phone-row is-danger" onClick={() => run(() => actions.remove(item))}><Trash2 size={20} /><span>Delete</span></button>
+          {onSelect && (item.status === 'done' || item.status === 'error') ? <button type="button" className="phone-row" onClick={() => run(() => onSelect(item))}><CheckCircle2 size={20} /><span>Select several<small>Then save, hide or delete them together</small></span></button> : null}
+          <button type="button" className="phone-row is-danger" onClick={() => run(() => { haptic('warning'); actions.remove(item); })}><Trash2 size={20} /><span>Delete</span></button>
         </div>
       ) : null}
     </Sheet>
@@ -215,7 +251,7 @@ export function ItemActionSheet({ item, onClose, actions }: { item: GalleryItem 
 }
 
 /** The viewer's bottom bar on a phone: five big labelled actions and Info. */
-export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails }: { item: GalleryItem; actions: PhoneItemActions; showDetails: boolean; onToggleDetails: () => void }) {
+export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, compareOpen, onToggleCompare }: { item: GalleryItem; actions: PhoneItemActions; showDetails: boolean; onToggleDetails: () => void; compareOpen: boolean; onToggleCompare: () => void }) {
   React.useEffect(() => { prefetchShare(item); }, [item]);
   const done = item.status === 'done' && Boolean(item.url);
   return (
@@ -227,14 +263,16 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails }: 
           <span>{item.upscale?.status === 'running' ? 'Stop' : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale'}</span>
         </button>
       ) : null}
+      {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span></button> : null}
       {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Again</span></button> : null}
       {done ? (
         item.privateVault
           ? <button type="button" onClick={() => actions.unhide(item)}><Eye size={21} /><span>Unhide</span></button>
           : <button type="button" onClick={() => actions.hide(item)}><EyeOff size={21} /><span>Hide</span></button>
       ) : null}
-      <button type="button" className="is-danger" onClick={() => actions.remove(item)}><Trash2 size={21} /><span>Delete</span></button>
-      <button type="button" className={cn(showDetails && 'is-on')} aria-pressed={showDetails} onClick={onToggleDetails}><Info size={21} /><span>Info</span></button>
+      <button type="button" className="is-danger" onClick={() => { haptic('warning'); actions.remove(item); }}><Trash2 size={21} /><span>Delete</span></button>
+      {/* Info sits in the top corner, opposite Close, so the bar keeps room for actions. */}
+      <button type="button" className={cn('viewer-phone-info', showDetails && 'is-on')} aria-pressed={showDetails} aria-label="Details" onClick={onToggleDetails}><Info size={20} /></button>
     </nav>
   );
 }
@@ -246,7 +284,7 @@ function truncate(text: string, length: number) {
 
 /* ------------------------------------------------------------ The shell */
 
-export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffline, hiddenLocked, toggleHiddenSpace, createOpen, setCreateOpen, itemActions, actionsFor, setActionsFor }: {
+export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffline, hiddenLocked, toggleHiddenSpace, createOpen, setCreateOpen, itemActions, actionsFor, setActionsFor, selection, setSelection }: {
   view: Record<string, any>;
   galleryBody: React.ReactNode;
   canUseNegativePrompt: boolean;
@@ -258,11 +296,41 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
   itemActions: PhoneItemActions;
   actionsFor: GalleryItem | null;
   setActionsFor: (item: GalleryItem | null) => void;
+  selection: Set<string> | null;
+  setSelection: (selection: Set<string> | null) => void;
 }) {
   const {
     prompt, currentProfile, hiddenSpace, hidden, runningCount, cancelQueue, comfyStatus, retryComfyStatus,
-    galleryStageRef, onGalleryScroll, generate, generateDisabled
+    galleryStageRef, onGalleryScroll, generate, generateDisabled, visibleGallery, openItem, active, deleteItems, hideItems, unhideItems, showToast
   } = view;
+  const gallery = (visibleGallery || []) as GalleryItem[];
+  const selecting = Boolean(selection);
+  const selectedItems = selecting ? gallery.filter((item) => selection!.has(item.id)) : [];
+  const selectable = gallery.filter((item) => item.status === 'done' || item.status === 'error');
+  const endSelection = () => setSelection(null);
+
+  // Progress of what is running, for the ring on the pill and its second line.
+  const pending = gallery.filter((item) => item.status === 'pending');
+  const withSteps = pending.filter((item) => item.progress?.max);
+  const progress = withSteps.length ? withSteps.reduce((sum, item) => sum + Math.min(1, (item.progress!.value || 0) / item.progress!.max), 0) / withSteps.length : 0;
+  const stepLine = withSteps.length === 1 ? `Step ${withSteps[0].progress!.value} of ${withSteps[0].progress!.max}` : pending.length ? `${Math.round(progress * 100)}%` : '';
+
+  // A finished run shows itself: a small card slides up, tap to open.
+  const [peek, setPeek] = React.useState<GalleryItem | null>(null);
+  const pendingJobs = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    const nowPending = new Set(pending.map((item) => item.jobId || item.id));
+    const landed = gallery.find((item) => item.status === 'done' && pendingJobs.current.has(item.jobId || item.id) && !nowPending.has(item.jobId || item.id));
+    pendingJobs.current = nowPending;
+    if (!landed) return;
+    haptic('success');
+    if (!createOpen && !active) setPeek(landed);
+  }, [gallery]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    if (!peek) return;
+    const timer = window.setTimeout(() => setPeek(null), 5500);
+    return () => window.clearTimeout(timer);
+  }, [peek]);
   const [moreOpen, setMoreOpen] = React.useState(false);
   const restarting = Boolean(comfyStatus?.restarting);
   const connected = Boolean(comfyStatus?.connected);
@@ -272,7 +340,16 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
 
   return (
     <>
-      <header className="phone-bar">
+      {selecting ? (
+        <header className="phone-bar is-selecting">
+          <button type="button" className="phone-icon" aria-label="Stop selecting" onClick={endSelection}><X size={22} /></button>
+          <div className="phone-title"><span>{selectedItems.length ? `${selectedItems.length} selected` : 'Select images'}</span></div>
+          <button type="button" className="phone-pill" onClick={() => { haptic('tap'); setSelection(new Set(selectedItems.length === selectable.length ? [] : selectable.map((item) => item.id))); }}>
+            {selectedItems.length === selectable.length && selectable.length ? 'None' : 'All'}
+          </button>
+        </header>
+      ) : null}
+      <header className={cn('phone-bar', selecting && 'is-behind')}>
         <button type="button" className={cn('phone-status', restarting ? 'is-restarting' : connected ? 'is-connected' : comfyStatus?.checked ? 'is-offline' : 'is-checking')} aria-label={`${statusText}. Check again`} onClick={retryComfyStatus}>
           <span />
         </button>
@@ -299,26 +376,57 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         {galleryBody}
       </main>
 
-      {!hiddenLocked ? (
+      {selecting ? (
+        <nav className="phone-select-bar" aria-label="Selected images">
+          <button type="button" disabled={!selectedItems.length} onClick={() => shareItems(selectedItems, showToast)}>{canShareFiles ? <Share size={21} /> : <Download size={21} />}<span>{canShareFiles ? 'Share' : 'Save'}</span></button>
+          {hiddenSpace
+            ? <button type="button" disabled={!selectedItems.length} onClick={() => { unhideItems(selectedItems.filter((item) => item.status === 'done')); endSelection(); }}><Eye size={21} /><span>Unhide</span></button>
+            : <button type="button" disabled={!selectedItems.length} onClick={() => { hideItems(selectedItems.filter((item) => item.status === 'done')); endSelection(); }}><EyeOff size={21} /><span>Hide</span></button>}
+          <button type="button" className="is-danger" disabled={!selectedItems.length} onClick={async () => { haptic('warning'); await deleteItems(selectedItems); endSelection(); }}><Trash2 size={21} /><span>Delete</span></button>
+        </nav>
+      ) : null}
+
+      {!hiddenLocked && !selecting ? (
         <div className={cn('phone-create-pill', hiddenSpace && 'is-hidden')}>
           <button type="button" className="phone-create-open" onClick={() => setCreateOpen(true)}>
             <strong className={cn(!prompt.trim() && 'is-placeholder')}>{prompt.trim() ? truncate(prompt, 90) : hiddenSpace ? 'Describe what to make, privately…' : 'Describe what to make…'}</strong>
-            <small>{workflowName}</small>
+            <small>{stepLine ? <span className="phone-step-line">{pending.length > 1 ? `Generating ${pending.length} · ` : 'Generating · '}{stepLine}</span> : workflowName}</small>
           </button>
           <button
             type="button"
-            className="phone-go"
+            className={cn('phone-go', pending.length > 0 && 'is-working')}
+            style={{ '--progress': progress } as React.CSSProperties}
             aria-label={quickGo ? 'Generate' : 'Open the composer'}
-            onClick={() => (quickGo ? generate() : setCreateOpen(true))}
+            onClick={() => { haptic('tap'); if (quickGo) generate(); else setCreateOpen(true); }}
           >
             {restarting ? <RefreshCw size={20} className="spin" /> : <ArrowUp size={22} strokeWidth={2.4} />}
           </button>
         </div>
       ) : null}
 
+      <AnimatePresence>
+        {peek && !selecting ? (
+          <motion.button
+            key={peek.id}
+            type="button"
+            className="phone-peek"
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 16, scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+            onClick={() => { setPeek(null); openItem(peek); }}
+            aria-label="Your image is ready. Open it"
+          >
+            <span className="phone-peek-thumb"><Media item={peek} muted /></span>
+            <span className="phone-peek-text"><strong>Ready</strong><small>Tap to open</small></span>
+            <ChevronRight size={18} />
+          </motion.button>
+        ) : null}
+      </AnimatePresence>
+
       <CreateSheet view={view} open={createOpen} onClose={() => setCreateOpen(false)} canUseNegativePrompt={canUseNegativePrompt} comfyOffline={comfyOffline} />
       <MoreSheet view={view} open={moreOpen} onClose={() => setMoreOpen(false)} statusText={statusText} />
-      <ItemActionSheet item={actionsFor} onClose={() => setActionsFor(null)} actions={itemActions} />
+      <ItemActionSheet item={actionsFor} onClose={() => setActionsFor(null)} actions={itemActions} onSelect={(item) => { haptic('press'); setSelection(new Set([item.id])); }} />
     </>
   );
 }
@@ -347,7 +455,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
     prompt, setPrompt, promptLimit, clampText, negative, setNegative, negativeLimit, currentProfile, hiddenSpace,
     aspectOptions, aspectPickerValue, aspectLocked, defaultAspectSize, mode, count, countMeta, setCount, steps, stepsMeta, setSteps,
     referenceInputs, referenceStrength, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
-    generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, sidebarControls
+    generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls
   } = view;
   const [sheet, setSheet] = React.useState<'' | 'workflow' | 'aspect' | 'advanced'>('');
   const [showNegative, setShowNegative] = React.useState(Boolean(negative));
@@ -359,6 +467,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const reason = restarting ? 'ComfyUI is restarting. Back in a few seconds.' : comfyOffline ? 'ComfyUI is offline.' : !prompt.trim() ? '' : generateDisabled ? generateDisabledReason : '';
 
   const go = () => {
+    haptic('tap');
     if (comfyOffline) { retryComfyStatus(); return; }
     if (restarting) return;
     // generate() explains anything missing; only close when it can actually run.
@@ -466,7 +575,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
       <WorkflowSheet view={view} open={sheet === 'workflow'} onClose={() => setSheet('')} />
       <AspectSheet view={view} open={sheet === 'aspect'} onClose={() => setSheet('')} />
       <Sheet open={sheet === 'advanced'} onClose={() => setSheet('')} title="Advanced" full className="phone-advanced">
-        <div className="phone-advanced-body">{sidebarControls}</div>
+        {phoneAdvancedControls}
       </Sheet>
     </Sheet>
   );
