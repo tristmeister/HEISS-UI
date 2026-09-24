@@ -114,7 +114,8 @@ async function writeThumbnail(key, sourceHash, source) {
   // Best-effort: drop any earlier cached thumbnail for this resource under a stale ETag.
   for (const entry of fs.readdirSync(thumbnailDir)) {
     if (entry.startsWith(`${key}-`) && path.join(thumbnailDir, entry) !== file) {
-      fs.unlink(path.join(thumbnailDir, entry), () => {});
+      // Synchronous, so the stale file is gone by the time the new one is served.
+      try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); } catch { /* in use (Windows); next build retries */ }
     }
   }
   return { file, etag: `\"${sourceHash}\"` };
