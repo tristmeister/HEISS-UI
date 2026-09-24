@@ -64,6 +64,28 @@
 .tile-overlay .tile-hover-actions > * { pointer-events: auto; }
 .tile-menu-label { display: none; }
 
+/* Mouse: once the row of tile buttons shows, the row itself (its padding and
+   the gaps between buttons) catches clicks. A near miss beside Delete used to
+   fall through to the tile and open the viewer instead. The padding is taken
+   off the offset, so the buttons sit exactly where they did. */
+@media (hover: hover) {
+  .tile-overlay .tile-hover-actions {
+    top: 2px;
+    right: 2px;
+    padding: 6px;
+    border-radius: var(--r-pill);
+  }
+  .tile-motion-wrap:hover .tile-overlay .tile-hover-actions,
+  .tile-motion-wrap:focus-within .tile-overlay .tile-hover-actions { pointer-events: auto; }
+  /* The upscale arrow gets the same forgiving edge. */
+  .tile-upscale::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+  }
+}
+
 .tile-more {
   position: absolute;
   top: 6px;
