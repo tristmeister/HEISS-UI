@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-09-24
+
 ### Added
 - Four more model families run out of the box, with the settings from
   Comfy-Org's own workflows: **Ideogram 4** (main and unconditional model
@@ -399,7 +401,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.1...v0.4.0
