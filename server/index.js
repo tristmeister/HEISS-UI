@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, startReleaseUpdate } from './updater.js';
 import { PORT_IN_USE_CODE } from './release-swap.js';
-import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
+import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -182,10 +182,14 @@ app.get("/api/privacy/status", async (req, res) => {
 
 app.get("/api/network", (req, res) => {
   if (!requireLocal(req, res)) return;
-  const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || [])
+  // Named, so a VPN or Docker adapter is not mistaken for the Wi-Fi address.
+  const interfaces = Object.entries(os.networkInterfaces()).flatMap(([name, entries]) => (entries || [])
     .filter((entry) => entry.family === "IPv4" && !entry.internal)
-    .map((entry) => entry.address);
-  res.json({ addresses, port });
+    .map((entry) => ({ name, address: entry.address, likelyVirtual: /^(docker|br-|veth|vbox|vmnet|utun|tun|tap|wg|zt|tailscale)/i.test(name) })));
+  interfaces.sort((a, b) => Number(a.likelyVirtual) - Number(b.likelyVirtual));
+  // Only a server listening beyond this computer can be opened from a phone.
+  const listening = host === "0.0.0.0" || host === "::" || !["127.0.0.1", "localhost", "::1"].includes(host);
+  res.json({ addresses: interfaces.map((item) => item.address), interfaces, port, listening });
 });
 
 function sessionSeconds(req) {
@@ -952,6 +956,38 @@ app.delete("/api/reference-assets/:id", (req, res) => {
   } catch (error) {
     res.status(404).json({ ok: false, error: error.message });
   }
+});
+
+/**
+ * Where HEISS UI looks for ComfyUI. Testing tries an address without saving;
+ * saving writes it to .env (like the output folder) and takes effect at once.
+ */
+app.post("/api/comfy-url", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const candidate = normalizeComfyUrl(req.body?.url);
+  if (!candidate) {
+    res.status(400).json({ ok: false, error: "That doesn’t look like an address. Try something like 127.0.0.1:8188." });
+    return;
+  }
+  let reachable = false;
+  let detail = "";
+  try {
+    const response = await fetch(`${candidate}/system_stats`, { signal: AbortSignal.timeout(4000) });
+    reachable = response.ok;
+    if (!response.ok) detail = `It answered with HTTP ${response.status}; is that ComfyUI?`;
+  } catch (error) {
+    detail = error?.name === "TimeoutError" ? "Nothing answered there within 4 seconds." : "Nothing is listening at that address.";
+  }
+  if (req.body?.save && reachable) {
+    try {
+      setComfyUrl(candidate);
+      comfyCache = { info: null, stats: null, fetchedAt: 0 };
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message });
+      return;
+    }
+  }
+  res.json({ ok: true, url: candidate, reachable, saved: Boolean(req.body?.save && reachable), detail, current: comfyUrl });
 });
 
 app.post("/api/generate", async (req, res) => {

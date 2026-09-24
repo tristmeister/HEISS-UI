@@ -7,7 +7,30 @@ import { isInside } from "./paths.js";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(__dirname, "..");
-export const comfyUrl = process.env.COMFY_URL || "http://127.0.0.1:8188";
+// A live binding: importers see the new address as soon as setComfyUrl changes it.
+export let comfyUrl = normalizeComfyUrl(process.env.COMFY_URL || "") || "http://127.0.0.1:8188";
+
+/** "localhost:8000", "http://pc.local:8188/" or a bare port all become a clean http(s) origin. */
+export function normalizeComfyUrl(value = "") {
+  let text = String(value || "").trim();
+  if (!text) return "";
+  if (/^\d{2,5}$/.test(text)) text = `127.0.0.1:${text}`;
+  if (!/^https?:\/\//i.test(text)) text = `http://${text}`;
+  try {
+    const url = new URL(text);
+    return `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, "")}`;
+  } catch {
+    return "";
+  }
+}
+
+export function setComfyUrl(value = "") {
+  const next = normalizeComfyUrl(value);
+  if (!next) throw new Error("That doesn’t look like an address. Try something like 127.0.0.1:8188.");
+  writeLocalEnvValue("COMFY_URL", next);
+  comfyUrl = next;
+  return comfyUrl;
+}
 export const host = process.env.HOST || "127.0.0.1";
 export const port = Number(process.env.PORT || 8787);
 /**

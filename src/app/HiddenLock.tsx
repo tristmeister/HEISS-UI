@@ -19,8 +19,8 @@ function heroStageFor(hidden: HiddenState): VaultHeroStage {
  * set up here, the password always. Enter on the password, or one click.
  */
 function UnlockControls({ hidden, autoFocus = false, compact = false }: { hidden: HiddenState; autoFocus?: boolean; compact?: boolean }) {
-  const { support, hasPasskey, unlockStage, unlockError } = hidden;
-  const biometric = Boolean(hasPasskey && support?.available);
+  const { support, usablePasskey, unlockStage, unlockError } = hidden;
+  const biometric = Boolean(usablePasskey && support?.available);
   const [usePassword, setUsePassword] = useState(!biometric);
   const [password, setPassword] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -106,7 +106,7 @@ export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenS
           <h2>{notSetUp ? "Hidden" : stage === "opening" ? "Unlocked" : "Hidden is locked"}</h2>
           <p>{notSetUp
             ? "Images you keep to yourself, encrypted on this computer."
-            : hidden.hasPasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
+            : hidden.usablePasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
           <div className="empty-actions">
             {notSetUp ? (
               <div className="hidden-unlock">

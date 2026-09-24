@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
-import { forgetDeviceSecret, keepDeviceSecret, passkeyCancelled, passkeySupport, registerPasskey, unlockWithPasskey, type PasskeyOption, type PasskeySupport } from './passkeys';
+import { forgetDeviceSecret, hasDeviceSecret, keepDeviceSecret, passkeyCancelled, passkeySupport, registerPasskey, unlockWithPasskey, type PasskeyOption, type PasskeySupport } from './passkeys';
 import type { GalleryItem, PrivacyStatus } from './types';
 import type { GallerySpace } from './useGalleryStore';
 
@@ -36,6 +36,16 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
   const enabled = Boolean(status?.enabled);
   const unlocked = Boolean(status?.unlocked);
   const hasPasskey = (status?.passkeys?.length || 0) > 0;
+  // A device passkey only works in the browser that kept its secret, so "Unlock
+  // with Touch ID" is only offered where at least one passkey can actually answer.
+  const [usablePasskey, setUsablePasskey] = useState(false);
+  useEffect(() => {
+    let live = true;
+    const passkeys = status?.passkeys || [];
+    Promise.all(passkeys.map((passkey) => passkey.kind === "device" ? hasDeviceSecret(passkey.id).catch(() => false) : Promise.resolve(true)))
+      .then((answers) => { if (live) setUsablePasskey(answers.some(Boolean)); });
+    return () => { live = false; };
+  }, [status?.passkeys]);
   // Never ask the server for more than the idle window, so a forgotten tab locks itself even if this page is gone.
   const sessionSeconds = autoLockMinutes > 0 ? Math.max(60 * 60, autoLockMinutes * 60 * 4) : 60 * 60 * 24 * 30;
 
@@ -261,7 +271,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
   }, [intent]);
 
   return useMemo(() => ({
-    status, enabled, unlocked, hasPasskey, support, busy,
+    status, enabled, unlocked, hasPasskey, usablePasskey, support, busy,
     space, setSpace,
     setupOpen, setSetupOpen,
     unlockOpen, setUnlockOpen, unlockStage, unlockError, setUnlockError, setUnlockStage,
@@ -269,7 +279,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     refresh, unlockPassword, unlockBiometric, lock,
     createHidden, addBiometric, removeBiometric, changePassword, erase,
     hide, unhide
-  }), [status, enabled, unlocked, hasPasskey, support, busy, space, setSpace, setupOpen, unlockOpen, unlockStage, unlockError, intent, takeIntent, ensureReady, requestUnlock, refresh, unlockPassword, unlockBiometric, lock, createHidden, addBiometric, removeBiometric, changePassword, erase, hide, unhide]);
+  }), [status, enabled, unlocked, hasPasskey, usablePasskey, support, busy, space, setSpace, setupOpen, unlockOpen, unlockStage, unlockError, intent, takeIntent, ensureReady, requestUnlock, refresh, unlockPassword, unlockBiometric, lock, createHidden, addBiometric, removeBiometric, changePassword, erase, hide, unhide]);
 }
 
 export type HiddenState = ReturnType<typeof useHidden>;

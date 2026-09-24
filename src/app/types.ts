@@ -123,8 +123,8 @@ export type MissingPart = {
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
-export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number };
-export type DownloadState = { active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean };
+export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
 export type ModelFile = { name: string; source: ModelSource; family: string; choice: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string; missing?: string[] };

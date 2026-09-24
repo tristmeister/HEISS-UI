@@ -36,6 +36,8 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   const [stage, setStage] = useState<ModelFolderStage>('scanning');
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState('');
+  // True once ComfyUI's settings were written: a later failure is only the restart.
+  const [saved, setSaved] = useState(false);
   const [added, setAdded] = useState<{ folders: StrayModelFolder[]; count: number }>({ folders: [], count: 0 });
   const [dismissed, setDismissed] = useState(readDismissed);
   const alive = useRef(true);
@@ -113,6 +115,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
     if (!folders.length && !picked) return;
     busy.current = true;
     setError('');
+    setSaved(false);
     setStage('adding');
     try {
       const [result] = await Promise.all([
@@ -124,6 +127,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
         sleep(700)
       ]);
       // Nothing new written means these were added before but ComfyUI never restarted: wait for the same thing.
+      setSaved(true);
       const paths = result.added.length ? result.added : folders.map((folder) => folder.path);
       setAdded({ folders, count: folders.reduce((sum, folder) => sum + folder.count, 0) });
       // ComfyUI reads its model folders when it starts, so it has to restart once.
@@ -138,7 +142,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
       if (!alive.current) return;
       if (!read) {
         setStage('error');
-        setError(restarted ? 'ComfyUI has not come back with the new folders yet. Check its window for errors.' : 'ComfyUI did not restart yet.');
+        setError(restarted ? 'ComfyUI hasn’t come back with the new folders yet. Check its window for errors.' : 'ComfyUI hasn’t restarted yet.');
         return;
       }
       onModelsChanged();
@@ -175,7 +179,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   const folders = report?.folders || [];
   const noticeVisible = folders.length > 0 && dismissed !== signature(folders) && stage !== 'done';
   return {
-    report, stage, open, error, selected, added, noticeVisible,
+    report, stage, open, error, saved, selected, added, noticeVisible,
     setSelected, openDialog, close, scan, add, pick, remove, dismissNotice
   };
 }

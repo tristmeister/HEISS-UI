@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComfyRestart } from './ComfyRestart';
 import type { ConfirmAction } from './useConfirmation';
-import { Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
 import { NumberPicker, Skeleton, StudioSelect } from './components';
@@ -17,10 +17,11 @@ import { HiddenSettings } from './HiddenSettings';
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and the values new workflows start from.' },
-  { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'A one-click SeedVR2 restore pass behind the arrow on finished images.' },
+  { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'The arrow on finished images: one click makes a larger, sharper copy (SeedVR2, run in ComfyUI).' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where outputs live and how the gallery groups them.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and opened with a password, Touch ID or Windows Hello.' },
-  { id: 'connection', label: 'Connection', icon: Plug, description: 'ComfyUI, installed models and other devices on your network.' },
+  { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed, where it looks for more, and what type each file is.' },
+  { id: 'connection', label: 'Connection', icon: Plug, description: 'Where ComfyUI runs, and opening the studio on other devices.' },
   { id: 'about', label: 'About', icon: Info, description: 'Version, your numbers, updates and credits.' }
 ] as const;
 export type SettingsSection = typeof SETTINGS_SECTIONS[number]['id'];
@@ -44,6 +45,41 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
         </button>
       ))}
     </div>
+  );
+}
+
+/** Where HEISS UI looks for ComfyUI: test an address, then keep it. */
+function ComfyAddressRow({ current, showToast, onSaved }: { current: string; showToast: (message: string, tone?: 'default' | 'success' | 'error') => void; onSaved: () => void }) {
+  const [value, setValue] = React.useState(current);
+  const [busy, setBusy] = React.useState(false);
+  const [note, setNote] = React.useState('');
+  React.useEffect(() => { setValue(current); }, [current]);
+  const submit = async (save: boolean) => {
+    setBusy(true);
+    setNote('');
+    try {
+      const response = await fetch('/api/comfy-url', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: value, save }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { setNote(data.error || 'That address could not be checked.'); return; }
+      setValue(data.url);
+      if (!data.reachable) { setNote(`${data.detail || 'ComfyUI didn’t answer there.'}${save ? ' Nothing was changed.' : ''}`); return; }
+      if (data.saved) { showToast('ComfyUI address saved', 'success'); onSaved(); }
+      else setNote('ComfyUI answers there.');
+    } catch {
+      setNote('HEISS UI could not be reached to check it.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const changed = value.trim() && value.trim() !== current;
+  return (
+    <Row label="Address" description={note || 'Where HEISS UI looks for ComfyUI. ComfyUI Desktop usually uses port 8000; a manual install, 8188.'}>
+      <div className="set-address">
+        <input className="set-path-input" value={value} onChange={(event) => setValue(event.target.value)} aria-label="ComfyUI address" spellCheck={false} autoComplete="off" onKeyDown={(event) => { if (event.key === 'Enter' && changed) submit(true); }} />
+        <button className="btn" onClick={() => submit(false)} disabled={busy || !value.trim()}>Test</button>
+        <button className="btn is-primary" onClick={() => submit(true)} disabled={busy || !changed}>{busy ? 'Checking…' : 'Save'}</button>
+      </div>
+    </Row>
   );
 }
 
@@ -478,22 +514,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     }
   };
 
-  const [lanBusy, setLanBusy] = React.useState(false);
-  const copyLanUrl = React.useCallback(async () => {
-    setLanBusy(true);
-    try {
-      const response = await fetch('/api/network');
-      if (!response.ok) throw new Error('LAN address unavailable');
-      const data = await response.json();
-      const address = data.addresses?.[0];
-      if (!address) throw new Error('No local network address found');
-      copyAndToast(`${window.location.protocol}//${address}:${window.location.port || 5173}`, 'LAN URL copied');
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not find LAN address', 'error');
-    } finally {
-      setLanBusy(false);
-    }
-  }, [copyAndToast, showToast]);
+  const [network, setNetwork] = React.useState<{ listening: boolean; port: number; interfaces: Array<{ name: string; address: string; likelyVirtual: boolean }> } | null>(null);
+  React.useEffect(() => {
+    if (!open || section !== 'connection') return;
+    let live = true;
+    fetch('/api/network').then((response) => response.ok ? response.json() : null).then((data) => { if (live && data) setNetwork({ listening: Boolean(data.listening), port: Number(data.port), interfaces: data.interfaces || [] }); }).catch(() => null);
+    return () => { live = false; };
+  }, [open, section]);
+  // The page's own port: Vite's in development, HEISS UI's otherwise.
+  const lanUrl = (address: string) => `${window.location.protocol}//${address}:${window.location.port || network?.port || 8787}`;
+  const copyLanUrl = React.useCallback((address: string) => copyAndToast(lanUrl(address), 'Address copied'), [copyAndToast, network]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const upscaleOn = prefs.smartUpscale !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
@@ -550,9 +580,6 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
               <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
                 <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
-              </Row>
-              <Row label="Restart ComfyUI" description="Picks up new custom nodes and files, and frees everything it holds.">
-                <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
               </Row>
               <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
                 <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>
@@ -625,7 +652,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 showToast={showToast}
               />
               <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path">{paths.workflowsDir}</code> : <Skeleton className="skeleton-text path" />}>
-                <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Reload</button>
+                <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
             <Group title="Runs" note="Hidden images only group with each other.">
@@ -666,14 +693,35 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               >
                 <button className="btn is-primary" onClick={refreshHealth}>Check again</button>
               </Row>
+              <ComfyAddressRow current={health?.comfyUrl || 'http://127.0.0.1:8188'} showToast={showToast} onSaved={() => { refreshHealth(); refreshModels(false); refreshWorkflows(); }} />
               <Row label="Open ComfyUI" description="Its own interface, in a new tab.">
                 <button className="btn" onClick={() => window.open(health?.comfyUrl || 'http://127.0.0.1:8188', '_blank')}><ExternalLink size={14} /> Open</button>
               </Row>
+              <Row label="Restart ComfyUI" description="Picks up new custom nodes and files, and frees everything it holds.">
+                <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
+              </Row>
             </Group>
+            <Group title="Other devices" note="Other devices unlock with your Hidden password, so set up Hidden on this computer first. Only do this on a network you trust.">
+              {network && !network.listening ? (
+                <Row label={<Status tone="bad">Off</Status>} description={<>This studio only answers this computer. Start it with <code>HOST=0.0.0.0</code> (in <code>.env</code> or the shell) and allow the port through your firewall, then open one of the addresses below on your phone.</>} />
+              ) : null}
+              {(network?.interfaces || []).map((item) => (
+                <Row key={`${item.name}-${item.address}`} label={<span className="set-model-name">{lanUrl(item.address)}</span>} description={`${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`}>
+                  <button className="btn" onClick={() => copyLanUrl(item.address)} disabled={!network?.listening}><Copy size={14} /> Copy</button>
+                </Row>
+              ))}
+              {network && !network.interfaces.length ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
+              {!network ? <Row label={<Skeleton className="skeleton-text short" />} /> : null}
+            </Group>
+          </>
+        ) : null}
+
+        {section === 'models' ? (
+          <>
             <Group title="Models">
               <Row label="Image models"><span className="set-value">{models ? models.imageModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
               <Row label="Video models"><span className="set-value">{models ? models.videoModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
-              <Row label="Rescan" description="Find new models and workflows.">
+              <Row label="Rescan" description="Look again for models and workflows added since ComfyUI started.">
                 <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
@@ -700,11 +748,6 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 })}
               </Group>
             ) : null}
-            <Group title="Other devices" note={<>Start the studio with <code>npm run dev:lan</code> first. Other devices unlock with your Hidden password, so set up Hidden first.</>}>
-              <Row label="Open on your phone or another computer" description={`This studio runs at ${window.location.host || 'localhost'}.`}>
-                <button className="btn" onClick={copyLanUrl} disabled={lanBusy}><Copy size={14} /> {lanBusy ? 'Finding…' : 'Copy LAN URL'}</button>
-              </Row>
-            </Group>
           </>
         ) : null}
 

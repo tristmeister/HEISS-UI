@@ -353,3 +353,21 @@
   .about-links a:nth-child(even) { box-shadow: none; }
   .about-links a:nth-child(n + 2) { border-top: 1px solid var(--surface-border); }
 }
+
+/* The ComfyUI address: field, Test and Save on one line; the field takes the room. */
+.set-address {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: min(420px, 100%);
+}
+.set-address .set-path-input { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 760px) {
+  .set-address { width: 100%; flex-wrap: wrap; }
+  .set-address .set-path-input { flex-basis: 100%; }
+}
+
+/* Changing the Hidden password: two fields, a live hint, then the buttons. */
+.set-inline-form.is-password { flex-wrap: wrap; }
+.set-inline-form.is-password .modal-input { flex: 1 1 160px; }
+.set-inline-hint { flex-basis: 100%; margin: 0; font-size: 12px; color: hsl(var(--muted-foreground)); }

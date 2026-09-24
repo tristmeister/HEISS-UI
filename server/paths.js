@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 /**
@@ -25,4 +26,21 @@ export function isInside(base, file, { orSame = false, pathApi = path } = {}) {
   const rel = pathApi.relative(pathKey(base, pathApi), pathKey(file, pathApi));
   if (!rel) return orSame;
   return rel !== ".." && !rel.startsWith(`..${pathApi.sep}`) && !pathApi.isAbsolute(rel);
+}
+
+/** Free space where the models would land; the nearest existing parent answers for a folder not made yet. */
+export function freeBytesAt(dir) {
+  if (!dir || typeof fs.statfsSync !== "function") return null;
+  let current = path.resolve(dir);
+  for (let depth = 0; depth < 8; depth += 1) {
+    try {
+      const stats = fs.statfsSync(current);
+      return Number(stats.bavail) * Number(stats.bsize);
+    } catch {
+      const parent = path.dirname(current);
+      if (parent === current) return null;
+      current = parent;
+    }
+  }
+  return null;
 }

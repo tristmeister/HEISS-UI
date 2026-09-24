@@ -24,6 +24,7 @@ import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
 import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
+import { registerRestartConfirm } from './app/ComfyRestart';
 import { memoLatest } from './lib/memo-latest';
 
 // Rebuilt from scratch on every App render (each keystroke in the prompt); skips unless its data changed.
@@ -977,6 +978,13 @@ function App() {
   const galleryColumnCount = useGalleryColumnCount();
   // Upscales count too, so Stop shows (and stops them) while only an upscale is running.
   const runningCount = visibleGallery.filter((item) => item.status === "pending" || item.upscale?.status === "running").length;
+  // Every Restart ComfyUI button asks first when it would stop running work.
+  useEffect(() => {
+    registerRestartConfirm(() => runningCount
+      ? confirmAction({ title: "Restart ComfyUI?", description: `${runningCount} generation${runningCount === 1 ? " is" : "s are"} still running and will stop. ComfyUI comes back in a few seconds.`, action: "Restart anyway", destructive: true })
+      : Promise.resolve(true));
+    return () => registerRestartConfirm(null);
+  }, [runningCount, confirmAction]);
   // Models on this computer that ComfyUI does not read, and the one-step fix for them.
   const modelFolders = useModelFolders({
     connected: comfyStatus.connected,

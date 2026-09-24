@@ -338,3 +338,6 @@
   .hidden-chip,
   .hidden-summary li { animation: none; }
 }
+
+/* Another device before Hidden exists: this is all it can show, above everything. */
+.hidden-lockscreen.remote-setup { z-index: 40; background: #0a0a0a; }

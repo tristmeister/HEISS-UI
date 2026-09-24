@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, Copy, Download, RotateCw } from 'lucide-react';
-import { ComfyRestart, useComfyManager } from './ComfyRestart';
+import { ComfyRestart, managerMajor, useComfyManager } from './ComfyRestart';
 import { apiJson, copyText } from './api';
 import { cn } from './format';
 import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
@@ -127,6 +127,7 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
 }) {
   const { info: manager } = useComfyManager();
   const hasManager = manager ? manager.available : managerHint !== false;
+  const managerV4 = managerMajor(manager) >= 4;
   const [route, setRoute] = useState<'manager' | 'terminal'>(hasManager ? 'manager' : 'terminal');
   const commands = plan?.commands?.length ? plan.commands : [{ shell: 'sh' as const, label: 'Terminal', command: `cd ComfyUI/custom_nodes && git clone ${pack.repository}` }];
   // The first answer from ComfyUI decides the default; after that the choice is the user's.
@@ -173,19 +174,25 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
           <li>
             <span className="upscale-step-n">1</span>
             <div>
-              In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>.{pack.search ? <> Searching the node list for <strong>{pack.search}</strong> works too.</> : null}
+              {managerV4
+                ? pack.search
+                  ? <>In ComfyUI, open <strong>Manager</strong>, search the node list for <strong>{pack.search}</strong> and install it.</>
+                  : <>ComfyUI-Manager {manager?.version} can’t install from a Git URL in its main view, and {pack.name} isn’t in its list. Use the <strong>Terminal</strong> tab instead.</>
+                : <>In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>.{pack.search ? <> Searching the node list for <strong>{pack.search}</strong> works too.</> : null}</>}
               {pack.note ? <p className="upscale-fine">{pack.note}</p> : null}
               {!hasManager ? <p className="upscale-fine">ComfyUI-Manager is off. Start ComfyUI with <code>--enable-manager</code>, or use the terminal.</p> : null}
             </div>
           </li>
-          <li>
-            <span className="upscale-step-n">2</span>
-            <div>
-              Paste the {pack.name} repository:
-              <CopyRow text={pack.repository} label="Copy the repository URL" showToast={showToast} />
-            </div>
-          </li>
-          {restartStep(3)}
+          {managerV4 ? null : (
+            <li>
+              <span className="upscale-step-n">2</span>
+              <div>
+                Paste the {pack.name} repository:
+                <CopyRow text={pack.repository} label="Copy the repository URL" showToast={showToast} />
+              </div>
+            </li>
+          )}
+          {managerV4 && !pack.search ? null : restartStep(managerV4 ? 2 : 3)}
         </ol>
       ) : (
         <ol className="upscale-steps">

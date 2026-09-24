@@ -61,7 +61,7 @@ function Steps({ stage }: { stage: ModelFolderStage }) {
   );
 }
 
-function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: ModelFolders['added']): { title: string; description: string } {
+function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: ModelFolders['added'], saved = false): { title: string; description: string } {
   const count = folders.reduce((sum, folder) => sum + folder.count, 0);
   switch (stage) {
     case 'scanning': return { title: 'Searching for models', description: 'Checking your folders, other ComfyUI installs and connected drives.' };
@@ -71,7 +71,7 @@ function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: Mo
         ? `They’re in ${folders[0].name}, which ComfyUI doesn’t read.`
         : `They’re in ${plural(folders.length, 'folder')} ComfyUI doesn’t read.`
     };
-    case 'none': return { title: 'All your models are in ComfyUI', description: 'Keep models somewhere else? Choose the folder.' };
+    case 'none': return { title: 'No models found outside ComfyUI', description: 'Keep models somewhere else? Choose the folder.' };
     case 'remote': return { title: 'ComfyUI runs on another computer', description: 'HEISS UI can only look through the folders of the computer it runs on.' };
     case 'offline': return { title: 'Waiting for ComfyUI', description: 'Start ComfyUI to continue.' };
     case 'adding': return { title: 'Adding folders', description: 'The previous settings are kept as a backup.' };
@@ -81,7 +81,9 @@ function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: Mo
       title: added.count ? `${plural(added.count, 'model')} ready` : 'Folder added',
       description: 'New files in it show up after a rescan.'
     };
-    case 'error': return { title: 'Couldn’t add the folder', description: 'ComfyUI’s settings were not changed.' };
+    case 'error': return saved
+      ? { title: 'Folders saved, waiting for ComfyUI', description: 'ComfyUI’s settings now include them; it reads them the next time it starts.' }
+      : { title: 'Couldn’t add the folder', description: 'ComfyUI’s settings were not changed.' };
   }
 }
 
@@ -125,7 +127,7 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
   const chosen = folders.filter((folder) => selected.includes(folder.path));
   const chosenCount = chosen.reduce((sum, folder) => sum + folder.count, 0);
   const heroFiles = stage === 'found' ? chosenCount : added.count || chosenCount;
-  const { title, description } = copyFor(stage, folders, added);
+  const { title, description } = copyFor(stage, folders, added, state.saved);
   const toggle = (path: string) => state.setSelected(selected.includes(path) ? selected.filter((item) => item !== path) : [...selected, path]);
   const later = <button className="btn is-ghost" onClick={state.close}>Not now</button>;
   const choose = <button className="btn" onClick={state.pick}><FolderOpen size={14} /> Choose a folder…</button>;
@@ -224,8 +226,12 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
     );
     footer = <button className="btn is-primary" onClick={state.close}>Done</button>;
   } else if (stage === 'error') {
-    body = <div className="upscale-callout is-danger"><strong>{error || 'Something went wrong.'}</strong></div>;
-    footer = <>{later}<button className="btn is-primary" onClick={() => state.scan()}>Try again</button></>;
+    body = state.saved
+      ? <><div className="upscale-callout"><strong>{error}</strong></div><ComfyRestart compact className="upscale-restart" onBack={() => state.scan()} /></>
+      : <div className="upscale-callout is-danger"><strong>{error || 'Something went wrong.'}</strong></div>;
+    footer = state.saved
+      ? <button className="btn is-ghost" onClick={state.close}>Finish later</button>
+      : <>{later}<button className="btn is-primary" onClick={() => state.scan()}>Try again</button></>;
   }
 
   const busy = stage === 'adding' || stage === 'restarting';

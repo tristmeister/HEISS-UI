@@ -32,6 +32,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   const label = support?.label || "Touch ID";
   const [changing, setChanging] = React.useState(false);
   const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
   const [busy, setBusy] = React.useState("");
   const autoLock = prefs.hiddenAutoLockMinutes ?? 15;
 
@@ -67,6 +68,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
     try {
       await hidden.changePassword(password);
       setPassword("");
+      setConfirmPassword("");
       setChanging(false);
       showToast("Password changed", "success");
     } catch (error) {
@@ -87,6 +89,12 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   };
 
   const passkeys = status?.passkeys || [];
+  const canSavePassword = password.length >= 8 && password === confirmPassword && busy !== "password";
+  const passwordHint = !password ? "At least 8 characters. There’s no reset, so keep it somewhere safe."
+    : password.length < 8 ? `${8 - password.length} more character${8 - password.length === 1 ? "" : "s"}.`
+    : confirmPassword && confirmPassword !== password ? "The two don’t match yet."
+    : !confirmPassword ? "Type it once more."
+    : passwordStrength(password) > 0.6 ? "Strong enough." : "It works, but a longer one is safer.";
 
   return (
     <>
@@ -104,10 +112,13 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       <Group title="Unlock methods" note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <> Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it.</> : null}</> : undefined}>
         <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description="Works on any device, including over the network." stacked={changing}>
           {changing ? (
-            <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); savePassword(); }}>
+            <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (canSavePassword) savePassword(); }}>
+              {/* Typed twice, as at setup: there is no reset, so a typo would lock you out. */}
               <input className="modal-input" type="password" autoComplete="new-password" aria-label="New password" placeholder="New password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
-              <button type="button" className="btn is-ghost" onClick={() => { setChanging(false); setPassword(""); }}>Cancel</button>
-              <button type="submit" className="btn is-primary" disabled={password.length < 8 || busy === "password"}>{busy === "password" ? "Saving…" : passwordStrength(password) > 0.6 ? "Save" : "Save anyway"}</button>
+              <input className="modal-input" type="password" autoComplete="new-password" aria-label="New password again" placeholder="Again" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              <p className="set-inline-hint" aria-live="polite">{passwordHint}</p>
+              <button type="button" className="btn is-ghost" onClick={() => { setChanging(false); setPassword(""); setConfirmPassword(""); }}>Cancel</button>
+              <button type="submit" className="btn is-primary" disabled={!canSavePassword}>{busy === "password" ? "Saving…" : passwordStrength(password) > 0.6 ? "Save" : "Save anyway"}</button>
             </form>
           ) : <button className="btn" disabled={!unlocked} onClick={() => setChanging(true)}>Change</button>}
         </Row>
@@ -135,7 +146,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
         <Row label="Export Hidden" description="Every image, unencrypted, in one ZIP file." disabled={!unlocked}>
           <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/hidden/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Export</a>
         </Row>
-        <Row label="Encrypted backup" description="Every image, encrypted. Opens only with your Hidden password." disabled={!unlocked}>
+        <Row label="Encrypted backup" description="Every image, encrypted with your Hidden password, as one file to keep somewhere safe. HEISS UI can’t restore from it yet; keep the ZIP export too if you need the images back." disabled={!unlocked}>
           <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/vault/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Back up</a>
         </Row>
       </Group>

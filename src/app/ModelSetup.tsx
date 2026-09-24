@@ -38,7 +38,9 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
 }) {
   const reduced = useReducedMotion();
   const { state, landed, start, pause, discard } = useModelDownloads();
-  const [remote, setRemote] = React.useState(false);
+  const [remoteAnswer, setRemote] = React.useState(false);
+  // Known before anyone clicks: a ComfyUI elsewhere cannot receive downloads from here.
+  const remote = remoteAnswer || state?.local === false;
   const missing = profile.missing || [];
 
   const run = async (action: () => Promise<unknown>) => {
@@ -46,7 +48,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       await action();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Download failed';
-      if (/not on this computer/i.test(message)) setRemote(true);
+      if (/(not|isn.t) on this computer/i.test(message)) setRemote(true);
       showToast(message, 'error');
     }
   };
@@ -124,7 +126,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
                 </motion.div>
               ) : null}
             </AnimatePresence>
-            {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'} It picks up where it left off.</p> : null}
+            {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'}{current?.retryable === false ? null : ' Trying again picks up where it left off.'}</p> : null}
             {rowState === 'idle' || rowState === 'manual' ? <p className="model-setup-detail">{item.detail}</p> : null}
             {item.nodePack ? (
               <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={`${profile.displayName} is ready after that.`} />

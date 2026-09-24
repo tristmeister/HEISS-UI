@@ -652,3 +652,22 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* The address the offline stage is trying, and the quiet link below its buttons. */
+.stage-code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: rgb(255 255 255 / .07);
+  color: hsl(var(--foreground));
+  font: 500 12px/1.5 var(--font-mono);
+}
+.stage-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  text-decoration: none;
+}
+.stage-link:hover { color: hsl(var(--foreground)); }
+.empty-actions a.reconnect-btn { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }

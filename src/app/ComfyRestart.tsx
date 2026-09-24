@@ -26,6 +26,19 @@ export async function fetchManager(force = false): Promise<ManagerInfo> {
   return pending;
 }
 
+/**
+ * The app registers one confirmation (it knows what is running), so every
+ * restart button asks before stopping work, not only the one in Settings.
+ */
+let defaultConfirm: (() => Promise<boolean>) | null = null;
+export function registerRestartConfirm(confirm: (() => Promise<boolean>) | null) { defaultConfirm = confirm; }
+
+/** Manager 4 dropped "Install via Git URL" from its main UI. */
+export function managerMajor(info: ManagerInfo | null) {
+  const match = String(info?.version || '').match(/(\d+)/);
+  return match ? Number(match[1]) : 0;
+}
+
 /** Whether ComfyUI-Manager answers, so install and restart steps can offer the one-click route. */
 export function useComfyManager() {
   const [info, setInfo] = React.useState<ManagerInfo | null>(cached?.info ?? null);
@@ -58,7 +71,8 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
   React.useEffect(() => () => { alive.current = false; }, []);
 
   const restart = async () => {
-    if (confirm && !await confirm()) return;
+    const ask = confirm || defaultConfirm;
+    if (ask && !await ask()) return;
     setPhase('restarting');
     setError('');
     try {
@@ -70,12 +84,16 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
       refresh();
       return;
     }
-    // Give ComfyUI a moment to go down, then wait for it to answer again.
-    const deadline = Date.now() + 120_000;
-    await new Promise((resolve) => window.setTimeout(resolve, 2500));
+    // Wait until ComfyUI has actually gone down, so an answer from the old
+    // process is not taken for "back"; a restart too quick to catch counts after 15 s.
+    const started = Date.now();
+    const deadline = started + 120_000;
+    let sawDown = false;
+    await new Promise((resolve) => window.setTimeout(resolve, 1200));
     while (alive.current && Date.now() < deadline) {
       const next = await fetchManager(true);
-      if (next.connected) {
+      if (!next.connected) sawDown = true;
+      if (next.connected && (sawDown || Date.now() - started > 15_000)) {
         setPhase('back');
         onBack?.();
         window.setTimeout(() => { if (alive.current) setPhase('idle'); }, 2400);

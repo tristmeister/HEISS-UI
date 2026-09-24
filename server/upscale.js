@@ -7,6 +7,9 @@ import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
 import { comfyPython, comfyRootDir, packInstallPlan } from "./node-install.js";
 import { nodePacks } from "./node-packs.js";
 import { renameWithRetry } from "./json-store.js";
+import { freeBytesAt } from "./paths.js";
+
+export { freeBytesAt };
 
 // SeedVR2 restores detail rather than interpolating it, so the pipeline mirrors
 // the reference workflow: soften the source with a lanczos pre-scale, then let
@@ -218,23 +221,6 @@ export async function managerInfo() {
   }
   const connected = await comfy("/system_stats", { signal: AbortSignal.timeout(5000) }).then(() => true, () => false);
   return { connected, available: false, version: null };
-}
-
-/** Free space where the models would land; the nearest existing parent answers for a folder not made yet. */
-export function freeBytesAt(dir) {
-  if (!dir || typeof fs.statfsSync !== "function") return null;
-  let current = path.resolve(dir);
-  for (let depth = 0; depth < 8; depth += 1) {
-    try {
-      const stats = fs.statfsSync(current);
-      return Number(stats.bavail) * Number(stats.bsize);
-    } catch {
-      const parent = path.dirname(current);
-      if (parent === current) return null;
-      current = parent;
-    }
-  }
-  return null;
 }
 
 export function upscaleStatus(info = {}, quality = "balanced") {

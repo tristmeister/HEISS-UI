@@ -120,7 +120,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     hidden.setSpace("hidden");
     if (!hidden.enabled) { hidden.ensureReady({ kind: "enter" }); return; }
     // Straight from the click, so the system's Touch ID sheet is allowed to show.
-    if (!hidden.unlocked && hidden.hasPasskey && hidden.support?.available) hidden.unlockBiometric();
+    if (!hidden.unlocked && hidden.usablePasskey && hidden.support?.available) hidden.unlockBiometric();
   };
   const hiddenCount = hiddenSpace ? renderedGallery.filter((item: GalleryItem) => item.status === "done").length : 0;
   const hiddenLockScreen = (
@@ -498,6 +498,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               retrying={Boolean(comfyRetrying)}
               onRetry={retryComfyStatus}
               onOpenConnection={() => openSettings("connection")}
+              comfyUrl={health?.comfyUrl || comfyStatus?.url}
+              noModels={Boolean(models) && !modelProfiles?.length}
+              onFindModels={modelFolders?.openDialog}
             />
           )}
             {hiddenLockScreen}
@@ -601,6 +604,22 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       <ModelDownloadWidget widget={modelWidget} hidden={upscaleWidget.visible || workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
+      {hidden.status?.remote && !hidden.status.enabled ? (
+        // Another device, before Hidden exists: the server refuses everything,
+        // which would otherwise read as "ComfyUI is offline".
+        <section className="hidden-lockscreen remote-setup">
+          <div className="empty stage-empty hidden-lock-stage">
+            <div className="stage-mark"><LockMark className="stage-layer" stage="locked" /></div>
+            <div className="stage-copy">
+              <h2>Finish setting up on the computer</h2>
+              <p>Other devices open the studio with your Hidden password. On the computer running HEISS UI, open Settings › Hidden and create one, then reload this page.</p>
+              <div className="empty-actions">
+                <button className="reconnect-btn primary" onClick={() => window.location.reload()}><RefreshCw size={13} /> Reload</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
       {active ? (() => {
         const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
         const hasNeighbors = viewerItems.length > 1;

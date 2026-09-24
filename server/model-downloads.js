@@ -4,6 +4,7 @@ import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { comfyModelsDir, modelFolders } from './comfy.js';
 import { renameWithRetry } from "./json-store.js";
+import { freeBytesAt } from "./paths.js";
 
 /**
  * Fetches text encoders and VAEs a model needs into ComfyUI's own folders. Only
@@ -28,6 +29,8 @@ function snapshot(entry) {
 
 export function downloadState() {
   return {
+    // Downloads land in ComfyUI's models folder, so only a ComfyUI on this computer can take them.
+    local: Boolean(comfyModelsDir()),
     active: snapshot(active),
     queued: queue.map(snapshot),
     recent: recent.map(snapshot),
@@ -96,6 +99,17 @@ function existingCopy(spec) {
   return "";
 }
 
+/** An error that trying again will not fix (full disk, gated file). */
+function finalError(message) {
+  const error = new Error(message);
+  error.final = true;
+  return error;
+}
+
+function gigabytes(bytes) {
+  return `${(bytes / 1024 ** 3).toFixed(bytes < 10 * 1024 ** 3 ? 1 : 0)} GB`;
+}
+
 function fileSize(file) {
   try { return fs.statSync(file).size; } catch { return 0; }
 }
@@ -158,7 +172,9 @@ async function pump() {
   } catch (error) {
     const canceled = active.controller.signal.aborted;
     active.status = canceled ? "paused" : "error";
-    active.error = canceled ? "" : error.message || "Download failed.";
+    active.error = canceled ? "" : error?.code === "ENOSPC" ? "The disk filled up. Free some space, then try again; it resumes where it stopped." : error.message || "Download failed.";
+    // Retrying only helps when the network was the problem.
+    active.retryable = canceled || !error?.final;
   }
   active.finishedAt = Date.now();
   const finished = active;
@@ -192,10 +208,22 @@ async function fetchInto(entry, signal) {
   }
   if (offset && response.status === 200) offset = 0; // Range ignored: start over.
   if (!response.ok || !response.body) {
+    await response.body?.cancel().catch(() => {});
+    if (response.status === 401 || response.status === 403) {
+      throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`);
+    }
+    if (response.status === 404) throw finalError(`${entry.file} is no longer at its download address (HTTP 404).`);
     throw new Error(`Hugging Face answered ${response.status} for ${entry.file}.`);
   }
   // Catalog sizes are approximate; only the server's own length is a check.
   const length = Number(response.headers.get("content-length") || 0);
+  // Several gigabytes onto a full disk would fail near the end; check first.
+  const free = freeBytesAt(dir);
+  const margin = 256 * 1024 * 1024;
+  if (free !== null && length && free < length + margin) {
+    await response.body.cancel().catch(() => {});
+    throw finalError(`Not enough space: ${entry.file} needs ${gigabytes(length)}, and the disk has ${gigabytes(free)} free.`);
+  }
   const expected = length ? offset + length : 0;
   if (expected) entry.totalBytes = expected;
   entry.receivedBytes = offset;
