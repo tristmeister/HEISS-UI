@@ -11,6 +11,14 @@ section into the next version and uses it as the GitHub release notes.
 ## [Unreleased]
 
 ### Added
+- ComfyUI coming back feels like pairing AirPods. With an empty gallery the
+  offline plug snaps into its socket, the contact flashes, the socket warms
+  up and the scene dissolves into the empty state; with images on screen a
+  small "ComfyUI connected" card slides in and out. Models, workflows and
+  smart upscale pick themselves up again without a reload.
+- A new empty state for a gallery with nothing in it yet: a blank pixel
+  canvas where a picture keeps developing and fading, like your first
+  generation will.
 - Sana also runs through ComfyUI-SANA (diffusers, runs on Apple Silicon): its
   model folders in `models/diffusers` show up as ready models, next to the
   ComfyUI_ExtraModels route for CUDA.
@@ -23,6 +31,11 @@ section into the next version and uses it as the GitHub release notes.
 - MODELS.md documents how a new model family gets added.
 
 ### Fixed
+- With ComfyUI stopped or restarting, every image in the gallery broke,
+  because images were only ever fetched through ComfyUI. They now open from
+  the output folder, and thumbnails from HEISS's own cache.
+- A first start no longer flashes the empty state before it knows ComfyUI
+  is offline.
 - A finished image whose file would not load (moved, deleted, ComfyUI
   unreachable) showed the browser's broken-image icon with "Untitled prompt"
   over the tile. It now shows the tile's unavailable state, and every image

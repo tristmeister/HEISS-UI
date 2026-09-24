@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
-import { comfyUrl } from "./comfy.js";
+import { comfyUrl, localOutputFile } from "./comfy.js";
 import { dataDir } from "./gallery-store.js";
 
 // Small on-demand cache of downscaled previews for the gallery grid, so a LAN client
@@ -22,13 +22,38 @@ function cachePath(key, sourceHash) {
   return path.join(thumbnailDir, `${key}-${sourceHash}.webp`);
 }
 
-async function build(filename, subfolder, type) {
+/** The newest thumbnail already made for this output, whatever its source hash. */
+function cachedThumbnail(key) {
+  try {
+    const found = fs.readdirSync(thumbnailDir)
+      .filter((name) => name.startsWith(`${key}-`) && name.endsWith(".webp"))
+      .map((name) => ({ file: path.join(thumbnailDir, name), time: fs.statSync(path.join(thumbnailDir, name)).mtimeMs }))
+      .sort((a, b) => b.time - a.time)[0];
+    return found ? { file: found.file, etag: `"${path.basename(found.file, ".webp").slice(key.length + 1)}"` } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The original's bytes: from ComfyUI, or from disk while ComfyUI is not answering. */
+async function sourceBytes(filename, subfolder, type) {
   const params = new URLSearchParams({ filename, subfolder, type });
+  try {
+    const response = await fetch(`${comfyUrl}/view?${params}`, { signal: AbortSignal.timeout(15000) });
+    return response.ok ? Buffer.from(await response.arrayBuffer()) : null;
+  } catch {
+    const file = localOutputFile(filename, subfolder, type);
+    return file ? fs.readFileSync(file) : undefined;
+  }
+}
+
+async function build(filename, subfolder, type) {
   // ComfyUI installations do not consistently provide a useful ETag, and a
   // reused filename can therefore otherwise receive an unrelated old preview.
-  const response = await fetch(`${comfyUrl}/view?${params}`);
-  if (!response.ok) return null;
-  const source = Buffer.from(await response.arrayBuffer());
+  const source = await sourceBytes(filename, subfolder, type);
+  // ComfyUI is down and the file is not on this computer: an earlier thumbnail still beats nothing.
+  if (source === undefined) return cachedThumbnail(cacheKey(filename, subfolder, type));
+  if (!source) return null;
   const sourceHash = crypto.createHash("sha256").update(source).digest("hex");
   const key = cacheKey(filename, subfolder, type);
   const file = cachePath(key, sourceHash);

@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, startReleaseUpdate } from './updater.js';
-import { allowLanActions, demoMode, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
+import { allowLanActions, demoMode, comfy, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -1207,7 +1207,16 @@ app.get("/comfy/*path", async (req, res) => {
     for (const header of ["if-none-match", "if-modified-since", "range", "if-range"]) {
       if (req.headers[header]) conditional[header] = req.headers[header];
     }
-    const response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
+    let response;
+    try {
+      response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
+    } catch (error) {
+      // ComfyUI is stopped or restarting: outputs still open from the output folder.
+      const file = proxyPath === "view" ? localOutputFile(String(req.query.filename || ""), String(req.query.subfolder || ""), String(req.query.type || "output")) : null;
+      if (!file) throw error;
+      res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } });
+      return;
+    }
     res.status(response.status);
     const etag = response.headers.get("etag");
     const lastModified = response.headers.get("last-modified");

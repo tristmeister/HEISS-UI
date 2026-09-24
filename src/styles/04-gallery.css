@@ -419,36 +419,133 @@
   opacity: 0.3;
   margin-bottom: 4px;
 }
-.empty.is-offline {
+
+/* The empty gallery (EmptyStage): one scene box that the offline plug and the
+   empty canvas share, so one dissolves into the other without the page
+   moving, and a caption that crossfades underneath. */
+.stage-empty,
+.stage-empty.empty {
   width: 100%;
   min-height: calc(100vh - 260px);
   padding: 36px 20px;
+  gap: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
-.offline-mark {
+.stage-mark {
   position: relative;
   width: min(520px, 92%);
-  margin-bottom: 6px;
+  aspect-ratio: 60 / 24;
+  margin-bottom: 14px;
   pointer-events: none;
 }
-.offline-mark canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-.empty.is-offline .offline-mark-fallback {
+.stage-layer { position: absolute; inset: 0; }
+.stage-layer canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.stage-mark .offline-mark-fallback {
+  position: absolute;
+  inset: 0;
+  margin: auto;
   width: 72px;
   height: 72px;
-  margin-bottom: 8px;
   padding: 16px;
   border-radius: 22px;
   background: #f3f3f3;
   opacity: 0.72;
 }
-.empty.is-offline p {
+/* Fixed height, so swapping the caption (with or without buttons) never shifts the scene. */
+.stage-copy {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  min-height: 124px;
+  animation: stage-copy-in 320ms var(--ease-out) both;
+}
+.stage-empty .stage-copy { width: 100%; }
+.stage-empty .stage-copy p {
   margin: 0;
   font-size: 13px;
-  max-width: 28ch;
+  max-width: 44ch;
   line-height: 1.45;
+}
+.stage-copy .empty-actions { margin-top: 14px; }
+.stage-connected { display: inline-flex; align-items: center; gap: 8px; }
+.stage-connected span {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(255 140 60 / .16);
+  color: rgb(255 170 100);
+  animation: stage-check-in 420ms var(--spring) both;
+}
+@keyframes stage-copy-in {
+  from { opacity: 0; transform: translateY(4px); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes stage-check-in {
+  from { transform: scale(0.4); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* ComfyUI came back with images on screen: a small glass card, then gone. */
+.connected-card {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 12px;
+  border: 1px solid var(--surface-border);
+  border-radius: 18px;
+  background-color: var(--surface-float);
+  background-image: var(--surface-grain);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float);
+  pointer-events: none;
+  animation: connected-card 2600ms var(--ease-out) both;
+}
+.connected-glyph { width: 66px; height: 27px; overflow: visible; }
+.connected-glyph rect { fill: rgb(255 255 255 / .42); }
+.connected-plug { animation: connected-plug 520ms cubic-bezier(.3, .7, .2, 1) 160ms both; }
+.connected-socket { animation: connected-socket 520ms cubic-bezier(.3, .7, .2, 1) 160ms both; }
+.connected-plug rect, .connected-socket rect { animation: connected-warm 900ms ease-out 520ms both; }
+.connected-flash { fill: rgb(255 190 120); opacity: 0; transform-origin: 12px 4.5px; animation: connected-flash 520ms ease-out 560ms both; }
+.connected-copy { display: grid; gap: 1px; text-align: left; }
+.connected-copy strong { font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
+.connected-copy span { font-size: 11.5px; color: hsl(var(--muted-foreground)); }
+@keyframes connected-card {
+  0% { opacity: 0; transform: translate(-50%, -10px) scale(0.94); filter: blur(6px); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
+  86% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
+  100% { opacity: 0; transform: translate(-50%, -6px) scale(0.97); filter: blur(4px); }
+}
+/* The prongs (x 7–8) meet the socket's holes (x 13–14): plug +4, socket −2. */
+@keyframes connected-plug { from { transform: translateX(0); } to { transform: translateX(4px); } }
+@keyframes connected-socket { from { transform: translateX(0); } to { transform: translateX(-2px); } }
+@keyframes connected-warm {
+  0% { fill: rgb(255 255 255 / .42); }
+  25% { fill: rgb(255 214 160); }
+  100% { fill: rgb(255 150 80 / .85); }
+}
+@keyframes connected-flash {
+  0% { opacity: 0; transform: scale(0.2); }
+  30% { opacity: .75; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-copy, .stage-connected span, .connected-plug, .connected-socket, .connected-flash { animation: none; }
+  .connected-plug { transform: translateX(4px); }
+  .connected-socket { transform: translateX(-2px); }
+  .connected-plug rect, .connected-socket rect { animation: none; fill: rgb(255 150 80 / .85); }
+  .connected-card { animation-duration: 2600ms; animation-name: connected-card-still; }
+  @keyframes connected-card-still { 0%, 90% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; transform: translateX(-50%); } }
 }
 .reconnect-btn {
   margin-top: 6px;

@@ -151,13 +151,13 @@ function run(command, args, options = {}) {
   });
 }
 
-const pickPrompt = "Choose the ComfyUI output folder";
+const defaultPickPrompt = "Choose the ComfyUI output folder";
 
 /**
  * Show the operating system's own folder picker on this computer. Resolves to
  * the chosen path, or "" when the dialog was cancelled.
  */
-export async function pickFolder(start = "") {
+export async function pickFolder(start = "", pickPrompt = defaultPickPrompt) {
   const startDir = (() => {
     const dir = normalizeFolderInput(start);
     try { return dir && fs.statSync(dir).isDirectory() ? dir : ""; } catch { return ""; }

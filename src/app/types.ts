@@ -279,3 +279,29 @@ export type UpscaleDownloadPreview = {
 };
 
 export type PrivacyStatus = { enabled: boolean; unlocked: boolean; cookieName?: string; vault?: { enabled: boolean; unlocked: boolean; assetCount: number } };
+
+/** A models folder ComfyUI is not reading (server/model-folders.js). */
+export type StrayModelFolder = {
+  path: string;
+  label: string;
+  name: string;
+  layout: "comfy" | "stability" | "a1111";
+  app: string;
+  source: string;
+  kinds: Array<{ kind: string; name: string; dir: string; count: number; bytes: number; examples: string[] }>;
+  count: number;
+  bytes: number;
+};
+export type ModelFolderReport = {
+  ok: boolean;
+  offline?: boolean;
+  local?: boolean;
+  root?: string;
+  configPath?: string;
+  configLabel?: string;
+  writable?: boolean;
+  folders: StrayModelFolder[];
+  linked: Array<{ path: string; label: string; read: boolean }>;
+  scannedAt?: number;
+  error?: string;
+};

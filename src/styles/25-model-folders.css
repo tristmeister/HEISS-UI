@@ -1,0 +1,246 @@
+/* ---------------------------------------------------------------------------
+   Model folders ComfyUI does not read (src/app/ModelFoldersDialog.tsx,
+   ModelFoldersNotice.tsx). The dialog shares the upscale setup's anatomy:
+   the live cell hero, the stepper pill, watchers and callouts. Folders are
+   rows you tick; heat means "moving", white means "done".
+--------------------------------------------------------------------------- */
+
+/* Hero glow per stage, keyed like the upscale hero's. */
+.mf-hero[data-stage="found"]::before { opacity: .4; }
+.mf-hero[data-stage="adding"]::before,
+.mf-hero[data-stage="restarting"]::before { opacity: 1; }
+.mf-hero[data-stage="waiting"]::before { opacity: .6; }
+.mf-hero[data-stage="done"]::before { opacity: .6; background: radial-gradient(closest-side at 50% 50%, rgb(255 236 214 / .2), transparent 70%); }
+.mf-hero[data-stage="error"]::before { opacity: .5; background: radial-gradient(closest-side at 50% 50%, rgb(255 110 90 / .2), transparent 70%); }
+
+.mf-modal code { font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--foreground) / .85); }
+.mf-modal .modal-foot .mf-other { margin-right: auto; }
+
+/* ----------------------------------------------------------- Folder rows */
+
+.mf-folders { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.mf-folders > li:first-child > .mf-folder,
+.mf-folders > li.mf-moving:first-child { border-top-left-radius: var(--r-item); border-top-right-radius: var(--r-item); }
+.mf-folders > li:last-child > .mf-folder,
+.mf-folders > li.mf-moving:last-child { border-bottom-left-radius: var(--r-item); border-bottom-right-radius: var(--r-item); }
+
+.mf-folder {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--control-fill);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast), box-shadow var(--dur-fast);
+}
+.mf-folder:hover:not(:disabled) { background: var(--control-hover); }
+.mf-folder:disabled { cursor: default; }
+.mf-folder:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* The tick: a square cell that fills white, like everything done in HEISS. */
+.mf-check {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1.5px hsl(var(--muted-foreground) / .45);
+  color: var(--action-ink);
+  transition: background var(--dur-fast), box-shadow var(--dur-fast), transform 160ms var(--ease-out);
+}
+.mf-folder.is-checked .mf-check { background: var(--action); box-shadow: none; }
+.mf-folder:active:not(:disabled) .mf-check { transform: scale(.9); }
+
+.mf-folder-copy { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.mf-folder-copy strong { display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; font-weight: 600; color: hsl(var(--foreground)); }
+.mf-folder-copy strong em {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: hsl(var(--muted-foreground) / .14);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 550;
+  color: hsl(var(--muted-foreground));
+}
+.mf-folder-copy code { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: hsl(var(--muted-foreground) / .75); }
+.mf-kinds { margin-top: 3px; font-size: 12.5px; color: hsl(var(--foreground) / .8); }
+.mf-folder-copy small { overflow: hidden; font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; color: hsl(var(--muted-foreground) / .7); }
+
+/* The count: one number, with the weight under it. */
+.mf-count { display: grid; flex: none; justify-items: end; gap: 2px; padding-top: 1px; }
+.mf-count b { font-size: 20px; font-weight: 600; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
+.mf-folder:not(.is-checked) .mf-count b { color: hsl(var(--muted-foreground)); }
+.mf-count span { font: 500 10.5px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--muted-foreground) / .7); }
+
+/* While ComfyUI restarts: each folder with a smouldering cell that turns over. */
+.mf-folders.is-moving { margin-bottom: 0; }
+.mf-moving {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border-radius: 4px;
+  background: var(--control-fill);
+  font-size: 12.5px;
+  color: hsl(var(--muted-foreground));
+}
+.mf-moving strong { font-size: 13px; font-weight: 550; color: hsl(var(--foreground)); }
+.mf-moving > span:last-child { margin-left: auto; text-align: right; }
+.mf-spinner {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--ember);
+  box-shadow: var(--ember-glow);
+  animation: mf-turn 1.1s var(--ease-out) infinite;
+}
+@keyframes mf-turn {
+  0% { transform: rotate(0) scale(1); }
+  50% { transform: rotate(90deg) scale(.7); opacity: .7; }
+  100% { transform: rotate(180deg) scale(1); }
+}
+
+.mf-meter { margin-bottom: 16px; }
+.mf-meter strong { color: #fff; }
+.mf-done li > div { gap: 3px !important; }
+.mf-done-kinds { font-size: 12.5px; color: hsl(var(--foreground) / .8); }
+
+.mf-linked { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.mf-linked li {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 11px 14px;
+  background: var(--control-fill);
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+}
+.mf-linked li:first-child { border-radius: var(--r-item) var(--r-item) 4px 4px; }
+.mf-linked li:last-child { border-radius: 4px 4px var(--r-item) var(--r-item); }
+.mf-linked li:only-child { border-radius: var(--r-item); }
+.mf-linked svg { flex: none; color: #a9e2b8; }
+.mf-linked code { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+/* ------------------------------------------------------- Sidebar notice */
+
+.mf-notice-wrap { overflow: hidden; }
+.mf-notice {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 10px;
+  border-radius: var(--r-item);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgb(255 154 82 / .12), transparent 55%),
+    var(--control-fill);
+  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .14);
+}
+.mf-notice-main {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 6px 12px 12px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.mf-notice-main:hover { background: rgb(255 255 255 / .03); }
+.mf-notice-main:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.mf-notice-text { display: grid; flex: 1; gap: 2px; min-width: 0; }
+.mf-notice-text strong { font-size: 12.5px; font-weight: 600; color: hsl(var(--foreground)); }
+.mf-notice-text span { overflow: hidden; font-size: 11.5px; line-height: 1.35; color: hsl(var(--muted-foreground)); text-overflow: ellipsis; }
+.mf-notice-cta {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--action);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--action-ink);
+  transition: transform 160ms var(--ease-out);
+}
+.mf-notice-main:active .mf-notice-cta { transform: scale(.96); }
+.mf-notice-close {
+  display: grid;
+  flex: none;
+  align-self: center;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: 0 8px 0 2px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: hsl(var(--muted-foreground) / .6);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.mf-notice-close:hover { background: var(--control-hover); color: #fff; }
+.mf-notice-close:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* The folder glyph: cells that fill with heat from the base, a quiet loop. */
+.mf-glyph {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(7, 3px);
+  grid-template-rows: repeat(6, 3px);
+  gap: 1px;
+}
+.mf-glyph i { border-radius: .5px; }
+.mf-glyph i.is-tab { background: rgb(255 255 255 / .45); }
+.mf-glyph i.is-on {
+  background: rgb(255 255 255 / .22);
+  animation: mf-glyph-heat 2.8s ease-in-out infinite;
+  animation-delay: calc((5 - var(--y)) * 140ms + var(--x) * 30ms);
+}
+@keyframes mf-glyph-heat {
+  0%, 100% { background: rgb(255 255 255 / .22); }
+  45% { background: var(--ember); box-shadow: 0 0 3px rgb(255 154 82 / .5); }
+}
+
+/* The model menu's last row: always one tap to look for missing models. */
+.model-menu-find {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 9px 12px;
+  border: 0;
+  border-top: 1px solid var(--surface-border);
+  border-radius: 0 0 var(--r-item) var(--r-item);
+  background: transparent;
+  font-size: 12px;
+  color: hsl(var(--muted-foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.model-menu-find:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+.model-menu-find em { font-style: normal; font-weight: 600; color: hsl(var(--foreground)); }
+.model-menu-find.has-found span { color: hsl(var(--foreground)); }
+.model-menu-find.has-found em { color: var(--ember); }
+.model-menu-find-cta { justify-self: start; margin-top: 8px; }
+
+/* Settings: folders HEISS added, with a way back out. */
+.set-folder-path { overflow: hidden; font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace; white-space: nowrap; text-overflow: ellipsis; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mf-glyph i.is-on,
+  .mf-spinner { animation: none; }
+}

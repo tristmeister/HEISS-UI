@@ -10,6 +10,18 @@ export const comfyUrl = process.env.COMFY_URL || "http://127.0.0.1:8188";
 export const host = process.env.HOST || "127.0.0.1";
 export const port = Number(process.env.PORT || 8787);
 const localComfyOutputDir = "C:\\CUVenv\\ComfyUI\\output";
+/**
+ * An output file on this computer, for when ComfyUI itself cannot serve it
+ * (stopped, restarting). Only files inside the output folder; null otherwise.
+ */
+export function localOutputFile(filename, subfolder = "", type = "output") {
+  if (type !== "output" || !comfyOutputDir || !filename) return null;
+  const base = path.resolve(comfyOutputDir);
+  const file = path.resolve(base, String(subfolder || ""), String(filename));
+  if (file !== base && !file.startsWith(base + path.sep)) return null;
+  try { return fs.statSync(file).isFile() ? file : null; } catch { return null; }
+}
+
 export let comfyOutputDir = process.env.COMFY_OUTPUT_DIR || (fs.existsSync(localComfyOutputDir) ? localComfyOutputDir : "");
 
 /**

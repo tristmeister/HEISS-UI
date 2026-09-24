@@ -9,6 +9,7 @@ import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
 import { apiJson } from './api';
 import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
+import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 
 export const SETTINGS_SECTIONS = [
@@ -71,6 +72,33 @@ function SwitchRow({ label, description, checked, onChange, disabled }: { label:
     <Row label={label} description={description} disabled={disabled}>
       <Switch label={label} checked={checked} onChange={onChange} disabled={disabled} />
     </Row>
+  );
+}
+
+/** Folders ComfyUI reads because HEISS added them, and the way to find more. */
+function ModelFolderSettings({ folders, confirmAction, onOpen }: { folders: ModelFolders; confirmAction: (options: { title: string; description: string; action: string; destructive?: boolean }) => Promise<boolean>; onOpen: () => void }) {
+  const report = folders.report;
+  const stray = (report?.folders || []).reduce((sum, folder) => sum + folder.count, 0);
+  const linked = report?.linked || [];
+  // Settings is where people come to check: look again, quietly, each time it opens.
+  React.useEffect(() => { folders.scan({ quiet: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Group title="Model folders" note={report?.configLabel ? <>HEISS UI keeps these in <code>{report.configLabel}</code>, marked so they come out cleanly.</> : undefined}>
+      {linked.map((item) => (
+        <Row key={item.path} label={<span className="set-folder-path" title={item.path}>{item.label}</span>} description={item.read ? 'Added by HEISS UI · read by ComfyUI' : 'Added by HEISS UI · ComfyUI reads it after a restart'}>
+          <button className="btn is-ghost" onClick={async () => {
+            if (!await confirmAction({ title: `Stop using ${item.label}?`, description: 'ComfyUI stops reading this folder after its next restart. The files stay where they are.', action: 'Remove folder' })) return;
+            folders.remove(item.path);
+          }}>Remove</button>
+        </Row>
+      ))}
+      <Row
+        label={stray ? <Status tone="warn">{stray} model{stray === 1 ? '' : 's'} ComfyUI can’t see</Status> : 'Look for models'}
+        description={stray ? 'They are in a folder ComfyUI does not read. Add it in one step.' : 'Finds models in folders ComfyUI does not read: other installs, shared folders, external drives.'}
+      >
+        <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? 'Add' : 'Look'}</button>
+      </Row>
+    </Group>
   );
 }
 
@@ -391,7 +419,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
     setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
-    health, refreshHealth, models, refreshModels, refreshWorkflows,
+    health, refreshHealth, models, refreshModels, refreshWorkflows, modelFolders,
     updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, workflows, modelProfiles
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
@@ -685,6 +713,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
+            {modelFolders ? <ModelFolderSettings folders={modelFolders} confirmAction={confirmAction} onOpen={() => { onClose(); modelFolders.openDialog(); }} /> : null}
             {typedModels.length ? (
               <Group title="Model types" note="HEISS reads each model file to tell what it is and which text encoders and VAE it needs. Pick a type here when it could not tell, or guessed wrong.">
                 {typedModels.map((file) => {

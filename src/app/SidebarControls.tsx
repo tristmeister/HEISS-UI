@@ -5,6 +5,7 @@ import { maxLoras } from './loras';
 import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import { LoraPanel } from './LoraPanel';
 import { ModelSetup } from './ModelSetup';
+import { ModelFoldersNotice } from './ModelFoldersNotice';
 import { workflowState } from './workflowStatus';
 import type { WorkflowSummary } from './types';
 import { SafeImg } from './SafeImg';
@@ -51,7 +52,7 @@ export function SidebarControls({ view }: { view: any }) {
     setScheduler, setSeed, setSteps, setTextEncoder, setVae,
     setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
     width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
-    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast,
+    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast, modelFolders,
     sidebarTab: tab, setSidebarTab: setTab
   } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void };
 
@@ -76,6 +77,8 @@ export function SidebarControls({ view }: { view: any }) {
       </div>
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />
+
+      {modelFolders ? <ModelFoldersNotice folders={modelFolders} /> : null}
 
       {currentProfile?.missing?.length ? (
         <ModelSetup profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
