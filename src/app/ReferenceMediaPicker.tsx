@@ -395,6 +395,30 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
     setHost((current) => current === next ? current : next);
   });
 
+  // Publish the chips' width to the prompt bar, so the prompt text wraps before
+  // them; past ~40% of the bar they move onto a row of their own.
+  const slotsRef = React.useRef<HTMLDivElement>(null);
+  React.useLayoutEffect(() => {
+    const slots = slotsRef.current;
+    if (!host || !slots) return;
+    const measure = () => {
+      const chips = Array.from(slots.children) as HTMLElement[];
+      const gap = parseFloat(getComputedStyle(slots).columnGap) || 0;
+      const width = chips.reduce((sum, chip) => sum + chip.offsetWidth, 0) + gap * Math.max(0, chips.length - 1);
+      host.style.setProperty("--ref-slots-w", `${Math.ceil(width)}px`);
+      host.classList.toggle("has-wide-refs", width > host.clientWidth * 0.4);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(host);
+    Array.from(slots.children).forEach((chip) => observer.observe(chip));
+    return () => {
+      observer.disconnect();
+      host.style.removeProperty("--ref-slots-w");
+      host.classList.remove("has-wide-refs");
+    };
+  });
+
   const assetFor = (slot: string) => selected.find((item) => item.slot === slot)?.asset || null;
   // New images go to the slot that's open, else the first empty one, else the first.
   const targetSlot = () => openSlot || inputs.find((input) => !assetFor(input.id))?.id || inputs[0]?.id || "";
@@ -497,7 +521,7 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
 
   return (
     <div className="composer-reference" ref={rootRef}>
-      <div className="composer-reference-slots">
+      <div className="composer-reference-slots" ref={slotsRef}>
         {inputs.map((input) => (
           <ReferenceSlot
             key={input.id}

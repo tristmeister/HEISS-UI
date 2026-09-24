@@ -64,7 +64,7 @@ export type GalleryBundle = {
 export type BundlePending = { runs: number; items: number; itemIds?: string[] };
 export type BundleStatus = { bundles: unknown[]; pending: BundlePending; mode: string; cooldownMinutes: number };
 export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[] };
-export type TouchGesture = { mode: "pan"; id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | { mode: "pinch"; distance: number; zoom: number; panX: number; panY: number; centerX: number; centerY: number; moved: boolean };
+export type TouchGesture = { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; moved: boolean } | { mode: "pan"; id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | { mode: "pinch"; distance: number; zoom: number; panX: number; panY: number; centerX: number; centerY: number; moved: boolean };
 export type SelectOption = { label: string; value: string };
 export type Profile = {
   id: string;

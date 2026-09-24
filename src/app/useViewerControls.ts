@@ -6,6 +6,18 @@ import type React from 'react';
 import { wheelPixels } from './wheel';
 import type { GalleryItem, Profile } from './types';
 
+/** Where an object-fit: contain image actually draws inside its box. */
+function containedRect(media: HTMLImageElement | HTMLVideoElement) {
+  const box = media.getBoundingClientRect();
+  const naturalW = media instanceof HTMLImageElement ? media.naturalWidth : media.videoWidth;
+  const naturalH = media instanceof HTMLImageElement ? media.naturalHeight : media.videoHeight;
+  if (!naturalW || !naturalH || !box.width || !box.height) return box;
+  const scale = Math.min(box.width / naturalW, box.height / naturalH);
+  const w = naturalW * scale;
+  const h = naturalH * scale;
+  return { left: box.left + (box.width - w) / 2, top: box.top + (box.height - h) / 2, right: box.left + (box.width + w) / 2, bottom: box.top + (box.height + h) / 2 };
+}
+
 export function useViewerControls(view: any) {
   const {
     active, doneGallery, generate, generateDisabled, height, lastTapRef,
@@ -16,6 +28,7 @@ export function useViewerControls(view: any) {
     setZenSelectedId, showToast, touchGestureRef, viewerDragEndRef, viewerDragRef, viewerPan,
     viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef
   } = view;
+  const lastTouchRef = view.lastTouchRef as React.MutableRefObject<number>;
   function resetViewer() {
     setViewerZoom(1);
     setViewerPan({ x: 0, y: 0 });
@@ -24,7 +37,8 @@ export function useViewerControls(view: any) {
   function openItem(item: GalleryItem) {
     resetViewer();
     setZenSelectedId(item.id);
-    setShowDetails(typeof window === "undefined" ? true : !window.matchMedia("(max-width: 620px)").matches);
+    // The side panel squeezes the image below laptop widths, so it starts closed there.
+    setShowDetails(typeof window === "undefined" ? true : !window.matchMedia("(max-width: 1024px)").matches);
     setActive(item);
   }
 
@@ -186,15 +200,18 @@ export function useViewerControls(view: any) {
     if (Date.now() - viewerDragEndRef.current < 220) return;
     if (viewerDragRef.current?.moved) return;
     const canvas = event.currentTarget as HTMLElement;
-    const media = canvas.querySelector("img, video") as HTMLElement | null;
-    if (media) {
-      const rect = media.getBoundingClientRect();
+    const media = canvas.querySelector("img, video") as HTMLImageElement | HTMLVideoElement | null;
+    if (media && viewerZoom <= 1) {
+      const rect = containedRect(media);
       const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
       if (!inside) {
         setActive(null);
         return;
       }
     }
+    // On touch a single tap only closes (outside the image); zoom is a double tap
+    // or a pinch, so a stray tap never jumps the picture to 200%.
+    if (Date.now() - lastTouchRef.current < 700) return;
     if (viewerZoom > 1) {
       zoomViewer(1);
     } else {
@@ -246,6 +263,12 @@ export function useViewerControls(view: any) {
       setIsDraggingViewer(true);
       return;
     }
+    if (event.touches.length === 1 && viewerZoom <= 1) {
+      // At fit size one finger swipes: sideways for the next image, down to close.
+      const touch = event.touches[0];
+      touchGestureRef.current = { mode: "swipe", id: touch.identifier, x: touch.clientX, y: touch.clientY, dx: 0, dy: 0, moved: false };
+      return;
+    }
     if (event.touches.length === 1 && viewerZoom > 1) {
       event.preventDefault();
       const touch = event.touches[0];
@@ -275,6 +298,15 @@ export function useViewerControls(view: any) {
       setViewerPan(anchoredPanFromStart(nextZoom, center.x, center.y, event.currentTarget as HTMLElement, gesture.zoom, { x: gesture.panX, y: gesture.panY }));
       return;
     }
+    if (gesture.mode === "swipe" && event.touches.length === 1) {
+      const touch = event.touches[0];
+      gesture.dx = touch.clientX - gesture.x;
+      gesture.dy = touch.clientY - gesture.y;
+      if (Math.abs(gesture.dx) > 8 || Math.abs(gesture.dy) > 8) gesture.moved = true;
+      // The image follows the finger: sideways freely, vertically only downward.
+      if (gesture.moved) setViewerPan(Math.abs(gesture.dx) > Math.abs(gesture.dy) ? { x: gesture.dx, y: 0 } : { x: 0, y: Math.max(0, gesture.dy) });
+      return;
+    }
     if (gesture.mode === "pan" && event.touches.length === 1) {
       const touch = event.touches[0];
       const dx = touch.clientX - gesture.x;
@@ -286,10 +318,27 @@ export function useViewerControls(view: any) {
 
   function endViewerTouch(event: React.TouchEvent) {
     const gesture = touchGestureRef.current;
+    lastTouchRef.current = Date.now();
     setIsDraggingViewer(false);
+    if (gesture?.mode === "swipe" && gesture.moved) {
+      touchGestureRef.current = null;
+      viewerDragEndRef.current = Date.now();
+      const { dx, dy } = gesture;
+      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+        moveViewer(dx < 0 ? 1 : -1);
+        return;
+      }
+      if (dy > 90 && dy > Math.abs(dx) * 1.4) {
+        setActive(null);
+        return;
+      }
+      setViewerPan({ x: 0, y: 0 });
+      return;
+    }
+    const tapped = !gesture || (gesture.mode === "swipe" && !gesture.moved);
     if (gesture?.moved) {
       viewerDragEndRef.current = Date.now();
-    } else if (!gesture && event.changedTouches.length === 1) {
+    } else if (tapped && event.changedTouches.length === 1) {
       const nowTap = Date.now();
       if (nowTap - lastTapRef.current < 280) {
         event.preventDefault();

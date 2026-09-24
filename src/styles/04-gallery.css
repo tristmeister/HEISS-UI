@@ -169,7 +169,7 @@
 }
 /* Text spans on a tile (caption, status labels) truncate on one line. Tile controls
    are spans too; :not(:where()) keeps them out without raising this rule's specificity. */
-.tile span:not(:where(.tile-upscale, .tile-upscale-ring, .tile-hover-actions, .tile-delete, .upscale-notice, .upscale-notice *)) { display: block; color: hsl(var(--muted-foreground)); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile span:not(:where(.upscale-notice, .upscale-notice *)) { display: block; color: hsl(var(--muted-foreground)); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile-caption {
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 24px 10px 8px;
@@ -226,21 +226,19 @@
 /* --primary is near-white here, so an active state must flip the ink too. */
 /* A running upscale stays visible without a hover, so progress is never hidden. */
 
+/* The controls sit in .tile-overlay, a sibling of the tile's button, so the
+   reveal keys off the wrapper that holds both. */
 @media (hover: hover) {
-  .tile:hover .tile-action,
-  .tile:hover .tile-delete,
-  .tile:hover .tile-hover-actions,
-  .tile:focus-within .tile-action,
-  .tile:focus-within .tile-delete,
-  .tile:focus-within .tile-hover-actions {
+  .tile-motion-wrap:hover .tile-hover-actions,
+  .tile-motion-wrap:focus-within .tile-hover-actions {
     opacity: 1;
     transform: translateY(0);
   }
 }
 @media (hover: none) {
-  .tile-action, .tile-delete, .tile-hover-actions { opacity: 1; transform: translateY(0); }
+  .tile-hover-actions { opacity: 1; transform: translateY(0); }
 }
-.tile.pending .tile-action { opacity: 1; }
+.tile-overlay .tile-action { opacity: 1; transform: none; }
 .tile.pending .tile-caption { display: none; }
 .tile.error { opacity: 1; }
 

@@ -291,8 +291,8 @@
 .tile-upscale.is-active:hover { background: #fff; }
 .tile-upscale.is-busy { cursor: progress; }
 @media (hover: hover) {
-  .tile:hover .tile-upscale,
-  .tile:focus-within .tile-upscale { opacity: 1; }
+  .tile-motion-wrap:hover .tile-upscale,
+  .tile-motion-wrap:focus-within .tile-upscale { opacity: 1; }
 }
 @media (hover: none) {
   .tile-upscale { opacity: 1; }

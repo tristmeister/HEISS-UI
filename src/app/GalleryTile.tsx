@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Copy, Download, Eye, EyeOff, Loader2, Square, Trash2 } from 'lucide-react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Copy, Download, Eye, EyeOff, Loader2, MoreHorizontal, Square, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
@@ -12,6 +12,7 @@ import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { useHiddenActions } from './hiddenContext';
 import type { UpscaleNotice } from './useUpscale';
+import { useDismiss } from './useDismiss';
 
 type GalleryTileProps = {
   item: GalleryItem;
@@ -57,27 +58,18 @@ function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }:
   const active = Boolean(item.upscaleActive && state?.url);
   return (
     <Tip content={upscaleTooltip(item)}>
-      {/* The tile itself is a button, so this stays a role="button" span. */}
-      <span
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", busy && "is-busy", held && "is-held")}
         aria-label={upscaleTooltip(item)}
         aria-pressed={state?.url ? active : undefined}
         aria-disabled={busy}
         style={{ "--upscale-ratio": ratio } as React.CSSProperties}
-        onPointerDown={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          event.preventDefault();
-          event.stopPropagation();
-          if (!busy) (running ? onCancelUpscale(item) : onUpscale(item));
-        }}
-        onClick={(event) => { event.stopPropagation(); if (!busy) (running ? onCancelUpscale(item) : onUpscale(item)); }}
+        onClick={() => { if (!busy) (running ? onCancelUpscale(item) : onUpscale(item)); }}
       >
         {busy ? <Loader2 size={14} className="spin" /> : running ? <Square size={10} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={15} />}
         {running ? <span className="tile-upscale-ring" /> : null}
-      </span>
+      </button>
     </Tip>
   );
 }
@@ -104,6 +96,12 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   useEffect(() => { mountedRef.current = true; }, []);
   const hiddenActions = useHiddenActions();
   const canMove = item.status === "done" && Boolean(item.url) && Boolean(hiddenActions);
+  // Phones get one "More" button instead of a row of circles that would not fit.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useDismiss(overlayRef, menuOpen, closeMenu);
+  const act = (run: () => void) => { setMenuOpen(false); run(); };
   return (
     <motion.div
       data-tile-id={item.id}
@@ -151,22 +149,29 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
           <strong>{titleFromPrompt(item.prompt || item.filename)}</strong>
           <em>{item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.status === "error" ? "Failed" : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
+      </button>
+      {/* Controls are siblings of the tile's button, never inside it: a button
+          inside a button is invalid and unreachable by keyboard. */}
+      <div ref={overlayRef} className={cn("tile-overlay", menuOpen && "is-menu-open")}>
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} onCancelUpscale={onCancelUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
-        {item.status === "pending" ? <Tip content="Stop generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Stop</span></Tip> : null}
+        {item.status === "pending" ? <Tip content="Stop generation"><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}
         {item.status !== "pending" ? (
-          <span className="tile-hover-actions" onPointerDown={(event) => event.stopPropagation()}>
-            {canMove ? (
-              item.privateVault
-                ? <Tip content="Move to gallery" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Move to gallery" onClick={(event) => { event.stopPropagation(); hiddenActions!.unhide([item]); }}><Eye size={14} /></span></Tip>
-                : <Tip content="Hide" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Hide" onClick={(event) => { event.stopPropagation(); hiddenActions!.hide([item]); }}><EyeOff size={14} /></span></Tip>
-            ) : null}
-            {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={(event) => event.stopPropagation()}><Download size={13} /></a></Tip> : null}
-            {item.status === "done" ? <Tip content="Copy prompt" side="left"><span className="tile-icon" role="button" aria-label="Copy prompt" onClick={(event) => { event.stopPropagation(); copyPromptAndToast(item); }}><Copy size={14} /></span></Tip> : null}
-            <Tip content={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} side="left"><span className="tile-delete" role="button" aria-label={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={(event) => { event.stopPropagation(); deleteItem(item); }}><Trash2 size={14} /></span></Tip>
-          </span>
+          <>
+            <button type="button" className="tile-more" aria-label="More actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal size={16} /></button>
+            <span className="tile-hover-actions">
+              {canMove ? (
+                item.privateVault
+                  ? <Tip content="Move to gallery" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Move to gallery" onClick={() => act(() => hiddenActions!.unhide([item]))}><Eye size={14} /><span className="tile-menu-label">Move to gallery</span></button></Tip>
+                  : <Tip content="Hide" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Hide" onClick={() => act(() => hiddenActions!.hide([item]))}><EyeOff size={14} /><span className="tile-menu-label">Hide</span></button></Tip>
+              ) : null}
+              {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
+              {item.status === "done" ? <Tip content="Copy prompt" side="left"><button type="button" className="tile-icon" aria-label="Copy prompt" onClick={() => act(() => copyPromptAndToast(item))}><Copy size={14} /><span className="tile-menu-label">Copy prompt</span></button></Tip> : null}
+              <Tip content={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} side="left"><button type="button" className="tile-delete" aria-label={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => act(() => deleteItem(item))}><Trash2 size={14} /><span className="tile-menu-label">Delete</span></button></Tip>
+            </span>
+          </>
         ) : null}
-      </button>
+      </div>
     </motion.div>
   );
 }

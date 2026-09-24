@@ -1,0 +1,198 @@
+/* ---------------------------------------------------------------------------
+   Phones and tablets
+
+   Loaded after every other sheet on purpose: the rules here fix touch and
+   small-screen behaviour that earlier files, written desktop-first, got wrong.
+   Keep new small-screen fixes here rather than adding another override deep in
+   an older file.
+--------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------ The composer */
+
+/* Menus inside the composer are position: fixed so they can outgrow it; layout
+   containment makes the composer their containing block again (it used to be,
+   by accident, through a backdrop-filter). Containment does not start a backdrop
+   root, so the menus still blur what is behind them. */
+.zen-prompt { contain: layout; }
+
+/* The composer sits under the dock (z 13). While one of its own surfaces is
+   open, it rises above, so the dock never covers the drawer or a menu. */
+.zen-prompt:has(.composer-drawer, .model-menu, .aspect-menu, .ref-chip.is-open) { z-index: 14; }
+
+/* Chips above the dock (Group runs, Stop) must not sit on an open sidebar. */
+:is(.app-shell, .zen-shell):has(.zen-controls.open) .dock-transients {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Reference chips share the prompt's top row. ReferenceSlots publishes the
+   row's width, so the text wraps before it instead of running underneath. */
+.zen-prompt:has(.composer-reference-slots) textarea { padding-right: calc(var(--ref-slots-w, 44px) + 16px); }
+/* When the chips would take too much of that row, they get a row of their own. */
+.zen-prompt.has-wide-refs .composer-reference { order: -1; }
+.zen-prompt.has-wide-refs .composer-reference-slots {
+  position: relative;
+  top: auto;
+  right: auto;
+  justify-content: flex-end;
+}
+.zen-prompt.has-wide-refs:has(.composer-reference-slots) textarea { padding-right: 10px; }
+
+/* A start image's menu opens leftward from its thumbnail, which runs off a
+   phone's left edge; there it drops below the chip instead, inside the bar. */
+@media (max-width: 620px) {
+  .ref-menu {
+    top: calc(100% + 6px);
+    right: -3px;
+    max-width: calc(100vw - 40px);
+    padding: 0 6px;
+    overflow-x: auto;
+    clip-path: none;
+  }
+}
+
+/* -------------------------------------------------------------- Gallery tiles */
+
+.tile-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.tile-overlay > * { pointer-events: auto; }
+.tile-overlay .tile-hover-actions { pointer-events: none; }
+.tile-overlay .tile-hover-actions > * { pointer-events: auto; }
+.tile-menu-label { display: none; }
+
+.tile-more {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
+  display: none;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(10 10 10 / .62);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .16), 0 2px 10px rgb(0 0 0 / .28);
+  color: #fff;
+}
+.tile-overlay.is-menu-open .tile-more { background: #fff; color: #0b0b0b; }
+
+/* Touch phones: one "More" button; its actions open as a grid over the tile. */
+@media (hover: none) and (max-width: 620px) {
+  .tile-more { display: grid; }
+  .tile-overlay .tile-hover-actions {
+    inset: 0;
+    top: 0;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(2, 44px);
+    place-content: center;
+    gap: 10px;
+    background: rgb(0 0 0 / .6);
+    opacity: 0;
+    transform: none;
+    transition: opacity 160ms var(--ease-out);
+  }
+  .tile-overlay:not(.is-menu-open) .tile-hover-actions > * { pointer-events: none; }
+  .tile-overlay.is-menu-open .tile-hover-actions { opacity: 1; }
+  .tile-overlay .tile-hover-actions .tile-icon,
+  .tile-overlay .tile-hover-actions .tile-delete { --tile-ctl: 44px; }
+  .tile-overlay .tile-action { min-height: 32px; padding: 6px 12px; }
+}
+
+/* ----------------------------------------------------------------- Viewer */
+
+.viewer-close { display: none; }
+
+@media (max-width: 1024px) {
+  /* The side panel overlays the image instead of taking a 380px column. */
+  .viewer-stage.with-side { grid-template-columns: minmax(0, 1fr); }
+  .viewer-stage.with-side .viewer-dock { left: 50%; }
+  .viewer-stage.with-side .viewer-arrow.next { right: max(12px, env(safe-area-inset-right)); }
+  .viewer-canvas {
+    padding:
+      max(16px, env(safe-area-inset-top))
+      max(16px, env(safe-area-inset-right))
+      calc(var(--dock-h) + 28px + env(safe-area-inset-bottom))
+      max(16px, env(safe-area-inset-left));
+  }
+  .viewer-side {
+    position: absolute;
+    top: calc(max(10px, env(safe-area-inset-top)) + var(--dock-h) + 8px);
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(var(--dock-h) + 26px + env(safe-area-inset-bottom));
+    left: auto;
+    z-index: 6;
+    width: min(380px, calc(100% - 16px));
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+  }
+  .viewer-arrow.prev { left: max(12px, env(safe-area-inset-left)); }
+  .viewer-arrow.next { right: max(12px, env(safe-area-inset-right)); }
+  .viewer-dock { bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .viewer-dock-close { display: none; }
+  .viewer-close {
+    position: absolute;
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    z-index: 7;
+    display: grid;
+    place-items: center;
+    width: var(--dock-h);
+    height: var(--dock-h);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: rgb(22 22 22 / .86);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12), 0 6px 20px rgb(0 0 0 / .4);
+    color: hsl(var(--foreground));
+  }
+}
+
+@media (max-width: 620px) {
+  /* Pinch and double tap zoom; the zoom buttons would push actions off-screen. */
+  .viewer-dock .is-zoom-control,
+  .viewer-dock .viewer-divider { display: none; }
+  .viewer-dock {
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    max-width: none;
+    transform: none;
+    justify-content: space-around;
+    /* Visible, not scrolling: nothing may hide past the edge, and the upscale
+       notice that rises out of the dock must not be clipped. */
+    overflow: visible;
+  }
+  .viewer-stage.with-side .viewer-dock { left: max(8px, env(safe-area-inset-left)); }
+  .viewer-dock .icon-button,
+  .viewer-dock .upscale-notice-anchor { flex: 1 1 0; min-width: 0; width: auto; max-width: 48px; }
+  .viewer-dock .upscale-notice-anchor { display: flex; }
+  .viewer-dock .upscale-notice-anchor .icon-button { width: 100%; max-width: none; }
+  .viewer-canvas { padding-inline: 8px; }
+  .viewer-side {
+    left: max(8px, env(safe-area-inset-left));
+    width: auto;
+  }
+}
+
+/* ------------------------------------------------------------------- Zen */
+
+/* The deck stacks above the composer at these widths; the image stays clear of
+   both instead of running underneath. */
+@media (max-width: 1040px) {
+  .zen-output { padding-bottom: calc(var(--deck-lift) + var(--deck-h) + 12px); }
+}
+
+/* While a composer menu or its drawer is open on a stacked deck, the dock and
+   the controls button step aside rather than showing through the glass. */
+@media (max-width: 1040px) {
+  :is(.app-shell, .zen-shell):has(.zen-prompt :is(.composer-drawer, .model-menu, .aspect-menu)) :is(.studio-dock, .zen-control-button) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
