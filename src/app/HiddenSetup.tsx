@@ -75,6 +75,8 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
     if (busy) return;
     setSetupOpen(false);
     if (step === "ready") onDone();
+    // Walked away from: whatever it was opened for must not happen later by surprise.
+    else hidden.takeIntent();
   };
 
   const create = async () => {
@@ -117,7 +119,7 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
     : "intro";
 
   const intentLine = intent?.kind === "hide" ? `${intent.items.length === 1 ? "Your image moves" : `Your ${intent.items.length} images move`} in as soon as you close this.`
-    : intent?.kind === "generate" ? "Press generate again and it renders straight into Hidden."
+    : intent?.kind === "generate" ? "Your generation starts as soon as you close this, straight into Hidden."
     : "Open it from the lock in the dock. Anything you make there goes straight in.";
 
   const copy: Record<Step, { title: string; description: string }> = {

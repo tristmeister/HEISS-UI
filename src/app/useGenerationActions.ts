@@ -125,12 +125,18 @@ export function useGenerationActions(view: any) {
         galleryUpsert(optimisticItems);
         if (prefs.zenMode) setZenSelectedId(optimisticItems[0].id);
         await nextPaint();
-        const { jobId, items } = await apiJson<{ jobId: string; items: GalleryItem[]; revision?: number }>("/api/generate", {
+        const { jobId, items, hidden: wentHidden } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number }>("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ ...requestBody, clientJobId, count: requestCount, startImage: canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
+        if (wentHidden && !hiddenSpace) {
+          // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.
+          galleryRemove([clientJobId, jobId]);
+          if (index === 0) showToast("Made from a Hidden image, so it goes into Hidden", "default");
+          continue;
+        }
         if (items?.length) {
           galleryUpsert(items);
           if (prefs.zenMode) setZenSelectedId(items[0].id);

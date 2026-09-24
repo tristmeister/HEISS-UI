@@ -358,6 +358,10 @@ export function removeGalleryItems(items) {
 
 /** Items put back from Hidden, newest first like everything else. */
 export function addGalleryItems(items) {
+  // A name ComfyUI reused may carry a delete marker from an older image; this one is wanted.
+  let cleared = false;
+  for (const item of items) cleared = hiddenGalleryIds.delete(galleryKey(item)) || cleared;
+  if (cleared) saveHiddenGalleryIds();
   setGallery(dedupeGallery([...items, ...gallery]));
 }
 

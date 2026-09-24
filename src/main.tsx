@@ -140,7 +140,7 @@ function App() {
     removeGalleryItems,
     removeGalleryItemsWhere,
     patchGalleryItems,
-  } = useGalleryStore({ mode, showFailedItems: prefs.showFailedItems, space: hidden.space });
+  } = useGalleryStore({ mode, showFailedItems: prefs.showFailedItems, space: hidden.space, onLocked: hidden.refresh });
 
   const { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle } = useGalleryBundles({
     prefs,
@@ -352,9 +352,24 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
   }, [settings, active]);
 
-  // A prompt written in Hidden is not kept in the browser's saved draft.
-  const draftPrompt = useRef({ prompt, negative });
-  if (!hiddenSpace) draftPrompt.current = { prompt, negative };
+  // Each space keeps its own prompt. Hidden's lives in memory only: it never
+  // reaches the saved draft, never follows you out, and goes when Hidden locks.
+  const spacePrompts = useRef({ gallery: { prompt, negative }, hidden: { prompt: "", negative: "" } });
+  const promptSpace = useRef(hidden.space);
+  if (promptSpace.current === hidden.space) spacePrompts.current[hidden.space] = { prompt, negative };
+  useEffect(() => {
+    if (promptSpace.current === hidden.space) return;
+    promptSpace.current = hidden.space;
+    const next = spacePrompts.current[hidden.space];
+    setPrompt(next.prompt);
+    setNegative(next.negative);
+  }, [hidden.space]);
+  useEffect(() => {
+    if (hidden.unlocked) return;
+    spacePrompts.current.hidden = { prompt: "", negative: "" };
+    if (hiddenSpace) { setPrompt(""); setNegative(""); }
+  }, [hidden.unlocked]); // eslint-disable-line react-hooks/exhaustive-deps
+  const draftPrompt = { current: spacePrompts.current.gallery };
   useEffect(() => {
     const draft = {
       mode,
@@ -622,6 +637,7 @@ function App() {
     const intent: HiddenIntent | null = hidden.takeIntent();
     if (intent?.kind === "hide") hideItems(intent.items);
     if (intent?.kind === "enter") hidden.setSpace("hidden");
+    if (intent?.kind === "generate") window.setTimeout(() => generate(), 0);
   }, [hidden.unlocked, hidden.setupOpen, hidden.unlockOpen, hidden.intent]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function checkForUpdates(notify = true) {

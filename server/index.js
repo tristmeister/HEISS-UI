@@ -24,7 +24,7 @@ import { galleryStats } from './stats.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
 import { addPasskey, changePassword, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
-import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
+import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, retireVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
 import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
@@ -172,9 +172,18 @@ function sessionSeconds(req) {
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+/** Creating or erasing Hidden happens at the computer it runs on, never from the network. */
+function requireThisComputer(req, res) {
+  if (isLocalClient(req.socket.remoteAddress || "")) return true;
+  res.status(403).json({ ok: false, error: "Only the computer HEISS UI runs on can do this." });
+  return false;
+}
+
 app.post("/api/privacy/setup", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireThisComputer(req, res)) return;
   try {
+    // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
+    if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
     const key = setupPrivacy(req.body?.password || "");
     setUnlockCookie(res, key, sessionSeconds(req));
     res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
@@ -263,10 +272,15 @@ app.post("/api/privacy/lock", (req, res) => {
 
 /** Forgot the password: the only way back is to start over, and everything in Hidden goes. */
 app.post("/api/privacy/erase", (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireThisComputer(req, res)) return;
   if (req.body?.confirm !== "erase") {
     res.status(400).json({ ok: false, error: "Confirm erasing Hidden first." });
     return;
+  }
+  // Runs still rendering would otherwise seal their results with a key that no longer exists.
+  for (const [id, job] of jobs) {
+    if (!job.privateVault || job.terminalAt) continue;
+    jobs.set(id, { ...job, status: "canceling", vaultKey: null });
   }
   eraseVault();
   erasePrivacy();
@@ -323,6 +337,8 @@ app.post("/api/hidden/hide", async (req, res) => {
   }
   try {
     const result = await hideItems(key, items);
+    // A marker keeps them from coming back out of ComfyUI's history if a copy stayed behind.
+    hideGalleryItems(result.movedFrom || []);
     removeGalleryItems(result.movedFrom || []);
     await forgetComfyRun({ promptIds: result.promptIds });
     res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
@@ -956,7 +972,13 @@ app.post("/api/generate", async (req, res) => {
       startImageName: String(req.body?.startImageName || "")
     };
   }
-  body.privateVault = hidden;
+  // What is made from a Hidden image stays hidden, wherever it was asked for.
+  const fromHidden = [...(req.body?.referenceAssets || []).map((item) => item?.assetId), req.body?.startImageId].some((id) => String(id || "").startsWith("vault:"));
+  if (fromHidden && !requestKey) {
+    res.status(401).json({ ok: false, locked: true, reason: "locked", error: "That reference is in Hidden. Unlock Hidden to use it." });
+    return;
+  }
+  body.privateVault = hidden || fromHidden;
   // An older page (or a draft restored from before the reference library) can
   // send only the image's id; treat it as the reference instead of losing it.
   if (!isMockJob && !body.referenceAssets?.length && body.startImageId && !body.startImage) {
@@ -965,7 +987,7 @@ app.post("/api/generate", async (req, res) => {
   }
   if (!isMockJob && body.referenceAssets?.length && !body.referenceAssets.every((item) => item.comfyName)) {
     try {
-      body.referenceAssets = await stageReferenceAssets(req, body.referenceAssets);
+      body.referenceAssets = await stageReferenceAssets(req, body.referenceAssets, { unique: body.privateVault });
       body.startImageId ||= body.referenceAssets[0]?.assetId || "";
       body.startImageName ||= body.referenceAssets[0]?.name || "";
     } catch (error) {
@@ -987,7 +1009,7 @@ app.post("/api/generate", async (req, res) => {
   markWorkflowUsed(body.profileId || body.model || body.workflow || "");
   setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
   jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
-  res.json({ jobId: id, items, revision: galleryRevisionValue() });
+  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue() });
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {

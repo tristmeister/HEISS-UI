@@ -279,10 +279,12 @@ async function bytesForReference(req, id) {
   return publicGalleryBuffer(item);
 }
 
-async function uploadBufferToComfy({ buffer, mime, name }) {
+async function uploadBufferToComfy({ buffer, mime, name }, { unique = false } = {}) {
   await inspectImage(buffer, mime);
   const hash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 32);
-  const filename = `heiss-ui-reference-${hash}.${mimeExtension(mime)}`;
+  // Content-named files are shared between runs; a Hidden run gets its own copy,
+  // so removing it afterwards can never pull an input out from under another job.
+  const filename = unique ? `heiss-ui-${crypto.randomUUID()}.${mimeExtension(mime)}` : `heiss-ui-reference-${hash}.${mimeExtension(mime)}`;
   const form = new FormData();
   form.append("image", new Blob([buffer], { type: mime }), filename);
   form.append("type", "input");
@@ -291,14 +293,14 @@ async function uploadBufferToComfy({ buffer, mime, name }) {
   return { comfyName: uploaded.name || filename, name: safeName(name), mime };
 }
 
-export async function stageReferenceAssets(req, references = []) {
+export async function stageReferenceAssets(req, references = [], { unique = false } = {}) {
   const staged = [];
   for (const reference of Array.isArray(references) ? references : []) {
     const assetId = String(reference?.assetId || "");
     const slot = String(reference?.slot || "reference");
     if (!assetId) continue;
     const bytes = await bytesForReference(req, assetId);
-    const uploaded = await uploadBufferToComfy(bytes);
+    const uploaded = await uploadBufferToComfy(bytes, { unique: unique || assetId.startsWith("vault:") });
     staged.push({ slot, assetId, source: String(reference?.source || ""), ...uploaded });
   }
   return staged;

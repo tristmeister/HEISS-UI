@@ -176,7 +176,7 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
 
 export type GallerySpace = "gallery" | "hidden";
 
-export function useGalleryStore({ mode, showFailedItems, space = "gallery" }: { mode: Mode; showFailedItems: boolean; space?: GallerySpace }) {
+export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLocked }: { mode: Mode; showFailedItems: boolean; space?: GallerySpace; onLocked?: () => void }) {
   const [state, dispatch] = useReducer(galleryReducer, initialState);
   const includeFailed = showFailedItems ? "1" : "0";
   const hidden = space === "hidden";
@@ -195,12 +195,12 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery" }: { 
   const loadGallery = useCallback(async () => {
     // Hidden is its own list; a locked session gets nothing back and shows the lock instead.
     const page = hidden
-      ? await apiJson<GalleryPage>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`).catch(() => ({ items: [], revision: 0 }))
+      ? await apiJson<GalleryPage>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`).catch(() => { onLocked?.(); return { items: [], revision: 0 }; })
       : await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}`);
     if (spaceRef.current !== space) return page;
     dispatch({ type: "reset", page });
     return page;
-  }, [hidden, includeFailed, mode, space]);
+  }, [hidden, includeFailed, mode, onLocked, space]);
 
   const loadMoreGalleryItems = useCallback(async () => {
     if (!state.hasMore || !state.nextCursor) return;
@@ -211,7 +211,8 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery" }: { 
   const loadGalleryDelta = useCallback(async () => {
     if (!state.revision) return loadGallery();
     if (hidden) {
-      const page = await apiJson<GalleryPage & { unchanged?: boolean }>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}&since=${state.revision}`).catch(() => null);
+      // Locked from another tab or device: say so here too instead of showing a stale grid.
+      const page = await apiJson<GalleryPage & { unchanged?: boolean }>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}&since=${state.revision}`).catch(() => { onLocked?.(); return null; });
       if (page && !page.unchanged && spaceRef.current === space) dispatch({ type: "reset", page });
       return page;
     }

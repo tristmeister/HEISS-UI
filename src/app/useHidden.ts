@@ -19,6 +19,7 @@ export type HiddenIntent = { kind: "enter" } | { kind: "hide"; items: GalleryIte
 
 export type HiddenUnlockStage = "idle" | "asking" | "checking" | "opening" | "failed";
 
+const activityKey = "heiss-ui:hidden-activity";
 const json = (body: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
 export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: number; showToast: Toast }) {
@@ -138,16 +139,25 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     }
   }, [showToast]);
 
-  // Idle auto-lock: any touch of the page resets the clock.
+  // Idle auto-lock: any touch of any open HEISS tab resets the clock, so a
+  // forgotten tab never locks Hidden out from under the one in use.
   const lastActive = useRef(Date.now());
   useEffect(() => {
     if (!unlocked || autoLockMinutes <= 0) return;
-    const touch = () => { lastActive.current = Date.now(); };
+    let stamped = 0;
+    const touch = () => {
+      lastActive.current = Date.now();
+      if (lastActive.current - stamped < 5000) return;
+      stamped = lastActive.current;
+      try { localStorage.setItem(activityKey, String(stamped)); } catch { /* this tab's clock still works */ }
+    };
     const events = ["pointerdown", "keydown", "wheel", "touchstart"] as const;
     events.forEach((name) => window.addEventListener(name, touch, { passive: true }));
     lastActive.current = Date.now();
     const timer = window.setInterval(() => {
-      if (Date.now() - lastActive.current > autoLockMinutes * 60 * 1000) lock(true);
+      let shared = 0;
+      try { shared = Number(localStorage.getItem(activityKey) || 0); } catch { /* none */ }
+      if (Date.now() - Math.max(lastActive.current, shared) > autoLockMinutes * 60 * 1000) lock(true);
     }, 15_000);
     return () => {
       events.forEach((name) => window.removeEventListener(name, touch));

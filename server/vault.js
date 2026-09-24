@@ -389,10 +389,12 @@ export async function hideItems(key, items) {
     try {
       const original = await galleryItemBytes(item, item.url);
       let upscale = null;
+      let upscaleUnread = 0;
       if (item.upscale?.url && item.upscale.status === "done") {
         upscale = await galleryItemBytes(item, item.upscale.url).catch(() => null);
+        if (!upscale) upscaleUnread = 1;
       }
-      prepared.push({ item, original, upscale });
+      prepared.push({ item, original, upscale, upscaleUnread });
     } catch (error) {
       failed.push({ id: item.id, error: error.message });
     }
@@ -431,13 +433,15 @@ export async function hideItems(key, items) {
     for (const file of sealedFiles) { try { fs.unlinkSync(path.join(assetsDir, file)); } catch {} }
     throw error;
   }
-  const leftBehind = removeSourceFiles(prepared.flatMap(({ original, upscale }) => [original.sourcePath, ...(upscale ? [upscale.sourcePath] : [])]));
+  const leftBehind = removeSourceFiles(prepared.flatMap(({ original, upscale }) => [original.sourcePath, ...(upscale ? [upscale.sourcePath] : [])]))
+    + prepared.reduce((total, { upscaleUnread }) => total + upscaleUnread, 0);
   return {
     moved: moved.map(viewItem),
     movedFrom: prepared.map(({ item }) => item),
     failed,
     leftBehind,
-    promptIds: prepared.map(({ item }) => item.promptId || "").filter(Boolean)
+    // Items recovered from ComfyUI's history carry its prompt id as their job id; for the rest it is harmless.
+    promptIds: prepared.flatMap(({ item }) => [item.promptId, item.jobId]).filter(Boolean)
   };
 }
 
@@ -520,6 +524,13 @@ export function deleteVaultItems(key, ids) {
   writeManifest(manifest, key);
   for (const item of removed) dropAssets(item);
   return { removed: removed.length };
+}
+
+/** Moves a Hidden whose key ring is gone out of the way, intact, in case the key ever turns up. */
+export function retireVault() {
+  if (!fs.existsSync(vaultDir)) return;
+  fs.renameSync(vaultDir, `${vaultDir}-orphaned-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+  bumpVaultRevision();
 }
 
 /** Removes Hidden from this computer entirely: every item and the manifest. */

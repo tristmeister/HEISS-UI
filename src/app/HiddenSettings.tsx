@@ -39,7 +39,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
     return (
       <Group>
         <Row label={<Status>Not set up</Status>} description="Hidden keeps images to yourself: encrypted on this computer, opened with a password or Touch ID and Windows Hello. The gallery stays exactly as it is.">
-          <button className="btn is-primary" onClick={() => hidden.setSetupOpen(true)}><LockKeyhole size={14} /> Set up Hidden</button>
+          <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button>
         </Row>
       </Group>
     );
