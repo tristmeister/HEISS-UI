@@ -170,7 +170,7 @@ function GenerateButton({ children, className, disabled, onClick, "aria-label": 
 /** Where this generation lands, shown only in Hidden: a quiet ember chip, not a switch. */
 function HiddenChip({ density = "full" }: { density?: ControlDensity }) {
   return (
-    <Tip content="Generations made here go straight into Hidden, encrypted">
+    <Tip content="New images go into Hidden">
       <span className={cn("hidden-chip", density !== "full" && `is-density-${density}`)} role="status" aria-label="Generating into Hidden">
         <LockKeyhole size={12} strokeWidth={2.2} aria-hidden="true" />
         {density === "full" ? <span>Hidden</span> : null}

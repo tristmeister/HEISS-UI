@@ -28,6 +28,8 @@ section into the next version and uses it as the GitHub release notes.
   items and passwords carry over as they are.
 - HEISS UI now points you at `localhost` instead of `127.0.0.1`: the same
   server, but browsers only allow Touch ID and Windows Hello on a name.
+- Hidden's setup, lock screen and settings use shorter, plainer copy, and
+  the website describes Hidden instead of Private Vault.
 
 ### Fixed
 - Clearing the gallery while the vault was locked deleted the files and then

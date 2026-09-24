@@ -42,7 +42,7 @@ export function passwordStrength(value: string) {
 function strengthLabel(value: string) {
   if (value.length < 8) return value ? `${8 - value.length} more character${8 - value.length === 1 ? "" : "s"}` : "At least 8 characters";
   const score = passwordStrength(value);
-  return score > 0.85 ? "Strong" : score > 0.6 ? "Good" : "Fair: longer is stronger";
+  return score > 0.85 ? "Strong" : score > 0.6 ? "Good" : "Fair";
 }
 
 export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, onDone, onChooseFolder }: {
@@ -102,7 +102,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
 
   const create = async () => {
     if (password.length < 8) { setError("Use at least 8 characters."); return; }
-    if (password !== confirm) { setError("The two passwords are different."); return; }
+    if (password !== confirm) { setError("The passwords don’t match."); return; }
     setBusy(true);
     setError("");
     try {
@@ -111,7 +111,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       setConfirm("");
       setStep(support?.available ? "biometric" : "ready");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Hidden could not be set up.");
+      setError(reason instanceof Error ? reason.message : "Could not set up Hidden.");
     } finally {
       setBusy(false);
     }
@@ -127,8 +127,8 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       setStep("biometric");
       if (passkeyCancelled(reason)) return;
       setError(reason instanceof PasskeyWithoutSecretError
-        ? `${label} made a passkey, but this browser cannot use it to unlock Hidden. Your password still works.`
-        : reason instanceof Error ? reason.message : `${label} could not be added.`);
+        ? `This browser can’t unlock Hidden with ${label}. Use your password.`
+        : reason instanceof Error ? reason.message : `Could not add ${label}.`);
     }
   };
 
@@ -139,15 +139,15 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     : step === "ready" ? "sealed"
     : "intro";
 
-  const intentLine = intent?.kind === "hide" ? `${intent.items.length === 1 ? "Your image moves" : `Your ${intent.items.length} images move`} in as soon as you close this.`
-    : intent?.kind === "generate" ? "Your generation starts as soon as you close this, straight into Hidden."
-    : "Open it from the lock in the dock. Anything you make there goes straight in.";
+  const intentLine = intent?.kind === "hide" ? `${intent.items.length === 1 ? "Your image moves" : `Your ${intent.items.length} images move`} in when you close this.`
+    : intent?.kind === "generate" ? "Your generation starts when you close this."
+    : "Open it from the lock in the dock. Anything you generate there stays hidden.";
 
   const copy: Record<Step, { title: string; description: string }> = {
-    offline: { title: "Waiting for ComfyUI", description: "Hidden sets itself up against ComfyUI: it finds where ComfyUI saves, so it can clear ComfyUI's own copy of everything you hide. Setup carries on by itself as soon as ComfyUI is back." },
-    intro: { title: "Hidden", description: "A place for the images you would rather keep to yourself: encrypted on this computer, and opened only by you." },
-    password: { title: "Choose a password", description: "It opens Hidden on any device and is the way back in if you ever lose Touch ID or Windows Hello." },
-    biometric: { title: `Unlock with ${label}`, description: support?.available ? `Open Hidden with ${label} instead of typing. The password keeps working too.` : support?.reason || "Checking what this device can do." },
+    offline: { title: "Waiting for ComfyUI", description: "Hidden needs ComfyUI’s output folder to remove its copies of what you hide. Start ComfyUI to continue." },
+    intro: { title: "Hidden", description: "Images you keep to yourself, encrypted on this computer." },
+    password: { title: "Choose a password", description: "Works on any device, and whenever Touch ID or Windows Hello doesn’t." },
+    biometric: { title: `Unlock with ${label}`, description: support?.available ? `Unlock without typing. Your password still works.` : support?.reason || "Checking this device…" },
     scanning: { title: `Waiting for ${label}`, description: "Follow the prompt from your system." },
     ready: { title: "Hidden is ready", description: intentLine }
   };
@@ -160,23 +160,23 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     footer = (
       <>
         <button className="btn is-ghost" onClick={close}>Later</button>
-        <button className="btn" onClick={() => { onRecheck(); setLastChecked(Date.now()); }}>Check now</button>
+        <button className="btn" onClick={() => { onRecheck(); setLastChecked(Date.now()); }}>Check again</button>
       </>
     );
   } else if (step === "intro") {
     body = (
       <>
         <ul className="hidden-promises">
-          <li><LockKeyhole size={15} /><div><strong>Encrypted on this computer</strong><span>Images, prompts and settings. Locked, HEISS shows nothing about them, not even how many there are.</span></div></li>
-          <li><Sparkles size={15} /><div><strong>Everything still works</strong><span>Upscale, compare, remix and video, all inside Hidden. What you make from a Hidden image stays hidden.</span></div></li>
-          <li><EyeOff size={15} /><div><strong>Hide anything, any time</strong><span>Move an image in from the gallery, or back out, whenever you like. ComfyUI's own copies are removed.</span></div></li>
+          <li><LockKeyhole size={15} /><div><strong>Encrypted on this computer</strong><span>Images, prompts and settings. When it’s locked, not even a count shows.</span></div></li>
+          <li><Sparkles size={15} /><div><strong>Everything still works</strong><span>Upscale, compare, remix and video. What you make from a Hidden image stays hidden.</span></div></li>
+          <li><EyeOff size={15} /><div><strong>Hide from the gallery</strong><span>Move images in, or back out. ComfyUI’s copies are removed.</span></div></li>
           <li><Fingerprint size={15} /><div><strong>Opens with {label}</strong><span>{support?.available ? "Or your password, on any device." : "Or your password. " + (support?.reason || "")}</span></div></li>
         </ul>
         {status?.readiness && !status.readiness.outputDir ? (
           <div className="upscale-callout is-warn hidden-callout">
-            <strong>HEISS cannot find ComfyUI's output folder yet.</strong>
-            <span>Hidden needs it to remove ComfyUI's plaintext copy of each image. Without it, those copies stay behind.</span>
-            <button type="button" className="btn" onClick={onChooseFolder}><FolderOpen size={13} /> Choose folder</button>
+            <strong>ComfyUI’s output folder isn’t set.</strong>
+            <span>Without it, ComfyUI’s unencrypted copy of each image stays behind.</span>
+            <button type="button" className="btn" onClick={onChooseFolder}><FolderOpen size={13} /> Choose folder…</button>
           </div>
         ) : null}
       </>
@@ -198,8 +198,8 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
           </div>
           <span>{strengthLabel(password)}</span>
         </div>
-        <input className="modal-input" type="password" autoComplete="new-password" aria-label="Confirm password" placeholder="Same password again" value={confirm} onChange={(event) => { setConfirm(event.target.value); setError(""); }} />
-        <p className={cn("upscale-fine", error && "is-warn")}>{error || "There is no reset. If this password and every passkey are lost, Hidden can only be erased."}</p>
+        <input className="modal-input" type="password" autoComplete="new-password" aria-label="Confirm password" placeholder="Confirm password" value={confirm} onChange={(event) => { setConfirm(event.target.value); setError(""); }} />
+        <p className={cn("upscale-fine", error && "is-warn")}>{error || "There’s no password reset. If you lose it and every passkey, Hidden can only be erased."}</p>
         <button type="submit" hidden />
       </form>
     );
@@ -214,14 +214,14 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       <>
         <div className="hidden-device">
           <Fingerprint size={18} />
-          <div><strong>{label} on this device</strong><span>Your fingerprint or face never leaves it. It unlocks a key that only this device can produce.</span></div>
+          <div><strong>{label} on this device</strong><span>Your fingerprint or face stays on this device.</span></div>
         </div>
         {error ? <p className="upscale-fine is-warn">{error}</p> : null}
       </>
     ) : (
       <div className="upscale-callout">
         <strong>{support?.reason || `${label} is not available here.`}</strong>
-        {support?.localhostUrl ? <span>Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> and add it from Settings › Hidden. Your password works everywhere in the meantime.</span> : <span>Your password opens Hidden. You can add {label} later from Settings › Hidden.</span>}
+        {support?.localhostUrl ? <span>Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it in Settings › Hidden. Until then, use your password.</span> : <span>Use your password for now. You can add {label} later in Settings › Hidden.</span>}
       </div>
     );
     footer = (
@@ -235,7 +235,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       <ul className="hidden-summary">
         <li><Check size={13} strokeWidth={3} /> Password set</li>
         <li className={cn(!hidden.hasPasskey && "is-off")}>{hidden.hasPasskey ? <Check size={13} strokeWidth={3} /> : <span className="hidden-dash" />} {hidden.hasPasskey ? `${label} unlocks it` : `${label} not added`}</li>
-        <li><Check size={13} strokeWidth={3} /> Locks after a while untouched</li>
+        <li><Check size={13} strokeWidth={3} /> Locks when idle</li>
       </ul>
     );
     footer = <button className="btn is-primary" onClick={close}>{intent?.kind === "hide" ? "Hide it" : intent?.kind === "generate" ? "Done" : "Open Hidden"}</button>;

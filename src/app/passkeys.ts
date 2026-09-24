@@ -35,16 +35,16 @@ export async function passkeySupport(): Promise<PasskeySupport> {
   const loopback = host === "127.0.0.1" || host === "[::1]" || host === "::1";
   const localhostUrl = loopback ? `${window.location.protocol}//localhost${window.location.port ? `:${window.location.port}` : ""}${window.location.pathname}` : "";
   if (!window.isSecureContext || !("PublicKeyCredential" in window)) {
-    return { available: false, label, localhostUrl, reason: `${label} needs this page on this computer or over HTTPS. Use the password here.` };
+    return { available: false, label, localhostUrl, reason: `${label} only works on this computer or over HTTPS. Use your password here.` };
   }
   if (isIpAddress(host)) {
-    return { available: false, label, localhostUrl, reason: loopback ? `${label} works when HEISS UI is opened at localhost rather than ${host}.` : `${label} is not available at a network address. Use the password here.` };
+    return { available: false, label, localhostUrl, reason: loopback ? `${label} needs HEISS UI opened at localhost, not ${host}.` : `${label} isn’t available over the network. Use your password here.` };
   }
   try {
     const platform = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if (!platform) return { available: false, label, localhostUrl: "", reason: `${label} is not set up on this device.` };
+    if (!platform) return { available: false, label, localhostUrl: "", reason: `${label} isn’t set up on this device.` };
   } catch {
-    return { available: false, label, localhostUrl: "", reason: `${label} is not available in this browser.` };
+    return { available: false, label, localhostUrl: "", reason: `${label} isn’t available in this browser.` };
   }
   return { available: true, label, localhostUrl: "", reason: "" };
 }
@@ -85,7 +85,7 @@ async function evaluate(id: string, salt: string) {
     }
   }) as PublicKeyCredential | null;
   const first = assertion ? prfOf(assertion)?.results?.first : undefined;
-  if (!assertion || !first) throw new PasskeyWithoutSecretError("This passkey did not return a secret.");
+  if (!assertion || !first) throw new PasskeyWithoutSecretError("This passkey can’t unlock Hidden. Use your password.");
   return { id: toBase64url(assertion.rawId), prf: toBase64url(first) };
 }
 
@@ -159,7 +159,7 @@ export async function registerPasskey(): Promise<RegisteredPasskey> {
       extensions: { prf: { eval: { first: fromBase64url(salt) } } } as AuthenticationExtensionsClientInputs
     }
   }) as PublicKeyCredential | null;
-  if (!credential) throw new Error("No passkey was made.");
+  if (!credential) throw new Error("No passkey was created.");
   const id = toBase64url(credential.rawId);
   const prf = prfOf(credential);
   // Chrome answers with the secret straight away; Safari and Windows only say it is possible.
@@ -169,7 +169,7 @@ export async function registerPasskey(): Promise<RegisteredPasskey> {
     if (evaluated) return { mode: "prf", id, salt, prf: evaluated.prf };
   }
   const publicKey = (credential.response as AuthenticatorAttestationResponse).getPublicKey?.();
-  if (!publicKey) throw new PasskeyWithoutSecretError("This passkey shares neither a secret nor its public key.");
+  if (!publicKey) throw new PasskeyWithoutSecretError("This passkey can’t unlock Hidden. Use your password.");
   return { mode: "device", id, publicKey: toBase64url(publicKey) };
 }
 
@@ -195,7 +195,7 @@ export async function unlockWithPasskey(passkeys: PasskeyOption[], challenge: st
       ...(prfKeys.length ? { extensions: { prf: { evalByCredential: Object.fromEntries(prfKeys.map((passkey) => [passkey.id, { first: fromBase64url(passkey.salt!) }])) } } as AuthenticationExtensionsClientInputs } : {})
     }
   }) as PublicKeyCredential | null;
-  if (!assertion) throw new Error("No passkey answered.");
+  if (!assertion) throw new Error("No passkey responded. Use your password.");
   const id = toBase64url(assertion.rawId);
   const used = usable.find((passkey) => passkey.id === id);
   if (used?.kind === "device") {
@@ -209,6 +209,6 @@ export async function unlockWithPasskey(passkeys: PasskeyOption[], challenge: st
     };
   }
   const first = prfOf(assertion)?.results?.first;
-  if (!first) throw new PasskeyWithoutSecretError("This passkey did not return a secret.");
+  if (!first) throw new PasskeyWithoutSecretError("This passkey can’t unlock Hidden. Use your password.");
   return { id, prf: toBase64url(first) };
 }

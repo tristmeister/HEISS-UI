@@ -97,8 +97,8 @@ export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenS
       <div className="hidden-lockscreen-copy">
         <h2>{notSetUp ? "Hidden" : stage === "unlocking" ? "Unlocked" : "Hidden is locked"}</h2>
         <p>{notSetUp
-          ? "Keep images to yourself: encrypted on this computer, opened only by you."
-          : hidden.hasPasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password to see what is inside.` : "Enter your password to see what is inside."}</p>
+          ? "Images you keep to yourself, encrypted on this computer."
+          : hidden.hasPasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
         {notSetUp ? (
           <div className="hidden-unlock">
             <button type="button" className="hidden-unlock-primary" onClick={onSetup}><span>Set up Hidden</span></button>
@@ -128,7 +128,7 @@ export function HiddenUnlockSheet({ hidden }: { hidden: HiddenState }) {
       className="upscale-modal hidden-modal hidden-unlock-modal"
       hero={<div className="upscale-hero-wrap hidden-hero-wrap is-short"><VaultHero className="upscale-hero hidden-hero" stage={stage} /></div>}
       title={stage === "unlocking" ? "Unlocked" : remote ? "Unlock HEISS UI" : "Unlock Hidden"}
-      description={stage === "unlocking" ? "One moment." : remote ? "This studio runs on another computer. Enter its Hidden password to use it from here." : `Hidden is locked. Unlock it ${what}.`.replace(" .", ".")}
+      description={stage === "unlocking" ? "One moment." : remote ? "Enter the Hidden password to use HEISS UI from this device." : what ? `Unlock ${what}.` : "Hidden is locked."}
     >
       {stage !== "unlocking" ? <UnlockControls hidden={hidden} autoFocus compact /> : <div className="hidden-unlock-spacer" />}
     </Modal>

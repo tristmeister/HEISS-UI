@@ -171,7 +171,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </AnimatePresence>
       </div>
       <ComfyConnectionDot status={comfyStatus} retrying={Boolean(comfyRetrying)} onClick={retryComfyStatus} />
-      <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden" : "Hidden · locked" : "Hidden: keep images to yourself"}>
+      <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden" : "Hidden · locked" : "Hidden"}>
         <button
           data-hidden-dock
           className={cn("icon-button hidden-dock-button", hiddenSpace && "active", hidden.enabled && hidden.unlocked && "is-open")}
@@ -204,7 +204,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         >
           <Tip content="Back to the gallery"><button type="button" data-hidden-exit className="hidden-bar-back" aria-label="Back to the gallery" onClick={toggleHiddenSpace}><ArrowLeft size={14} /></button></Tip>
           <span className="hidden-bar-title"><LockKeyhole size={13} /> Hidden{hiddenCount ? <i><AnimatedNumber value={hiddenCount} /></i> : null}</span>
-          <Tip content="Lock Hidden now"><button type="button" className="hidden-bar-lock" onClick={() => hidden.lock(true)}><Lock size={12} /> Lock</button></Tip>
+          <Tip content="Lock Hidden"><button type="button" className="hidden-bar-lock" onClick={() => hidden.lock(true)}><Lock size={12} /> Lock</button></Tip>
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -440,7 +440,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <section className="gallery"><div className="empty hidden-empty">
               <span className="hidden-empty-mark"><LockKeyhole size={26} /></span>
               <h2>Nothing hidden yet</h2>
-              <p>Generate here and it goes straight in, or hide an image from the gallery with <EyeOff size={13} className="inline-icon" /> on its tile.</p>
+              <p>Generate here, or hide images from the gallery with <EyeOff size={13} className="inline-icon" />.</p>
             </div></section>
           ) : (
             <EmptyStage
@@ -701,7 +701,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   ) : null}
                   {active.status === "done" && active.url ? (
                     active.privateVault
-                      ? <Tip content="Put back in the gallery"><button className="icon-button" aria-label="Unhide" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
+                      ? <Tip content="Move to gallery"><button className="icon-button" aria-label="Move to gallery" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
                       : <Tip content="Hide"><button className="icon-button" aria-label="Hide" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
                   ) : null}
                   {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download file"}><a className="icon-button" aria-label="Download file" href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}

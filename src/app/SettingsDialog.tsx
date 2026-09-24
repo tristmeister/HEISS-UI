@@ -259,7 +259,7 @@ const fileCount = (report: OutputFolderReport) => {
 function describeFolder(report: OutputFolderReport | null): { tone?: 'ok' | 'warn' | 'bad'; label: string; detail: string } {
   if (!report) return { label: 'Checking…', detail: '' };
   switch (report.state) {
-    case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Gens still show up, but HEISS UI cannot delete their files, or remove ComfyUI\'s copy of what goes into Hidden, until it knows this folder.' };
+    case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Needed to delete files and to remove ComfyUI’s copies of hidden images.' };
     case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'Nothing exists at that path on this computer.' };
     case 'not-folder': return { tone: 'bad', label: 'Not a folder', detail: 'That path points at a file.' };
     case 'mismatch': return { tone: 'warn', label: 'Your recent images aren’t here', detail: `None of your last ${report.checked} images are in this folder (${fileCount(report)}). ComfyUI is probably saving somewhere else. Try Find automatically.` };
@@ -632,7 +632,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>
               </Row>
-              <Row label="Export gallery" description="Every finished output in one ZIP file. Hidden exports from its own settings.">
+              <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
             </Group>
@@ -686,7 +686,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 })}
               </Group>
             ) : null}
-            <Group title="Other devices" note={<>Start the studio with <code>npm run dev:lan</code> first. Other devices sign in with your Hidden password, so set up Hidden first.</>}>
+            <Group title="Other devices" note={<>Start the studio with <code>npm run dev:lan</code> first. Other devices unlock with your Hidden password, so set up Hidden first.</>}>
               <Row label="Open on your phone or another computer" description={`This studio runs at ${window.location.host || 'localhost'}.`}>
                 <button className="btn" onClick={copyLanUrl} disabled={lanBusy}><Copy size={14} /> {lanBusy ? 'Finding…' : 'Copy LAN URL'}</button>
               </Row>

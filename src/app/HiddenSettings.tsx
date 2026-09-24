@@ -38,7 +38,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   if (!enabled) {
     return (
       <Group>
-        <Row label={<Status>Not set up</Status>} description="Hidden keeps images to yourself: encrypted on this computer, opened with a password or Touch ID and Windows Hello. The gallery stays exactly as it is.">
+        <Row label={<Status>Not set up</Status>} description="Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello.">
           <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button>
         </Row>
       </Group>
@@ -51,15 +51,15 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       await hidden.addBiometric();
       showToast(`${label} added`, "success");
     } catch (error) {
-      if (!passkeyCancelled(error)) showToast(error instanceof PasskeyWithoutSecretError ? `This browser cannot unlock Hidden with ${label} yet.` : error instanceof Error ? error.message : `${label} could not be added`, "error");
+      if (!passkeyCancelled(error)) showToast(error instanceof PasskeyWithoutSecretError ? `This browser can’t unlock Hidden with ${label}.` : error instanceof Error ? error.message : `Could not add ${label}`, "error");
     } finally {
       setBusy("");
     }
   };
 
   const removeBiometric = async (id: string, name: string) => {
-    if (!await confirmAction({ title: `Remove ${name}?`, description: "It stops opening Hidden. The passkey itself stays in your system's password manager until you delete it there.", action: "Remove", destructive: true })) return;
-    await hidden.removeBiometric(id).catch((error) => showToast(error instanceof Error ? error.message : "Could not remove it", "error"));
+    if (!await confirmAction({ title: `Remove ${name}?`, description: "It can no longer unlock Hidden. The passkey stays in your password manager until you delete it there.", action: "Remove", destructive: true })) return;
+    await hidden.removeBiometric(id).catch((error) => showToast(error instanceof Error ? error.message : "Could not remove the passkey", "error"));
   };
 
   const savePassword = async () => {
@@ -77,7 +77,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   };
 
   const erase = async () => {
-    if (!await confirmAction({ title: "Erase Hidden?", description: "Every image in Hidden, with its prompt, settings and upscale, is erased from this computer, and the password and passkeys stop existing. This cannot be undone.", action: "Erase everything in Hidden", destructive: true })) return;
+    if (!await confirmAction({ title: "Erase Hidden?", description: "Every Hidden image with its prompt and upscale, the password and all passkeys are erased from this computer. This can’t be undone.", action: "Erase Hidden", destructive: true })) return;
     try {
       await hidden.erase();
       showToast("Hidden erased", "success");
@@ -93,7 +93,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       <Group>
         <Row
           label={<Status tone={unlocked ? 'ok' : 'warn'}>{unlocked ? 'Unlocked' : 'Locked'}</Status>}
-          description={unlocked ? "Open in this browser. It locks itself when left alone, or right away with Lock." : "Unlock to manage passwords and passkeys, or to export what is inside."}
+          description={unlocked ? "Locks automatically when idle." : "Unlock to change the password or passkeys, or to export."}
         >
           {unlocked
             ? <button className="btn" onClick={() => hidden.lock()}><LockKeyhole size={14} /> Lock</button>
@@ -101,8 +101,8 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
         </Row>
       </Group>
 
-      <Group title="Ways in" note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <> Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it.</> : null}</> : "Passkeys unlock through a secret only your device can produce. Neither your fingerprint nor your face ever reaches HEISS UI."}>
-        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description="Works on every device, including your phone over the network." stacked={changing}>
+      <Group title="Unlock methods" note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <> Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it.</> : null}</> : undefined}>
+        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description="Works on any device, including over the network." stacked={changing}>
           {changing ? (
             <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); savePassword(); }}>
               <input className="modal-input" type="password" autoComplete="new-password" aria-label="New password" placeholder="New password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
@@ -117,13 +117,13 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
           </Row>
         ))}
         {support?.available ? (
-          <Row label={<span className="hidden-way"><Fingerprint size={14} /> {passkeys.length ? `Add another` : label}</span>} description={passkeys.length ? "Another device, or your phone." : `Open Hidden with ${label} instead of typing.`}>
+          <Row label={<span className="hidden-way"><Fingerprint size={14} /> {passkeys.length ? `Add another` : label}</span>} description={passkeys.length ? "Another device, or your phone." : "Unlock without typing."}>
             <button className="btn" disabled={!unlocked || busy === "passkey"} onClick={addBiometric}>{busy === "passkey" ? "Waiting…" : `Add ${passkeys.length ? "passkey" : label}`}</button>
           </Row>
         ) : null}
       </Group>
 
-      <Group title="Auto-lock" note="Counts from the last time you touched the page. Other devices lock on their own clock.">
+      <Group title="Auto-lock" note="Locks after this long without activity. Each device counts on its own.">
         <div className="segmented hidden-autolock" role="radiogroup" aria-label="Lock Hidden after">
           {autoLockChoices.map((choice) => (
             <button key={choice.value} type="button" role="radio" aria-checked={autoLock === choice.value} className={cn(autoLock === choice.value && 'active')} onClick={() => setPrefs({ hiddenAutoLockMinutes: choice.value })}>{choice.label}</button>
@@ -131,16 +131,16 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
         </div>
       </Group>
 
-      <Group title="Take it with you">
-        <Row label="Export Hidden" description="Every image in Hidden, decrypted, in one ZIP file. Treat the file like the pictures in it." disabled={!unlocked}>
+      <Group title="Export">
+        <Row label="Export Hidden" description="Every image, unencrypted, in one ZIP file." disabled={!unlocked}>
           <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/hidden/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Export</a>
         </Row>
-        <Row label="Encrypted backup" description="The same, still encrypted. It opens with your Hidden password and nothing else." disabled={!unlocked}>
+        <Row label="Encrypted backup" description="Every image, encrypted. Opens only with your Hidden password." disabled={!unlocked}>
           <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/vault/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Back up</a>
         </Row>
       </Group>
 
-      <Group title="Start over" tone="danger" note="Forgot the password and lost every passkey? This is the only way back in, and it takes everything in Hidden with it.">
+      <Group title="Start over" tone="danger" note="If you lose the password and every passkey, this is the only way to start over.">
         <Row label="Erase Hidden" description="Erases every Hidden image, the password and all passkeys from this computer.">
           <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} /> Erase</button>
         </Row>

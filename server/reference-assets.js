@@ -282,7 +282,7 @@ export function referenceAssetFromGallery(req, galleryItemId) {
 async function bytesForReference(req, id) {
   if (String(id).startsWith("vault:")) {
     const vault = readVaultAsset(req, String(id).slice(6));
-    if (!vault || vault.item?.type !== "image") throw new Error("Private reference image is locked or unavailable.");
+    if (!vault || vault.item?.type !== "image") throw new Error("This Hidden image is locked or gone.");
     return { buffer: vault.buffer, mime: vault.item.mime || mimeFromName(vault.item.outputName), name: vault.item.outputName || "private-reference.png" };
   }
   const upload = loadManifest().find((item) => item.id === id && item.source === "upload");

@@ -153,7 +153,7 @@ HEISS_DATA_DIR=./data
 COMFY_OUTPUT_DIR=
 ```
 
-`COMFY_OUTPUT_DIR` is optional; HEISS finds the folder by itself in most setups. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
+`COMFY_OUTPUT_DIR` is optional; HEISS UI usually finds the folder. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
 
 <details>
 <summary><b>Hidden</b></summary>

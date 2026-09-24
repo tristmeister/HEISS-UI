@@ -92,7 +92,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
       opened(await apiJson<PrivacyStatus>("/api/privacy/unlock", json({ password, sessionSeconds })));
       return true;
     } catch (error) {
-      failed(error instanceof Error ? error.message : "That password did not open Hidden.");
+      failed(error instanceof Error ? error.message : "That password is incorrect.");
       return false;
     }
   }, [failed, opened, sessionSeconds]);
@@ -126,7 +126,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
         setUnlockStage("idle");
         return false;
       }
-      failed(error instanceof Error ? error.message : "That did not open Hidden.");
+      failed(error instanceof Error ? error.message : "Could not unlock Hidden. Try again, or use your password.");
       return false;
     }
   }, [failed, fetchOptions, opened, sessionSeconds]);
@@ -209,8 +209,8 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     setBusy(true);
     try {
       const result = await apiJson<{ moved: number; ids: string[]; failed: Array<{ id: string; error: string }>; leftBehind: number }>("/api/hidden/hide", json({ ids }));
-      if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Could not hide that", "error");
-      else if (result.leftBehind) showToast(`Hidden. ComfyUI kept ${result.leftBehind === 1 ? "a copy" : `${result.leftBehind} copies`} it would not let go of.`, "default");
+      if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Could not hide the image", "error");
+      else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} could not be removed.`, "default");
       return result;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -218,7 +218,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
         requestUnlock({ kind: "hide", items });
         return null;
       }
-      showToast(error instanceof Error ? error.message : "Could not hide that", "error");
+      showToast(error instanceof Error ? error.message : "Could not hide the image", "error");
       return null;
     } finally {
       setBusy(false);
@@ -230,7 +230,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     try {
       return await apiJson<{ restored: number }>("/api/hidden/unhide", json({ ids: items.map((item) => item.id) }));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not put that back", "error");
+      showToast(error instanceof Error ? error.message : "Could not move it to the gallery", "error");
       return null;
     } finally {
       setBusy(false);

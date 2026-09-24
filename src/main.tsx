@@ -680,7 +680,7 @@ function App() {
     removeGalleryItems(movable.map((item) => item.id));
     const result = await hidden.unhide(movable);
     if (!result) loadGallery();
-    else showToast(movable.length === 1 ? "Back in the gallery" : `${movable.length} images back in the gallery`, "success");
+    else showToast(movable.length === 1 ? "Moved to gallery" : `Moved ${movable.length} images to gallery`, "success");
   }
 
   // Whatever was asked for before Hidden was set up or unlocked happens now.

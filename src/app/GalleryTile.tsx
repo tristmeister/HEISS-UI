@@ -157,7 +157,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
           <span className="tile-hover-actions" onPointerDown={(event) => event.stopPropagation()}>
             {canMove ? (
               item.privateVault
-                ? <Tip content="Put back in the gallery" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Unhide" onClick={(event) => { event.stopPropagation(); hiddenActions!.unhide([item]); }}><Eye size={14} /></span></Tip>
+                ? <Tip content="Move to gallery" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Move to gallery" onClick={(event) => { event.stopPropagation(); hiddenActions!.unhide([item]); }}><Eye size={14} /></span></Tip>
                 : <Tip content="Hide" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Hide" onClick={(event) => { event.stopPropagation(); hiddenActions!.hide([item]); }}><EyeOff size={14} /></span></Tip>
             ) : null}
             {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={(event) => event.stopPropagation()}><Download size={13} /></a></Tip> : null}

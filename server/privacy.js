@@ -315,7 +315,7 @@ export function addDevicePasskey(key, { id = "", name = "", publicKey = "" } = {
   const config = readConfig();
   if (!config?.enabled || config.version !== 2 || !key) throw new Error("Unlock Hidden first.");
   if (!id || !publicKey) throw new Error("This passkey did not share its public key.");
-  try { crypto.createPublicKey({ key: fromBase64url(publicKey), format: "der", type: "spki" }); } catch { throw new Error("This passkey uses a key type Hidden cannot check."); }
+  try { crypto.createPublicKey({ key: fromBase64url(publicKey), format: "der", type: "spki" }); } catch { throw new Error("This passkey type isn’t supported."); }
   const secret = crypto.randomBytes(32);
   const salt = base64url(crypto.randomBytes(32));
   const passkeys = (config.passkeys || []).filter((item) => item.id !== id);
@@ -337,7 +337,7 @@ export function addPasskey(key, { id = "", name = "", salt = "", prf = "" } = {}
   const config = readConfig();
   if (!config?.enabled || config.version !== 2 || !key) throw new Error("Unlock Hidden first.");
   const secret = fromBase64url(prf);
-  if (!id || !salt || secret.length < 32) throw new Error("This passkey did not return a secret, so it cannot unlock Hidden.");
+  if (!id || !salt || secret.length < 32) throw new Error("This passkey can’t unlock Hidden. Use your password.");
   const passkeys = (config.passkeys || []).filter((item) => item.id !== id);
   passkeys.push({
     id,

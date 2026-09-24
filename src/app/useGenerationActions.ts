@@ -134,7 +134,7 @@ export function useGenerationActions(view: any) {
         if (wentHidden && !hiddenSpace) {
           // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.
           galleryRemove([clientJobId, jobId]);
-          if (index === 0) showToast("Made from a Hidden image, so it goes into Hidden", "default");
+          if (index === 0) showToast("Made from a Hidden image, so it’s saved in Hidden", "default");
           continue;
         }
         if (items?.length) {
@@ -221,7 +221,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function clearGallery() {
-    if (!await confirmAction({"title": "Clear gallery?", "description": "Finished outputs will be removed from this app\u2019s gallery. Hidden is not touched.", "action": "Clear gallery", "destructive": true})) return;
+    if (!await confirmAction({"title": "Clear gallery?", "description": "Finished images are removed from the gallery. Hidden isn’t affected.", "action": "Clear gallery", "destructive": true})) return;
     const data = await apiJson<GalleryPayload>("/api/gallery/clear", { method: "POST" }).catch(() => null);
     const items = payloadItems(data);
     if (data) setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
@@ -270,7 +270,7 @@ export function useGenerationActions(view: any) {
 
   async function deleteItem(item: GalleryItem, confirmed = false) {
     if (!confirmed && !await confirmAction(item.privateVault
-      ? {"title": "Delete from Hidden?", "description": "This image and its upscale are erased for good. There is no copy anywhere else.", "action": "Delete", "destructive": true}
+      ? {"title": "Delete from Hidden?", "description": "This image and its upscale are erased. There’s no other copy.", "action": "Delete", "destructive": true}
       : {"title": "Delete generation?", "description": "This output will be removed from your gallery.", "action": "Delete generation", "destructive": true})) return;
     galleryRemove([item.id, item.url].filter(Boolean));
     if (active?.id === item.id) setActive(null);

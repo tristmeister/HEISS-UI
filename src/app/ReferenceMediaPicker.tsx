@@ -331,7 +331,7 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
       <div className="ref-menu">
         <button type="button" className="ref-menu-name" onClick={onOpen} tabIndex={-1}>
           <strong>{selected.name}</strong>
-          <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
+          <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Hidden" : "Upload"} · change</small>
         </button>
         {isStart && strength ? (
           <Tip content="How much the model may change your image: low keeps it close, high only borrows its layout and colors">

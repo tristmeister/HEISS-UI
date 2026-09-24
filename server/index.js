@@ -111,11 +111,11 @@ function requireLanUnlock(req, res, next) {
     return;
   }
   if (!isPrivacyEnabled()) {
-    res.status(403).json({ ok: false, error: "Set up Hidden on this computer first: its password is what other devices sign in with." });
+    res.status(403).json({ ok: false, error: "Set up Hidden on this computer first. Other devices unlock with its password." });
     return;
   }
   if (!encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock HEISS UI with the Hidden password." });
+    res.status(401).json({ ok: false, locked: true, error: "Enter the Hidden password to continue." });
     return;
   }
   next();
@@ -204,7 +204,7 @@ app.post("/api/privacy/setup", async (req, res) => {
   if (!requireThisComputer(req, res)) return;
   try {
     if (!demoMode && !(await comfy("/system_stats").then(() => true).catch(() => false))) {
-      res.status(503).json({ ok: false, offline: true, error: "Start ComfyUI first. Hidden sets itself up against it, to find where ComfyUI saves." });
+      res.status(503).json({ ok: false, offline: true, error: "Start ComfyUI first. Hidden needs its output folder." });
       return;
     }
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
@@ -227,7 +227,7 @@ app.post("/api/privacy/unlock", async (req, res) => {
   await slowDownGuessing();
   const key = unlockWithPassword(req.body?.password || "");
   if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "That password did not open Hidden." });
+    res.status(401).json({ ok: false, locked: true, error: "That password is incorrect." });
     return;
   }
   setUnlockCookie(res, key, sessionSeconds(req));
@@ -246,7 +246,7 @@ app.post("/api/privacy/passkeys/unlock", async (req, res) => {
     ? unlockWithDevicePasskey(req.body, String(req.headers.origin || ""))
     : unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""));
   if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "That passkey is not one Hidden knows. Use your password." });
+    res.status(401).json({ ok: false, locked: true, error: "This passkey isn’t set up for Hidden. Use your password." });
     return;
   }
   setUnlockCookie(res, key, sessionSeconds(req));
@@ -349,7 +349,7 @@ app.get("/api/hidden/gallery", (req, res) => {
     res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.json(page);
   } catch {
-    res.status(500).json({ ok: false, error: "Hidden could not be read with this key." });
+    res.status(500).json({ ok: false, error: "Could not open Hidden with this key." });
   }
 });
 
@@ -961,7 +961,7 @@ app.post("/api/generate", async (req, res) => {
     return;
   }
   if (hidden && !requestKey) {
-    res.status(401).json({ ok: false, locked: true, reason: "locked", error: "Hidden locked. Unlock it to generate into it." });
+    res.status(401).json({ ok: false, locked: true, reason: "locked", error: "Hidden is locked. Unlock it to generate." });
     return;
   }
   let body;

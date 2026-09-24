@@ -47,7 +47,7 @@ function encrypt(buffer, key) {
 }
 
 function decrypt(buffer, key) {
-  if (buffer.length < 32 || buffer.subarray(0, 4).toString("utf8") !== "JVA1") throw new Error("Invalid Hidden asset.");
+  if (buffer.length < 32 || buffer.subarray(0, 4).toString("utf8") !== "JVA1") throw new Error("This Hidden file is damaged.");
   const decipher = crypto.createDecipheriv("aes-256-gcm", key, buffer.subarray(4, 16));
   decipher.setAuthTag(buffer.subarray(16, 32));
   return Buffer.concat([decipher.update(buffer.subarray(32)), decipher.final()]);
