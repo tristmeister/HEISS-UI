@@ -18,6 +18,10 @@ section into the next version and uses it as the GitHub release notes.
   and typing searches. Picking a model in the composer now counts as recent
   too.
 
+### Fixed
+- Leaving Hidden no longer flashes the loading mosaic over the gallery; the
+  gallery comes straight back and syncs behind it.
+
 ## [0.5.1] - 2026-09-24
 
 ### Added
