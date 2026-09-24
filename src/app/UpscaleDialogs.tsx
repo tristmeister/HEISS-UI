@@ -201,15 +201,17 @@ function fileLine(file: UpscaleInstallFile) {
   }
 }
 
-const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean): { title: string; description: string } => {
+const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean, fallback: string): { title: string; description: string } => {
   switch (stage) {
     case "checking": return { title: "Setting up smart upscale", description: "Checking what ComfyUI already has." };
     case "offline": return { title: "Waiting for ComfyUI", description: "Smart upscale runs inside ComfyUI, and it is not answering right now. Setup carries on by itself as soon as it is back." };
     case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale restores real detail with SeedVR2. Its nodes install once, through ComfyUI Manager or a terminal, and HEISS UI notices by itself when they arrive." };
-    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights. They download once from Hugging Face and are checked before first use.` };
+    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights. They download once from Hugging Face and are checked before first use.${fallback ? ` Until then it runs on ${fallback}.` : ""}` };
     case "downloading": return { title: "Downloading SeedVR2", description: pending ? "Your image upscales the moment this finishes. You can close this; the download keeps going." : "You can close this; the download keeps going in the background." };
     case "verifying": return { title: "Checking the download", description: "Matching every file against its published checksum and making sure ComfyUI can load it." };
-    case "ready": return { title: "Smart upscale is ready", description: pending ? "Starting your upscale now." : "Every finished image has an upscale arrow in its corner. The original is always kept." };
+    case "ready": return fallback && !pending
+      ? { title: "Ready, on a fallback model", description: `${upscaleQualityLabel(quality)} works, but not with the model it is made for.` }
+      : { title: "Smart upscale is ready", description: pending ? "Starting your upscale now." : "Every finished image has an upscale arrow in its corner. The original is always kept." };
     case "error": return { title: "The download stopped", description: "What already arrived stays on disk, so trying again picks up where it left off." };
   }
 };
@@ -237,7 +239,8 @@ export function UpscaleSetupDialog({
 }) {
   const { stage, pending } = setup;
   const progress = install?.totalBytes ? (install.receivedBytes || 0) / install.totalBytes : 0;
-  const { title, description } = copyFor(stage, quality, Boolean(pending));
+  const fallback = status?.substituting ? status.fallbackFile || "another installed SeedVR2 weight" : "";
+  const { title, description } = copyFor(stage, quality, Boolean(pending), fallback);
   const close = setup.closeSetup;
   const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Hide" : "Later"}</button>;
   const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} /> Check now</button>;
@@ -382,10 +385,18 @@ export function UpscaleSetupDialog({
           <span>It shows up on the tile when it is done. The original stays as it is.</span>
         </div>
       </div>
-    ) : status?.substituting ? (
-      <p className="upscale-fine">Runs on the SeedVR2 weights already installed, since this effort's own model is not downloaded.</p>
+    ) : fallback ? (
+      <div className="upscale-callout is-warn">
+        <strong>{upscaleQualityLabel(quality)} is using {fallback}</strong>
+        <span>Its own weights are not downloaded, so it borrows the SeedVR2 weight you already have. Upscales still work, but can look different from what {upscaleQualityLabel(quality)} is tuned for.</span>
+      </div>
     ) : null;
-    footer = pending ? null : <button className="btn is-primary" onClick={close}>Done</button>;
+    footer = pending ? null : fallback ? (
+      <>
+        <button className="btn is-ghost" onClick={close}>Keep the fallback</button>
+        <button className="btn is-primary" onClick={setup.downloadOwnModel}>Download {upscaleQualityLabel(quality)} · {formatBytes(status?.downloadBytes)}</button>
+      </>
+    ) : <button className="btn is-primary" onClick={close}>Done</button>;
   } else if (stage === "error") {
     body = <div className="upscale-callout is-danger"><strong>{install?.error || "The download failed."}</strong></div>;
     footer = <>{later}<button className="btn is-primary" onClick={setup.startDownload}>Try again</button></>;

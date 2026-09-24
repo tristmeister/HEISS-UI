@@ -314,6 +314,8 @@ export function upscaleStatus(info = {}, quality = "balanced") {
     downloadBytes: missingModels.reduce((sum, model) => sum + model.bytes - model.partialBytes, 0),
     needsDownload: missingModels.length > 0 && !canSubstitute,
     substituting: missingModels.length > 0 && canSubstitute,
+    // The weight a substituting tier actually loads, so the UI can name it.
+    fallbackFile: missingModels.length > 0 && canSubstitute ? path.basename(resolveDit(normalized, have).file) : "",
     ready: missingNodes.length === 0 && (missingModels.length === 0 || canSubstitute),
     faceDetail: {
       nodesInstalled: missingNodeClasses(info, faceDetailNodeClasses).length === 0,

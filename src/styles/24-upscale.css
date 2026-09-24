@@ -237,6 +237,7 @@
 }
 .upscale-callout strong { font-weight: 550; overflow-wrap: anywhere; }
 .upscale-callout span { color: hsl(var(--muted-foreground)); }
+.upscale-callout.is-warn { background: rgb(255 180 90 / .1); }
 .upscale-callout.is-danger { background: var(--danger-fill); color: var(--danger-ink); }
 
 /* Effort picker: what you get and what it weighs, side by side. */

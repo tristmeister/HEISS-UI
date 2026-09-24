@@ -9,7 +9,7 @@ import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
 import { apiJson } from './api';
 import type { ModelFile, Models, OutputFolderReport, UpscaleInstall, UpscaleStatus } from './types';
-import { formatBytes, upscaleEfforts } from './useUpscale';
+import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
@@ -84,7 +84,7 @@ function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad
  * One line on where smart upscale stands. Anything that needs doing opens the
  * setup dialog, which owns installing nodes, downloading and verifying.
  */
-function UpscaleReadiness({ status, reason, install, onOpenSetup }: { status: UpscaleStatus | null; reason?: string; install: UpscaleInstall; onOpenSetup: () => void }) {
+function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: { status: UpscaleStatus | null; reason?: string; install: UpscaleInstall; onOpenSetup: () => void; onDownload: () => void }) {
   if (install?.status === 'running') {
     const ratio = install.totalBytes ? Math.min(1, (install.receivedBytes || 0) / install.totalBytes) : 0;
     return (
@@ -106,7 +106,18 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup }: { status: Up
   if (status.needsDownload) {
     return <Row label={<Status tone="warn">Needs a download</Status>} description={`${formatBytes(status.downloadBytes)} of SeedVR2 weights, once.`}><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
   }
-  if (status.substituting) return <Row label={<Status tone="ok">Ready</Status>} description="Runs on the SeedVR2 weights already installed, since this effort's own model is not downloaded." />;
+  if (status.substituting) {
+    const effort = upscaleQualityLabel(status.quality);
+    return (
+      <Row
+        label={<Status tone="warn">Running on a fallback model</Status>}
+        description={`${effort} has no weights of its own yet, so it uses ${status.fallbackFile || 'another installed SeedVR2 weight'} instead. Results can differ from what ${effort} is tuned for.`}
+        stacked
+      >
+        <button className="btn is-primary" onClick={onDownload}>Download {effort} · {formatBytes(status.downloadBytes)}</button>
+      </Row>
+    );
+  }
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
 }
 
@@ -456,7 +467,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   />
                 </Group>
                 <Group title="Status">
-                  <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} />
+                  <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} onDownload={() => upscaleSetup.openSetup(null, { download: true })} />
                 </Group>
               </>
             ) : null}

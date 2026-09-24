@@ -185,11 +185,13 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     });
   }, [running, install?.status, prefs.upscaleQuality, refreshStatus]);
 
+  // A tier running on a fallback weight is ready, but its own download stays one click away.
+  const [wantsOwnModel, setWantsOwnModel] = useState(false);
   const stage: UpscaleSetupStage = running ? "downloading"
     : verifying ? "verifying"
     : !status ? (offline || reason ? "offline" : "checking")
     : !status.nodesInstalled ? "nodes"
-    : status.ready ? "ready"
+    : status.ready && !(wantsOwnModel && status.substituting) ? "ready"
     : install?.status === "error" ? "error"
     : "models";
 
@@ -210,8 +212,9 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     });
   }, []);
 
-  const openSetup = useCallback((item: GalleryItem | null = null) => {
+  const openSetup = useCallback((item: GalleryItem | null = null, options: { download?: boolean } = {}) => {
     if (item) setPending(item);
+    setWantsOwnModel(Boolean(options.download));
     setStartError("");
     setSetupOpen(true);
     refreshStatus(prefs.upscaleQuality, { fresh: true });
@@ -221,6 +224,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
   const inFlight = running || verifying;
   const closeSetup = useCallback(() => {
     setSetupOpen(false);
+    setWantsOwnModel(false);
     if (!inFlight) setPending(null);
   }, [inFlight]);
 
@@ -345,6 +349,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
       lastChecked,
       openSetup,
       closeSetup,
+      downloadOwnModel: () => setWantsOwnModel(true),
       startDownload,
       cancelInstall,
       recheck: () => refreshStatus(prefs.upscaleQuality, { fresh: true })

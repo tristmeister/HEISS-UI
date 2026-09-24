@@ -17,6 +17,9 @@ section into the next version and uses it as the GitHub release notes.
   (`npm run dev:demo` or `HEISS_DEMO=1`) for testing without a GPU.
 - A generate request ComfyUI would reject (a missing model, a bad slot)
   quietly became a placeholder image instead of an error.
+- When an upscale effort ran on a different SeedVR2 weight because its own
+  was not downloaded, Settings still just said Ready. It now says it is
+  running on a fallback, names the weight, and offers the download again.
 
 ## [0.2.1] - 2026-09-24
 

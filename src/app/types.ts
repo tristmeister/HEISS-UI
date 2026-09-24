@@ -240,6 +240,7 @@ export type UpscaleStatus = {
   downloadBytes: number;
   needsDownload: boolean;
   substituting: boolean;
+  fallbackFile?: string;
   ready: boolean;
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
