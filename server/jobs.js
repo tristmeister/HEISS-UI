@@ -3,7 +3,8 @@ import { describeFailure } from './failures.js';
 import { rememberMissingParts } from './model-families.js';
 import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
-import { storePrivateOutputsWithKey } from './vault.js';
+import { forgetComfyRun } from './hidden-traces.js';
+import { storeHiddenOutputs } from './vault.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 
 export const jobs = new Map();
@@ -84,7 +85,7 @@ function applyPreviewBuffer(id, buffer) {
   if (image.length < 16) return true;
   const preview = `data:${mime};base64,${image.toString("base64")}`;
   const current = jobs.get(id) || {};
-  if (current.privateVault) return true;
+  // A Hidden run's previews live in memory only and are shown in Hidden alone.
   jobs.set(id, { ...current, preview });
   if ((current.items?.length || 1) <= 1) updateGalleryJob(id, { preview }, { persist: false });
   return true;
@@ -115,7 +116,6 @@ function applyExecutedOutputPreviews(id, output) {
   if (!outputs.length) return false;
   const previews = outputs.map((item) => item.url);
   const current = jobs.get(id) || {};
-  if (current.privateVault) return true;
   const nextPreviews = [...(Array.isArray(current.previews) ? current.previews : [])];
   previews.forEach((preview, index) => {
     if (preview) nextPreviews[index] = preview;
@@ -201,6 +201,12 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
   return socket;
 }
 
+/** A Hidden run that stopped early still leaves its graph and inputs in ComfyUI. */
+function forgetHiddenRun(body, promptId) {
+  if (body?.privateVault) forgetComfyRun({ promptIds: [promptId], inputNames: body.stagedInputNames }).catch(() => null);
+  else if (body?.hiddenInputNames?.length) forgetComfyRun({ inputNames: body.hiddenInputNames }).catch(() => null);
+}
+
 // What each running job asked for, so a failure can be read against it.
 const jobBodies = new Map();
 
@@ -250,11 +256,13 @@ async function runJob(id, body) {
         updateGalleryJob(id, { status: "canceled" });
         setTerminalJob(id, { status: "canceled" });
         socket?.close();
+        forgetHiddenRun(body, queued.prompt_id);
         return;
       }
       // The socket already recorded the failure; history would only add an empty result.
       if (jobs.get(id)?.status === "error") {
         socket?.close();
+        forgetHiddenRun(body, queued.prompt_id);
         return;
       }
       const history = await comfy(`/history/${queued.prompt_id}`);
@@ -270,12 +278,20 @@ async function runJob(id, body) {
         if (!outputs.length) {
           throw Object.assign(new Error("ComfyUI finished the run but saved no image."), { noOutput: true });
         }
-        const completed = body.privateVault
-          ? storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey)
-          : replaceGalleryJob(id, outputs, body, jobs);
-        if (body.privateVault) removeGalleryJob(id);
-        markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
-        setTerminalJob(id, { status: "done", outputs: completed });
+        if (body.privateVault) {
+          const { items, leftBehind } = await storeHiddenOutputs(jobs.get(id)?.vaultKey, outputs, body, gallery.filter((item) => item.jobId === id));
+          removeGalleryJob(id);
+          // No thumbnail for the workflow card: that list is not encrypted.
+          markWorkflowUsed(body.profileId || body.model || body.workflow || "", "");
+          setTerminalJob(id, { status: "done", outputs: items, leftBehind });
+          await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
+        } else {
+          const completed = replaceGalleryJob(id, outputs, body, jobs);
+          markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
+          setTerminalJob(id, { status: "done", outputs: completed });
+          // A Hidden image used as the reference for a normal run: only its staged copy goes.
+          if (body.hiddenInputNames?.length) await forgetComfyRun({ inputNames: body.hiddenInputNames });
+        }
         socket?.close();
         return;
       }
@@ -290,6 +306,7 @@ async function runJob(id, body) {
     setTerminalJob(id, { status: "error", error: failure.summary, failure });
     updateGalleryJob(id, { status: "error", filename: failure.title, failure });
     socket?.close();
+    forgetHiddenRun(body, jobs.get(id)?.promptId);
   } finally {
     // The progress socket can report an error a moment after this loop ends.
     setTimeout(() => jobBodies.delete(id), 60_000).unref?.();
@@ -400,9 +417,15 @@ export function runMockJob(id, body) {
         });
 
         if (body.privateVault) {
-          const completed = storePrivateOutputsWithKey(outputs, body, gallery.filter((item) => item.jobId === id), jobs.get(id)?.vaultKey);
-          removeGalleryJob(id);
-          setTerminalJob(id, { status: "done", outputs: completed });
+          storeHiddenOutputs(jobs.get(id)?.vaultKey, outputs, body, gallery.filter((item) => item.jobId === id))
+            .then(({ items }) => {
+              removeGalleryJob(id);
+              setTerminalJob(id, { status: "done", outputs: items });
+            })
+            .catch((error) => {
+              setTerminalJob(id, { status: "error", error: error.message });
+              updateGalleryJob(id, { status: "error", filename: "Could not save to Hidden" });
+            });
           return;
         }
         replaceGalleryJob(id, outputs, body, jobs);

@@ -177,3 +177,17 @@ export function textRange(info, node, key) {
     max: Number(meta.max || meta.maxLength || meta.max_length || parsedMax || 0) || undefined
   };
 }
+
+/** ComfyUI's input folder on this machine, next to its output folder, or "" when unknown. */
+export function comfyInputDir() {
+  const explicit = String(process.env.COMFY_INPUT_DIR || "").trim();
+  if (explicit) return path.resolve(explicit);
+  const comfyRoot = String(process.env.HEISS_COMFY_ROOT || process.env.JAI_COMFY_ROOT || "").trim();
+  const candidates = [
+    comfyRoot ? path.join(path.resolve(comfyRoot), "input") : "",
+    comfyOutputDir ? path.join(path.dirname(path.resolve(comfyOutputDir)), "input") : ""
+  ].filter(Boolean);
+  return candidates.find((dir) => {
+    try { return fs.statSync(dir).isDirectory(); } catch { return false; }
+  }) || "";
+}

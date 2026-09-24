@@ -15,7 +15,7 @@ import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
 import { cancelDownload, discardDownload, downloadState, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
-import { dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryLimit, dataDir, hideGalleryItems, makePendingItems, recordsFromComfyHistory, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery, writeGalleryNow } from './gallery-store.js';
+import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
 import { jobs, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
@@ -23,13 +23,14 @@ import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, 
 import { galleryStats } from './stats.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
-import { clearUnlockCookie, encryptionKeyFromRequest, isPrivacyEnabled, privacyStatusFor, revealGalleryItemsForRequest, setPrivacyPassword, setUnlockCookie, verifyPrivacyPassword } from './privacy.js';
-import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, exportVaultBackup, readVaultAsset, setVaultBundleCover, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultGalleryItemsForRequest, vaultStatusFor } from './vault.js';
+import { addPasskey, changePassword, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
+import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
+import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
-import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
+import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 
 const app = express();
@@ -91,11 +92,11 @@ function requireLanUnlock(req, res, next) {
     return;
   }
   if (!isPrivacyEnabled()) {
-    res.status(403).json({ ok: false, error: "Set a privacy password on this computer before using LAN mode." });
+    res.status(403).json({ ok: false, error: "Set up Hidden on this computer first: its password is what other devices sign in with." });
     return;
   }
   if (!encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock HEISS UI with the LAN password." });
+    res.status(401).json({ ok: false, locked: true, error: "Unlock HEISS UI with the Hidden password." });
     return;
   }
   next();
@@ -133,8 +134,27 @@ function openFolder(folder) {
   return execFile("xdg-open", [folder]);
 }
 
-app.get("/api/privacy/status", (req, res) => {
-  res.json({ ...privacyStatusFor(req), vault: vaultStatusFor(req) });
+/** What Hidden needs from this computer before it can keep anything: where ComfyUI saves. */
+async function hiddenReadiness() {
+  const outputDir = comfyOutputDir || await autoDetectOutputDir().catch(() => "");
+  return { outputDir: Boolean(outputDir), outputPath: outputDir || "" };
+}
+
+async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
+  const status = privacyStatusFor(req);
+  const unlocked = Boolean(key);
+  if (unlocked) migrateLegacyPrompts(key);
+  return {
+    ...status,
+    unlocked,
+    // Nothing about what Hidden holds is shared with a locked browser, not even whether it is empty.
+    vault: { unlocked, revision: unlocked ? vaultRevision() : 0 },
+    readiness: await hiddenReadiness()
+  };
+}
+
+app.get("/api/privacy/status", async (req, res) => {
+  res.json(await privacyPayload(req));
 });
 
 app.get("/api/network", (req, res) => {
@@ -145,37 +165,191 @@ app.get("/api/network", (req, res) => {
   res.json({ addresses, port });
 });
 
-app.post("/api/privacy/setup", (req, res) => {
+function sessionSeconds(req) {
+  const value = Number(req.body?.sessionSeconds || 0);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+app.post("/api/privacy/setup", async (req, res) => {
   if (!requireLocal(req, res)) return;
   try {
-    if (isPrivacyEnabled()) {
-      res.status(400).json({ ok: false, error: "Privacy password is already set." });
-      return;
-    }
-    const key = setPrivacyPassword(req.body?.password || "");
-    setUnlockCookie(res, key);
-    writeGalleryNow();
-    res.json({ ok: true, ...privacyStatusFor(req), enabled: true, unlocked: true });
+    const key = setupPrivacy(req.body?.password || "");
+    setUnlockCookie(res, key, sessionSeconds(req));
+    res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
 });
 
-app.post("/api/privacy/unlock", (req, res) => {
+async function slowDownGuessing() {
+  const wait = unlockBackoffMs();
+  if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+}
+
+app.post("/api/privacy/unlock", async (req, res) => {
   if (!requireTrustedAccess(req, res)) return;
-  const key = verifyPrivacyPassword(req.body?.password || "");
+  await slowDownGuessing();
+  const key = unlockWithPassword(req.body?.password || "");
   if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "Password did not match." });
+    res.status(401).json({ ok: false, locked: true, error: "That password did not open Hidden." });
     return;
   }
-  setUnlockCookie(res, key);
-  res.json({ ok: true, enabled: true, unlocked: true });
+  setUnlockCookie(res, key, sessionSeconds(req));
+  res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
 });
 
-app.post("/api/privacy/lock", (_req, res) => {
-  if (!requireTrustedAccess(_req, res)) return;
+app.get("/api/privacy/passkeys/options", (req, res) => {
+  if (!requireTrustedAccess(req, res)) return;
+  res.json({ ok: true, passkeys: passkeyUnlockOptions() });
+});
+
+app.post("/api/privacy/passkeys/unlock", async (req, res) => {
+  if (!requireTrustedAccess(req, res)) return;
+  await slowDownGuessing();
+  const key = unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""));
+  if (!key) {
+    res.status(401).json({ ok: false, locked: true, error: "That passkey is not one Hidden knows. Use your password." });
+    return;
+  }
+  setUnlockCookie(res, key, sessionSeconds(req));
+  res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
+});
+
+function requireHiddenKey(req, res) {
+  const key = encryptionKeyFromRequest(req);
+  if (!key) res.status(401).json({ ok: false, locked: true, error: "Hidden is locked." });
+  return key;
+}
+
+app.post("/api/privacy/passkeys", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  try {
+    const passkey = addPasskey(key, req.body || {});
+    res.json({ ok: true, passkey, ...(await privacyPayload(req, key)) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.delete("/api/privacy/passkeys/:id", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  removePasskey(String(req.params.id || ""));
+  res.json({ ok: true, ...(await privacyPayload(req, key)) });
+});
+
+app.post("/api/privacy/password", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  try {
+    changePassword(key, req.body?.password || "");
+    res.json({ ok: true, ...(await privacyPayload(req, key)) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/privacy/lock", (req, res) => {
+  if (!requireTrustedAccess(req, res)) return;
   clearUnlockCookie(res);
-  res.json({ ok: true, enabled: isPrivacyEnabled(), unlocked: false });
+  res.json({ ok: true, enabled: isPrivacyEnabled(), unlocked: false, passkeys: privacyStatusFor({ headers: {} }).passkeys, vault: { unlocked: false, revision: 0 } });
+});
+
+/** Forgot the password: the only way back is to start over, and everything in Hidden goes. */
+app.post("/api/privacy/erase", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  if (req.body?.confirm !== "erase") {
+    res.status(400).json({ ok: false, error: "Confirm erasing Hidden first." });
+    return;
+  }
+  eraseVault();
+  erasePrivacy();
+  clearUnlockCookie(res);
+  res.json({ ok: true, enabled: false, unlocked: false, passkeys: [], vault: { unlocked: false, revision: 0 } });
+});
+
+/* ---------------------------------------------------------------- Hidden */
+
+function hiddenPage(req, key) {
+  const type = String(req.query.type || "");
+  const includeFailed = req.query.includeFailed !== "0";
+  const bundlesEnabled = req.query.bundles !== "0";
+  // Runs that ComfyUI is still rendering live in memory until they are sealed.
+  const running = gallery.filter((item) => item.privateVault && item.status !== "canceled");
+  const items = sortGallery([...running, ...vaultItems(key, { bundles: bundlesEnabled })]).filter((item) => {
+    if (type && item.type !== type) return false;
+    if (!includeFailed && item.status === "error") return false;
+    return true;
+  });
+  return { items, revision: Math.max(vaultRevision(), running.length ? galleryRevisionValue() : 0), totalApprox: items.length, hasMore: false, nextCursor: "" };
+}
+
+app.get("/api/hidden/gallery", (req, res) => {
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  cleanupGalleryState(jobs);
+  try {
+    const page = hiddenPage(req, key);
+    if (Number(req.query.since || 0) && Number(req.query.since) === page.revision) {
+      res.json({ unchanged: true, revision: page.revision });
+      return;
+    }
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.json(page);
+  } catch {
+    res.status(500).json({ ok: false, error: "Hidden could not be read with this key." });
+  }
+});
+
+app.post("/api/hidden/hide", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  const ids = new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+  const items = filterVisibleGallery(gallery).filter((item) => item.status === "done" && (ids.has(item.id) || ids.has(item.url)));
+  if (!items.length) {
+    res.status(404).json({ ok: false, error: "Those images are no longer in the gallery." });
+    return;
+  }
+  if (items.some((item) => item.upscale?.status === "running")) {
+    res.status(409).json({ ok: false, error: "Wait for the upscale to finish, then hide it." });
+    return;
+  }
+  try {
+    const result = await hideItems(key, items);
+    removeGalleryItems(result.movedFrom || []);
+    await forgetComfyRun({ promptIds: result.promptIds });
+    res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/hidden/unhide", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  try {
+    const restored = unhideItems(key, (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+    addGalleryItems(restored);
+    res.json({ ok: true, restored: restored.length, revision: galleryRevisionValue() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/hidden/export", (req, res) => {
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  const date = new Date().toISOString().slice(0, 10);
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-hidden-${date}.zip"`);
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  sendGalleryExport(res, vaultAssetsForExport(key), { gallery: false });
 });
 
 const appVersion = (() => {
@@ -409,15 +583,9 @@ function bundleOptions(source = {}) {
   };
 }
 
-function bundleSourceItems(req) {
-  // Private items never take part in a run, so the vault is not consulted here.
-  // Prompts are decrypted for this request only: with a privacy password set
-  // they are encrypted at rest, so an unrevealed item has no prompt to group by
-  // and would silently fall back to batch-only grouping.
-  return revealGalleryItemsForRequest(
-    filterVisibleGallery(gallery).filter((item) => item.status !== "canceled"),
-    req
-  );
+function bundleSourceItems() {
+  // Hidden items group only with each other, inside Hidden.
+  return revealGalleryItemsForRequest(filterVisibleGallery(gallery).filter((item) => item.status !== "canceled"));
 }
 
 app.get("/api/gallery/bundles", (req, res) => {
@@ -514,21 +682,18 @@ app.delete("/api/workflows/:id", (req, res) => {
   }
 });
 
-function vaultAwarePage(req) {
+/** The gallery with its runs collapsed; a run can straddle a page, so it collapses first. */
+function bundledPage(req) {
   const type = String(req.query.type || "");
   const limit = Math.max(1, Math.min(500, Number(req.query.limit || 200)));
   const cursor = String(req.query.cursor || "");
   const includeFailed = req.query.includeFailed !== "0";
-  const bundlesEnabled = req.query.bundles !== "0";
-  const vaultItems = encryptionKeyFromRequest(req) ? vaultGalleryItemsForRequest(req, { bundles: bundlesEnabled }) : [];
-  const merged = sortGallery([...filterVisibleGallery(gallery), ...vaultItems]).filter((item) => {
+  const merged = sortGallery(filterVisibleGallery(gallery)).filter((item) => {
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
     return item.status !== "canceled";
   });
-  // Collapse runs before paginating; a bundle that straddles a page boundary
-  // could never be assembled correctly in the browser.
-  const collapsed = applyBundles(merged, { enabled: bundlesEnabled });
+  const collapsed = applyBundles(merged, { enabled: req.query.bundles !== "0" });
   const start = cursor ? Math.max(0, collapsed.findIndex((item) => String(item.id) === cursor) + 1) : 0;
   const items = collapsed.slice(start, start + limit);
   const nextCursor = start + limit < collapsed.length ? String(items.at(-1)?.id || "") : "";
@@ -541,20 +706,22 @@ app.get("/api/gallery", (req, res) => {
   const limit = Number(req.query.limit || 0);
   const cursor = String(req.query.cursor || "");
   const includeFailed = req.query.includeFailed !== "0";
-  const page = vaultConfigured()
-    ? vaultAwarePage(req)
+  const page = listBundles().length
+    ? bundledPage(req)
     : pageGallery({ type, limit: limit || 200, cursor, includeFailed });
   res.json({
     ...page,
-    items: revealGalleryItemsForRequest(page.items, req).map((item) => item.bundle
-      ? { ...item, bundle: { ...item.bundle, items: revealGalleryItemsForRequest(item.bundle.items || [], req) } }
+    items: revealGalleryItemsForRequest(page.items).map((item) => item.bundle
+      ? { ...item, bundle: { ...item.bundle, items: revealGalleryItemsForRequest(item.bundle.items || []) } }
       : item),
-    outputs: revealGalleryItemsForRequest(cursor || limit ? page.items : filterVisibleGallery(gallery), req)
+    outputs: revealGalleryItemsForRequest(cursor || limit ? page.items : filterVisibleGallery(gallery))
   });
 });
 
 app.get("/api/gallery/delta", (req, res) => {
-  if (vaultConfigured()) {
+  // Collapsed runs only come out of a full page, so with any run grouped the
+  // browser reloads rather than patching tiles in and out of their stacks.
+  if (listBundles().length) {
     res.json({ revision: galleryRevisionValue(), reset: true, upserts: [], removes: [] });
     return;
   }
@@ -562,43 +729,51 @@ app.get("/api/gallery/delta", (req, res) => {
   const type = String(req.query.type || "");
   const includeFailed = req.query.includeFailed !== "0";
   const delta = galleryDelta({ since, type, includeFailed });
-  res.json({ ...delta, upserts: revealGalleryItemsForRequest(delta.upserts || [], req) });
+  res.json({ ...delta, upserts: revealGalleryItemsForRequest(delta.upserts || []) });
 });
 
+function hiddenDownloadName(asset, variant) {
+  const ext = { "image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp", "image/gif": ".gif", "video/mp4": ".mp4", "video/webm": ".webm" }[asset.mime] || "";
+  const stem = String(asset.item.prompt || asset.name || "hidden").replace(/\s+/g, " ").trim().slice(0, 48).replace(/[^\w .-]+/g, "").trim() || "hidden";
+  return `${stem}${variant === "upscale" ? " upscaled" : ""}${ext}`;
+}
+
 app.get("/api/vault/media/:id", (req, res) => {
-  const asset = readVaultAsset(req, req.params.id);
+  const variant = req.query.variant === "upscale" ? "upscale" : "original";
+  const asset = readVaultAsset(req, req.params.id, variant);
   if (!asset) {
-    res.status(404).json({ ok: false, error: "Private item is locked or no longer available." });
+    res.status(404).json({ ok: false, error: "Hidden is locked, or this item is gone." });
     return;
   }
-  res.setHeader("Content-Type", asset.item.mime || "application/octet-stream");
+  res.setHeader("Content-Type", asset.mime || "application/octet-stream");
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
-  res.setHeader("Content-Disposition", "inline");
+  const name = encodeURIComponent(hiddenDownloadName(asset, variant));
+  res.setHeader("Content-Disposition", `${req.query.download === "1" ? "attachment" : "inline"}; filename*=UTF-8''${name}`);
   res.send(asset.buffer);
 });
 
 app.get("/api/vault/thumbnail/:id", async (req, res) => {
-  const asset = readVaultAsset(req, req.params.id);
+  const asset = readVaultAsset(req, req.params.id, req.query.variant === "upscale" ? "upscale" : "original");
   if (!asset) {
     res.status(404).end();
     return;
   }
   // Resized in memory only, from the already-decrypted buffer this request holds —
   // never written to disk, so no plaintext derivative of a vault item persists.
-  const resized = await resizeInMemory(asset.buffer, asset.item.mime);
-  res.setHeader("Content-Type", resized ? "image/webp" : (asset.item.mime || "application/octet-stream"));
+  const resized = await resizeInMemory(asset.buffer, asset.mime);
+  res.setHeader("Content-Type", resized ? "image/webp" : (asset.mime || "application/octet-stream"));
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.send(resized || asset.buffer);
 });
 
 app.get("/api/vault/export", (req, res) => {
-  const backup = exportVaultBackup(req);
+  const backup = exportVaultBackup(encryptionKeyFromRequest(req));
   if (!backup) {
-    res.status(401).json({ ok: false, error: "Unlock Private Vault before exporting it." });
+    res.status(401).json({ ok: false, error: "Unlock Hidden before backing it up." });
     return;
   }
   res.setHeader("Content-Type", "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-private-vault-${new Date().toISOString().slice(0, 10)}.backup"`);
+  res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-hidden-${new Date().toISOString().slice(0, 10)}.backup"`);
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   res.send(backup);
 });
@@ -645,15 +820,11 @@ app.put("/api/loras/:workflowId", (req, res) => {
 });
 
 app.get("/api/gallery/export", (req, res) => {
-  if (isPrivacyEnabled() && !encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, error: "Unlock privacy before exporting the gallery." });
-    return;
-  }
   const date = new Date().toISOString().slice(0, 10);
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", `attachment; filename="heiss-ui-gallery-${date}.zip"`);
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
-  sendGalleryExport(res, isPrivacyEnabled() ? vaultAssetsForExport(req) : []);
+  sendGalleryExport(res, []);
 });
 
 app.post("/api/gallery/recover", async (req, res) => {
@@ -730,8 +901,14 @@ app.delete("/api/reference-assets/:id", (req, res) => {
 
 app.post("/api/generate", async (req, res) => {
   const requestKey = encryptionKeyFromRequest(req);
-  if (isPrivacyEnabled() && !requestKey) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock privacy mode before generating so prompts can be encrypted." });
+  const hidden = Boolean(req.body?.privateVault);
+  // Checked before anything reaches ComfyUI, so a Hidden prompt never runs in the open.
+  if (hidden && !isPrivacyEnabled()) {
+    res.status(400).json({ ok: false, reason: "setup", error: "Set up Hidden before generating into it." });
+    return;
+  }
+  if (hidden && !requestKey) {
+    res.status(401).json({ ok: false, locked: true, reason: "locked", error: "Hidden locked. Unlock it to generate into it." });
     return;
   }
   let body;
@@ -777,7 +954,7 @@ app.post("/api/generate", async (req, res) => {
       startImageName: String(req.body?.startImageName || "")
     };
   }
-  body.privateVault = Boolean(req.body?.privateVault);
+  body.privateVault = hidden;
   // An older page (or a draft restored from before the reference library) can
   // send only the image's id; treat it as the reference instead of losing it.
   if (!isMockJob && !body.referenceAssets?.length && body.startImageId && !body.startImage) {
@@ -794,18 +971,11 @@ app.post("/api/generate", async (req, res) => {
       return;
     }
   }
-  if (body.privateVault && !isPrivacyEnabled()) {
-    res.status(400).json({ ok: false, error: "Create a privacy password before using Private Vault." });
-    return;
-  }
-  if (body.privateVault && !requestKey) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock Private Vault before generating." });
-    return;
-  }
-  if (body.privateVault && !isMockJob && !comfyOutputDir) {
-    res.status(400).json({ ok: false, error: "Set COMFY_OUTPUT_DIR before using Private Vault so HEISS UI can encrypt and remove Comfy output files." });
-    return;
-  }
+  // Every image this run handed ComfyUI: all of them go after a Hidden run, and
+  // after a normal one, the copies of any Hidden image used as its reference.
+  const staged = (body.referenceAssets || []).filter((item) => item.comfyName);
+  body.stagedInputNames = staged.map((item) => item.comfyName);
+  body.hiddenInputNames = staged.filter((item) => String(item.assetId || "").startsWith("vault:")).map((item) => item.comfyName);
   const clientJobId = String(req.body?.clientJobId || "").replace(/[^\w-]/g, "");
   const id = clientJobId || crypto.randomUUID();
   body.clientJobId = id;
@@ -815,7 +985,7 @@ app.post("/api/generate", async (req, res) => {
   markWorkflowUsed(body.profileId || body.model || body.workflow || "");
   setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
   jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
-  res.json({ jobId: id, items: revealGalleryItemsForRequest(items, req), revision: galleryRevisionValue() });
+  res.json({ jobId: id, items, revision: galleryRevisionValue() });
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
@@ -892,14 +1062,12 @@ app.post("/api/upscale", async (req, res) => {
   }
   // Say exactly why an image cannot be upscaled; the tile shows this in a popover.
   const itemId = String(req.body?.galleryItemId || "");
-  const item = findUpscaleTarget(itemId);
+  const hiddenKey = encryptionKeyFromRequest(req);
+  // A Hidden image upscales the same way; only where the result goes differs.
+  const hiddenItem = findUpscaleTarget(itemId) ? null : findVaultItem(hiddenKey, itemId);
+  const item = findUpscaleTarget(itemId) || hiddenItem;
   if (!item) {
-    const privateItem = encryptionKeyFromRequest(req) && vaultGalleryItemsForRequest(req, { bundles: false }).some((entry) => entry.id === itemId);
-    if (privateItem) {
-      res.status(409).json({ ok: false, reason: "private", error: "Private Vault images cannot be upscaled yet. They exist only encrypted in the vault, and smart upscale works on the regular gallery, where it would save the result unencrypted." });
-    } else {
-      res.status(404).json({ ok: false, reason: "missing", error: "The server no longer has this image in its gallery. It may have been deleted or cleared on another device; reload to catch up." });
-    }
+    res.status(404).json({ ok: false, reason: "missing", error: "The server no longer has this image in its gallery. It may have been deleted or cleared on another device; reload to catch up." });
     return;
   }
   if (item.type !== "image") {
@@ -942,12 +1110,24 @@ app.post("/api/upscale", async (req, res) => {
   const plan = upscalePlan(body);
   jobs.set(jobId, { status: "queued", kind: "upscale", galleryItemId: item.id, startedAt: Date.now(), outputs: [] });
   res.json({ ok: true, jobId, plan, revision: galleryRevisionValue() });
-  setTimeout(() => runUpscaleJob(jobId, body, info), 0);
+  setTimeout(() => hiddenItem
+    ? runUpscaleJob(jobId, body, info, hiddenTarget(item.id, hiddenKey, [imageName]))
+    : runUpscaleJob(jobId, body, info), 0);
 });
 
 app.post("/api/upscale/toggle", (req, res) => {
   try {
-    const item = toggleUpscaleView(String(req.body?.galleryItemId || ""), req.body?.active);
+    const itemId = String(req.body?.galleryItemId || "");
+    const key = encryptionKeyFromRequest(req);
+    const hiddenItem = findUpscaleTarget(itemId) ? null : findVaultItem(key, itemId);
+    if (hiddenItem) {
+      if (!hiddenItem.upscale?.url) throw new Error("This image has no upscale to switch to.");
+      const active = typeof req.body?.active === "boolean" ? req.body.active : !hiddenItem.upscaleActive;
+      patchVaultItem(key, itemId, { upscaleActive: active });
+      res.json({ ok: true, upscaleActive: active, revision: galleryRevisionValue() });
+      return;
+    }
+    const item = toggleUpscaleView(itemId, req.body?.active);
     res.json({ ok: true, upscaleActive: Boolean(item.upscaleActive), revision: galleryRevisionValue() });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -960,10 +1140,13 @@ app.get("/api/jobs/:id", (req, res) => {
     res.json({ status: "missing" });
     return;
   }
-  const key = encryptionKeyFromRequest(req);
-  const safeJob = { ...job, items: revealGalleryItemsForRequest(job.items || [], req) };
-  if (isPrivacyEnabled() && !key) delete safeJob.prompt;
-  res.json(safeJob);
+  const { vaultKey, ...safeJob } = job;
+  // What a Hidden run made, or even what it was asked, is for an unlocked browser only.
+  if (job.privateVault && !encryptionKeyFromRequest(req)) {
+    res.json({ status: safeJob.status, privateVault: true });
+    return;
+  }
+  res.json({ ...safeJob, items: revealGalleryItemsForRequest(safeJob.items || []) });
 });
 
 app.post("/api/jobs/:id/cancel", async (req, res) => {
@@ -1010,17 +1193,13 @@ app.post("/api/queue/cancel", async (_req, res) => {
 });
 
 app.post("/api/gallery/clear", (req, res) => {
-  const cleared = gallery.filter((item) => item.status === "done");
+  // Clearing the gallery never touches Hidden; that has its own erase.
+  const cleared = gallery.filter((item) => item.status === "done" && !item.privateVault);
   const files = deleteGalleryFiles(cleared);
-  const vault = vaultConfigured() ? clearVault(req) : { removed: 0 };
-  if (vault.locked) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock Private Vault before clearing it." });
-    return;
-  }
   hideGalleryItems(cleared);
-  setGallery(gallery.filter((item) => item.status !== "done"));
+  setGallery(gallery.filter((item) => item.status !== "done" || item.privateVault));
   saveGallery();
-  res.json({ ok: true, files, vault, outputs: revealGalleryItemsForRequest(gallery, req) });
+  res.json({ ok: true, files, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
 
 app.post("/api/gallery/errors/clear", (_req, res) => {
@@ -1028,7 +1207,7 @@ app.post("/api/gallery/errors/clear", (_req, res) => {
   hideGalleryItems(cleared);
   setGallery(gallery.filter((item) => item.status !== "error" && item.status !== "canceled"));
   saveGallery();
-  res.json({ ok: true, outputs: revealGalleryItemsForRequest(gallery, _req) });
+  res.json({ ok: true, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
 
 app.post("/api/cache/clear", async (_req, res) => {
@@ -1043,7 +1222,7 @@ app.post("/api/cache/clear", async (_req, res) => {
   await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clear: true }) }).catch(() => null);
   await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
   await comfy("/free", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }) }).catch(() => null);
-  res.json({ ok: true, outputs: revealGalleryItemsForRequest(gallery, _req) });
+  res.json({ ok: true, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
 
 app.get("/api/comfy/manager", async (_req, res) => {
@@ -1078,10 +1257,16 @@ app.post("/api/comfy/restart", async (req, res) => {
 
 app.delete("/api/gallery/:id", (req, res) => {
   const id = decodeURIComponent(req.params.id);
-  const vault = vaultConfigured() ? deleteVaultItem(req, id) : { removed: 0 };
-  if (vault.locked) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock Private Vault before deleting it." });
-    return;
+  const inGallery = gallery.some((item) => item.id === id || item.url === id);
+  // Only an id the gallery does not know can be a Hidden one, and only then is a key needed.
+  let vault = { removed: 0 };
+  if (!inGallery && vaultConfigured()) {
+    const key = encryptionKeyFromRequest(req);
+    if (!key) {
+      res.status(401).json({ ok: false, locked: true, error: "Unlock Hidden to delete from it." });
+      return;
+    }
+    vault = deleteVaultItems(key, [id]);
   }
   const before = gallery.length;
   const removed = gallery.filter((item) => item.id === id || item.url === id);
@@ -1089,7 +1274,7 @@ app.delete("/api/gallery/:id", (req, res) => {
   hideGalleryItems(removed);
   setGallery(gallery.filter((item) => item.id !== id && item.url !== id));
   if (gallery.length !== before) saveGallery();
-  res.json({ ok: true, files, vault, removed: before - gallery.length + vault.removed, outputs: revealGalleryItemsForRequest(gallery, req) });
+  res.json({ ok: true, files, vault, removed: before - gallery.length + vault.removed, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
 
 app.post("/api/open-output-folder", (req, res) => {

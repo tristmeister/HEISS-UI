@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { comfyOutputDir, root } from './comfy.js';
-import { protectGalleryItemForStorage } from './privacy.js';
+import { hasLegacyPrompt, openLegacyPrompt } from './privacy.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 
 export const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
@@ -139,6 +139,9 @@ export function isGalleryHidden(item) {
 
 export function filterVisibleGallery(items) {
   return items.filter((item) => {
+    // A Hidden job only passes through this list while ComfyUI renders it; it
+    // is shown in Hidden, never in the gallery.
+    if (item.privateVault) return false;
     if (isGalleryHidden(item)) return false;
     if (isComfyOutputItem(item)) return hasExistingOutputFile(item);
     return !isGalleryHidden(item);
@@ -203,7 +206,7 @@ export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}
   const upserts = [...upsertMap.values()].filter((item) => {
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
-    return item.status !== "canceled" && !isGalleryHidden(item);
+    return item.status !== "canceled" && !item.privateVault && !isGalleryHidden(item);
   });
   return { revision: galleryRevision, reset: false, upserts, removes: [...removes] };
 }
@@ -325,8 +328,37 @@ export function writeGalleryNow() {
   fs.mkdirSync(dataDir, { recursive: true });
   // Private-vault jobs exist only while Comfy is rendering. Their finished records
   // live in the encrypted vault manifest, never in the ordinary gallery JSON.
-  const persistable = gallery.filter((item) => !item.privateVault).slice(0, galleryLimit).map(({ preview, ...rest }) => protectGalleryItemForStorage(rest));
+  const persistable = gallery.filter((item) => !item.privateVault).slice(0, galleryLimit).map(({ preview, ...rest }) => rest);
   writeJsonFile(galleryPath, persistable);
+}
+
+/**
+ * Opens prompts the old privacy scheme sealed in the normal gallery, once, with
+ * the first unlocked key that can. Returns how many came back.
+ */
+export function migrateLegacyPrompts(key) {
+  if (!key || !gallery.some(hasLegacyPrompt)) return 0;
+  let opened = 0;
+  const next = gallery.map((item) => {
+    const plain = openLegacyPrompt(item, key);
+    if (!plain) return item;
+    opened += 1;
+    return plain;
+  });
+  if (opened) setGallery(next);
+  return opened;
+}
+
+/** Hidden items drop out of the gallery as if deleted, without a hide marker left behind. */
+export function removeGalleryItems(items) {
+  const keys = new Set(items.map(galleryKey).filter(Boolean));
+  if (!keys.size) return;
+  setGallery(gallery.filter((item) => !keys.has(galleryKey(item))));
+}
+
+/** Items put back from Hidden, newest first like everything else. */
+export function addGalleryItems(items) {
+  setGallery(dedupeGallery([...items, ...gallery]));
 }
 
 export function saveHiddenGalleryIds() {
@@ -550,6 +582,7 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
     startImageId: body.startImageId || "",
     settings: generationSettings(body),
     outputName: item.filename,
+    promptId: job.promptId || "",
     index
   }));
   let nextIndex = 0;

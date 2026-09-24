@@ -38,7 +38,7 @@ function zipHeaders(name, size, checksum, offset, time) {
   return { local, central };
 }
 
-function archiveEntries(privateAssets) {
+function archiveEntries(privateAssets, includeGallery = true) {
   const entries = [];
   const names = new Set();
   const add = (folder, item, buffer) => {
@@ -53,7 +53,7 @@ function archiveEntries(privateAssets) {
     names.add(name.toLowerCase());
     entries.push({ name, buffer, createdAt: item.createdAt });
   };
-  for (const item of filterVisibleGallery(gallery)) {
+  for (const item of includeGallery ? filterVisibleGallery(gallery) : []) {
     if (item.status !== "done") continue;
     const base = comfyOutputDir ? path.resolve(comfyOutputDir) : "";
     const file = outputFileCandidates(item).find((candidate) => {
@@ -64,12 +64,12 @@ function archiveEntries(privateAssets) {
     if (!file) continue;
     try { add("gallery", item, fs.readFileSync(file)); } catch { /* Skip files that disappear during export. */ }
   }
-  for (const asset of privateAssets) add("private", asset.item, asset.buffer);
+  for (const asset of privateAssets) add(includeGallery ? "private" : "hidden", asset.item, asset.buffer);
   return entries;
 }
 
-export function sendGalleryExport(res, privateAssets = []) {
-  const entries = archiveEntries(privateAssets);
+export function sendGalleryExport(res, privateAssets = [], { gallery: includeGallery = true } = {}) {
+  const entries = archiveEntries(privateAssets, includeGallery);
   const central = [];
   let offset = 0;
   for (const entry of entries) {
