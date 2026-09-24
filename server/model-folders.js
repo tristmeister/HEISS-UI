@@ -465,7 +465,7 @@ export async function unlinkModelFolder(dir) {
   const setup = await comfyModelSetup();
   if (!setup?.configPath) throw new Error("ComfyUI is not reachable.");
   const text = fs.readFileSync(setup.configPath, "utf8");
-  const section = heissSections(text).find((item) => item.path === String(dir)) || heissSections(text).find((item) => samePath(item.path, String(dir)));
+  const section = heissSections(text).find((item) => item.path === String(dir)) || heissSections(text).find((item) => samePath(item.path, String(dir)) || samePath(item.path, realpath(String(dir))));
   if (!section) throw new Error("HEISS UI didn’t add this folder, so it can’t remove it.");
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   // The blank line that went in before the section goes out with it.
