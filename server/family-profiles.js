@@ -1,5 +1,5 @@
 import { missingNodes, nodeRange, optionsFor } from './comfy.js';
-import { encoderDownloads, families, knownFamilies, sanaConf, sanaLabel, sanaPresets, sanaRunnerFor, sanaRunners, vaeDownloads } from './family-catalog.js';
+import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaPresets, sanaRunnerFor, sanaRunners, vaeDownloads } from './family-catalog.js';
 import { diffusersDownloadPlan, missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
 import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vaeKinds } from './model-components.js';
@@ -17,13 +17,19 @@ function downloadsFor(list = [], folder, prefix) {
   return list.map((item, index) => ({ id: `${prefix}:${index}`, folder, label: item.file, ...item }));
 }
 
+const downloadSources = {
+  encoder: [encoderDownloads, "text_encoders"],
+  vae: [vaeDownloads, "vae"],
+  model: [modelDownloads, "diffusion_models"]
+};
+
 /** Every catalog download HEISS will fetch, by id. The only files the download route accepts. */
 export function catalogDownload(id = "") {
   const [kind, key, index] = String(id).split(":");
-  const source = kind === "encoder" ? encoderDownloads : kind === "vae" ? vaeDownloads : null;
-  const entry = source?.[key]?.[Number(index)];
+  const [source, folder] = downloadSources[kind] || [];
+  const entry = source && Object.hasOwn(source, key) ? source[key][Number(index)] : null;
   if (!entry) return null;
-  return { id, folder: kind === "encoder" ? "text_encoders" : "vae", label: entry.file, ...entry };
+  return { id, folder, label: entry.file, ...entry };
 }
 
 function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
@@ -114,11 +120,20 @@ export function familyProfiles(info, helpers) {
   const lowNoisePartners = new Set();
 
   for (const { source, name, preset, placeholder } of files) {
+    const base = String(name).split(/[\\/]/).pop() || name;
+    // The second file of a pair (Wan's low-noise half, Ideogram's unconditional
+    // model) runs with its partner and is not a model of its own, whatever its weights say.
+    const pairOwner = source === "unet" ? Object.entries(families).find(([, spec]) => spec.pair?.owns.test(base) && spec.pair.isPartner(base)) : null;
+    if (pairOwner) {
+      const [ownerId, owner] = pairOwner;
+      lowNoisePartners.add(name);
+      modelFiles.push({ name, source, family: ownerId, via: "name", label: owner.label, choice: ownerId, supported: true, reason: owner.pair.runsAs, missing: [] });
+      continue;
+    }
     const info2 = source.startsWith("sana")
       ? { family: "sana", variant: families.sana.variants.find((item) => !item.match || item.match(name)), via: "preset", bundled: null, detail: null, header: null }
       : classifyModel(source, name);
     const family = families[info2.family];
-    const base = String(name).split(/[\\/]/).pop() || name;
     const fileEntry = {
       name, source, family: info2.family, via: info2.via,
       label: familyLabel(info2.family) + (info2.variant && family?.variants.length > 1 ? ` · ${info2.variant.label}` : ""),
@@ -138,17 +153,16 @@ export function familyProfiles(info, helpers) {
       continue;
     }
 
-    // Wan 2.2 14B ships as a high-noise/low-noise pair; show one entry, run both.
+    // Pairs show as one entry and run both files: the partner named after this
+    // one, else any partner file of the same family in the folder.
     let pairModel = "";
     if (family.pair) {
-      if (/low[-_ ]?noise/i.test(base)) {
-        lowNoisePartners.add(name);
-        fileEntry.supported = true;
-        fileEntry.reason = "Runs as the second half of its high-noise model.";
-        continue;
-      }
-      const partner = name.replace(/high([-_ ]?)noise/i, (_match, sep) => `low${sep}noise`);
-      pairModel = partner !== name && unets.includes(partner) ? partner : "";
+      const named = family.pair.partnerOf(name);
+      pairModel = named !== name && unets.includes(named) ? named
+        : unets.find((other) => {
+          const otherBase = String(other).split(/[\\/]/).pop() || other;
+          return other !== name && family.pair.owns.test(otherBase) && family.pair.isPartner(otherBase);
+        }) || "";
     }
 
     const variant = info2.variant || family.variants.at(-1);
@@ -192,7 +206,8 @@ export function familyProfiles(info, helpers) {
       }
     }
     if (family.pair && !pairModel) {
-      missing.push({ part: "model", label: "Low-noise model", detail: `Wan 2.2 14B also needs the matching low-noise file next to ${base} in diffusion_models.`, downloads: [] });
+      const key = family.pair.download?.(base);
+      missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`) : [] });
     }
     const nodes = runner ? [] : missingNodes(info, nodesFor(family, variant, !encoderBuiltIn, !bundled.vae));
     // A family that runs on a custom node pack names it (family.pack, or its runner's).
@@ -214,8 +229,11 @@ export function familyProfiles(info, helpers) {
     const [width, height] = variant.size || family.size;
     const latentNode = runner ? runner.sizeNode : family.latent;
     const step = family.sizeStep || 8;
+    // Some latent nodes accept 0 ("use the reference image's size"); a picked size never goes below 64.
     const widthRange = { ...nodeRange(info, latentNode, "width", { default: width, min: 64, max: 8192, step }), step: Math.max(step, 8) };
     const heightRange = { ...nodeRange(info, latentNode, "height", { default: height, min: 64, max: 8192, step }), step: Math.max(step, 8) };
+    widthRange.min = Math.max(64, Number(widthRange.min) || 0);
+    heightRange.min = Math.max(64, Number(heightRange.min) || 0);
     widthRange.default = width;
     heightRange.default = height;
     const countRange = nodeRange(info, latentNode, "batch_size", { default: 1, min: 1, max: 8, step: 1 });

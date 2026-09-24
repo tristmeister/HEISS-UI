@@ -51,6 +51,8 @@ export const encoderDownloads = {
   ],
   mistral3_24b: [{ file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors") }],
   llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors") }],
+  ministral3_3b: [{ file: "ministral-3-3b.safetensors", url: hf("Comfy-Org/ERNIE-Image", "text_encoders/ministral-3-3b.safetensors") }],
+  gemma2_2b: [{ file: "gemma_2_2b_fp16.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/text_encoders/gemma_2_2b_fp16.safetensors") }],
   hidream_clip_l: [{ file: "clip_l_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_l_hidream.safetensors") }],
   hidream_clip_g: [{ file: "clip_g_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_g_hidream.safetensors") }]
 };
@@ -69,7 +71,14 @@ export const vaeDownloads = {
   qwen_image_21: [{ file: "qwen_image_2.1_vae_bf16.safetensors", url: hf("Comfy-Org/Qwen-Image-2.1", "vae/qwen_image_2.1_vae_bf16.safetensors") }],
   hunyuan15: [{ file: "hunyuanvideo15_vae_fp16.safetensors", url: hf("Comfy-Org/HunyuanVideo_1.5_repackaged", "split_files/vae/hunyuanvideo15_vae_fp16.safetensors") }],
   h3_video: [{ file: "minimax_h3_video_vae_int8_convrot.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_video_vae_int8_convrot.safetensors") }],
-  h3_audio: [{ file: "minimax_h3_audio_vae_fp32.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_audio_vae_fp32.safetensors") }]
+  h3_audio: [{ file: "minimax_h3_audio_vae_fp32.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_audio_vae_fp32.safetensors") }],
+  mage_flow: [{ file: "mage_flow_vae_bf16.safetensors", url: hf("Comfy-Org/Mage-Flow", "vae/mage_flow_vae_bf16.safetensors") }]
+};
+
+// Second model files a family runs next to the one you pick (see `pair`).
+export const modelDownloads = {
+  ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors") }],
+  ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors") }]
 };
 
 /* ------------------------------------------------------------ Families */
@@ -83,7 +92,10 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
 /**
  * slots: text encoder inputs in loader order. kinds: accepted encoder kinds.
  * vae: accepted VAE kinds (first is the one to download). sampling: "ksampler",
- * "custom" (SamplerCustomAdvanced), "pair" (Wan 2.2 14B), "h3", "sana".
+ * "custom" (SamplerCustomAdvanced), "pair" (Wan 2.2 14B), "h3", "sana",
+ * "ideogram4" (two models through a dual guider), "mage" (its own encode node).
+ * pair: a second model file the family runs next to the picked one (see pairSpec).
+ * promptPrefix / negativePrefix: system text the model was trained to see first.
  * pack: a node-packs.js id when the family runs on custom nodes. ownLoaders:
  * the pack loads encoder and VAE itself (no pickers, no LoRAs).
  * variants: first whose `match` passes wins; the last one is the fallback.
@@ -293,7 +305,13 @@ export const families = {
     size: [1280, 704], frames: 121, fps: 24
   },
   wan22_14b: {
-    label: "Wan 2.2 14B", kind: "video", sources: ["unet"], pair: true,
+    label: "Wan 2.2 14B", kind: "video", sources: ["unet"],
+    pair: {
+      owns: /wan/i, isPartner: (base) => /low[-_ ]?noise/i.test(base),
+      partnerOf: (name) => name.replace(/high([-_ ]?)noise/i, (_match, sep) => `low${sep}noise`),
+      label: "Low-noise model", runsAs: "Runs as the second half of its high-noise model.",
+      detail: (base) => `Wan 2.2 14B also needs the matching low-noise file next to ${base} in diffusion_models.`
+    },
     slots: [{ slot: "encoder", label: "UMT5-XXL", kinds: ["umt5xxl"] }], clipType: "wan",
     vae: ["wan21"], latent: "EmptyHunyuanLatentVideo", sizeStep: 16, frameStep: 4, negative: "text", sampling: "pair", aspects: wide,
     modelSampling: { node: "ModelSamplingSD3", shift: 8 },
@@ -330,6 +348,73 @@ export const families = {
       { id: "standard", label: "MiniMax H3", defaults: { steps: 20, cfg: 1, sampler: "res_multistep", scheduler: "simple" } }
     ],
     size: [1344, 768], frames: 56, fps: 24
+  },
+  // Lumina Image 2.0 and its fine-tunes (Neta Lumina, NetaYume). Gemma reads a
+  // system prompt before yours, as it did in training; the anime fine-tunes
+  // were trained on their own, with a matching one for the negative.
+  lumina2: {
+    label: "Lumina Image 2.0", kind: "image", sources: ["checkpoint", "unet"],
+    slots: [{ slot: "encoder", label: "Gemma 2 2B", kinds: ["gemma2_2b"] }], clipType: "lumina2",
+    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: portraitFirst,
+    variants: [
+      {
+        id: "neta", label: "Neta Lumina / NetaYume", match: (name) => /neta|yume/i.test(name),
+        modelSampling: { node: "ModelSamplingAuraFlow", shift: 4 },
+        promptPrefix: "You are an assistant designed to generate high quality anime images based on textual prompts. <Prompt Start> ",
+        negativePrefix: "You are an assistant designed to generate low-quality images based on textual prompts <Prompt Start> ",
+        defaults: { steps: 30, cfg: 4, sampler: "res_multistep", scheduler: "simple" }
+      },
+      {
+        id: "standard", label: "Lumina Image 2.0",
+        modelSampling: { node: "ModelSamplingAuraFlow", shift: 6 },
+        promptPrefix: "You are an assistant designed to generate superior images with the superior degree of image-text alignment based on textual prompts or user prompts. <Prompt Start> ",
+        defaults: { steps: 25, cfg: 4, sampler: "res_multistep", scheduler: "simple" }
+      }
+    ],
+    size: [1024, 1024]
+  },
+  // Ideogram 4 samples with two models: the main one for your prompt and an
+  // unconditional one for the negative pass, blended by a dual guider whose
+  // CFG eases off for the last 30% of steps. Its scheduler follows the steps:
+  // Comfy-Org's Turbo (12), Default (20) and Quality (48) presets.
+  ideogram4: {
+    label: "Ideogram 4", kind: "image", sources: ["unet"],
+    slots: [{ slot: "encoder", label: "Qwen3-VL 8B", kinds: ["qwen3vl_8b"] }], clipType: "ideogram4",
+    vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, negative: "none", sampling: "ideogram4", aspects: square,
+    requiredNodes: ["EmptyFlux2LatentImage", "Ideogram4Scheduler", "DualModelGuider", "CFGOverride", "SamplerCustomAdvanced", "KSamplerSelect", "RandomNoise", "ConditioningZeroOut"],
+    pair: {
+      owns: /ideogram/i, isPartner: (base) => /uncond/i.test(base),
+      partnerOf: (name) => name.replace(/ideogram[-_ ]?4[-_ ]?/i, (match) => `${match}unconditional_`),
+      label: "Unconditional model", runsAs: "Ideogram 4 runs this next to its main model.",
+      detail: (base) => `Ideogram 4 also needs its unconditional model next to ${base} in diffusion_models.`,
+      download: (name) => (/int8/i.test(name) ? "ideogram4_uncond_int8" : "ideogram4_uncond_fp8")
+    },
+    variants: [{ id: "standard", label: "Ideogram 4", defaults: { steps: 20, cfg: 7, sampler: "euler", scheduler: "simple" } }],
+    size: [1024, 1024]
+  },
+  // Mage-Flow encodes prompt and negative in one node that also makes the latent.
+  mage_flow: {
+    label: "MageFlow", kind: "image", sources: ["unet"],
+    slots: [{ slot: "encoder", label: "Qwen3-VL 4B", kinds: ["qwen3vl_4b"] }], clipType: "mage",
+    vae: ["mage_flow"], latent: "TextEncodeMageFlowEdit", sizeStep: 16, negative: "text", sampling: "mage", aspects: square,
+    requiredNodes: ["TextEncodeMageFlowEdit"],
+    variants: [
+      { id: "turbo", label: "Turbo", match: (name) => speedName.test(name), negative: "none", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "standard", label: "MageFlow", defaults: { steps: 30, cfg: 5, sampler: "euler", scheduler: "simple" } }
+    ],
+    size: [1024, 1024]
+  },
+  // ERNIE-Image: Ministral 3 3B through the Flux.2 text path, the Flux.2 VAE and latent, plain KSampler.
+  ernie: {
+    label: "ERNIE-Image", kind: "image", sources: ["unet"],
+    slots: [{ slot: "encoder", label: "Ministral 3 3B", kinds: ["ministral3_3b"] }], clipType: "flux2",
+    vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
+    requiredNodes: ["EmptyFlux2LatentImage"],
+    variants: [
+      { id: "turbo", label: "Turbo", match: (name) => speedName.test(name), negative: "zero", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "standard", label: "ERNIE-Image", defaults: { steps: 20, cfg: 4, sampler: "euler", scheduler: "simple" } }
+    ],
+    size: [1024, 1024]
   },
   // NVIDIA's Sana is not native to ComfyUI; one of two custom node packs runs
   // it (see sanaRunners), each loading its own Gemma 2 2B encoder and DC-AE VAE.
@@ -420,7 +505,7 @@ export const knownFamilies = {
   ltx: "LTX-2 video (needs its two-stage audio pipeline; not in HEISS UI yet)",
   ltxv: "LTX-Video",
   hunyuan_video: "HunyuanVideo 1.0",
-  lumina2: "Lumina Image 2.0",
+  newbie: "NewBie (Lumina-based, needs its own text encoders; not in HEISS UI yet)",
   wan_i2v: "Wan image-to-video (needs a start image; not in HEISS UI yet)",
   wan_other: "Wan VACE / Fun / camera model",
   qwen_image_edit: "Qwen-Image Edit (image editing model)",
@@ -450,6 +535,10 @@ export function familyFromName(name = "", source = "unet") {
   const base = String(name).split(/[\\/]/).pop() || "";
   const tests = [
     ["sana", /(^|[^a-z])sana([^a-z]|$)/i],
+    ["ideogram4", /ideogram/i],
+    ["mage_flow", /mage[-_ ]?flow/i],
+    ["ernie", /(^|[^a-z])ernie([^a-z]|$)/i],
+    ["lumina2", /lumina|neta[-_ ]?yume|netayume|neta[-_ ]?lumina/i],
     ["minimax_h3", /minimax[-_ ]?h3|\bh3[-_]/i],
     ["wan22_14b", /wan[-_ ]?2[._]?2.*(high|low)[-_ ]?noise|(high|low)[-_ ]?noise.*wan/i],
     ["wan22_5b", /wan[-_ ]?2[._]?2.*5b|ti2v/i],
@@ -550,7 +639,10 @@ export function familyFromHeader(header) {
   if (has("cap_embedder.1.weight") && has("noise_refiner.0.attention.k_norm.weight")) {
     const width = dim(keys, "cap_embedder.1.weight", 0);
     if (has("dec_net.cond_embed.weight")) return { family: "other" };
-    return width === 3840 ? { family: "zimage" } : { family: "lumina2" };
+    if (width === 3840) return { family: "zimage" };
+    if (width !== 2304) return { family: "other" };
+    // NewBie keeps Lumina's body but adds a pooled CLIP input, so it needs other encoders.
+    return has("clip_text_pooled_proj.0.weight") ? { family: "newbie" } : { family: "lumina2" };
   }
   if (has("head.modulation")) {
     if (["vace_patch_embedding.weight", "control_adapter.conv.weight"].some(has)) return { family: "wan_other" };
@@ -565,12 +657,14 @@ export function familyFromHeader(header) {
   }
   if (has("txt_norm.weight")) {
     if (has("transformer_blocks.0.attn.norm_added_q.weight") && has("transformer_blocks.0.img_mlp.w1.weight")) return { family: "other" };
-    if (dim(keys, "txt_norm.weight", 0) === 2560 && dim(keys, "proj_out.weight", 0) === 128) return { family: "other" };
+    if (dim(keys, "txt_norm.weight", 0) === 2560 && dim(keys, "proj_out.weight", 0) === 128) return { family: "mage_flow" };
     if (has("__index_timestep_zero__") || has("time_text_embed.addition_t_embedding.weight")) return { family: "qwen_image_edit" };
     return { family: "qwen_image" };
   }
+  if (has("embed_image_indicator.weight")) return { family: "ideogram4" };
   if (has("txtfusion.projector.weight")) return { family: "krea2" };
   if (has("visual_transformer_blocks.0.cross_attention.key_norm.weight")) return { family: "kandinsky5" };
+  if (has("layers.0.mlp.linear_fc2.weight")) return { family: "ernie" };
   if (has("input_blocks.0.0.weight")) {
     if (dim(keys, "input_blocks.0.0.weight", 1) > 4) return { family: "inpaint" };
     const context = [1, 2, 4, 5, 7, 8]

@@ -74,6 +74,14 @@ catalog, so a family that is described correctly needs no UI work.
    name every node it uses in `requiredNodes` (or the pack's `nodes`) so an
    older ComfyUI is told to update instead of failing mid-run.
 
+   Two more family fields cover models that need more than one file or a
+   fixed preamble. `pair` runs a second model file next to the picked one
+   (Wan 2.2's low-noise half, Ideogram 4's unconditional model): it names
+   which files are partners and how to find a picked file's partner, hides
+   the partner from the model list and offers its download when missing.
+   `promptPrefix` and `negativePrefix` put the system prompt a model was
+   trained with in front of the user's text (Lumina 2 and its fine-tunes).
+
 8. **Capabilities.** Turn off what the model cannot do: `ownLoaders` (encoder
    and VAE come with the pack, so no pickers and no LoRAs), `negative: "none"`,
    no `img2img`. Profiles hide the matching controls.

@@ -10,6 +10,16 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- Four more model families run out of the box, with the settings from
+  Comfy-Org's own workflows: **Ideogram 4** (main and unconditional model
+  paired automatically; its Turbo, Default and Quality schedules follow the
+  step count), **MageFlow** and **ERNIE-Image** (each with its Turbo
+  variant), and **Lumina Image 2.0** including the Neta Lumina and NetaYume
+  anime fine-tunes, which get the system prompt they were trained with.
+  Missing text encoders, VAEs and Ideogram's unconditional model can be
+  downloaded from the setup panel.
+
 ## [0.5.0] - 2026-09-24
 
 ### Added

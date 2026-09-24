@@ -424,3 +424,90 @@ test("one-click pack installs only take registry ids, and run locally with Comfy
   assert.equal(state.status, "done", state.error);
   assert.match(state.log, /pip -m pip install -r requirements.txt/);
 });
+
+/* ------------------------------------------------------------ Lumina 2, Ideogram 4, MageFlow, ERNIE */
+
+const newNodes = () => Object.fromEntries(["Ideogram4Scheduler", "DualModelGuider", "CFGOverride", "TextEncodeMageFlowEdit"].map((name) => [name, node()]));
+const newTypes = ["stable_diffusion", "lumina2", "krea2", "qwen_image", "wan", "flux2", "chroma", "minimax", "ideogram4", "mage"];
+
+test("the four new families are told apart by their weights, as ComfyUI does", () => {
+  assert.equal(familyFromHeader({ "cap_embedder.1.weight": t([2304, 2304]), "noise_refiner.0.attention.k_norm.weight": t([96]) }).family, "lumina2");
+  assert.equal(familyFromHeader({ "cap_embedder.1.weight": t([2304, 2304]), "noise_refiner.0.attention.k_norm.weight": t([96]), "clip_text_pooled_proj.0.weight": t([1, 1]) }).family, "newbie");
+  assert.equal(familyFromHeader({ "embed_image_indicator.weight": t([1, 1]), "input_proj.weight": t([1, 128]) }).family, "ideogram4");
+  assert.equal(familyFromHeader({ "txt_norm.weight": t([2560]), "proj_out.weight": t([128, 1]) }).family, "mage_flow");
+  assert.equal(familyFromHeader({ "txt_norm.weight": t([3584]), "proj_out.weight": t([64, 1]) }).family, "qwen_image", "Qwen-Image keeps its own");
+  assert.equal(familyFromHeader({ "layers.0.mlp.linear_fc2.weight": t([1, 1]) }).family, "ernie");
+  assert.equal(vaeLayoutFromHeader({ "student.dconv_encoder.proj_out.weight": t([1, 1]) }), "mage");
+});
+
+test("Ideogram 4 pairs with its unconditional model, and offers the matching one when it is missing", async () => {
+  const { catalogDownload } = await import("./family-profiles.js");
+  const clips = [put("text_encoders", "qwen3vl_8b_fp8_scaled.safetensors", { "model.visual.deepstack_merger_list.0.norm.weight": t([1]), "model.visual.merger.linear_fc2.weight": t([4096, 1]) })];
+  const vaeFiles = [put("vae", "flux2-vae.safetensors", vaes.flux2)];
+  const main = put("diffusion_models", "ideogram4_int8_convrot.safetensors", { "embed_image_indicator.weight": t([1, 1]) });
+  const lonely = inferModels(objectInfo({ unets: [main], clips, vaeFiles, clipTypes: newTypes, extra: newNodes() })).profiles.find((profile) => profile.family === "ideogram4");
+  assert.deepEqual(lonely.missing.map((item) => item.label), ["Unconditional model"]);
+  assert.equal(lonely.missing[0].downloads[0].id, "model:ideogram4_uncond_int8:0");
+  assert.deepEqual(catalogDownload("model:ideogram4_uncond_int8:0").folder, "diffusion_models");
+  assert.equal(catalogDownload("model:__proto__:0"), null);
+
+  const partner = "ideogram4_unconditional_int8_convrot.safetensors";
+  const info = objectInfo({ unets: [main, partner], clips, vaeFiles, clipTypes: newTypes, extra: newNodes() });
+  const models = inferModels(info);
+  const ideogram = models.profiles.filter((profile) => profile.family === "ideogram4");
+  assert.equal(ideogram.length, 1, "the unconditional file is not a model of its own");
+  assert.deepEqual([ideogram[0].ready, ideogram[0].pairModel, ideogram[0].capabilities.negativePrompt, ideogram[0].defaults.cfg], [true, partner, false, 7]);
+  assert.equal(models.modelFiles.find((file) => file.name === partner).reason, "Ideogram 4 runs this next to its main model.");
+
+  const graph = familyGraph(sanitizeGenerateBody({ kind: "image", workflow: ideogram[0].workflow, profileId: ideogram[0].id, prompt: "a poster that says HEISS", steps: 12 }, info));
+  const guider = byType(graph, "DualModelGuider")[0].inputs;
+  const [cfgOverride] = Object.entries(graph).find(([, item]) => item.class_type === "CFGOverride");
+  assert.deepEqual(guider.model, [cfgOverride, 0]);
+  assert.equal(graph[guider.model_negative[0]].inputs.unet_name, partner);
+  assert.deepEqual(byType(graph, "CFGOverride")[0].inputs.cfg, 3);
+  assert.deepEqual(byType(graph, "Ideogram4Scheduler")[0].inputs, { steps: 12, width: 1024, height: 1024, mu: 0.5, std: 1.75 }, "12 steps is the Turbo preset");
+  assert.equal(byType(graph, "ConditioningZeroOut").length, 1);
+});
+
+test("MageFlow encodes and makes its latent in one node; Turbo drops the negative", () => {
+  const clips = [put("text_encoders", "qwen3vl_4b_bf16.safetensors", encoders.qwen3vl_4b)];
+  const vaeFiles = [put("vae", "mage_flow_vae_bf16.safetensors", { "student.dconv_encoder.proj_out.weight": t([1, 1]) }), "ae.safetensors"];
+  const unets = [put("diffusion_models", "mage_flow_int8_convrot.safetensors", { "txt_norm.weight": t([2560]), "proj_out.weight": t([128, 1]) }), "mage_flow_turbo_int8_convrot.safetensors"];
+  const info = objectInfo({ unets, clips, vaeFiles, clipTypes: newTypes, extra: { ...newNodes(), TextEncodeMageFlowEdit: list({ width: ["INT", { default: 0, min: 0, max: 8192, step: 16 }], height: ["INT", { default: 0, min: 0, max: 8192, step: 16 }], batch_size: ["INT", { default: 1, min: 1, max: 4096 }] }) } });
+  const mage = inferModels(info).profiles.filter((profile) => profile.family === "mage_flow");
+  assert.deepEqual(mage.map((profile) => [profile.variant, profile.ready, profile.defaults.steps, profile.defaults.cfg, profile.defaults.vae]), [
+    ["standard", true, 30, 5, "mage_flow_vae_bf16.safetensors"], ["turbo", true, 4, 1, "mage_flow_vae_bf16.safetensors"]
+  ]);
+  assert.equal(mage[0].constraints.width.min, 64, "0 means 'from the reference image', never a size to pick");
+  assert.equal(mage[1].capabilities.negativePrompt, false);
+  const graph = familyGraph(sanitizeGenerateBody({ kind: "image", workflow: mage[0].workflow, profileId: mage[0].id, prompt: "a lighthouse", negative: "blurry", count: 2 }, info));
+  const [encodeId, encode] = Object.entries(graph).find(([, item]) => item.class_type === "TextEncodeMageFlowEdit");
+  assert.deepEqual([encode.inputs.prompt, encode.inputs.negative_prompt, encode.inputs.batch_size], ["a lighthouse", "blurry", 2]);
+  assert.deepEqual(byType(graph, "KSampler")[0].inputs.latent_image, [encodeId, 2]);
+  assert.equal(byType(graph, "CLIPLoader")[0].inputs.type, "mage");
+});
+
+test("ERNIE-Image runs Ministral through the Flux.2 path; Turbo zeroes the negative", () => {
+  const clips = [put("text_encoders", "ministral-3-3b.safetensors", { "model.layers.0.post_attention_layernorm.weight": t([3072]) })];
+  const vaeFiles = [put("vae", "flux2-vae.safetensors", vaes.flux2)];
+  const unets = [put("diffusion_models", "ernie-image.safetensors", { "layers.0.mlp.linear_fc2.weight": t([1, 1]) }), "ernie-image-turbo.safetensors"];
+  const info = objectInfo({ unets, clips, vaeFiles, clipTypes: newTypes });
+  const ernie = inferModels(info).profiles.filter((profile) => profile.family === "ernie");
+  assert.deepEqual(ernie.map((profile) => [profile.variant, profile.ready, profile.defaults.steps, profile.defaults.cfg]), [["standard", true, 20, 4], ["turbo", true, 8, 1]]);
+  const base = familyGraph(sanitizeGenerateBody({ kind: "image", workflow: ernie[0].workflow, profileId: ernie[0].id, prompt: "a cat", negative: "dog" }, info));
+  assert.deepEqual([byType(base, "CLIPLoader")[0].inputs.type, byType(base, "EmptyFlux2LatentImage").length, byType(base, "CLIPTextEncode").length], ["flux2", 1, 2]);
+  const turbo = familyGraph(sanitizeGenerateBody({ kind: "image", workflow: ernie[1].workflow, profileId: ernie[1].id, prompt: "a cat" }, info));
+  assert.equal(byType(turbo, "ConditioningZeroOut").length, 1);
+});
+
+test("Lumina 2 and NetaYume read their system prompt first, with Gemma and the Flux VAE", () => {
+  const graph = familyGraph({ family: "lumina2", variant: "neta", source: "checkpoint", bundled: { encoder: true, vae: true }, model: "NetaYumev35_pretrained_all_in_one.safetensors", prompt: "a girl in an orange grove", negative: "blurry", steps: 30, cfg: 4, seed: 1 });
+  const [positive, negative] = byType(graph, "CLIPTextEncode").map((item) => item.inputs.text);
+  assert.equal(positive, "You are an assistant designed to generate high quality anime images based on textual prompts. <Prompt Start> a girl in an orange grove");
+  assert.equal(negative, "You are an assistant designed to generate low-quality images based on textual prompts <Prompt Start> blurry");
+  assert.equal(byType(graph, "ModelSamplingAuraFlow")[0].inputs.shift, 4);
+  const clips = [put("text_encoders", "gemma_2_2b_fp16.safetensors", { "model.layers.0.post_feedforward_layernorm.weight": t([2304]) })];
+  const unets = [put("diffusion_models", "lumina_2.safetensors", { "cap_embedder.1.weight": t([2304, 2304]), "noise_refiner.0.attention.k_norm.weight": t([96]) })];
+  const lumina = inferModels(objectInfo({ unets, clips, vaeFiles: [put("vae", "ae.safetensors", vaes.kl16)], clipTypes: newTypes })).profiles.find((profile) => profile.family === "lumina2");
+  assert.deepEqual([lumina.variant, lumina.ready, lumina.defaults.sampler, lumina.encoderSlots[0].default], ["standard", true, "res_multistep", "gemma_2_2b_fp16.safetensors"]);
+});

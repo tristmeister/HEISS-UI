@@ -55,7 +55,8 @@ export const vaeKinds = {
   hunyuan_video: { label: "HunyuanVideo VAE", layout: "hv1" },
   ltx_video: { label: "LTX video VAE", layout: "ltx" },
   h3_video: { label: "MiniMax H3 video VAE", layout: "h3v" },
-  h3_audio: { label: "MiniMax H3 audio VAE", layout: "h3a" }
+  h3_audio: { label: "MiniMax H3 audio VAE", layout: "h3a" },
+  mage_flow: { label: "MageFlow VAE", layout: "mage" }
 };
 
 /* ------------------------------------------------------------ Headers */
@@ -120,6 +121,8 @@ export function vaeLayoutFromHeader(header) {
   }
   if (keys.has("decoder.transformer_blocks.0.scale1") && keys.has("encoder.down.5.block.0.conv1.weight")) return "h3v";
   if (keys.has("pre_block.attn.zero_k_bias")) return "h3a";
+  // Mage-VAE: a one-step diffusion codec (comfy/sd.py, "student.dconv_encoder").
+  if (keys.has("student.dconv_encoder.proj_out.weight")) return "mage";
   if (keys.has("decoder.up_blocks.0.res_blocks.0.conv1.conv.weight")) return "ltx";
   if (keys.has("decoder.conv_in.conv.weight")) {
     return shape(header, "decoder.conv_in.conv.weight")[1] === 32 ? "hv15" : "hv1";
@@ -186,6 +189,7 @@ export function classifyEncoder(name) {
 }
 
 const vaeNameHints = [
+  ["mage_flow", /mage/i],
   ["qwen_image_21", /qwen[-_ ]?image[-_ ]?2[._]?1/i],
   ["qwen_image", /qwen/i],
   ["wan22", /wan[-_ ]?2[._]?2/i],

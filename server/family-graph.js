@@ -99,10 +99,14 @@ export function familyGraph(body) {
   }
 
   // ---- LoRAs, then the sampling patches so they sit last
+  // A pair's second file: Wan's low-noise half (LoRAs apply to both halves),
+  // or Ideogram's unconditional model (it never sees the prompt, so no LoRAs).
   let lowModel = null;
-  if (family.sampling === "pair") {
-    if (!body.pairModel) throw new Error("Wan 2.2 14B needs both its high-noise and low-noise model.");
-    lowModel = [add("UNETLoader", { unet_name: body.pairModel, weight_dtype: body.weightDtype || "default" }), 0];
+  let partnerModel = null;
+  if (family.pair) {
+    if (!body.pairModel) throw new Error(`${family.label} needs its ${family.pair.label.toLowerCase()} too.`);
+    partnerModel = [add("UNETLoader", { unet_name: body.pairModel, weight_dtype: body.weightDtype || "default" }), 0];
+    if (family.sampling === "pair") lowModel = partnerModel;
   }
   ({ model, clip } = chainLoras(add, body, model, clip));
   if (lowModel) lowModel = chainLoras(add, body, lowModel, clip).model;
@@ -133,8 +137,39 @@ export function familyGraph(body) {
     return graph;
   }
 
+  // ---- Ideogram 4: the main model (CFG eased off for the last 30% of steps)
+  // and the unconditional one, blended by a dual guider on its own schedule.
+  if (family.sampling === "ideogram4") {
+    const steps = Number(body.steps || 20);
+    const preset = ideogram4Preset(steps);
+    const conditioned = [add("CFGOverride", { model, cfg: 3, start_percent: 0.7, end_percent: 1 }), 0];
+    const positive = [add("CLIPTextEncode", { text: body.prompt || "", clip }), 0];
+    const negative = [add("ConditioningZeroOut", { conditioning: positive }), 0];
+    const guider = add("DualModelGuider", { model: conditioned, model_negative: partnerModel, positive, negative, cfg: Number(body.cfg || 7) });
+    const sigmas = add("Ideogram4Scheduler", { steps, width, height, mu: preset.mu, std: preset.std });
+    const latent = [add("EmptyFlux2LatentImage", { width, height, batch_size: count }), 0];
+    const samples = customSampler(add, { seed, sampler: body.sampler || "euler", guider, sigmas, latent });
+    add("SaveImage", { images: [add("VAEDecode", { samples, vae }), 0], filename_prefix: "heiss-ui/image" });
+    return graph;
+  }
+
+  // ---- MageFlow: one node encodes prompt and negative and makes the latent.
+  if (family.sampling === "mage") {
+    const encoded = add("TextEncodeMageFlowEdit", { clip, prompt: body.prompt || "", negative_prompt: body.negative || "", width, height, batch_size: count });
+    const samples = [add("KSampler", {
+      model, seed, steps: Number(body.steps || 30), cfg: Number(body.cfg || 1),
+      sampler_name: body.sampler || "euler", scheduler: body.scheduler || "simple",
+      positive: [encoded, 0], negative: [encoded, 1], latent_image: [encoded, 2], denoise: 1
+    }), 0];
+    add("SaveImage", { images: [add("VAEDecode", { samples, vae }), 0], filename_prefix: "heiss-ui/image" });
+    return graph;
+  }
+
   // ---- Conditioning
   const negativeMode = variant.negative || family.negative || "text";
+  // Some models were trained with a system prompt in front of every caption.
+  const promptText = `${variant.promptPrefix || ""}${body.prompt || ""}`;
+  const negativeText = `${variant.negativePrefix || ""}${body.negative || ""}`;
   let positive;
   let negative = null;
   if (negativeMode === "qwen21") {
@@ -142,9 +177,9 @@ export function familyGraph(body) {
     positive = [encoded, 0];
     negative = [encoded, 1];
   } else {
-    positive = [add("CLIPTextEncode", { text: body.prompt || "", clip }), 0];
+    positive = [add("CLIPTextEncode", { text: promptText, clip }), 0];
     if (variant.guidance) positive = [add("FluxGuidance", { conditioning: positive, guidance: variant.guidance }), 0];
-    if (negativeMode === "text") negative = [add("CLIPTextEncode", { text: body.negative || "", clip }), 0];
+    if (negativeMode === "text") negative = [add("CLIPTextEncode", { text: negativeText, clip }), 0];
     else if (negativeMode === "zero") negative = [add("ConditioningZeroOut", { conditioning: positive }), 0];
   }
 
@@ -238,6 +273,16 @@ function sanaGraph({ add, graph, body, variant, seed, width, height, count }) {
   const images = [add("VAEDecode", { samples, vae }), 0];
   add("SaveImage", { images, filename_prefix: "heiss-ui/image" });
   return graph;
+}
+
+/**
+ * Ideogram 4's schedule follows how many steps you give it, like Comfy-Org's
+ * presets: Turbo (12 steps) shifts toward detail, Quality (48) narrows the spread.
+ */
+export function ideogram4Preset(steps) {
+  if (steps <= 14) return { mu: 0.5, std: 1.75 };
+  if (steps >= 36) return { mu: 0, std: 1.5 };
+  return { mu: 0, std: 1.75 };
 }
 
 function customSampler(add, { seed, sampler, guider, sigmas, latent }) {
