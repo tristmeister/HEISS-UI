@@ -25,6 +25,11 @@ const needed = [
   ...(wantDev ? Object.keys(packageJson.devDependencies || {}) : [])
 ];
 const missing = needed.filter((name) => !installed(name));
+// A download bundles sharp's native binary for one platform. Unpacked on another
+// (say the Windows zip on a Mac), sharp would not load, so fetch this one's.
+// Best effort: without a network the app still starts, just without thumbnails.
+const nativeSharp = { win32: [`sharp-win32-${process.arch}`], darwin: [`sharp-darwin-${process.arch}`], linux: [`sharp-linux-${process.arch}`, `sharp-linuxmusl-${process.arch}`] }[process.platform];
+const wrongPlatform = !missing.length && installed("sharp") && nativeSharp && !nativeSharp.some((name) => installed(`@img/${name}`));
 
 if (missing.length) {
   console.warn(`Missing dependencies (${missing.join(", ")}). Restoring them with npm install...`);
@@ -35,6 +40,16 @@ if (missing.length) {
     cwd: projectRoot,
     stdio: "inherit"
   });
+}
+
+if (wrongPlatform) {
+  console.warn(`These packages were installed for another system. Fetching the image library for this one (${process.platform} ${process.arch})...`);
+  const releaseInstall = !wantDev && !installed("vite");
+  try {
+    runNpm(["install", "--no-audit", "--no-fund", ...(releaseInstall ? ["--omit=dev"] : [])], { cwd: projectRoot, stdio: "inherit" });
+  } catch (error) {
+    console.warn(`Could not fetch it (${error.message}). HEISS UI starts anyway; thumbnails fall back to full images.`);
+  }
 }
 
 // A source checkout that was never built: build it now if the tools are here.

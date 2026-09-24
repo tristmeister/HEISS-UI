@@ -10,6 +10,15 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Changed
+- **Downloads come with everything they need.** Each release has a zip per
+  system (`-windows-x64`, `-macos-arm64`, `-linux-x64`) with its packages
+  already inside, so the first start no longer runs an npm install; only
+  Node.js has to be installed. Unpacked on the wrong system, it fetches the
+  one piece that differs. In-app updates keep using the small zip.
+- Updates no longer reinstall packages when only the version number in the
+  lockfile changed.
+
 ## [0.5.2] - 2026-09-24
 
 ### Changed

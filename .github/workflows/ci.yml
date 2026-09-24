@@ -18,9 +18,9 @@ jobs:
       - run: npm test
       - run: npm run build
 
-  # Most users run HEISS UI on Windows. Package a release, unpack it into a path
-  # with spaces, & and parentheses, and start it through the .bat launcher the
-  # way a user would, with no node_modules yet.
+  # Most users run HEISS UI on Windows. Package a release, unpack the Windows
+  # download into a path with spaces, & and parentheses, and start it through
+  # the .bat launcher the way a user would; it must not need an npm install.
   windows:
     runs-on: windows-latest
     steps:
@@ -37,7 +37,8 @@ jobs:
         run: |
           $dir = Join-Path $env:RUNNER_TEMP "Jane & Co (1)"
           New-Item -ItemType Directory -Force $dir | Out-Null
-          $zip = Get-ChildItem release\*.zip | Select-Object -First 1
+          # The Windows download: packages bundled, so the first start installs nothing.
+          $zip = Get-ChildItem release\*-windows-x64.zip | Select-Object -First 1
           & "$env:SystemRoot\System32\tar.exe" -xf $zip.FullName -C $dir
           $app = Get-ChildItem $dir -Directory | Select-Object -First 1
           $bat = Join-Path $app.FullName "Start HEISS UI.bat"
@@ -51,3 +52,4 @@ jobs:
           Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
           Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
           if (-not $ok) { throw "HEISS UI did not answer on port 8787" }
+          if (Select-String -Path "$env:RUNNER_TEMP\heiss.log" -Pattern "Missing dependencies|installed for another system" -Quiet) { throw "The Windows download installed packages on first start" }

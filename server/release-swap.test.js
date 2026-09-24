@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { applyPending, confirmApplied, readPending, rollback, takeResult, updateDir, writePending } from "./release-swap.js";
+import { applyPending, confirmApplied, lockPackages, readPending, rollback, takeResult, updateDir, writePending } from "./release-swap.js";
 import { isNewer, pickAsset } from "./updater.js";
 
 const write = (file, text) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
@@ -111,4 +111,17 @@ test("moves a rollback could not make are retried, and an update waits until the
   assert.equal(applied.to, "0.4.0");
   assert.equal(read(path.join(root, "blocker")), "old");
   assert.ok(!fs.existsSync(path.join(updateDir(root), "leftovers.json")));
+});
+
+test("a lockfile that only changed the app's version does not reinstall packages", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-lock-"));
+  const lock = (version, sharp) => JSON.stringify({ name: "heiss-ui", version, packages: { "": { name: "heiss-ui", version }, "node_modules/sharp": { version: sharp } } }, null, 2);
+  const file = path.join(dir, "package-lock.json");
+  fs.writeFileSync(file, lock("0.5.1", "0.35.4"));
+  const before = lockPackages(file);
+  fs.writeFileSync(file, lock("0.5.2", "0.35.4"));
+  assert.equal(lockPackages(file), before);
+  fs.writeFileSync(file, lock("0.5.2", "0.36.0"));
+  assert.notEqual(lockPackages(file), before);
+  fs.rmSync(dir, { recursive: true, force: true });
 });

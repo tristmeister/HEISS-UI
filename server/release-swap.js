@@ -85,6 +85,19 @@ export function checkStaged(dir, version) {
 
 const fileText = (file) => { try { return fs.readFileSync(file, "utf8"); } catch { return ""; } };
 
+/** The lockfile's packages, without the app's own version, which every release bumps. */
+export function lockPackages(file) {
+  const text = fileText(file);
+  try {
+    const lock = JSON.parse(text);
+    delete lock.version;
+    if (lock.packages?.[""]) delete lock.packages[""].version;
+    return JSON.stringify(lock);
+  } catch {
+    return text;
+  }
+}
+
 const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /**
@@ -172,7 +185,7 @@ export function applyPending(root, log = () => {}) {
   const backup = path.join(dir, "backup");
   removeTree(backup);
   fs.mkdirSync(backup, { recursive: true });
-  const lockBefore = fileText(path.join(root, "package-lock.json"));
+  const lockBefore = lockPackages(path.join(root, "package-lock.json"));
   const incoming = appEntries(pending.dir);
   const outgoing = [...new Set([...appEntries(root), ...incoming])];
   const moved = [];
@@ -205,7 +218,7 @@ export function applyPending(root, log = () => {}) {
     throw error;
   }
 
-  const applied = { from, to: pending.version, moved, placed, lockChanged: fileText(path.join(root, "package-lock.json")) !== lockBefore };
+  const applied = { from, to: pending.version, moved, placed, lockChanged: lockPackages(path.join(root, "package-lock.json")) !== lockBefore };
   writeJson(path.join(dir, "applied.json"), applied);
   clearStaging(root);
   log(`Updated HEISS UI ${from || "?"} → ${pending.version}`);
