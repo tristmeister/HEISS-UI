@@ -7,6 +7,7 @@ import { LoraPanel } from './LoraPanel';
 import { ModelSetup } from './ModelSetup';
 import { workflowState } from './workflowStatus';
 import type { WorkflowSummary } from './types';
+import { SafeImg } from './SafeImg';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
   if (!workflow) return (
@@ -25,7 +26,7 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
     <Tip content="Change workflow">
       <button type="button" className={cn("workflow-card", status.state !== "ready" && "has-issues")} onClick={onOpen}>
         <div className="workflow-card-thumb">
-          {workflow.thumbnail ? <img src={workflow.thumbnail} alt="" /> : <Wand2 size={18} />}
+          <SafeImg src={workflow.thumbnail} fallback={<Wand2 size={18} />} />
         </div>
         <div className="workflow-card-info">
           <strong>{workflow.name}</strong>

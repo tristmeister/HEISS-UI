@@ -7,6 +7,7 @@ import { Tip } from "./components";
 import { useDismiss } from "./useDismiss";
 import { deleteReferenceAsset, listReferenceAssets, referenceAssetFromGallery, uploadReferenceAsset } from "./api";
 import type { MediaInput, ReferenceAsset, SelectedReferenceAsset } from "./types";
+import { SafeImg } from './SafeImg';
 
 type PickerTab = "generation" | "upload";
 
@@ -221,7 +222,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
                       onClick={() => choose(asset)}
                       disabled={Boolean(selectingId || upload.busy)}
                     >
-                      <img src={assetImage(asset)} alt="" loading="lazy" draggable={false} />
+                      <SafeImg src={assetImage(asset)} loading="lazy" draggable={false} fallback={<ImageIcon size={16} />} />
                       {isSelected ? <i className="reference-tile-check"><Check size={12} strokeWidth={3} /></i> : null}
                     </button>
                     {asset.source === "upload" ? <button type="button" className="reference-tile-delete" aria-label={`Delete ${asset.name}`} onClick={(event) => removeUpload(event, asset)}><Trash2 size={13} /></button> : null}

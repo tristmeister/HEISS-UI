@@ -21,6 +21,12 @@ section into the next version and uses it as the GitHub release notes.
   back by itself, with a note in Settings saying so. Copies from 0.3.0 and
   earlier need one manual download to get this.
 
+### Fixed
+- A finished image whose file would not load (moved, deleted, ComfyUI
+  unreachable) showed the browser's broken-image icon with "Untitled prompt"
+  over the tile. It now shows the tile's unavailable state, and every image
+  with a source that can go missing falls back the same way.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added

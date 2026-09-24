@@ -61,6 +61,8 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+/* Last resort: a broken image never prints its alt text over the UI. The real handling is SafeImg. */
+img { color: transparent; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 button:not(:disabled) { transition-timing-function: var(--ease-out); transition-duration: 180ms; }

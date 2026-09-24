@@ -7,6 +7,7 @@ import { cn } from './format';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
 import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
+import { SafeImg } from './SafeImg';
 
 // Until the server reports the pack, the same entry as server/node-packs.js.
 const seedvr2Pack = { id: "seedvr2", name: "SeedVR2", repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git", search: "SeedVR2" };
@@ -267,7 +268,7 @@ export function UpscaleSetupDialog({
   } else if (stage === "ready") {
     body = pending ? (
       <div className="upscale-pending">
-        {pending.thumbnailUrl || pending.url ? <img src={pending.thumbnailUrl || pending.url} alt="" draggable={false} /> : null}
+        <SafeImg src={pending.thumbnailUrl || pending.url} draggable={false} />
         <div>
           <strong>Upscaling with {upscaleQualityLabel(quality)}</strong>
           <span>It shows up on the tile when it is done. The original stays as it is.</span>
