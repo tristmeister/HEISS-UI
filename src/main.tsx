@@ -541,10 +541,13 @@ function App() {
   function refreshComfyStatus() {
     if (comfyStatusRequestRef.current) return;
     comfyStatusRequestRef.current = true;
-    setComfyStatus((current) => ({ ...current, checking: true }));
+    // Only the first check shows as "checking". Later polls keep the last answer
+    // on screen until the new one arrives, so the offline screen and the status
+    // dot do not blink (and restart their animations) every five seconds.
+    setComfyStatus((current) => (current.checked ? current : { ...current, checking: true }));
     apiJson<ComfyStatus>("/api/comfy/status")
-      .then((data) => setComfyStatus({ ...data, checking: false }))
-      .catch((error) => setComfyStatus({ connected: false, checking: false, error: error instanceof Error ? error.message : "Connection failed" }))
+      .then((data) => setComfyStatus({ ...data, checking: false, checked: true }))
+      .catch((error) => setComfyStatus({ connected: false, checking: false, checked: true, error: error instanceof Error ? error.message : "Connection failed" }))
       .finally(() => { comfyStatusRequestRef.current = false; });
   }
 

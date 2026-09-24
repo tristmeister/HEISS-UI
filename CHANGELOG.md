@@ -27,6 +27,9 @@ section into the next version and uses it as the GitHub release notes.
   unreachable) showed the browser's broken-image icon with "Untitled prompt"
   over the tile. It now shows the tile's unavailable state, and every image
   with a source that can go missing falls back the same way.
+- The offline screen vanished and restarted its animation every five
+  seconds while HEISS checked ComfyUI again. Later checks now keep the
+  screen, and the status dot, steady until the answer changes.
 
 ## [0.3.1] - 2026-09-24
 
