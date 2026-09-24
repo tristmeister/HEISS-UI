@@ -10,7 +10,17 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **Restart ComfyUI** from Settings, and wherever a setup step ends in a
+  restart, when ComfyUI-Manager is installed. If the control is off, it says
+  why (no Manager, or a HEISS server too old for it).
+- Failed generations explain themselves: the tile shows a plain title and a
+  hint, and the viewer shows the full error with a report you can copy.
+
 ### Changed
+- Model file setup lands files in the folders ComfyUI actually reads from,
+  resumes a stopped download (even after a restart), shows progress in a pill
+  at the top, and uses the same panel in the workflow gallery.
 - Models that can only redraw a picture (Krea 2, SDXL, Flux, Z-Image and the
   other built-in image models) now offer **Add start image** instead of Add
   reference, and a Change slider next to the image sets how much it may change.
@@ -26,6 +36,13 @@ section into the next version and uses it as the GitHub release notes.
   server accepts a bare image id too.
 - The workflow menu showed the gallery through its top half instead of frosted
   glass, and the Add reference chip clashed with prompt text running under it.
+- Generation time stuck at 0s when the browser's and the server's clocks
+  disagreed. It now counts on the server's clock.
+- A run that saved nothing deleted its tile; it now stays as a failure.
+- Deleting from the gallery no longer shows a toast; only a failed delete does.
+- Installing an update no longer shows "Could not reach HEISS UI" while the
+  server restarts, unless LoRA edits are really waiting to sync, and the app
+  now confirms when the update landed.
 
 ## [0.2.0] - 2026-09-23
 
