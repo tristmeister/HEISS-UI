@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ArrowLeft, Fingerprint, KeyRound } from 'lucide-react';
 import { Modal } from './Modal';
 import { VaultHero, type VaultHeroStage } from './VaultHero';
+import { LockMark, type LockMarkStage } from './LockMark';
 import { cn } from './format';
 import type { HiddenState } from './useHidden';
 
@@ -76,34 +77,44 @@ function UnlockControls({ hidden, autoFocus = false, compact = false }: { hidden
   );
 }
 
+function lockStageFor(hidden: HiddenState): LockMarkStage {
+  if (hidden.unlockStage === "opening" || hidden.unlocked) return "opening";
+  if (hidden.unlockStage === "failed") return "failed";
+  if (hidden.unlockStage === "asking") return "asking";
+  return "locked";
+}
+
 /**
- * Hidden, locked: the gallery gives way to the lock. Nothing about what is
- * inside shows, not a count, not a blurred thumbnail. Unlocking springs the
- * shackle and the pictures burn in behind it.
+ * Hidden, locked: the gallery gives way to the lock, set like the empty and
+ * offline states. Nothing about what is inside shows, not a count, not a
+ * blurred thumbnail. Unlocking springs the shackle and the gallery fades in.
  */
 export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenState; onLeave: () => void; onSetup: () => void }) {
-  const reduce = useReducedMotion();
-  const stage = heroStageFor(hidden);
+  const stage = lockStageFor(hidden);
   const notSetUp = !hidden.enabled;
   return (
     <motion.section
       className={cn("hidden-lockscreen", `is-${stage}`)}
-      initial={reduce ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.985, filter: "blur(6px)" }}
-      transition={{ type: "spring", duration: 0.5, bounce: 0 }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.22, ease: [0.2, 0.8, 0.2, 1] }}
     >
-      <VaultHero className="hidden-lockscreen-hero" stage={notSetUp ? "intro" : stage} />
-      <div className="hidden-lockscreen-copy">
-        <h2>{notSetUp ? "Hidden" : stage === "unlocking" ? "Unlocked" : "Hidden is locked"}</h2>
-        <p>{notSetUp
-          ? "Images you keep to yourself, encrypted on this computer."
-          : hidden.hasPasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
-        {notSetUp ? (
-          <div className="hidden-unlock">
-            <button type="button" className="hidden-unlock-primary" onClick={onSetup}><span>Set up Hidden</span></button>
+      <div className="empty stage-empty hidden-lock-stage">
+        <div className="stage-mark"><LockMark className="stage-layer" stage={notSetUp ? "locked" : stage} /></div>
+        <div className="stage-copy">
+          <h2>{notSetUp ? "Hidden" : stage === "opening" ? "Unlocked" : "Hidden is locked"}</h2>
+          <p>{notSetUp
+            ? "Images you keep to yourself, encrypted on this computer."
+            : hidden.hasPasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
+          <div className="empty-actions">
+            {notSetUp ? (
+              <div className="hidden-unlock">
+                <button type="button" className="hidden-unlock-primary" onClick={onSetup}><span>Set up Hidden</span></button>
+              </div>
+            ) : stage !== "opening" ? <UnlockControls hidden={hidden} autoFocus /> : <div className="hidden-unlock-spacer" />}
           </div>
-        ) : stage !== "unlocking" ? <UnlockControls hidden={hidden} autoFocus /> : null}
+        </div>
       </div>
       <button type="button" className="hidden-lockscreen-back" onClick={onLeave}><ArrowLeft size={14} /> Gallery</button>
     </motion.section>

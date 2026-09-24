@@ -24,7 +24,7 @@ import { WorkflowGallery } from './WorkflowGallery';
 import { HiddenLockScreen, HiddenUnlockSheet } from './HiddenLock';
 import { HiddenSetupDialog } from './HiddenSetup';
 import { HiddenActionsContext } from './hiddenContext';
-import { PixelCurtain } from './PixelCurtain';
+import { LockMark } from './LockMark';
 import { downloadUrl } from './GalleryTile';
 import { ConnectedCard } from './ConnectedCard';
 import { EmptyStage } from './EmptyStage';
@@ -70,16 +70,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     hide: (items: GalleryItem[]) => hideRef.current(items),
     unhide: (items: GalleryItem[]) => unhideRef.current(items)
   }), [hidden.space]);
-  // Where the curtain between the gallery and Hidden burns out from: the lock that was pressed.
-  const curtainOrigin = React.useRef<{ x: number; y: number } | null>(null);
-  const curtainTrigger = `${hidden.space}|${hiddenLocked ? "shut" : "open"}`;
-  React.useEffect(() => {
-    const timer = window.setTimeout(() => { curtainOrigin.current = null; }, 900);
-    return () => window.clearTimeout(timer);
-  }, [curtainTrigger]);
-  const toggleHiddenSpace = (event: React.MouseEvent<HTMLElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    curtainOrigin.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  // Crossing between the gallery and Hidden (or unlocking) fades the stage in anew.
+  // Two identical animations, alternated, so each crossing restarts it.
+  const passageKey = `${hidden.space}|${hiddenLocked ? "shut" : "open"}`;
+  const passage = React.useRef({ key: passageKey, count: 0 });
+  if (passage.current.key !== passageKey) passage.current = { key: passageKey, count: passage.current.count + 1 };
+  const passageClass = passage.current.count ? `hidden-pass-${passage.current.count % 2 ? "a" : "b"}` : null;
+  const toggleHiddenSpace = () => {
     if (hiddenSpace) { hidden.setSpace("gallery"); return; }
     hidden.setSpace("hidden");
     if (!hidden.enabled) { hidden.ensureReady({ kind: "enter" }); return; }
@@ -212,7 +209,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   return (
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <HiddenActionsContext.Provider value={hiddenActions}>
-    <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked")}>
+    <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
       {prefs.zenMode ? (
         <>
           <div className="zen-stage">
@@ -281,7 +278,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               </div>
             ) : hiddenSpace ? (
               <div className="zen-empty hidden-empty">
-                <LockKeyhole size={28} />
+                <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
                 <p>Nothing hidden yet</p>
               </div>
             ) : (
@@ -438,10 +435,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               titleFromPrompt={titleFromPrompt}
             />
           ) : hiddenSpace && !comfyOffline ? (
-            <section className="gallery"><div className="empty hidden-empty">
-              <span className="hidden-empty-mark"><LockKeyhole size={26} /></span>
-              <h2>Nothing hidden yet</h2>
-              <p>Generate here, or hide images from the gallery with <EyeOff size={13} className="inline-icon" />.</p>
+            <section className="gallery"><div className="empty stage-empty hidden-empty">
+              <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
+              <div className="stage-copy">
+                <h2>Nothing hidden yet</h2>
+                <p>Generate here, or hide images from the gallery with <EyeOff size={13} className="inline-icon" />.</p>
+              </div>
             </div></section>
           ) : (
             <EmptyStage
@@ -551,7 +550,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       <ModelDownloadWidget widget={modelWidget} hidden={upscaleWidget.visible || workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
-      <PixelCurtain trigger={curtainTrigger} origin={curtainOrigin.current} />
       {active ? (() => {
         const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
         const hasNeighbors = viewerItems.length > 1;

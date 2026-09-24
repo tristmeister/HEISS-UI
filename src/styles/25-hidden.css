@@ -1,10 +1,11 @@
 /* ---------------------------------------------------------------------------
-   Hidden (src/app/Hidden*.tsx, VaultHero, PixelCurtain)
+   Hidden (src/app/Hidden*.tsx, LockMark, VaultHero)
 
    A place, not a mode. The studio stays the same studio; being in Hidden is
-   told by a warm hush at the edges, the Hidden bar top left, and the lock in
-   the dock lit ember. Everything borrows the upscale setup's material: cells,
-   ember for heat, white for done.
+   told by a faint warm edge, the Hidden bar top left, and the lock in the
+   dock lit ember. The lock screen and empty state sit in the gallery like
+   the offline and empty scenes do; the setup sheet borrows the model folders
+   hero. Crossing over is a short fade, nothing more.
 --------------------------------------------------------------------------- */
 
 /* ------------------------------------------------------------ The space */
@@ -17,12 +18,12 @@
   z-index: 7;
   pointer-events: none;
   opacity: 0;
-  box-shadow: inset 0 0 160px rgb(255 154 82 / .07), inset 0 0 0 1px rgb(255 154 82 / .06);
-  transition: opacity 600ms var(--ease-out);
+  box-shadow: inset 0 0 120px rgb(255 154 82 / .045), inset 0 0 0 1px rgb(255 154 82 / .07);
+  transition: opacity 360ms var(--ease-out);
 }
 .is-hidden-space::after { opacity: 1; }
 
-/* The lock in the dock: ember while inside, and it catches what is hidden. */
+/* The lock in the dock: ember while inside, a dot while unlocked. */
 .studio-dock .hidden-dock-button { position: relative; }
 .studio-dock .hidden-dock-button.active { color: var(--ember); background: var(--ember-soft); }
 .studio-dock .hidden-dock-button.is-open:not(.active)::after {
@@ -36,13 +37,16 @@
   background: var(--ember);
   box-shadow: var(--ember-glow);
 }
+
 .hidden-dock-button.is-catching,
-.hidden-bar-back.is-catching { animation: hidden-catch 640ms cubic-bezier(.2, .9, .3, 1.4); }
-@keyframes hidden-catch {
-  0% { scale: 1; }
-  30% { scale: 1.22; color: var(--ember); box-shadow: 0 0 0 6px rgb(255 154 82 / .14), var(--ember-glow); }
-  100% { scale: 1; }
-}
+.hidden-bar-back.is-catching { animation: hidden-catch 360ms var(--ease-out); }
+@keyframes hidden-catch { 40% { scale: 1.12; color: var(--ember); } }
+
+/* Crossing over: the stage fades back in, a touch soft. Alternated so each crossing restarts. */
+.hidden-pass-a :is(.gallery, .zen-stage) { animation: hidden-pass-a 260ms var(--ease-out); }
+.hidden-pass-b :is(.gallery, .zen-stage) { animation: hidden-pass-b 260ms var(--ease-out); }
+@keyframes hidden-pass-a { from { opacity: 0; filter: blur(6px); } }
+@keyframes hidden-pass-b { from { opacity: 0; filter: blur(6px); } }
 
 /* ------------------------------------------------------------ Hidden bar */
 
@@ -118,59 +122,31 @@
   font-weight: 600;
   white-space: nowrap;
   box-shadow: inset 0 0 0 1px rgb(255 154 82 / .2);
-  animation: hidden-chip-in 420ms cubic-bezier(.2, .9, .3, 1.2);
+  animation: hidden-chip-in 220ms var(--ease-out);
 }
 .hidden-chip.is-density-compact,
 .hidden-chip.is-density-mini { width: 40px; padding: 0; justify-content: center; }
-@keyframes hidden-chip-in { from { opacity: 0; scale: .85; } }
-.is-hidden-space .zen-prompt { box-shadow: var(--shadow-float), 0 0 0 1px rgb(255 154 82 / .12), 0 0 40px rgb(255 154 82 / .05); }
+@keyframes hidden-chip-in { from { opacity: 0; scale: .94; } }
 
 /* ------------------------------------------------------------ Lock screen */
 
+/* In the gallery's place, set like the offline and empty stages. */
 .hidden-lockscreen {
   position: fixed;
   inset: 0;
   z-index: 6;
   display: grid;
   place-items: center;
-  background: radial-gradient(ellipse 70% 80% at 50% 42%, #151515 0%, #0a0a0a 70%);
   overflow: hidden;
+  pointer-events: none;
 }
-/* The lock sits a little above centre, leaving the lower half to the words. */
-.hidden-lockscreen-hero { position: absolute; inset: -16% 0 0; }
-.hidden-lockscreen-hero canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-/* A glow behind the lock that follows the stage, like the upscale hero's. */
-.hidden-lockscreen-hero::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(closest-side at 50% 50%, rgb(255 154 82 / .16), transparent 55%);
-  opacity: .5;
-  transition: opacity 700ms var(--ease-out), background 700ms;
-}
-.hidden-lockscreen-hero[data-stage="scanning"]::before { opacity: .9; }
-.hidden-lockscreen-hero[data-stage="unlocking"]::before { opacity: 1; background: radial-gradient(closest-side at 50% 50%, rgb(255 214 170 / .28), transparent 70%); }
-.hidden-lockscreen-hero[data-stage="error"]::before { opacity: .7; background: radial-gradient(closest-side at 50% 50%, rgb(255 110 90 / .2), transparent 60%); }
-.hidden-lockscreen-copy {
-  position: absolute;
-  z-index: 1;
-  /* Just under the lock: its centre is at 42%, and it is at most 80px tall to either side. */
-  top: calc(42% + 104px);
-  left: 50%;
-  translate: -50% 0;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  width: min(420px, calc(100vw - 32px));
-  text-align: center;
-}
+.hidden-lockscreen > * { pointer-events: auto; }
+.hidden-lock-stage.stage-empty { min-height: 0; width: min(520px, calc(100vw - 32px)); }
+.hidden-lock-stage .stage-copy { min-height: 170px; }
+.hidden-lock-stage .empty-actions { width: 100%; }
 /* Nothing to write into while Hidden is locked; the composer steps aside. */
 .zen-prompt { transition: opacity 320ms var(--ease-out), translate 320ms var(--ease-out), border-color 320ms var(--ease-out), box-shadow 320ms var(--ease-out); }
 .is-hidden-locked .zen-prompt { opacity: 0; translate: 0 16px; pointer-events: none; }
-.hidden-lockscreen-copy h2 { margin: 0; font-size: 22px; font-weight: 620; letter-spacing: -.02em; color: #fff; }
-.hidden-lockscreen-copy p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
-.hidden-lockscreen.is-unlocking .hidden-lockscreen-copy h2 { animation: hidden-open-title 700ms var(--ease-out); }
-@keyframes hidden-open-title { 30% { color: #ffd9b8; text-shadow: 0 0 24px rgb(255 154 82 / .6); } }
 .hidden-lockscreen-back {
   position: absolute;
   top: var(--deck-gap, 18px);
@@ -349,35 +325,15 @@
 
 /* ------------------------------------------------------------ Empty state */
 
-.hidden-empty-mark {
-  display: grid;
-  place-items: center;
-  width: 58px;
-  height: 58px;
-  margin-bottom: 6px;
-  border-radius: 18px;
-  background: var(--ember-soft);
-  color: var(--ember);
-  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .18);
-}
-.hidden-empty p { max-width: 360px; line-height: 1.55; }
 .inline-icon { display: inline; vertical-align: -2px; margin: 0 1px; }
-.zen-empty.hidden-empty { display: grid; justify-items: center; gap: 10px; color: hsl(var(--muted-foreground)); }
-.zen-empty.hidden-empty svg { color: var(--ember); }
-
-/* ----------------------------------------------------------- The passage */
-
-.pixel-curtain {
-  position: fixed;
-  inset: 0;
-  z-index: 8;
-  width: 100vw;
-  height: 100vh;
-  pointer-events: none;
-}
+.zen-empty.hidden-empty { display: grid; justify-items: center; gap: 6px; width: min(420px, 80vw); color: hsl(var(--muted-foreground)); }
+.zen-empty.hidden-empty .stage-mark { width: 100%; margin-bottom: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .hidden-dock-button.is-catching,
+  .hidden-bar-back.is-catching,
+  .hidden-pass-a :is(.gallery, .zen-stage),
+  .hidden-pass-b :is(.gallery, .zen-stage),
   .hidden-unlock-field.is-wrong,
   .hidden-chip,
   .hidden-summary li { animation: none; }

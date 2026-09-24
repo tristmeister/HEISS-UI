@@ -1,9 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { field, hash, heatColor } from './UpscaleHero';
+import { trackCanvasSize } from './canvasSize';
 
 /**
- * Hidden's hero, in the same material as the upscale one: a quiet gray field
- * of coarse cells around a pixel glyph, heat where something happens.
+ * Hidden's setup and unlock hero, in the same material as the model folders
+ * one: a quiet gray field of cells around a pixel glyph, heat where something
+ * happens.
  *
  * The glyph is a padlock, or a fingerprint while Touch ID or Windows Hello is
  * the question. Each stage has its own motion:
@@ -13,8 +15,7 @@ import { field, hash, heatColor } from './UpscaleHero';
  * - scanning: a scan line sweeps the fingerprint while the system asks.
  * - sealed: setup is done; heat ripples out and the lock cools to white.
  * - locked: closed and cool, the keyhole breathing.
- * - unlocking: the shackle springs up, sparks fly, and resolution burns
- *   outward through the field, the way Hidden's pictures are about to arrive.
+ * - unlocking: the shackle springs up and the lock cools to white.
  * - error: the heat dies back to a dull red and the glyph shivers.
  */
 
@@ -91,7 +92,6 @@ const PRINT_CELLS = cellsOf(FINGERPRINT, 'print', GH - FINGERPRINT.length);
 const PRINT_ORDER = [...PRINT_CELLS].sort((a, b) => Math.atan2(a.y - GH / 2, a.x - GW / 2) - Math.atan2(b.y - GH / 2, b.x - GW / 2));
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const BLOCK = 4;
 
 type Spark = { x: number; y: number; vx: number; vy: number; life: number; decay: number };
 
@@ -108,37 +108,24 @@ export function VaultHero({ stage, progress = 0, className }: { stage: VaultHero
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const tracked = trackCanvasSize(canvas, 2, () => wakeRef.current());
+    const { dpr } = tracked;
 
     let w = 0, h = 0, pitch = 1, gap = 1, cols = 0, rows = 0, ox = 0, oy = 0, gx = 0, gy = 0;
-    let bcols = 0, brows = 0;
-    let blocks: Array<{ seed: number; level: number; heat: number; dist: number }> = [];
     const resize = () => {
-      const cw = canvas.clientWidth, ch = canvas.clientHeight;
-      if (!cw || !ch) return false;
-      const nw = Math.round(cw * dpr), nh = Math.round(ch * dpr);
+      const { width: nw, height: nh } = tracked.size;
+      if (!nw || !nh) return false;
       if (nw === w && nh === h) return true;
       w = canvas.width = nw;
       h = canvas.height = nh;
-      pitch = Math.max(4, Math.round(Math.max(5, Math.min(8, cw / 70)) * dpr));
+      pitch = Math.max(4, Math.round(Math.max(5, Math.min(8, nw / dpr / 70)) * dpr));
       gap = Math.max(1, Math.round(pitch * 0.2));
-      cols = Math.ceil(w / pitch) + BLOCK;
-      rows = Math.ceil(h / pitch) + BLOCK;
-      gx = Math.floor(w / pitch / 2) - Math.floor(GW / 2);
-      gy = Math.floor(h / pitch / 2) - Math.floor(GH / 2);
-      const shiftX = ((gx % BLOCK) + BLOCK) % BLOCK, shiftY = ((gy % BLOCK) + BLOCK) % BLOCK;
-      ox = (shiftX - BLOCK) * pitch + Math.floor((w - Math.floor(w / pitch) * pitch) / 2);
-      oy = (shiftY - BLOCK) * pitch + Math.floor((h - Math.floor(h / pitch) * pitch) / 2);
-      gx += BLOCK - shiftX;
-      gy += BLOCK - shiftY;
-      bcols = Math.ceil(cols / BLOCK);
-      brows = Math.ceil(rows / BLOCK);
-      const cx = gx + GW / 2, cy = gy + GH / 2;
-      const maxDist = Math.hypot(Math.max(cx, cols - cx), Math.max(cy, rows - cy));
-      blocks = Array.from({ length: bcols * brows }, (_, i) => {
-        const bx = (i % bcols) * BLOCK + BLOCK / 2, by = Math.floor(i / bcols) * BLOCK + BLOCK / 2;
-        return { seed: hash(i, 11), level: 0, heat: 0, dist: Math.hypot((bx - cx) * 0.8, by - cy) / maxDist };
-      });
+      cols = Math.ceil(w / pitch);
+      rows = Math.ceil(h / pitch);
+      ox = Math.floor((w - Math.floor(w / pitch) * pitch) / 2);
+      oy = Math.floor((h - Math.floor(h / pitch) * pitch) / 2);
+      gx = Math.floor(cols / 2 - GW / 2);
+      gy = Math.floor(rows / 2 - GH / 2);
       return true;
     };
 
@@ -186,52 +173,29 @@ export function VaultHero({ stage, progress = 0, className }: { stage: VaultHero
 
       ctx.clearRect(0, 0, w, h);
       const cx = gx + GW / 2, cy = gy + GH / 2;
-      const burst = st === 'unlocking' || st === 'sealed';
-      const rippleR = since * (burst ? 30 : 24);
-      const rippleA = burst ? Math.max(0, 1 - since / 1.5) : st === 'error' ? 0 : Math.max(0, 0.4 - since / 1.1);
+      const rippleR = since * 26;
+      const rippleA = st === 'sealed' || st === 'unlocking' ? Math.max(0, 0.8 - since / 1.4) : 0;
 
-      // The field. On unlock resolution burns outward from the lock.
-      for (let by = 0; by < brows; by++) {
-        for (let bx = 0; bx < bcols; bx++) {
-          const block = blocks[by * bcols + bx];
-          let goal = 0;
-          if (burst) {
-            const d = Math.min(1.4, since * 0.75) - (block.dist + block.seed * 0.16);
-            goal = d > 0.1 ? 2 : d > 0 ? 1 : 0;
-          } else if (!reduce && block.seed > 0.96) {
-            goal = Math.sin(t * 0.8 + block.seed * 60) > 0.6 ? 1 : 0;
+      // The field: a quiet gray flow, a ripple of heat when setup finishes.
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          // A moat round the glyph keeps it legible.
+          if (x > gx - 2 && x < gx + GW + 1 && y > gy - 2 && y < gy + GH + 1) continue;
+          const v = field(x + 0.5, y + 0.5, t * (st === 'locked' ? 0.5 : 1));
+          const near = Math.hypot((x - cx) * 0.8, y - cy);
+          const hush = 0.3 + 0.7 * clamp01((near - GH * 0.6) / (GH * 1.1));
+          let a = (0.02 + 0.18 * v * v * 1.3) * hush;
+          let r = 255, g = 255, b = 255;
+          let heat = 0;
+          if (rippleA > 0) heat = Math.exp(-Math.pow((near - rippleR) / 2.4, 2)) * rippleA * (0.6 + 0.4 * hash(x + 3, y));
+          if (st === 'error') { g = 200; b = 190; a *= 0.7; }
+          if (heat > 0.02) {
+            const [hr, hg, hb] = heatColor(heat);
+            const k = Math.min(1, heat * 1.4);
+            r += (hr - r) * k; g += (hg - g) * k; b += (hb - b) * k;
+            a = Math.max(a, heat * 0.85);
           }
-          if (goal > block.level) block.heat = burst ? 1 : 0.35;
-          block.level = goal;
-          block.heat = reduce ? 0 : Math.max(0, block.heat - dt * 1.4);
-          const sub = block.level === 2 ? 1 : block.level === 1 ? 2 : BLOCK;
-          const size = sub * pitch - gap;
-          for (let sy = 0; sy < BLOCK; sy += sub) {
-            for (let sx = 0; sx < BLOCK; sx += sub) {
-              const x = bx * BLOCK + sx, y = by * BLOCK + sy;
-              const px = x + sub / 2, py = y + sub / 2;
-              // A moat round the glyph keeps it legible.
-              if (px > gx - 1.5 && px < gx + GW + 1.5 && py > gy - 1.5 && py < gy + GH + 1.5) continue;
-              const v = field(px, py, t * (st === 'locked' ? 0.5 : 1));
-              const near = Math.hypot((px - cx) * 0.8, py - cy);
-              const hush = 0.35 + 0.65 * clamp01((near - GH * 0.5) / (GH * 0.9));
-              const contrast = block.level === 2 ? v * v * 1.5 : block.level === 1 ? v * 1.1 : v * 0.8;
-              let a = (0.025 + 0.2 * contrast) * hush;
-              let r = 255, g = 255, b = 255;
-              let heat = block.heat * (0.5 + 0.5 * hash(x, y));
-              if (rippleA > 0) {
-                heat = Math.max(heat, Math.exp(-Math.pow((near - rippleR) / 2.4, 2)) * rippleA * (0.6 + 0.4 * hash(x + 3, y)));
-              }
-              if (st === 'error') { g = 200; b = 190; a *= 0.7; }
-              if (heat > 0.02) {
-                const [hr, hg, hb] = heatColor(heat);
-                const k = Math.min(1, heat * 1.4);
-                r += (hr - r) * k; g += (hg - g) * k; b += (hb - b) * k;
-                a = Math.max(a, heat * 0.85);
-              }
-              square(x, y, size, r, g, b, a);
-            }
-          }
+          square(x, y, pitch - gap, r, g, b, a);
         }
       }
 
@@ -315,7 +279,7 @@ export function VaultHero({ stage, progress = 0, className }: { stage: VaultHero
       }
 
       if (!reduce) {
-        const spawn = st === 'unlocking' && since < 0.7 ? 70 : st === 'sealed' && since < 0.6 ? 45 : st === 'password' ? 4 * fill : 0;
+        const spawn = st === 'sealed' && since < 0.5 ? 30 : st === 'unlocking' && since < 0.3 ? 24 : 0;
         let count = Math.floor(spawn * dt) + (Math.random() < (spawn * dt) % 1 ? 1 : 0);
         while (count-- > 0) {
           const fromShackle = st === 'unlocking';
@@ -335,7 +299,7 @@ export function VaultHero({ stage, progress = 0, className }: { stage: VaultHero
           p.y += p.vy * dt;
           p.vy *= 0.985;
           p.life -= p.decay * dt;
-          if (p.life <= 0 || p.y < -BLOCK) { sparks.splice(i, 1); continue; }
+          if (p.life <= 0 || p.y < -2) { sparks.splice(i, 1); continue; }
           const [r, g, b] = heatColor(0.25 + p.life * 0.75);
           square(Math.floor(p.x), Math.floor(p.y), pitch - gap, r, g, b, p.life);
         }
@@ -351,10 +315,8 @@ export function VaultHero({ stage, progress = 0, className }: { stage: VaultHero
       if (visible) wake();
     });
     io.observe(canvas);
-    const ro = new ResizeObserver(wake);
-    ro.observe(canvas);
     wake();
-    return () => { cancelAnimationFrame(raf); io.disconnect(); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); io.disconnect(); tracked.disconnect(); };
   }, []);
 
   useEffect(() => { wakeRef.current(); }, [stage, progress]);

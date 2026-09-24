@@ -72,7 +72,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
       if (next.remote) { window.location.reload(); return; }
       setUnlockOpen(false);
       setUnlockStage("idle");
-    }, 900);
+    }, 600);
   }, []);
 
   // On another device everything waits behind the password.
