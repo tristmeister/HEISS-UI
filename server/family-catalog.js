@@ -422,7 +422,7 @@ export const families = {
   sana: {
     label: "Sana", kind: "image", sources: ["sana", "sana_diffusers", "checkpoint"], ownLoaders: true,
     slots: [], clipType: null, vae: [],
-    latent: "EmptySanaLatentImage", sizeStep: 32, negative: "text", sampling: "sana", aspects: square,
+    latent: "EmptyHunyuanImageLatent", sizeStep: 32, negative: "text", sampling: "sana", aspects: square,
     variants: [
       // Sprint is a consistency model: its CFG goes in through ScmModelSampling, KSampler stays at 1.
       { id: "sprint", label: "Sprint", match: (name, header, detail) => detail?.sprint ?? /sprint/i.test(name), negative: "none", dtype: "FP32", defaults: { steps: 2, cfg: 4.5, sampler: "scm", scheduler: "sgm_uniform" } },
@@ -442,15 +442,23 @@ export const families = {
  * diffusers pipeline, so it also runs on Apple Silicon, and loads folders from
  * models/diffusers. Local Sana checkpoints go through ExtraModels.
  */
+/**
+ * ExtraModels' EmptySanaLatentImage reads a `device` that ComfyUI's
+ * EmptyLatentImage no longer has, so it fails on current ComfyUI. Sana's
+ * latent is 32 channels at 1/32 scale; ComfyUI's own Hunyuan Image latent has
+ * that scale, and the sampler trims an empty latent to the model's channels.
+ */
+export const sanaLatentNode = "EmptyHunyuanImageLatent";
+
 export const sanaRunners = {
   sana: {
     pack: "extramodels", variantNodes: { sprint: ["ScmModelSampling"] },
     note: "Sana is not built into ComfyUI; these custom nodes run it.",
-    sizeNode: "EmptySanaLatentImage", placeholder: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px"
+    sizeNode: sanaLatentNode
   },
   sana_diffusers: {
     pack: "comfyui_sana", note: "Sana is not built into ComfyUI; these custom nodes run it, on Apple Silicon too.",
-    sizeNode: "SanaGenerate", placeholder: "Sana_Sprint_0.6B_1024px_diffusers", repo: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px_diffusers"
+    sizeNode: "SanaGenerate"
   }
 };
 
@@ -466,19 +474,20 @@ export function sanaLabel(name = "") {
 /**
  * Sana models the ExtraModels loader fetches by name, in the order HEISS lists
  * them. `conf` is the loader's model config (it picks its own for these, but
- * the input is required). Older duplicates of the same weights are left out.
+ * the input is required); `dir` is where the loader downloads it, under
+ * ComfyUI/models/sana. Older duplicates of the same weights are left out.
  */
 export const sanaPresets = [
-  { name: "Efficient-Large-Model/SANA1.5_4.8B_1024px", label: "SANA 1.5 4.8B", conf: "SanaMS1.5_4800M_P1_D60" },
-  { name: "Efficient-Large-Model/SANA1.5_1.6B_1024px", label: "SANA 1.5 1.6B", conf: "SanaMS1.5_1600M_P1_D20" },
-  { name: "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", label: "SANA Sprint 1.6B", conf: "SanaSprint_1600M_P1_D20" },
-  { name: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px", label: "SANA Sprint 0.6B", conf: "SanaSprint_600M_P1_D28" },
-  { name: "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", label: "Sana 1.6B 4K", conf: "SanaMS_1600M_P1_D20_4K" },
-  { name: "Efficient-Large-Model/Sana_1600M_2Kpx_BF16", label: "Sana 1.6B 2K", conf: "SanaMS_1600M_P1_D20_2K" },
-  { name: "Efficient-Large-Model/Sana_1600M_1024px_MultiLing", label: "Sana 1.6B Multilingual", conf: "SanaMS_1600M_P1_D20" },
-  { name: "Efficient-Large-Model/Sana_600M_1024px", label: "Sana 0.6B", conf: "SanaMS_600M_P1_D28" },
-  { name: "Efficient-Large-Model/Sana_600M_512px", label: "Sana 0.6B 512px", conf: "SanaMS_600M_P1_D28", hidden: true },
-  { name: "Efficient-Large-Model/Sana_1600M_1024px", label: "Sana 1.6B", conf: "SanaMS_1600M_P1_D20", hidden: true }
+  { name: "Efficient-Large-Model/SANA1.5_4.8B_1024px", dir: "models--sana--sana-1.5-4800m-1024px", label: "SANA 1.5 4.8B", conf: "SanaMS1.5_4800M_P1_D60" },
+  { name: "Efficient-Large-Model/SANA1.5_1.6B_1024px", dir: "models--sana--sana-1.5-1600m-1024px", label: "SANA 1.5 1.6B", conf: "SanaMS1.5_1600M_P1_D20" },
+  { name: "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", dir: "models--sana--sana-sprint-1600m-1024px", label: "SANA Sprint 1.6B", conf: "SanaSprint_1600M_P1_D20" },
+  { name: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px", dir: "models--sana--sana-sprint-600m-1024px", label: "SANA Sprint 0.6B", conf: "SanaSprint_600M_P1_D28" },
+  { name: "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", dir: "models--sana--sana-1600m-4kpx-bf16", label: "Sana 1.6B 4K", conf: "SanaMS_1600M_P1_D20_4K" },
+  { name: "Efficient-Large-Model/Sana_1600M_2Kpx_BF16", dir: "models--sana--sana-1600m-2kpx-bf16", label: "Sana 1.6B 2K", conf: "SanaMS_1600M_P1_D20_2K" },
+  { name: "Efficient-Large-Model/Sana_1600M_1024px_MultiLing", dir: "models--sana--sana-1600m-1024px-multilingual", label: "Sana 1.6B Multilingual", conf: "SanaMS_1600M_P1_D20" },
+  { name: "Efficient-Large-Model/Sana_600M_1024px", dir: "models--sana--sana-600m-1024px", label: "Sana 0.6B", conf: "SanaMS_600M_P1_D28" },
+  { name: "Efficient-Large-Model/Sana_600M_512px", dir: "models--sana--sana-600m-512px", label: "Sana 0.6B 512px", conf: "SanaMS_600M_P1_D28", hidden: true },
+  { name: "Efficient-Large-Model/Sana_1600M_1024px", dir: "models--sana--sana-1600m-1024px", label: "Sana 1.6B", conf: "SanaMS_1600M_P1_D20", hidden: true }
 ];
 
 /**

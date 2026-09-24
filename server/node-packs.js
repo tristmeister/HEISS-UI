@@ -24,7 +24,7 @@ export const nodePacks = {
     // NVIDIA's own Sana docs point at this fork; the city96 original in Manager's list lacks Sprint.
     repository: "https://github.com/lawrence-cj/ComfyUI_ExtraModels.git",
     folder: "ComfyUI_ExtraModels",
-    nodes: ["SanaCheckpointLoader", "GemmaLoader", "SanaTextEncode", "GemmaTextEncode", "ExtraVAELoader", "EmptySanaLatentImage"],
+    nodes: ["SanaCheckpointLoader", "GemmaLoader", "SanaTextEncode", "GemmaTextEncode", "ExtraVAELoader"],
     note: "Install it by Git URL: Manager's search finds the older city96 original."
   },
   comfyui_sana: {

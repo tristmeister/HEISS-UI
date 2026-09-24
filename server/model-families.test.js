@@ -308,8 +308,15 @@ test("a staged reference image becomes the start image of a built-in graph", asy
 const sanaNodes = (presets) => ({
   SanaCheckpointLoader: list({ ckpt_name: [presets], model: [["SanaMS1.5_1600M_P1_D20"]], dtype: [["auto", "FP32", "FP16", "BF16"]] }),
   GemmaLoader: node(), SanaTextEncode: node(), GemmaTextEncode: node(), ExtraVAELoader: node(), ScmModelSampling: node(),
-  EmptySanaLatentImage: list({ width: ["INT", { default: 512, min: 16, max: 16384, step: 8 }], height: ["INT", { default: 512, min: 16, max: 16384, step: 8 }], batch_size: ["INT", { default: 1, min: 1, max: 4096 }] })
+  EmptySanaLatentImage: node(),
+  EmptyHunyuanImageLatent: list({ width: ["INT", { default: 2048, min: 64, max: 16384, step: 32 }], height: ["INT", { default: 2048, min: 64, max: 16384, step: 32 }], batch_size: ["INT", { default: 1, min: 1, max: 4096 }] })
 });
+// Where the ExtraModels loader leaves a preset it has fetched.
+const downloadSanaPreset = (dir, file) => {
+  const target = path.join(scratch, "ComfyUI", "models", "sana", dir, "checkpoints");
+  fs.mkdirSync(target, { recursive: true });
+  fs.writeFileSync(path.join(target, file), "");
+};
 
 test("Sana is recognised from its own and diffusers-style weights", () => {
   const blocks = (prefix, count, extra = {}) => ({ ...Object.fromEntries(Array.from({ length: count }, (_, i) => [`${prefix}.${i}.norm.weight`, t([1])])), ...extra });
@@ -323,9 +330,15 @@ test("Sana is recognised from its own and diffusers-style weights", () => {
   assert.equal(classifyModel("checkpoint", "Sana_Sprint_0.6B_1024px.pth").variant.id, "sprint");
 });
 
-test("Sana presets appear once the ExtraModels nodes are in, and runs need nothing else", () => {
-  const presets = ["Efficient-Large-Model/SANA1.5_1.6B_1024px", "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", "Efficient-Large-Model/Sana_1600M_512px"];
+test("downloaded Sana presets appear once the ExtraModels nodes are in, and runs need nothing else", () => {
+  const presets = ["Efficient-Large-Model/SANA1.5_1.6B_1024px", "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", "Efficient-Large-Model/Sana_1600M_512px", "Efficient-Large-Model/SANA1.5_4.8B_1024px"];
   const info = objectInfo({ extra: sanaNodes(presets) });
+  // The loader lists every preset; only the ones it has fetched are models you have.
+  assert.equal(inferModels(info).profiles.filter((profile) => profile.family === "sana").length, 0);
+  downloadSanaPreset("models--sana--sana-1.5-1600m-1024px", "SANA1.5_1.6B_1024px.pth");
+  downloadSanaPreset("models--sana--sana-sprint-1600m-1024px", "Sana_Sprint_1.6B_1024px.pth");
+  downloadSanaPreset("models--sana--sana-1600m-4kpx-bf16", "Sana_1600M_4Kpx_BF16.pth");
+  downloadSanaPreset("models--sana--sana-1600m-512px", "Sana_1600M_512px.pth");
   info.KSampler.input.required.sampler_name[0].push("scm");
   const sana = inferModels(info).profiles.filter((profile) => profile.family === "sana");
   assert.deepEqual(sana.map((profile) => [profile.displayName, profile.variant, profile.ready]), [
@@ -342,6 +355,8 @@ test("Sana presets appear once the ExtraModels nodes are in, and runs need nothi
   assert.equal(byType(graph, "ScmModelSampling")[0].inputs.cfg_scale, 4.5);
   assert.deepEqual([byType(graph, "KSampler")[0].inputs.cfg, byType(graph, "KSampler")[0].inputs.sampler_name], [1, "scm"]);
   assert.equal(byType(graph, "SanaTextEncode")[0].inputs.text, "an astronaut");
+  // ExtraModels' own latent node fails on current ComfyUI; the native 1/32 one stands in.
+  assert.deepEqual([byType(graph, "EmptySanaLatentImage").length, byType(graph, "EmptyHunyuanImageLatent")[0].inputs.batch_size], [0, 1]);
   assert.equal(byType(graph, "SaveImage").length, 1);
   assert.equal(byType(graph, "CheckpointLoaderSimple").length + byType(graph, "VAELoader").length + byType(graph, "CLIPLoader").length, 0);
 
@@ -361,15 +376,12 @@ test("a Sana file without the ExtraModels nodes says which pack to install", () 
   assert.equal(models.profiles.filter((profile) => profile.family === "sana").length, 1, "no extra placeholder next to a real Sana file");
 });
 
-test("with no Sana anywhere, one placeholder asks for the pack that fits the machine", () => {
-  const mac = inferModels(objectInfo(), { devices: [{ type: "mps" }] }).profiles.filter((profile) => profile.family === "sana");
-  assert.deepEqual(mac.map((profile) => [profile.source, profile.ready, profile.missing[0].nodePack.id]), [["sana_diffusers", false, "comfyui_sana"]]);
-  const cuda = inferModels(objectInfo(), { devices: [{ type: "cuda" }] }).profiles.filter((profile) => profile.family === "sana");
-  assert.deepEqual(cuda.map((profile) => [profile.displayName, profile.missing[0].nodePack.id]), [["SANA Sprint 0.6B", "extramodels"]]);
-  // ComfyUI-SANA in, but no model folder yet: the weights are what is missing.
-  const noWeights = inferModels(objectInfo({ extra: { SanaModelLoader: list({ model: [["(no diffusers models found)"]] }), SanaGenerate: node() } })).profiles.find((profile) => profile.family === "sana");
-  assert.deepEqual(noWeights.missing.map((item) => item.part), ["model"]);
-  assert.match(noWeights.missing[0].command.commands[0].command, /snapshot_download\('Efficient-Large-Model\/Sana_Sprint_0\.6B_1024px_diffusers'/);
+test("with no Sana weights anywhere, no Sana model shows, whatever packs are in", () => {
+  for (const devices of [[{ type: "mps" }], [{ type: "cuda" }]]) {
+    assert.equal(inferModels(objectInfo(), { devices }).profiles.filter((profile) => profile.family === "sana").length, 0);
+  }
+  const packs = objectInfo({ extra: { SanaModelLoader: list({ model: [["(no diffusers models found)"]] }), SanaGenerate: node() } });
+  assert.equal(inferModels(packs).profiles.filter((profile) => profile.family === "sana").length, 0);
 });
 
 test("ComfyUI-SANA diffusers folders run as one pipeline node", () => {

@@ -1,6 +1,8 @@
-import { missingNodes, nodeRange, optionsFor } from './comfy.js';
-import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaPresets, sanaRunnerFor, sanaRunners, vaeDownloads } from './family-catalog.js';
-import { diffusersDownloadPlan, missingPackPart } from './node-install.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
+import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
+import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
 import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vaeKinds } from './model-components.js';
 
@@ -62,36 +64,34 @@ function legacyProfileId(familyId, source, name) {
 }
 
 /**
- * The Sana entries beyond checkpoints: ExtraModels presets (the loader lists
- * them once the pack is in), ComfyUI-SANA's diffusers folders, or, with no Sana
- * model anywhere, one placeholder on the pack that fits this machine
- * (ExtraModels on CUDA, ComfyUI-SANA elsewhere) so the setup has a place to show.
+ * The Sana entries beyond checkpoints: ExtraModels presets already downloaded
+ * to ComfyUI/models/sana (its loader lists every preset, fetched or not, and
+ * fetches on first run) and ComfyUI-SANA's diffusers folders. Sana weights you
+ * do not have never show, like any other model.
  */
-function sanaFiles(info, checkpoints, cuda) {
+function sanaFiles(info) {
   const presetNames = new Set(optionsFor(info, "SanaCheckpointLoader", "ckpt_name"));
-  const presets = sanaPresets.filter((preset) => !preset.hidden && presetNames.has(preset.name))
+  const folders = modelFolders("sana", ["sana", "Sana"]);
+  const downloaded = (preset) => folders.some((dir) => fs.existsSync(path.join(dir, preset.dir, "checkpoints", `${preset.name.split("/").pop()}.pth`)));
+  const presets = sanaPresets.filter((preset) => !preset.hidden && presetNames.has(preset.name) && downloaded(preset))
     .map((preset) => ({ source: "sana", name: preset.name, preset }));
-  const folders = optionsFor(info, "SanaModelLoader", "model").filter((name) => /sana/i.test(name))
+  const diffusers = optionsFor(info, "SanaModelLoader", "model").filter((name) => /sana/i.test(name))
     .map((name) => ({ source: "sana_diffusers", name }));
-  if (presets.length || folders.length) return [...presets, ...folders];
-  if (checkpoints.some((name) => classifyModel("checkpoint", name).family === "sana")) return [];
-  // ExtraModels in, but a build without the presets: its local checkpoints are all there is.
-  if (info.SanaCheckpointLoader && !info.SanaModelLoader) return [];
-  const source = info.SanaModelLoader || !cuda ? "sana_diffusers" : "sana";
-  const name = sanaRunners[source].placeholder;
-  return [{ source, name, preset: sanaPresets.find((item) => item.name === name), placeholder: true }];
+  return [...presets, ...diffusers];
 }
 
 /**
  * How the ExtraModels nodes should load a Sana model. Gemma only runs on CUDA
  * or the CPU there (and only in FP32 on the CPU), so Macs encode on the CPU.
  */
-function sanaSettings(name, variant, detail, cuda) {
+function sanaSettings(info, name, variant, detail, cuda) {
   return {
     conf: sanaConf(name, detail),
     dtype: variant.dtype || "BF16",
     gemmaDevice: cuda ? "cuda" : "cpu",
-    gemmaDtype: cuda ? "BF16" : "default"
+    gemmaDtype: cuda ? "BF16" : "default",
+    // ExtraModels' own latent node only works on ComfyUI builds from before the native one.
+    latent: hasNode(info, sanaLatentNode) ? sanaLatentNode : "EmptySanaLatentImage"
   };
 }
 
@@ -109,17 +109,16 @@ export function familyProfiles(info, helpers) {
 
   const profiles = [];
   const modelFiles = [];
-  // Sana runs on a custom node pack: presets the ExtraModels loader downloads
-  // itself, or diffusers folders ComfyUI-SANA lists. With neither in sight, one
-  // placeholder says which pack to add (see sanaFiles).
+  // Sana runs on a custom node pack: downloaded ExtraModels presets, or
+  // diffusers folders ComfyUI-SANA lists (see sanaFiles).
   const files = [
     ...unets.map((name) => ({ source: "unet", name })),
     ...checkpoints.map((name) => ({ source: "checkpoint", name })),
-    ...sanaFiles(info, checkpoints, cuda)
+    ...sanaFiles(info)
   ];
   const lowNoisePartners = new Set();
 
-  for (const { source, name, preset, placeholder } of files) {
+  for (const { source, name, preset } of files) {
     const base = String(name).split(/[\\/]/).pop() || name;
     // The second file of a pair (Wan's low-noise half, Ideogram's unconditional
     // model) runs with its partner and is not a model of its own, whatever its weights say.
@@ -215,13 +214,6 @@ export function familyProfiles(info, helpers) {
     const packPart = needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note });
     if (packPart) {
       missing.push(packPart);
-    } else if (runner && placeholder && diffusersRunner) {
-      missing.push({
-        part: "model", label: "SANA Sprint 0.6B weights",
-        detail: "ComfyUI-SANA loads Sana from diffusers folders in ComfyUI/models/diffusers. This fetches NVIDIA's Sprint 0.6B (about 7.7 GB) with ComfyUI's own Python:",
-        downloads: [],
-        command: diffusersDownloadPlan(runner.repo)
-      });
     } else if (!packPart && (nodes.length || !clipTypeAvailable(info, family))) {
       missing.push({ part: "comfy", label: "Newer ComfyUI", detail: `This ComfyUI cannot run ${family.label} yet${nodes.length ? ` (missing ${nodes.join(", ")})` : ""}. Update ComfyUI.`, downloads: [] });
     }
@@ -309,7 +301,7 @@ export function familyProfiles(info, helpers) {
       detectedBy: info2.via,
       missing,
       ready: missing.length === 0,
-      ...(family.sampling === "sana" ? { sana: sanaSettings(name, variant, info2.detail, cuda) } : {})
+      ...(family.sampling === "sana" ? { sana: sanaSettings(info, name, variant, info2.detail, cuda) } : {})
     });
     profiles.push(profile);
   }

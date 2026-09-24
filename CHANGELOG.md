@@ -21,6 +21,11 @@ section into the next version and uses it as the GitHub release notes.
   downloaded from the setup panel.
 
 ### Fixed
+- Sana no longer shows up when you have no Sana weights: the "install a
+  node pack" placeholder is gone, and ExtraModels presets only list once
+  they are downloaded to `models/sana`. Sana runs through ExtraModels no
+  longer fail with "'EmptySanaLatentImage' object has no attribute
+  'device'" on current ComfyUI.
 - Restart ComfyUI said ComfyUI-Manager was missing with the Manager custom
   node 3.4x, which only restarts on a POST.
 - Install buttons for custom nodes now work through the ComfyUI-Manager

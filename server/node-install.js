@@ -93,27 +93,6 @@ export function packInstallPlan(pack, root = comfyRootDir(), platform = process.
 }
 
 /**
- * One command that fetches a diffusers-format Hugging Face repo into
- * models/diffusers with ComfyUI's own Python (huggingface_hub ships with it).
- */
-export function diffusersDownloadPlan(repo, root = comfyRootDir(), platform = process.platform) {
-  const win = platform === "win32";
-  const paths = win ? path.win32 : path.posix;
-  const python = comfyPython(root, platform);
-  const name = repo.split("/").pop();
-  const target = root ? paths.join(root, "models", "diffusers", name) : paths.join("ComfyUI", "models", "diffusers", name);
-  const code = `from huggingface_hub import snapshot_download; snapshot_download('${repo}', local_dir=r'${target}')`;
-  const exe = `${python ? `"${python}"` : win ? "python" : "python3"}${isEmbeddedPython(python) ? " -s" : ""}`;
-  const commands = win
-    ? [
-      { shell: "powershell", label: "PowerShell", command: `${python ? "& " : ""}${exe} -c "${code}"` },
-      { shell: "cmd", label: "Command Prompt", command: `${exe} -c "${code}"` }
-    ]
-    : [{ shell: "sh", label: "Terminal", command: `${exe} -c "${code}"` }];
-  return { exact: Boolean(root && python), target, commands };
-}
-
-/**
  * The "missing" entry for a node pack that is not loaded, or null when it is:
  * what setup panels render as the Manager/terminal install. `extra` names
  * nodes beyond the pack's usual set that this use needs.

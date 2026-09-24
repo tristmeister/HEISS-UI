@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { families, sanaConf } from './family-catalog.js';
+import { families, sanaConf, sanaLatentNode } from './family-catalog.js';
 import { krea2RawShift } from './model-families.js';
 
 /**
@@ -239,7 +239,7 @@ export function familyGraph(body) {
 /**
  * Sana through the ExtraModels nodes: its loader, Gemma for the prompt (with
  * Sana's own instruction preamble) and the plain Gemma encode for the negative,
- * the 32-channel latent and the DC-AE VAE. Every loader fetches its weights
+ * the 32-channel latent (see sanaLatentNode) and the DC-AE VAE. Every loader fetches its weights
  * from Hugging Face the first time.
  */
 function sanaGraph({ add, graph, body, variant, seed, width, height, count }) {
@@ -253,7 +253,7 @@ function sanaGraph({ add, graph, body, variant, seed, width, height, count }) {
     add("SaveImage", { images, filename_prefix: "heiss-ui/image" });
     return graph;
   }
-  const settings = { conf: sanaConf(body.model), dtype: variant.dtype || "BF16", gemmaDevice: "cpu", gemmaDtype: "default", ...body.sana };
+  const settings = { conf: sanaConf(body.model), dtype: variant.dtype || "BF16", gemmaDevice: "cpu", gemmaDtype: "default", latent: sanaLatentNode, ...body.sana };
   let model = [add("SanaCheckpointLoader", { ckpt_name: body.model, model: settings.conf, dtype: settings.dtype, enable_cfg_passthrough: true }), 0];
   const gemma = [add("GemmaLoader", { model_name: "Efficient-Large-Model/gemma-2-2b-it", device: settings.gemmaDevice, dtype: settings.gemmaDtype }), 0];
   const vae = [add("ExtraVAELoader", { vae_name: "mit-han-lab/dc-ae-f32c32-sana-1.1-diffusers", vae_type: "dcae-f32c32-sana-1.1-diffusers", dtype: settings.dtype }), 0];
@@ -264,7 +264,7 @@ function sanaGraph({ add, graph, body, variant, seed, width, height, count }) {
     model = [add("ScmModelSampling", { model, cfg_scale: cfg, zsnr: false }), 0];
     cfg = 1;
   }
-  const latent = [add("EmptySanaLatentImage", { width, height, batch_size: count }), 0];
+  const latent = [add(settings.latent, { width, height, batch_size: count }), 0];
   const samples = [add("KSampler", {
     model, seed, steps: Number(body.steps || 20), cfg,
     sampler_name: body.sampler || "euler", scheduler: body.scheduler || "normal",
