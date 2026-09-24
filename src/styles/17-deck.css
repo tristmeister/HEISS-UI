@@ -139,7 +139,8 @@
   }
   .stage-gallery {
     padding-top: max(6px, env(safe-area-inset-top));
-    padding-bottom: calc(var(--deck-lift) + var(--deck-h) + 16px + env(safe-area-inset-bottom));
+    /* --deck-lift already includes the safe area here. */
+    padding-bottom: calc(var(--deck-lift) + var(--deck-h) + 16px);
   }
 }
 

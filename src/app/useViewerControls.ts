@@ -278,9 +278,11 @@ export function useViewerControls(view: any) {
     }
   }
 
+  // React listens to touchstart and touchmove passively, so preventDefault()
+  // there does nothing but log a warning; touch-action: none on the stage is
+  // what keeps the browser from scrolling or zooming the page meanwhile.
   function startViewerTouch(event: React.TouchEvent) {
     if (event.touches.length === 2) {
-      event.preventDefault();
       const center = touchCenter(event.touches);
       touchGestureRef.current = {
         mode: "pinch",
@@ -302,7 +304,6 @@ export function useViewerControls(view: any) {
       return;
     }
     if (event.touches.length === 1 && viewerZoom > 1) {
-      event.preventDefault();
       const touch = event.touches[0];
       touchGestureRef.current = {
         mode: "pan",
@@ -320,7 +321,6 @@ export function useViewerControls(view: any) {
   function moveViewerTouch(event: React.TouchEvent) {
     const gesture = touchGestureRef.current;
     if (!gesture) return;
-    event.preventDefault();
     if (gesture.mode === "pinch" && event.touches.length >= 2) {
       const distance = touchDistance(event.touches);
       const center = touchCenter(event.touches);

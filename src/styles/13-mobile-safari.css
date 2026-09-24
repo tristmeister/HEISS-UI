@@ -71,7 +71,7 @@ body {
     padding-left: max(8px, env(safe-area-inset-left));
   }
 
-  /* Bottom deck placement (controls button, zoom, dock) lives in 16-deck.css. */
+  /* Bottom deck placement (controls button, zoom, dock) lives in 17-deck.css. */
 
   .zen-controls {
     left: max(8px, env(safe-area-inset-left));
@@ -123,15 +123,6 @@ body {
   .prompt-left-actions,
   .zen-inline-settings { gap: 4px; }
   .composer-drawer { left: 0; right: 0; }
-}
-
-/* Compact tablets cannot support the gallery's 430px + 420px split. Keep the
-   denser two-column cards, but use the same list -> detail navigation as phones. */
-
-@media (min-width: 621px) and (max-width: 980px) {
-  .zen-controls {
-    bottom: calc(var(--zen-prompt-h, 160px) + 24px + env(safe-area-inset-bottom));
-  }
 }
 
 @media (hover: none) and (pointer: coarse) {

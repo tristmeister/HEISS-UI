@@ -40,8 +40,8 @@
   .model-copy em { -webkit-line-clamp: 1; }
   .model-badge { display: none !important; }
   .aspect-option { min-height: 44px; }
-  /* Phone placement for the zen chrome lives at the end of 12-composer.css,
-     where it can win over the shared dock styling in 08-overhaul.css. */
+  /* Phone placement for the deck lives in 17-deck.css, and the later
+     small-screen fixes in 27-mobile.css. */
   .zen-controls {
     left: 10px;
     right: 10px;

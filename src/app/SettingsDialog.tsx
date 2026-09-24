@@ -572,6 +572,21 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
+            <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
+              {([
+                ["Enter", "Generate (when “Enter to generate” is on)"],
+                ["⌘/Ctrl + Enter", "Generate, always"],
+                ["Shift + Enter", "New line in the prompt"],
+                ["Any letter", "Jump to the prompt and start typing"],
+                ["← →", "Previous or next image (viewer and zen)"],
+                ["Arrow keys", "Move between gallery tiles, newest to oldest"],
+                ["+  −  0", "Zoom in, out, reset (viewer)"],
+                ["Delete", "Delete the open image (undo for a few seconds)"],
+                ["Esc", "Close the menu, viewer or dialog on top"]
+              ] as const).map(([keys, what]) => (
+                <Row key={keys} label={<kbd className="set-kbd">{keys}</kbd>} description={what} />
+              ))}
+            </Group>
             <Group title="Safety">
               <SwitchRow label="Confirm before removing things" description="Ask before deleting or stopping things. Deletes can still be undone for a few seconds, and anything permanent always asks." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
