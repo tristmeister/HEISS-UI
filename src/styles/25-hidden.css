@@ -1,0 +1,384 @@
+/* ---------------------------------------------------------------------------
+   Hidden (src/app/Hidden*.tsx, VaultHero, PixelCurtain)
+
+   A place, not a mode. The studio stays the same studio; being in Hidden is
+   told by a warm hush at the edges, the Hidden bar top left, and the lock in
+   the dock lit ember. Everything borrows the upscale setup's material: cells,
+   ember for heat, white for done.
+--------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------ The space */
+
+.app-shell::after,
+.zen-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: inset 0 0 160px rgb(255 154 82 / .07), inset 0 0 0 1px rgb(255 154 82 / .06);
+  transition: opacity 600ms var(--ease-out);
+}
+.is-hidden-space::after { opacity: 1; }
+
+/* The lock in the dock: ember while inside, and it catches what is hidden. */
+.studio-dock .hidden-dock-button { position: relative; }
+.studio-dock .hidden-dock-button.active { color: var(--ember); background: var(--ember-soft); }
+.studio-dock .hidden-dock-button.is-open:not(.active)::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 1.5px;
+  background: var(--ember);
+  box-shadow: var(--ember-glow);
+}
+.hidden-dock-button.is-catching,
+.hidden-bar-back.is-catching { animation: hidden-catch 640ms cubic-bezier(.2, .9, .3, 1.4); }
+@keyframes hidden-catch {
+  0% { scale: 1; }
+  30% { scale: 1.22; color: var(--ember); box-shadow: 0 0 0 6px rgb(255 154 82 / .14), var(--ember-glow); }
+  100% { scale: 1; }
+}
+
+/* ------------------------------------------------------------ Hidden bar */
+
+.hidden-bar {
+  position: fixed;
+  top: var(--deck-gap, 18px);
+  left: var(--deck-gap, 18px);
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-pill);
+  background: var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm);
+}
+.hidden-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.hidden-bar button:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+.hidden-bar-back { width: 34px; justify-content: center; }
+.hidden-bar-lock { padding: 0 12px 0 10px; }
+.hidden-bar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 8px 0 4px;
+  color: hsl(var(--foreground));
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.hidden-bar-title svg { color: var(--ember); }
+.hidden-bar-title i {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--r-pill);
+  background: var(--control-fill);
+  color: hsl(var(--muted-foreground));
+}
+/* The zen gallery strip owns the top centre; the bar keeps to its corner. */
+.zen-shell .hidden-bar { top: 14px; left: 14px; }
+
+/* ---------------------------------------------------------- Composer chip */
+
+.hidden-chip {
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 0 11px;
+  border-radius: 20px;
+  background: var(--ember-soft);
+  color: #ffc9a0;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .2);
+  animation: hidden-chip-in 420ms cubic-bezier(.2, .9, .3, 1.2);
+}
+.hidden-chip.is-density-compact,
+.hidden-chip.is-density-mini { width: 40px; padding: 0; justify-content: center; }
+@keyframes hidden-chip-in { from { opacity: 0; scale: .85; } }
+.is-hidden-space .zen-prompt { box-shadow: var(--shadow-float), 0 0 0 1px rgb(255 154 82 / .12), 0 0 40px rgb(255 154 82 / .05); }
+
+/* ------------------------------------------------------------ Lock screen */
+
+.hidden-lockscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse 70% 80% at 50% 42%, #151515 0%, #0a0a0a 70%);
+  overflow: hidden;
+}
+/* The lock sits a little above centre, leaving the lower half to the words. */
+.hidden-lockscreen-hero { position: absolute; inset: -16% 0 0; }
+.hidden-lockscreen-hero canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+/* A glow behind the lock that follows the stage, like the upscale hero's. */
+.hidden-lockscreen-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side at 50% 50%, rgb(255 154 82 / .16), transparent 55%);
+  opacity: .5;
+  transition: opacity 700ms var(--ease-out), background 700ms;
+}
+.hidden-lockscreen-hero[data-stage="scanning"]::before { opacity: .9; }
+.hidden-lockscreen-hero[data-stage="unlocking"]::before { opacity: 1; background: radial-gradient(closest-side at 50% 50%, rgb(255 214 170 / .28), transparent 70%); }
+.hidden-lockscreen-hero[data-stage="error"]::before { opacity: .7; background: radial-gradient(closest-side at 50% 50%, rgb(255 110 90 / .2), transparent 60%); }
+.hidden-lockscreen-copy {
+  position: absolute;
+  z-index: 1;
+  /* Just under the lock: its centre is at 42%, and it is at most 80px tall to either side. */
+  top: calc(42% + 104px);
+  left: 50%;
+  translate: -50% 0;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  text-align: center;
+}
+/* Nothing to write into while Hidden is locked; the composer steps aside. */
+.zen-prompt { transition: opacity 320ms var(--ease-out), translate 320ms var(--ease-out), border-color 320ms var(--ease-out), box-shadow 320ms var(--ease-out); }
+.is-hidden-locked .zen-prompt { opacity: 0; translate: 0 16px; pointer-events: none; }
+.hidden-lockscreen-copy h2 { margin: 0; font-size: 22px; font-weight: 620; letter-spacing: -.02em; color: #fff; }
+.hidden-lockscreen-copy p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.hidden-lockscreen.is-unlocking .hidden-lockscreen-copy h2 { animation: hidden-open-title 700ms var(--ease-out); }
+@keyframes hidden-open-title { 30% { color: #ffd9b8; text-shadow: 0 0 24px rgb(255 154 82 / .6); } }
+.hidden-lockscreen-back {
+  position: absolute;
+  top: var(--deck-gap, 18px);
+  left: var(--deck-gap, 18px);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px 0 11px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-pill);
+  background: var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+}
+.hidden-lockscreen-back:hover { color: hsl(var(--foreground)); }
+
+/* --------------------------------------------------------------- Unlocking */
+
+.hidden-unlock { display: grid; justify-items: center; gap: 10px; width: 100%; }
+.hidden-unlock-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-width: 230px;
+  height: 44px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: var(--r-pill);
+  color: #0b0b0b;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f2f2 52%, #dededf 100%);
+  box-shadow: 0 1px 2px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .55) inset, 0 10px 30px rgb(0 0 0 / .4);
+  font-size: 13.5px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+}
+.hidden-unlock-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 1px 2px rgb(0 0 0 / .45), 0 0 0 1px rgb(255 255 255 / .65) inset, 0 14px 36px rgb(0 0 0 / .45), 0 0 26px rgb(255 154 82 / .18); }
+.hidden-unlock-primary:active:not(:disabled) { transform: scale(.98); }
+.hidden-unlock-primary:disabled { cursor: default; opacity: .85; }
+.hidden-unlock-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(320px, 100%);
+  height: 44px;
+  padding: 4px 4px 4px 16px;
+  border-radius: var(--r-pill);
+  background: var(--well);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+  color: hsl(var(--muted-foreground));
+  transition: box-shadow var(--dur-base);
+}
+.hidden-unlock-field:focus-within { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .28), 0 0 0 4px rgb(255 255 255 / .05); }
+.hidden-unlock-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  letter-spacing: .04em;
+}
+.hidden-unlock-field button {
+  height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: 12.5px;
+  font-weight: 620;
+  cursor: pointer;
+}
+.hidden-unlock-field button:disabled { background: var(--control-fill); color: hsl(var(--muted-foreground)); cursor: default; }
+.hidden-unlock-field.is-wrong { animation: hidden-wrong 420ms cubic-bezier(.36, .07, .19, .97); box-shadow: inset 0 0 0 1px var(--danger-ring); }
+@keyframes hidden-wrong {
+  15%, 85% { translate: -2px 0; }
+  30%, 70% { translate: 5px 0; }
+  45%, 55% { translate: -7px 0; }
+}
+.hidden-unlock-meta { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 20px; font-size: 12px; }
+.hidden-unlock-meta .is-error { color: var(--danger-ink); }
+.hidden-unlock-switch {
+  border: 0;
+  background: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / .2);
+  text-underline-offset: 3px;
+}
+.hidden-unlock-switch:hover { color: hsl(var(--foreground)); }
+.hidden-unlock.is-compact { justify-items: stretch; }
+.hidden-unlock.is-compact .hidden-unlock-field,
+.hidden-unlock.is-compact .hidden-unlock-primary { width: 100%; }
+.hidden-unlock-spacer { height: 70px; }
+
+/* ------------------------------------------------------------ Setup sheet */
+
+.hidden-hero-wrap.is-short { aspect-ratio: 2.7; }
+.hidden-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(closest-side at 50% 50%, rgb(255 154 82 / .22), transparent 70%);
+  opacity: .35;
+  transition: opacity 700ms var(--ease-out), background 700ms;
+}
+.hidden-hero[data-stage="password"]::before { opacity: .8; }
+.hidden-hero[data-stage="scanning"]::before { opacity: 1; }
+.hidden-hero[data-stage="sealed"]::before,
+.hidden-hero[data-stage="unlocking"]::before { opacity: .7; background: radial-gradient(closest-side at 50% 50%, rgb(255 236 214 / .22), transparent 70%); }
+.hidden-hero[data-stage="error"]::before { opacity: .5; background: radial-gradient(closest-side at 50% 50%, rgb(255 110 90 / .2), transparent 70%); }
+
+.hidden-promises { display: grid; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.hidden-promises li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 12px; align-items: start; }
+.hidden-promises svg {
+  box-sizing: content-box;
+  width: 15px;
+  height: 15px;
+  padding: 7px;
+  border-radius: 9px;
+  background: var(--control-fill);
+  color: hsl(var(--foreground));
+}
+.hidden-promises li:first-child svg { background: var(--ember-soft); color: var(--ember); }
+.hidden-promises div { display: grid; gap: 2px; }
+.hidden-promises strong { font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
+.hidden-promises span { font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.hidden-callout { margin-top: 16px; display: grid; gap: 6px; justify-items: start; }
+.hidden-callout .btn { margin-top: 4px; }
+
+.hidden-form { display: grid; gap: 10px; }
+.hidden-strength { display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: hsl(var(--muted-foreground)); }
+.hidden-strength .cell-bar { flex: 1; }
+.hidden-strength span { min-width: 120px; text-align: right; font-variant-numeric: tabular-nums; }
+
+.hidden-device {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-radius: var(--r-item);
+  background: var(--well);
+}
+.hidden-device svg { justify-self: center; color: var(--ember); }
+.hidden-device div { display: grid; gap: 2px; }
+.hidden-device strong { font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
+.hidden-device span { font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+
+.hidden-summary { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.hidden-summary li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: hsl(var(--foreground)); animation: hidden-summary-in 420ms var(--ease-out) backwards; }
+.hidden-summary li:nth-child(2) { animation-delay: 90ms; }
+.hidden-summary li:nth-child(3) { animation-delay: 180ms; }
+.hidden-summary li svg { box-sizing: content-box; padding: 3px; border-radius: 5px; background: var(--action); color: var(--action-ink); }
+.hidden-summary li.is-off { color: hsl(var(--muted-foreground)); }
+.hidden-dash { display: inline-block; width: 19px; height: 2px; margin: 0; background: rgb(255 255 255 / .2); }
+@keyframes hidden-summary-in { from { opacity: 0; translate: 0 4px; } }
+
+/* --------------------------------------------------------------- Settings */
+
+.hidden-way { display: inline-flex; align-items: center; gap: 8px; }
+.hidden-way svg { color: hsl(var(--muted-foreground)); }
+.hidden-autolock { width: max-content; }
+.btn.is-disabled { opacity: .45; pointer-events: none; }
+
+/* ------------------------------------------------------------ Empty state */
+
+.hidden-empty-mark {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 6px;
+  border-radius: 18px;
+  background: var(--ember-soft);
+  color: var(--ember);
+  box-shadow: inset 0 0 0 1px rgb(255 154 82 / .18);
+}
+.hidden-empty p { max-width: 360px; line-height: 1.55; }
+.inline-icon { display: inline; vertical-align: -2px; margin: 0 1px; }
+.zen-empty.hidden-empty { display: grid; justify-items: center; gap: 10px; color: hsl(var(--muted-foreground)); }
+.zen-empty.hidden-empty svg { color: var(--ember); }
+
+/* ----------------------------------------------------------- The passage */
+
+.pixel-curtain {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hidden-dock-button.is-catching,
+  .hidden-unlock-field.is-wrong,
+  .hidden-chip,
+  .hidden-summary li { animation: none; }
+}

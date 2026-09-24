@@ -21,22 +21,23 @@ function addPending(a: BundlePending, b: BundlePending) {
  * Grouping itself is a server concern - a run can straddle a gallery page, so
  * the browser is not in a position to detect one.
  *
- * Public and Private Vault runs are two entirely separate domains end to end:
- * separate records (plaintext file vs. inside the encrypted vault manifest),
- * separate endpoints, summed only for the one on-screen count. Vault pending
- * is never even requested while the vault is locked - there is nothing for
- * the browser to ask about without the key.
+ * Gallery and Hidden runs are two separate domains end to end: separate
+ * records (a plaintext file vs. inside Hidden's encrypted manifest) and
+ * separate endpoints. Only the space on screen is asked about, and Hidden not
+ * at all while it is locked - there is nothing to ask without the key.
  */
 export function useGalleryBundles({
   prefs,
   galleryRevision,
-  vaultUnlocked,
+  domain,
+  enabled: domainEnabled,
   reloadGallery,
   showToast
 }: {
   prefs: Preferences;
   galleryRevision: number;
-  vaultUnlocked: boolean;
+  domain: Domain;
+  enabled: boolean;
   reloadGallery: () => Promise<unknown>;
   showToast: (message: string, tone?: "default" | "success" | "error") => void;
 }) {
@@ -44,25 +45,19 @@ export function useGalleryBundles({
   const [busy, setBusy] = useState(false);
   const [gathering, setGathering] = useState<Set<string>>(() => new Set());
   const [settling, setSettling] = useState<Set<string>>(() => new Set());
-  const enabled = prefs.groupRuns !== false;
+  const enabled = prefs.groupRuns !== false && domainEnabled;
 
   const query = `mode=${encodeURIComponent(prefs.runGroupingMode || "smart")}&cooldownMinutes=${Number(prefs.runCooldownMinutes ?? 5)}`;
 
   const refreshBundles = useCallback(async () => {
     if (!enabled) { setPending(emptyPending); return; }
     try {
-      const requests = [apiJson<BundleStatus>(`/api/gallery/bundles?${query}`)];
-      if (vaultUnlocked) requests.push(apiJson<BundleStatus>(`/api/vault/bundles?${query}`));
-      const results = await Promise.all(requests);
-      const combined = results.reduce(
-        (total, status) => addPending(total, { ...emptyPending, ...(status.pending || {}) }),
-        emptyPending
-      );
-      setPending(combined);
+      const status = await apiJson<BundleStatus>(`${endpointFor(domain)}?${query}`);
+      setPending(addPending(emptyPending, { ...emptyPending, ...(status.pending || {}) }));
     } catch {
       setPending(emptyPending);
     }
-  }, [enabled, query, vaultUnlocked]);
+  }, [domain, enabled, query]);
 
   // A run only becomes eligible once it has been quiet for a while, so poll
   // gently alongside gallery changes rather than only on load.
@@ -81,13 +76,11 @@ export function useGalleryBundles({
     setGathering(new Set(pending.itemIds || []));
     try {
       const body = JSON.stringify({ mode: prefs.runGroupingMode || "smart", cooldownMinutes: Number(prefs.runCooldownMinutes ?? 5) });
-      // Both domains compact in parallel, alongside the gather animation
-      // rather than after it - waiting for everything in series left a hole
-      // on screen where the tiles used to be.
+      // Compacting runs alongside the gather animation rather than after it -
+      // waiting in series left a hole on screen where the tiles used to be.
       const requests: Promise<{ created: number; items: number; ids?: string[] }>[] = [
-        apiJson("/api/gallery/bundles/compact", { method: "POST", headers: { "content-type": "application/json" }, body })
+        apiJson(`${endpointFor(domain)}/compact`, { method: "POST", headers: { "content-type": "application/json" }, body })
       ];
-      if (vaultUnlocked) requests.push(apiJson("/api/vault/bundles/compact", { method: "POST", headers: { "content-type": "application/json" }, body }));
       const [results] = await Promise.all([
         Promise.all(requests),
         new Promise((resolve) => window.setTimeout(resolve, gatherDurationMs))
@@ -107,7 +100,7 @@ export function useGalleryBundles({
       setGathering(new Set());
       setBusy(false);
     }
-  }, [busy, pending.itemIds, pending.runs, prefs.runCooldownMinutes, prefs.runGroupingMode, refreshBundles, reloadGallery, showToast, vaultUnlocked]);
+  }, [busy, domain, pending.itemIds, pending.runs, prefs.runCooldownMinutes, prefs.runGroupingMode, refreshBundles, reloadGallery, showToast]);
 
   const setBundleCover = useCallback(async (domain: Domain, bundleId: string, itemId: string) => {
     try {

@@ -73,20 +73,8 @@
 .zen-prompt-actions .model-picker.is-density-compact .model-trigger .model-copy strong { max-width: 96px; }
 .zen-prompt-actions .model-picker.is-density-mini .model-trigger .model-copy strong { max-width: 58px; }
 
-/* --- Private / negative: icon-only fallbacks ----------------------------- */
+/* --- Negative: icon-only fallback ----------------------------- */
 
-.private-toggle.is-density-compact,
-.private-toggle.is-density-mini {
-  min-width: 40px;
-  width: 40px;
-  gap: 0;
-  padding: 0;
-  /* With the word gone the lock is the only thing carrying the state, so it
-     cannot sit at label brightness. */
-  color: hsl(var(--muted-foreground) / 1);
-}
-.private-toggle.is-density-compact .private-toggle-indicator,
-.private-toggle.is-density-mini .private-toggle-indicator { width: 18px; height: 18px; }
 .negative-toggle.is-density-compact,
 .negative-toggle.is-density-mini {
   width: 40px;

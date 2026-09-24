@@ -207,6 +207,8 @@ export type Preferences = {
   smartUpscale: boolean;
   upscaleQuality: UpscaleQuality;
   upscaleFaceDetail: boolean;
+  /** Minutes untouched before Hidden locks itself; 0 leaves it to the session. */
+  hiddenAutoLockMinutes: number;
   mobileZenDefaulted?: boolean;
 };
 
@@ -271,4 +273,15 @@ export type UpscaleDownloadPreview = {
   files: Array<{ key: string; file: string; label: string; detail?: string; bytes: number; partialBytes: number }>;
 };
 
-export type PrivacyStatus = { enabled: boolean; unlocked: boolean; cookieName?: string; vault?: { enabled: boolean; unlocked: boolean; assetCount: number } };
+export type HiddenPasskey = { id: string; name?: string; createdAt?: string; lastUsedAt?: string };
+/** Hidden, as this browser sees it. Locked, it learns nothing about what is inside. */
+export type PrivacyStatus = {
+  enabled: boolean;
+  unlocked: boolean;
+  cookieName?: string;
+  passkeys?: HiddenPasskey[];
+  vault?: { unlocked: boolean; revision: number };
+  readiness?: { outputDir: boolean; outputPath: string };
+  /** This browser is another device on the network, which has to unlock before anything else. */
+  remote?: boolean;
+};

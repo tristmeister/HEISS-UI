@@ -14,7 +14,7 @@ export function useGenerationActions(view: any) {
   const {
     active, canUseStartImage, confirmAction, count, currentProfile, denoise,
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
-    model, negative, prefs, privateGeneration, prompt, sampler, scheduler, seed, setActive, setGallery,
+    model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
     referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width
   } = view;
@@ -72,6 +72,8 @@ export function useGenerationActions(view: any) {
       showToast("Model setup is missing required files", "error");
       return;
     }
+    // Asked before anything is sent, so a Hidden prompt never runs in the open.
+    if (hiddenSpace && !hidden.ensureReady({ kind: "generate" })) return;
     generatePostingRef.current = true;
     const optimisticJobIds: string[] = [];
     try {
@@ -112,7 +114,7 @@ export function useGenerationActions(view: any) {
         referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
-        privateVault: Boolean(privateGeneration)
+        privateVault: Boolean(hiddenSpace)
       };
       const queuedJobs: string[] = [];
       for (let index = 0; index < imageRuns; index += 1) {
@@ -174,7 +176,7 @@ export function useGenerationActions(view: any) {
         }
       }));
       await (loadGalleryDelta ? loadGalleryDelta() : loadGallery());
-      if (prefs.zenMode && prefs.followLatest) {
+      if (prefs.zenMode && prefs.followLatest && !hiddenSpace) {
         const data = await apiJson<GalleryPayload>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=80`).catch(() => null);
         const outputs = payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled");
         const latest = outputs.find((item: GalleryItem) => item.type === mode && item.status === "done");
@@ -213,7 +215,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function clearGallery() {
-    if (!await confirmAction({"title": "Clear gallery?", "description": "Finished outputs will be removed from this app\u2019s gallery.", "action": "Clear gallery", "destructive": true})) return;
+    if (!await confirmAction({"title": "Clear gallery?", "description": "Finished outputs will be removed from this app\u2019s gallery. Hidden is not touched.", "action": "Clear gallery", "destructive": true})) return;
     const data = await apiJson<GalleryPayload>("/api/gallery/clear", { method: "POST" }).catch(() => null);
     const items = payloadItems(data);
     if (data) setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
@@ -261,7 +263,9 @@ export function useGenerationActions(view: any) {
   }
 
   async function deleteItem(item: GalleryItem, confirmed = false) {
-    if (!confirmed && !await confirmAction({"title": "Delete generation?", "description": "This output will be removed from your gallery.", "action": "Delete generation", "destructive": true})) return;
+    if (!confirmed && !await confirmAction(item.privateVault
+      ? {"title": "Delete from Hidden?", "description": "This image and its upscale are erased for good. There is no copy anywhere else.", "action": "Delete", "destructive": true}
+      : {"title": "Delete generation?", "description": "This output will be removed from your gallery.", "action": "Delete generation", "destructive": true})) return;
     galleryRemove([item.id, item.url].filter(Boolean));
     if (active?.id === item.id) setActive(null);
     const response = await fetch(`/api/gallery/${encodeURIComponent(item.id)}`, { method: "DELETE" }).catch(() => null);

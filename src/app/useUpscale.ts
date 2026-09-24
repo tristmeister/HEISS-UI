@@ -43,7 +43,6 @@ export function upscaleQualityLabel(quality = "balanced") {
 export type UpscaleNotice = { title: string; message: string; reason: string };
 
 const noticeTitles: Record<string, string> = {
-  private: "Private images cannot be upscaled yet",
   missing: "This image is gone from the server",
   video: "Only images can be upscaled",
   unfinished: "Still rendering",
@@ -292,15 +291,6 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
 
   const upscaleItem = useCallback(async (item: GalleryItem) => {
     if (!canUpscaleItem(item) || item.upscale?.status === "running") return;
-    // Known before asking anyone, and no setup would change it.
-    if (item.privateVault) {
-      setNotice(item.id, {
-        reason: "private",
-        title: noticeTitles.private,
-        message: "They exist only encrypted in the vault, and smart upscale works on the regular gallery, where it would save the result unencrypted."
-      });
-      return;
-    }
     markBusy(item.id, true);
     const current = await refreshStatus(prefs.upscaleQuality || "balanced");
     markBusy(item.id, false);

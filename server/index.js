@@ -149,7 +149,9 @@ async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
     unlocked,
     // Nothing about what Hidden holds is shared with a locked browser, not even whether it is empty.
     vault: { unlocked, revision: unlocked ? vaultRevision() : 0 },
-    readiness: await hiddenReadiness()
+    readiness: await hiddenReadiness(),
+    // Another device on the network signs in with the Hidden password before it sees anything.
+    remote: !isLocalClient(req.socket?.remoteAddress || "")
   };
 }
 

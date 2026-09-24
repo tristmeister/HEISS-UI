@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { apiJson } from './api';
 import { sortGalleryItems } from './gallery';
 import type { GalleryItem, Mode } from './types';
@@ -37,7 +37,8 @@ type GalleryAction =
   | { type: "removeWhere"; predicate: (item: GalleryItem) => boolean; revision?: number }
   | { type: "patch"; update: (item: GalleryItem) => GalleryItem; revision?: number }
   | { type: "replace"; items: GalleryItem[]; revision?: number }
-  | { type: "loaded" };
+  | { type: "loaded" }
+  | { type: "clear" };
 
 const initialState: GalleryState = {
   itemsById: {},
@@ -78,6 +79,7 @@ function mergeItems(current: Record<string, GalleryItem>, items: GalleryItem[]) 
 
 function galleryReducer(state: GalleryState, action: GalleryAction): GalleryState {
   if (action.type === "loaded") return { ...state, loaded: true };
+  if (action.type === "clear") return initialState;
   if (action.type === "reset") {
     const pageItems = action.page.items || action.page.outputs || [];
     const pageItemsById = mergeItems({}, pageItems);
@@ -172,18 +174,33 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
   return state;
 }
 
-export function useGalleryStore({ mode, showFailedItems }: { mode: Mode; showFailedItems: boolean }) {
+export type GallerySpace = "gallery" | "hidden";
+
+export function useGalleryStore({ mode, showFailedItems, space = "gallery" }: { mode: Mode; showFailedItems: boolean; space?: GallerySpace }) {
   const [state, dispatch] = useReducer(galleryReducer, initialState);
   const includeFailed = showFailedItems ? "1" : "0";
+  const hidden = space === "hidden";
+  // Moving between the gallery and Hidden starts from nothing, and a page still
+  // on its way from the space just left is dropped when it lands.
+  const spaceRef = useRef(space);
+  useEffect(() => {
+    if (spaceRef.current === space) return;
+    spaceRef.current = space;
+    dispatch({ type: "clear" });
+  }, [space]);
 
   const gallery = useMemo(() => state.sortedIds.map((id) => state.itemsById[id]).filter(Boolean), [state.itemsById, state.sortedIds]);
   const visibleGallery = gallery;
 
   const loadGallery = useCallback(async () => {
-    const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}`);
+    // Hidden is its own list; a locked session gets nothing back and shows the lock instead.
+    const page = hidden
+      ? await apiJson<GalleryPage>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`).catch(() => ({ items: [], revision: 0 }))
+      : await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}`);
+    if (spaceRef.current !== space) return page;
     dispatch({ type: "reset", page });
     return page;
-  }, [includeFailed, mode]);
+  }, [hidden, includeFailed, mode, space]);
 
   const loadMoreGalleryItems = useCallback(async () => {
     if (!state.hasMore || !state.nextCursor) return;
@@ -193,13 +210,19 @@ export function useGalleryStore({ mode, showFailedItems }: { mode: Mode; showFai
 
   const loadGalleryDelta = useCallback(async () => {
     if (!state.revision) return loadGallery();
+    if (hidden) {
+      const page = await apiJson<GalleryPage & { unchanged?: boolean }>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}&since=${state.revision}`).catch(() => null);
+      if (page && !page.unchanged && spaceRef.current === space) dispatch({ type: "reset", page });
+      return page;
+    }
     const delta = await apiJson<GalleryDelta>(`/api/gallery/delta?since=${state.revision}&type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`);
+    if (spaceRef.current !== space) return delta;
     if (delta.reset) return loadGallery();
     if (delta.removes?.length) dispatch({ type: "remove", keys: delta.removes, revision: delta.revision });
     if (delta.upserts?.length) dispatch({ type: "upsert", items: delta.upserts, revision: delta.revision });
     if (!delta.removes?.length && !delta.upserts?.length) dispatch({ type: "upsert", items: [], revision: delta.revision });
     return delta;
-  }, [includeFailed, loadGallery, mode, state.revision]);
+  }, [hidden, includeFailed, loadGallery, mode, space, state.revision]);
 
   const setGallery = useCallback((next: GalleryItem[] | ((current: GalleryItem[]) => GalleryItem[])) => {
     const items = typeof next === "function" ? next(gallery) : next;

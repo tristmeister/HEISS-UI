@@ -45,7 +45,7 @@ The node graph is great for building workflows and less great for the everyday l
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
 - **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works. Queue the next one, cancel any time.
 - **Image and video.** Separate galleries, plus start-image reuse wherever the workflow supports it.
-- **Private Vault.** An opt-in switch per generation that encrypts the output, prompt and settings behind a password.
+- **Hidden.** A locked place for the images you keep to yourself: generate into it or hide anything later, unlock with Touch ID, Windows Hello or a password, and upscale, compare and remix inside it. [More ↓](#configuration)
 - **Upscale and compare.** Send an image through an upscale workflow, then drag a slider across it to see what changed.
 - **LoRA stacks.** Your LoRAs, grouped by folder, stackable per generation.
 - **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
@@ -151,18 +151,27 @@ HEISS_DATA_DIR=./data
 COMFY_OUTPUT_DIR=
 ```
 
-`COMFY_OUTPUT_DIR` is optional for the normal gallery and required for the Private Vault.
+`COMFY_OUTPUT_DIR` is optional; HEISS finds the folder by itself in most setups. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
 
 <details>
-<summary><b>Private Vault</b></summary>
+<summary><b>Hidden</b></summary>
 
 <br />
 
-Set a privacy password in Settings, configure `COMFY_OUTPUT_DIR`, then use the **Private** switch next to the prompt.
+Hidden is a place for the images you would rather keep to yourself. Open it from the lock in the dock; the first time, it walks you through a password and, where the browser supports it, Touch ID or Windows Hello.
 
-HEISS UI encrypts the original, the gallery preview, the prompt, the settings and the asset key in a hidden data directory. Locked browsers only see anonymous placeholders. After you enter the password, items are decrypted and streamed with no-store cache headers. Downloading is always an explicit action.
+- **Generate straight into it.** Anything you make while Hidden is open renders there, with the same live previews, and never lands in the gallery.
+- **Hide anything, any time.** The eye on a tile (or in the viewer) moves an image into Hidden, or back out.
+- **Everything still works.** Upscale, compare, remix, reuse as a reference and video all work inside Hidden, and what you make from a Hidden image stays hidden.
+- **Locked means nothing shows.** Not a thumbnail, not a count. It locks itself after a while untouched (Settings › Hidden), or right away with **Lock**.
 
-ComfyUI necessarily writes a working file while it generates. HEISS UI encrypts and removes that file once the job completes. That keeps things out of casual view in Finder or Explorer, but it's not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
+Each image, its prompt, settings and upscale are encrypted with AES-256-GCM under a random key, in a hidden data folder. That key is wrapped by your password (scrypt) and by each passkey through the WebAuthn PRF extension, so Touch ID and Windows Hello really are keys, not a yes/no in front of one. The normal gallery is not affected by any of this, locked or not.
+
+Passkeys need the page at `localhost` (not `127.0.0.1`) or over HTTPS, and a browser with PRF support (current Chrome, Edge and Safari). Everywhere else, the password works.
+
+ComfyUI necessarily writes a working file while it renders. HEISS encrypts it and removes it when the run finishes, along with the run's entry in ComfyUI's history and any image it was handed. That needs ComfyUI's output folder, which HEISS finds by itself or asks for. It keeps things out of casual view, but it is not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
+
+There is no password reset. If the password and every passkey are lost, **Erase Hidden** in Settings is the only way to start over, and it takes everything in Hidden with it.
 
 </details>
 

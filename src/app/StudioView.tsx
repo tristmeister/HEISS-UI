@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Toaster } from 'sonner';
-import { BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, GalleryHorizontalEnd, ImagePlus, Layers, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
@@ -19,10 +19,15 @@ import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownlo
 import { FailurePanel } from './GenerationFailure';
 import { ModelDownloadWidget, useModelDownloadWidget } from './ModelDownloadWidget';
 import { WorkflowGallery } from './WorkflowGallery';
-import { Modal } from './Modal';
+import { HiddenLockScreen, HiddenUnlockSheet } from './HiddenLock';
+import { HiddenSetupDialog } from './HiddenSetup';
+import { HiddenActionsContext } from './hiddenContext';
+import { PixelCurtain } from './PixelCurtain';
+import { downloadUrl } from './GalleryTile';
 import { OfflineMark } from './OfflineMark';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import type { GalleryItem } from './types';
+import type { HiddenState } from './useHidden';
 
 function comfyStatusLabel(status: any) {
   if (status?.checking) return "Checking ComfyUI...";
@@ -45,9 +50,44 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs, referenceStrength } = view;
+  const hidden = view.hidden as HiddenState;
+  // Hidden, locked (or mid-unlock): the lock takes the gallery's place.
+  const hiddenLocked = hiddenSpace && (!hidden.unlocked || hidden.unlockStage === "opening");
+  // Stable across renders, so the memoised tiles do not all redraw when anything changes.
+  const hideRef = React.useRef(hideItems);
+  const unhideRef = React.useRef(unhideItems);
+  hideRef.current = hideItems;
+  unhideRef.current = unhideItems;
+  const hiddenActions = React.useMemo(() => ({
+    space: hidden.space,
+    hide: (items: GalleryItem[]) => hideRef.current(items),
+    unhide: (items: GalleryItem[]) => unhideRef.current(items)
+  }), [hidden.space]);
+  // Where the curtain between the gallery and Hidden burns out from: the lock that was pressed.
+  const curtainOrigin = React.useRef<{ x: number; y: number } | null>(null);
+  const curtainTrigger = `${hidden.space}|${hiddenLocked ? "shut" : "open"}`;
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => { curtainOrigin.current = null; }, 900);
+    return () => window.clearTimeout(timer);
+  }, [curtainTrigger]);
+  const toggleHiddenSpace = (event: React.MouseEvent<HTMLElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    curtainOrigin.current = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    if (hiddenSpace) { hidden.setSpace("gallery"); return; }
+    hidden.setSpace("hidden");
+    if (!hidden.enabled) { hidden.ensureReady({ kind: "enter" }); return; }
+    // Straight from the click, so the system's Touch ID sheet is allowed to show.
+    if (!hidden.unlocked && hidden.hasPasskey && hidden.support?.available) hidden.unlockBiometric();
+  };
+  const hiddenCount = hiddenSpace ? renderedGallery.filter((item: GalleryItem) => item.status === "done").length : 0;
+  const hiddenLockScreen = (
+    <AnimatePresence>
+      {hiddenLocked ? <HiddenLockScreen key="lock" hidden={hidden} onLeave={() => hidden.setSpace("gallery")} onSetup={() => hidden.ensureReady({ kind: "enter" })} /> : null}
+    </AnimatePresence>
+  );
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
   const [settingsSection, setSettingsSection] = React.useState<SettingsSection>("general");
   const openSettings = React.useCallback((section?: SettingsSection) => {
@@ -107,6 +147,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </AnimatePresence>
       </div>
       <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
+      <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden" : "Hidden · locked" : "Hidden: keep images to yourself"}>
+        <button
+          data-hidden-dock
+          className={cn("icon-button hidden-dock-button", hiddenSpace && "active", hidden.enabled && hidden.unlocked && "is-open")}
+          aria-label={hiddenSpace ? "Leave Hidden" : "Open Hidden"}
+          aria-pressed={hiddenSpace}
+          onClick={toggleHiddenSpace}
+        >
+          <LockKeyhole size={16} />
+        </button>
+      </Tip>
       <Tip content="Workflow Gallery"><button className="icon-button" aria-label="Workflow Gallery" onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={16} /></button></Tip>
       <Tip content="Settings"><button className="icon-button" aria-label="Settings" onClick={() => setSettings(true)}><Settings size={16} /></button></Tip>
       {prefs.zenMode ? (
@@ -116,13 +167,32 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       )}
     </div>
   );
+  const hiddenBar = (
+    <AnimatePresence>
+      {hiddenSpace && !hiddenLocked ? (
+        <motion.div
+          key="hidden-bar"
+          className="hidden-bar"
+          initial={{ opacity: 0, y: -10, scale: 0.97 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -8, scale: 0.97 }}
+          transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
+        >
+          <Tip content="Back to the gallery"><button type="button" data-hidden-exit className="hidden-bar-back" aria-label="Back to the gallery" onClick={toggleHiddenSpace}><ArrowLeft size={14} /></button></Tip>
+          <span className="hidden-bar-title"><LockKeyhole size={13} /> Hidden{hiddenCount ? <i><AnimatedNumber value={hiddenCount} /></i> : null}</span>
+          <Tip content="Lock Hidden now"><button type="button" className="hidden-bar-lock" onClick={() => hidden.lock(true)}><Lock size={12} /> Lock</button></Tip>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  );
   return (
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
-    <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open")}>
+    <HiddenActionsContext.Provider value={hiddenActions}>
+    <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked")}>
       {prefs.zenMode ? (
         <>
           <div className="zen-stage">
-            {zenDisplayItem ? (
+            {hiddenLocked ? null : zenDisplayItem ? (
               <button
                 className={cn("zen-output", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging", zenDisplayItem.status === "pending" && "is-pending")}
                 onClick={() => {
@@ -185,11 +255,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <div className="zen-empty skeleton-stage">
                 <Skeleton className="skeleton-logo" />
               </div>
+            ) : hiddenSpace ? (
+              <div className="zen-empty hidden-empty">
+                <LockKeyhole size={28} />
+                <p>Nothing hidden yet</p>
+              </div>
             ) : (
               <div className="zen-empty">
                 <img src="/heiss-mark-white.svg" alt="HEISS UI" />
               </div>
             )}
+            {hiddenLockScreen}
             <div className="zen-fade" />
             <div className="bottom-fade" />
           </div>
@@ -222,12 +298,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             </button></Tip>
           ) : null}
           {studioDock}
+          {hiddenBar}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
           <aside data-open-surface className={cn("zen-controls", zenControls && "open")}>
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} value={prompt} placeholder="Describe what to make..." onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately..." : "Describe what to make..."} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
@@ -265,11 +342,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               countMeta={countMeta}
               setCount={setCount}
               loraActiveCount={loraActiveCount}
-              privateGeneration={privateGeneration}
-              onPrivacySetup={() => openSettings("privacy")}
+              hiddenSpace={Boolean(hiddenSpace)}
               onOpenLoras={view.openLoras}
-              privacyEnabled={Boolean(privacyStatus?.enabled)}
-              setPrivateGeneration={setPrivateGeneration}
               showNegativePrompt={showNegativePrompt}
               setShowNegativePrompt={setShowNegativePrompt}
               canUseNegativePrompt={canUseNegativePrompt}
@@ -287,7 +361,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onReferenceError={(message) => showToast(message, "error")}
             />
           </section>
-          {zenGallery.length && zenGalleryOpen ? (
+          {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
             <div data-open-surface className="zen-gallery-wrap">
               <Tip content="Hide gallery"><button className="zen-gallery-toggle" aria-label="Hide gallery" onClick={() => setZenGalleryOpen(false)}><ChevronUp size={16} /></button></Tip>
               {zenGallery[0]?.id !== zenItem?.id ? <Tip content="Jump to latest output"><button className="zen-latest" onClick={goLatestZen}>Latest</button></Tip> : null}
@@ -312,7 +386,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       ) : (
         <>
           <main ref={galleryStageRef} className="stage-gallery" onScroll={onGalleryScroll}>
-          {!galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
+          {hiddenLocked ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
             <VirtualMasonryGallery
               cancelJob={cancelJob}
               expandedBundles={expandedBundles}
@@ -345,6 +419,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                 <button className="reconnect-btn" onClick={() => openSettings("connection")}><Plug size={13} /> Connection settings</button>
               </div>
             </div></section>
+          ) : hiddenSpace ? (
+            <section className="gallery"><div className="empty hidden-empty">
+              <span className="hidden-empty-mark"><LockKeyhole size={26} /></span>
+              <h2>Nothing hidden yet</h2>
+              <p>Generate here and it goes straight in, or hide an image from the gallery with <EyeOff size={13} className="inline-icon" /> on its tile.</p>
+            </div></section>
           ) : (
             <section className="gallery"><div className="empty">
               <img src="/heiss-mark-black.svg" alt="HEISS UI" />
@@ -352,7 +432,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <p>Start with a prompt. Your creations will appear here.</p>
             </div></section>
           )}
-            {galleryLoaded && hasMoreGallery ? (
+            {hiddenLockScreen}
+            {galleryLoaded && hasMoreGallery && !hiddenSpace ? (
               <button className="gallery-load-more" onClick={loadMoreGalleryItems}>
                 Load more
               </button>
@@ -360,6 +441,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div className="bottom-fade" />
           </main>
           {studioDock}
+          {hiddenBar}
           <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
@@ -368,7 +450,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} value={prompt} placeholder="Describe what to make..." onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately..." : "Describe what to make..."} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
@@ -406,11 +488,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               countMeta={countMeta}
               setCount={setCount}
               loraActiveCount={loraActiveCount}
-              privateGeneration={privateGeneration}
-              onPrivacySetup={() => openSettings("privacy")}
+              hiddenSpace={Boolean(hiddenSpace)}
               onOpenLoras={view.openLoras}
-              privacyEnabled={Boolean(privacyStatus?.enabled)}
-              setPrivateGeneration={setPrivateGeneration}
               showNegativePrompt={showNegativePrompt}
               setShowNegativePrompt={setShowNegativePrompt}
               canUseNegativePrompt={canUseNegativePrompt}
@@ -444,36 +523,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       />
       <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
       <ModelDownloadWidget widget={modelWidget} hidden={upscaleWidget.visible || workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
-      {privacyStatus?.enabled && !privacyStatus.unlocked && !privacyGateDismissed && !settings ? (
-        <Modal
-          open
-          onOpenChange={(open) => { if (!open) view.continueWithoutPrivacy(); }}
-          size="alert"
-          busy={privacyBusy}
-          hideClose
-          icon={<LockKeyhole size={17} />}
-          title="Unlock HEISS UI"
-          description="Enter the privacy password to decrypt prompts and private items, or continue to the normal gallery."
-          footer={
-            <>
-              <button className="btn" onClick={view.continueWithoutPrivacy} disabled={privacyBusy}>View normal gallery</button>
-              <button className="btn is-primary" onClick={unlockPrivacy} disabled={privacyBusy || !privacyPassword}>{privacyBusy ? "Unlocking…" : "Unlock"}</button>
-            </>
-          }
-        >
-          <input
-            className="modal-input"
-            type="password"
-            autoComplete="current-password"
-            value={privacyPassword}
-            placeholder="Privacy password"
-            aria-label="Privacy password"
-            onChange={(event) => setPrivacyPassword(event.target.value)}
-            onKeyDown={(event) => { if (event.key === "Enter") unlockPrivacy(); }}
-            autoFocus
-          />
-        </Modal>
-      ) : null}
+      <HiddenSetupDialog hidden={hidden} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { hidden.setSetupOpen(false); openSettings("library"); }} />
+      <HiddenUnlockSheet hidden={hidden} />
+      <PixelCurtain trigger={curtainTrigger} origin={curtainOrigin.current} />
       {active ? (() => {
         const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
         const hasNeighbors = viewerItems.length > 1;
@@ -622,8 +674,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       </button>
                     </Tip>
                   ) : null}
-                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download file"}><a className="icon-button" aria-label="Download file" href={upscaleDisplayUrl(active)} download><Download size={15} /></a></Tip> : null}
-                  <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label="Delete from gallery" onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
+                  {active.status === "done" && active.url ? (
+                    active.privateVault
+                      ? <Tip content="Put back in the gallery"><button className="icon-button" aria-label="Unhide" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
+                      : <Tip content="Hide"><button className="icon-button" aria-label="Hide" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
+                  ) : null}
+                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download file"}><a className="icon-button" aria-label="Download file" href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
+                  <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label={active.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />
                   <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>
                   <Tip content="Close (Esc)"><button className="icon-button" aria-label="Close" onClick={() => setActive(null)}><X size={16} /></button></Tip>
@@ -638,6 +695,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           inside it sits under every portaled dialog and its blurred scrim. */}
       {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={downloadWidget.visible ? { top: 88 } : undefined} mobileOffset={downloadWidget.visible ? { top: 80 } : undefined} />, document.body)}
     </div>
+    </HiddenActionsContext.Provider>
     </GenerationPreviewMode.Provider>
   );
 }

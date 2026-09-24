@@ -55,7 +55,7 @@ const OUTLINE = (() => {
 
 const BLOCK = 4;
 
-function hash(x: number, y: number) {
+export function hash(x: number, y: number) {
   let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
@@ -68,7 +68,7 @@ function noise(x: number, y: number) {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 /** The site's chrome flow, cheapened for the CPU: warped noise folded into soft bands. */
-function field(x: number, y: number, t: number) {
+export function field(x: number, y: number, t: number) {
   const q = noise(x * 0.06 + t * 0.05, y * 0.08 - t * 0.02);
   const n = noise(x * 0.045 + q * 2.4 - t * 0.03, y * 0.07 + t * 0.02) * 0.7 + noise(x * 0.19, y * 0.19 + t * 0.06) * 0.3;
   const band = 0.5 + 0.5 * Math.sin(n * 9 + q * 3.2 - t * 0.45);

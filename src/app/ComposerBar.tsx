@@ -167,25 +167,14 @@ function GenerateButton({ children, className, disabled, onClick, "aria-label": 
   );
 }
 
-function PrivateToggle({ active, enabled, onChange, onSetup, density = "full" }: { active: boolean; enabled: boolean; onChange: () => void; onSetup?: () => void; density?: ControlDensity }) {
-  const isActive = active && enabled;
-  const label = isActive ? "Private mode on" : "Private mode off";
+/** Where this generation lands, shown only in Hidden: a quiet ember chip, not a switch. */
+function HiddenChip({ density = "full" }: { density?: ControlDensity }) {
   return (
-    <Tip content={enabled ? active ? "This generation will be encrypted in Private Vault" : "Store this generation normally" : "Set up Private Vault in Settings"}>
-      <button
-        type="button"
-        className={cn("private-toggle", isActive && "is-private", density !== "full" && `is-density-${density}`)}
-        aria-label={label}
-        aria-pressed={isActive}
-        aria-disabled={!enabled || undefined}
-        onClick={enabled ? onChange : onSetup}
-      >
-        <span className="private-toggle-indicator" aria-hidden="true">
-          <LockKeyhole size={13} strokeWidth={2} />
-          <span className="private-toggle-slash" />
-        </span>
-        {density === "full" ? <span>Private</span> : null}
-      </button>
+    <Tip content="Generations made here go straight into Hidden, encrypted">
+      <span className={cn("hidden-chip", density !== "full" && `is-density-${density}`)} role="status" aria-label="Generating into Hidden">
+        <LockKeyhole size={12} strokeWidth={2.2} aria-hidden="true" />
+        {density === "full" ? <span>Hidden</span> : null}
+      </span>
     </Tip>
   );
 }
@@ -219,11 +208,8 @@ export type ComposerBarProps = {
   countMeta: Record<string, number>;
   setCount: (value: number) => void;
   loraActiveCount: number;
-  privateGeneration: boolean;
-  privacyEnabled: boolean;
-  onPrivacySetup?: () => void;
+  hiddenSpace: boolean;
   onOpenLoras?: () => void;
-  setPrivateGeneration: (updater: (value: boolean) => boolean) => void;
   showNegativePrompt: boolean;
   setShowNegativePrompt: (updater: (value: boolean) => boolean) => void;
   canUseNegativePrompt: boolean;
@@ -247,7 +233,7 @@ export function ComposerBar(props: ComposerBarProps) {
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
-    privateGeneration, privacyEnabled, onPrivacySetup, onOpenLoras, setPrivateGeneration,
+    hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
     referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
@@ -256,7 +242,7 @@ export function ComposerBar(props: ComposerBarProps) {
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
   const displayCount = showVariants ? count : 1;
   const workflowName = currentProfile?.displayName || currentProfile?.label || "";
-  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, privacyEnabled, canUseNegativePrompt, Boolean(models)].join("|");
+  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, hiddenSpace, canUseNegativePrompt, Boolean(models)].join("|");
   const { rowRef, plan, level } = useDensityLevel(contentKey);
   useComposerHeightVar(rowRef);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -302,19 +288,11 @@ export function ComposerBar(props: ComposerBarProps) {
     </Tip>
   ) : null;
 
-  const privateToggle = (density: ControlDensity) => (
-    <PrivateToggle
-      active={privateGeneration}
-      enabled={privacyEnabled}
-      onChange={() => setPrivateGeneration((value: boolean) => !value)}
-      onSetup={onPrivacySetup}
-      density={density}
-    />
-  );
+  const privateToggle = (density: ControlDensity) => hiddenSpace ? <HiddenChip density={density} /> : null;
 
   const CONTROLS: Array<[ControlId, string, (density: ControlDensity) => React.ReactNode]> = [
     ["workflow", "Workflow", workflowPicker],
-    ["private", "Private", privateToggle],
+    ["private", "Hidden", privateToggle],
     ["aspect", "Aspect ratio", aspectPicker],
     ["size", "Size", sizePickers],
     ["variants", "Variants", variantsPicker],

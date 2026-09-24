@@ -11,6 +11,15 @@ section into the next version and uses it as the GitHub release notes.
 ## [Unreleased]
 
 ### Added
+- Hidden replaces Private Vault. It is a place, not a switch: open it from
+  the lock in the dock, generate straight into it, or hide any finished
+  image with the eye on its tile and bring it back the same way. Upscale,
+  compare, remix and reuse all work inside it. It unlocks with Touch ID or
+  Windows Hello (WebAuthn PRF) as well as the password, shows nothing at all
+  while locked, and locks itself after a while untouched. Setup walks
+  through password and biometrics with its own animated hero, and the
+  settings page manages passkeys, the password, auto-lock, export, an
+  encrypted backup and a full erase.
 - One-click updates for downloaded releases. **Install update** in
   Settings › About downloads the new release, checks it against its
   published SHA-256 and swaps it in on **Restart now**, then reloads the page.
@@ -18,6 +27,23 @@ section into the next version and uses it as the GitHub release notes.
   previous version is kept, and a new version that does not start is rolled
   back by itself, with a note in Settings saying so. Copies from 0.3.0 and
   earlier need one manual download to get this.
+
+### Changed
+- The Hidden password no longer touches the normal gallery: prompts are
+  stored as before, generating never waits for an unlock, and prompts sealed
+  by the old scheme open back up on the first unlock. Existing Private Vault
+  items and passwords carry over as they are.
+
+### Fixed
+- Clearing the gallery while the vault was locked deleted the files and then
+  failed without a word.
+- Finished private jobs handed out their per-file keys to any caller for
+  five minutes.
+- ComfyUI kept the full prompt of private runs in its history, and plaintext
+  copies of private images used as references in its input folder.
+- Private prompts leaked through tile titles and the workflow card's
+  thumbnail; a locked session could not delete anything.
+- Run grouping only applied once a vault existed.
 
 ## [0.3.0] - 2026-09-24
 

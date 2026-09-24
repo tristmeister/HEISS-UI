@@ -18,7 +18,8 @@ export const defaultPrefs: Preferences = {
   runCooldownMinutes: 1,
   smartUpscale: true,
   upscaleQuality: "balanced",
-  upscaleFaceDetail: false
+  upscaleFaceDetail: false,
+  hiddenAutoLockMinutes: 15
 };
 
 export const galleryInitialBatch = 72;

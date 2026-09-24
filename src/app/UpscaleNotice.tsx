@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
-import { LockKeyhole, TriangleAlert, X } from 'lucide-react';
+import { TriangleAlert, X } from 'lucide-react';
 import { cn } from './format';
 import type { UpscaleNotice } from './useUpscale';
 
@@ -44,13 +44,13 @@ export function UpscaleNoticePopover({ notice, onDismiss, placement }: {
   }, [notice]);
 
   const stop = (event: React.SyntheticEvent) => event.stopPropagation();
-  const Icon = notice.reason === 'private' ? LockKeyhole : TriangleAlert;
+  const Icon = TriangleAlert;
   const from = placement === 'tile' ? -6 : 6;
 
   return (
     <motion.span
       ref={ref}
-      className={cn('upscale-notice', `is-${placement}`, notice.reason === 'private' && 'is-private')}
+      className={cn('upscale-notice', `is-${placement}`)}
       role="alert"
       initial={reduced ? { opacity: 0 } : { opacity: 0, y: from, scale: 0.97 }}
       animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}

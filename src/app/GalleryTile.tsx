@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Copy, Download, LockKeyhole, Loader2, Trash2 } from 'lucide-react';
+import { Copy, Download, Eye, EyeOff, Loader2, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
@@ -10,6 +10,7 @@ import type { GalleryItem } from './types';
 import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleNoticePopover } from './UpscaleNotice';
+import { useHiddenActions } from './hiddenContext';
 import type { UpscaleNotice } from './useUpscale';
 
 type GalleryTileProps = {
@@ -30,6 +31,12 @@ type GalleryTileProps = {
   upscaleNotice?: UpscaleNotice;
   onDismissUpscaleNotice?: (id: string) => void;
 };
+
+/** Hidden files are served inline; asking for an attachment gets them a real file name. */
+export function downloadUrl(item: GalleryItem) {
+  const url = upscaleDisplayUrl(item) || "";
+  return item.privateVault ? `${url}${url.includes("?") ? "&" : "?"}download=1` : url;
+}
 
 function upscaleTooltip(item: GalleryItem) {
   const state = item.upscale;
@@ -94,8 +101,11 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   const prefersReducedMotion = useReducedMotion();
   const isEntering = !mountedRef.current && (Date.now() - Date.parse(item.createdAt || "")) < 2000;
   useEffect(() => { mountedRef.current = true; }, []);
+  const hiddenActions = useHiddenActions();
+  const canMove = item.status === "done" && Boolean(item.url) && Boolean(hiddenActions);
   return (
     <motion.div
+      data-tile-id={item.id}
       className={cn("tile-motion-wrap", gathering && "is-gathering")}
       style={{ width, height, "--gather-delay": `${Math.min(gatherIndex, 6) * 14}ms` } as React.CSSProperties}
       initial={prefersReducedMotion || !isEntering ? false : { opacity: 0, y: -18, scale: 0.965 }}
@@ -107,7 +117,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
       }}
     >
       <button className={cn("tile", item.status)} style={{ width: "100%", height: "100%" } as React.CSSProperties} onClick={() => item.status !== "pending" && openItem(item)}>
-        {!item.vaultLocked && (item.status === "pending" || item.status === "done") ? (
+        {item.status === "pending" || item.status === "done" ? (
           <GenerationMedia item={item} muted>
           <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
             <div className="generate-overlay">
@@ -135,19 +145,24 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
             </div>
           </div>
           </GenerationMedia>
-        ) : item.vaultLocked ? <div className="generating stopped vault-locked"><LockKeyhole size={22} /><span>Private item</span></div> : item.status === "error" ? <FailureTile item={item} /> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
+        ) : item.status === "error" ? <FailureTile item={item} /> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
         <span className="tile-caption">
-          <strong>{item.vaultLocked ? "Private item" : titleFromPrompt(item.prompt || item.filename)}</strong>
-          <em>{item.vaultLocked ? "Unlock to view" : item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.status === "error" ? "Failed" : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
+          <strong>{titleFromPrompt(item.prompt || item.filename)}</strong>
+          <em>{item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.status === "error" ? "Failed" : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
         {item.status === "pending" ? <Tip content="Cancel generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Cancel</span></Tip> : null}
-        {item.status !== "pending" && !item.vaultLocked ? (
+        {item.status !== "pending" ? (
           <span className="tile-hover-actions" onPointerDown={(event) => event.stopPropagation()}>
-            {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={upscaleDisplayUrl(item)} download onClick={(event) => event.stopPropagation()}><Download size={13} /></a></Tip> : null}
+            {canMove ? (
+              item.privateVault
+                ? <Tip content="Put back in the gallery" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Unhide" onClick={(event) => { event.stopPropagation(); hiddenActions!.unhide([item]); }}><Eye size={14} /></span></Tip>
+                : <Tip content="Hide" side="left"><span className="tile-icon tile-hide" role="button" aria-label="Hide" onClick={(event) => { event.stopPropagation(); hiddenActions!.hide([item]); }}><EyeOff size={14} /></span></Tip>
+            ) : null}
+            {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={(event) => event.stopPropagation()}><Download size={13} /></a></Tip> : null}
             {item.status === "done" ? <Tip content="Copy prompt" side="left"><span className="tile-icon" role="button" aria-label="Copy prompt" onClick={(event) => { event.stopPropagation(); copyPromptAndToast(item); }}><Copy size={14} /></span></Tip> : null}
-            <Tip content="Delete from gallery" side="left"><span className="tile-delete" role="button" aria-label="Delete from gallery" onClick={(event) => { event.stopPropagation(); deleteItem(item); }}><Trash2 size={14} /></span></Tip>
+            <Tip content={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} side="left"><span className="tile-delete" role="button" aria-label={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={(event) => { event.stopPropagation(); deleteItem(item); }}><Trash2 size={14} /></span></Tip>
           </span>
         ) : null}
       </button>

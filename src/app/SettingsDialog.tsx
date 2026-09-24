@@ -10,13 +10,14 @@ import { MosaicButton } from './MosaicButton';
 import { apiJson } from './api';
 import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
+import { HiddenSettings } from './HiddenSettings';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and the values new workflows start from.' },
   { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'A one-click SeedVR2 restore pass behind the arrow on finished images.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where outputs live and how the gallery groups them.' },
-  { id: 'privacy', label: 'Privacy', icon: LockKeyhole, description: 'Encrypt prompts and private generations behind a password.' },
+  { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and opened with a password, Touch ID or Windows Hello.' },
   { id: 'connection', label: 'Connection', icon: Plug, description: 'ComfyUI, installed models and other devices on your network.' },
   { id: 'about', label: 'About', icon: Info, description: 'Version, your numbers, updates and credits.' }
 ] as const;
@@ -230,7 +231,7 @@ const fileCount = (report: OutputFolderReport) => {
 function describeFolder(report: OutputFolderReport | null): { tone?: 'ok' | 'warn' | 'bad'; label: string; detail: string } {
   if (!report) return { label: 'Checking…', detail: '' };
   switch (report.state) {
-    case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Gens still show up, but HEISS UI cannot delete their files or use Private Vault until it knows this folder.' };
+    case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Gens still show up, but HEISS UI cannot delete their files, or remove ComfyUI\'s copy of what goes into Hidden, until it knows this folder.' };
     case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'Nothing exists at that path on this computer.' };
     case 'not-folder': return { tone: 'bad', label: 'Not a folder', detail: 'That path points at a file.' };
     case 'mismatch': return { tone: 'warn', label: 'Your gens are not here', detail: `None of your last ${report.checked} gens are in this folder (${fileCount(report)}). ComfyUI is probably saving somewhere else. Try Find automatically.` };
@@ -389,8 +390,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
     gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
-    privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
-    setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
+    hidden,
     health, refreshHealth, models, refreshModels, refreshWorkflows,
     updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, workflows, modelProfiles
   } = view;
@@ -466,7 +466,6 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     }
   }, [copyAndToast, showToast]);
 
-  const privacyState: 'off' | 'locked' | 'unlocked' = !privacyStatus?.enabled ? 'off' : privacyStatus.unlocked ? 'unlocked' : 'locked';
   const upscaleOn = prefs.smartUpscale !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
@@ -574,7 +573,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'library' ? (
           <>
-            <Group title="Folders" note="The output folder is where ComfyUI saves files. HEISS UI uses it to delete files with their cards and for Private Vault, and checks it against your recent gens.">
+            <Group title="Folders" note="The output folder is where ComfyUI saves files. HEISS UI uses it to delete files with their cards, to clear ComfyUI's copies of what goes into Hidden, and checks it against your recent gens.">
               <OutputFolderRow
                 savedDir={paths.outputDir || ''}
                 galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
@@ -587,7 +586,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Reload</button>
               </Row>
             </Group>
-            <Group title="Runs" note="Grouping is exact and local, never similarity matching. Private outputs only group with each other, inside the vault.">
+            <Group title="Runs" note="Grouping is exact and local, never similarity matching. Hidden images only group with each other, inside Hidden.">
               <SwitchRow label="Group generation runs" description="Collapse a burst of related outputs into one stack you can open in place." checked={prefs.groupRuns !== false} onChange={(next) => setPrefs({ groupRuns: next })} />
               {prefs.groupRuns !== false ? (
                 <>
@@ -605,64 +604,15 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>
               </Row>
-              <Row label="Export gallery" description={privacyState === 'locked' ? 'Unlock Private Vault to export normal and private items together.' : 'Normal and private items in one ZIP file.'} disabled={privacyState === 'locked'}>
-                {privacyState === 'locked'
-                  ? <button className="btn" onClick={() => onSectionChange('privacy')}>Unlock</button>
-                  : <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>}
+              <Row label="Export gallery" description="Every finished output in one ZIP file. Hidden exports from its own settings.">
+                <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
             </Group>
           </>
         ) : null}
 
         {section === 'privacy' ? (
-          <>
-            <Group>
-              <Row
-                label={<Status tone={privacyState === 'unlocked' ? 'ok' : privacyState === 'locked' ? 'warn' : undefined}>{privacyState === 'off' ? 'Private Vault is off' : privacyState === 'locked' ? 'Locked' : 'Unlocked'}</Status>}
-                description={privacyState === 'off'
-                  ? 'Set a password to encrypt prompts and keep opted-in generations in an encrypted vault. The normal gallery stays as it is.'
-                  : privacyState === 'locked'
-                    ? 'Prompts and private items stay encrypted until you enter the password.'
-                    : 'Prompts and private items are readable in this session.'}
-              >
-                <button className="btn is-ghost" aria-label="Refresh privacy status" onClick={refreshPrivacyStatus} disabled={privacyBusy}><RefreshCw size={14} /></button>
-              </Row>
-            </Group>
-
-            {privacyState === 'off' ? (
-              <Group title="Create a password" note="There's no way to reset this password, so keep it somewhere safe. It also protects LAN access.">
-                <Row label="Password" description="At least 8 characters." stacked>
-                  <form className="set-stack" onSubmit={(event) => { event.preventDefault(); setupPrivacyPassword(); }}>
-                    <input className="modal-input" type="password" autoComplete="new-password" aria-label="New password" placeholder="Password" value={privacyPassword} onChange={(event) => setPrivacyPassword(event.target.value)} />
-                    <input className="modal-input" type="password" autoComplete="new-password" aria-label="Confirm password" placeholder="Confirm password" value={privacyConfirmPassword} onChange={(event) => setPrivacyConfirmPassword(event.target.value)} />
-                    <div className="set-actions">
-                      <button className="btn is-primary" type="submit" disabled={privacyBusy || privacyPassword.length < 8 || !privacyConfirmPassword}>{privacyBusy ? 'Saving…' : 'Turn on Private Vault'}</button>
-                    </div>
-                  </form>
-                </Row>
-              </Group>
-            ) : privacyState === 'locked' ? (
-              <Group title="Unlock">
-                <Row label="Password" stacked>
-                  <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); unlockPrivacy(); }}>
-                    <input className="modal-input" type="password" autoComplete="current-password" aria-label="Privacy password" placeholder="Privacy password" value={privacyPassword} onChange={(event) => setPrivacyPassword(event.target.value)} />
-                    <button className="btn is-primary" type="submit" disabled={privacyBusy || !privacyPassword}>{privacyBusy ? 'Unlocking…' : 'Unlock'}</button>
-                  </form>
-                </Row>
-              </Group>
-            ) : (
-              <Group title="Session">
-                <Row label="Lock now" description="Hide prompts and private items again until the password is entered.">
-                  <button className="btn is-primary" onClick={lockPrivacy} disabled={privacyBusy}>{privacyBusy ? 'Locking…' : 'Lock'}</button>
-                </Row>
-                {privacyStatus?.vault?.assetCount ? (
-                  <Row label="Back up the vault" description={`${privacyStatus.vault.assetCount} encrypted item${privacyStatus.vault.assetCount === 1 ? '' : 's'}. The archive can only be opened with this password.`}>
-                    <a className="btn" href="/api/vault/export" download><Download size={14} /> Export</a>
-                  </Row>
-                ) : null}
-              </Group>
-            )}
-          </>
+          <HiddenSettings hidden={hidden} prefs={prefs} setPrefs={setPrefs} showToast={showToast} confirmAction={confirmAction} Group={Group} Row={Row} Status={Status} />
         ) : null}
 
         {section === 'connection' ? (
@@ -707,7 +657,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 })}
               </Group>
             ) : null}
-            <Group title="Other devices" note={<>Start the studio with <code>npm run dev:lan</code> first. With Private Vault on, other devices need the password.</>}>
+            <Group title="Other devices" note={<>Start the studio with <code>npm run dev:lan</code> first. Other devices sign in with your Hidden password, so set up Hidden first.</>}>
               <Row label="Open on your phone or another computer" description={`This studio runs at ${window.location.host || 'localhost'}.`}>
                 <button className="btn" onClick={copyLanUrl} disabled={lanBusy}><Copy size={14} /> {lanBusy ? 'Finding…' : 'Copy LAN URL'}</button>
               </Row>
