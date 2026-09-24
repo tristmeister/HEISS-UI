@@ -232,6 +232,7 @@ export type ComposerBarProps = {
   generateDisabledReason?: string;
   generate: () => void;
   refreshComfyStatus: () => void;
+  comfyRetrying?: boolean;
   referenceInputs?: MediaInput[];
   referenceStrength?: ReferenceStrength | null;
   referenceAssets?: SelectedReferenceAsset[];
@@ -249,7 +250,7 @@ export function ComposerBar(props: ComposerBarProps) {
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
     privateGeneration, privacyEnabled, onPrivacySetup, onOpenLoras, setPrivateGeneration,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
-    runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
+    runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
     referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
   } = props;
 
@@ -398,10 +399,11 @@ export function ComposerBar(props: ComposerBarProps) {
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && "is-working", comfyOffline && "is-offline")}
             onClick={comfyOffline ? refreshComfyStatus : generate}
-            disabled={!comfyOffline && generateDisabled}
-            aria-label={comfyOffline ? "ComfyUI offline, retry connection" : generateDisabledReason || "Generate"}
+            disabled={comfyOffline ? comfyRetrying : generateDisabled}
+            aria-busy={(comfyOffline && comfyRetrying) || undefined}
+            aria-label={comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, retry connection") : generateDisabledReason || "Generate"}
           >
-            {comfyOffline ? <><RefreshCw size={14} /><span>ComfyUI offline</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
+            {comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? "Checking…" : "ComfyUI offline"}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
           </GenerateButton>
         </Tip>
       </div>

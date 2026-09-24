@@ -30,6 +30,8 @@ section into the next version and uses it as the GitHub release notes.
 - The offline screen vanished and restarted its animation every five
   seconds while HEISS checked ComfyUI again. Later checks now keep the
   screen, and the status dot, steady until the answer changes.
+- Retry connection (and the composer's ComfyUI offline button) now say
+  "Checking…" with a spinning icon while they ask ComfyUI again.
 
 ## [0.3.1] - 2026-09-24
 

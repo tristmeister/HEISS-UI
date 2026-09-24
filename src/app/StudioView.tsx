@@ -33,8 +33,8 @@ function comfyStatusLabel(status: any) {
   return `ComfyUI offline${status?.url ? ` • ${status.url}` : ""}${status?.error ? ` • ${status.error}` : ""}`;
 }
 
-function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => void }) {
-  const state = status?.checking ? "checking" : status?.connected ? "connected" : "disconnected";
+function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retrying: boolean; onClick: () => void }) {
+  const state = status?.checking || retrying ? "checking" : status?.connected ? "connected" : "disconnected";
   return (
     <Tip content={comfyStatusLabel(status)}>
       <button className={`comfy-status-dot is-${state}`} aria-label={comfyStatusLabel(status)} onClick={onClick}>
@@ -47,7 +47,7 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
 export function StudioView({ view }: { view: Record<string, any> }) {
   const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, privateGeneration, privacyBusy, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, unlockPrivacy, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows } = view;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
-  const { confirmAction, referenceAssets, referenceInputs, referenceStrength } = view;
+  const { confirmAction, referenceAssets, referenceInputs, referenceStrength, retryComfyStatus, comfyRetrying } = view;
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
   const [settingsSection, setSettingsSection] = React.useState<SettingsSection>("general");
   const openSettings = React.useCallback((section?: SettingsSection) => {
@@ -106,7 +106,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           ) : null}
         </AnimatePresence>
       </div>
-      <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
+      <ComfyConnectionDot status={comfyStatus} retrying={Boolean(comfyRetrying)} onClick={retryComfyStatus} />
       <Tip content="Workflow Gallery"><button className="icon-button" aria-label="Workflow Gallery" onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={16} /></button></Tip>
       <Tip content="Settings"><button className="icon-button" aria-label="Settings" onClick={() => setSettings(true)}><Settings size={16} /></button></Tip>
       {prefs.zenMode ? (
@@ -277,7 +277,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               generateDisabled={Boolean(generateDisabled)}
               generateDisabledReason={generateDisabledReason}
               generate={generate}
-              refreshComfyStatus={refreshComfyStatus}
+              refreshComfyStatus={retryComfyStatus}
+              comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
               referenceStrength={referenceStrength}
               referenceAssets={referenceAssets}
@@ -341,7 +342,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <h2>ComfyUI is offline</h2>
               <p>Start ComfyUI to connect your studio.</p>
               <div className="empty-actions">
-                <button className="reconnect-btn primary" onClick={refreshComfyStatus}><RefreshCw size={13} /> Retry connection</button>
+                <button className="reconnect-btn primary" onClick={retryComfyStatus} disabled={comfyRetrying} aria-busy={comfyRetrying || undefined}><RefreshCw size={13} className={cn(comfyRetrying && "spin")} /> {comfyRetrying ? "Checking…" : "Retry connection"}</button>
                 <button className="reconnect-btn" onClick={() => openSettings("connection")}><Plug size={13} /> Connection settings</button>
               </div>
             </div></section>
@@ -418,7 +419,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               generateDisabled={Boolean(generateDisabled)}
               generateDisabledReason={generateDisabledReason}
               generate={generate}
-              refreshComfyStatus={refreshComfyStatus}
+              refreshComfyStatus={retryComfyStatus}
+              comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
               referenceStrength={referenceStrength}
               referenceAssets={referenceAssets}

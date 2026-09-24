@@ -413,6 +413,8 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   animation: generateIconLift 1.6s var(--ease-soft) infinite;
 }
 .generate:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Checking ComfyUI again is busy, not unavailable: keep it at full strength. */
+.generate.is-offline[aria-busy], .reconnect-btn[aria-busy] { opacity: 1; cursor: progress; }
 .generate.is-offline {
   background: hsl(0 0% 20%);
   color: hsl(0 74% 68%);
