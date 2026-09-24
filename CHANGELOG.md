@@ -10,6 +10,17 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Changed
+- **Restarting ComfyUI looks like restarting, not like a crash.** While a
+  restart HEISS asked for is under way, the Generate button says
+  "Restarting…", the status dot turns amber and pulses, the empty stage,
+  Settings, restart buttons, workflow checks, Hidden setup and folder setup
+  all say ComfyUI is restarting, and the studio checks every 1.5 seconds so it
+  picks ComfyUI up the moment it is back. The server keeps the state, so
+  every tab and device agrees. If ComfyUI has not returned after two and a
+  half minutes, everything goes back to normal reconnecting with one message
+  saying so.
+
 ### Fixed
 - **GGUF models in `models/unet_gguf` kept being offered as "not read".**
   HEISS added that folder under ComfyUI-GGUF's `unet_gguf` name, which the

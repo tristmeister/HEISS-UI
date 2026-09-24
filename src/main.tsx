@@ -24,7 +24,7 @@ import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
 import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
-import { registerRestartConfirm } from './app/ComfyRestart';
+import { registerRestartConfirm, setComfyRestarting } from './app/ComfyRestart';
 import { memoLatest } from './lib/memo-latest';
 
 // Rebuilt from scratch on every App render (each keystroke in the prompt); skips unless its data changed.
@@ -281,7 +281,23 @@ function App() {
     setComfyReconnectedAt(Date.now());
   }, [comfyStatus.connected, comfyStatus.checked]);
 
-  useVisibleInterval(refreshComfyStatus, 5000);
+  // A restart HEISS asked for: every surface says "restarting", the poll speeds
+  // up so ComfyUI's return shows at once, and a restart that never comes back
+  // hands over to plain reconnecting with one clear message.
+  const comfyRestarting = Boolean(comfyStatus.restarting);
+  useEffect(() => { setComfyRestarting(comfyRestarting); }, [comfyRestarting]);
+  useEffect(() => {
+    if (comfyStatus.restartFailed) showToast("ComfyUI didn’t come back after the restart. Check its window for errors; HEISS UI keeps trying to connect.", "error");
+  }, [comfyStatus.restartFailed]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const onRestart = () => {
+      refreshComfyStatus();
+      window.setTimeout(() => refreshComfyStatus(), 1200);
+    };
+    window.addEventListener("heiss:comfy-restart", onRestart);
+    return () => window.removeEventListener("heiss:comfy-restart", onRestart);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useVisibleInterval(refreshComfyStatus, comfyRestarting ? 1500 : 5000);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 620px)");
@@ -1156,7 +1172,7 @@ function App() {
 
 
   const generationActions = useGenerationActions({
-    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking)
+    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting)
   });
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem } = generationActions;
 

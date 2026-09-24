@@ -25,9 +25,11 @@ const MORPH_AT = 420;
 /** "Connected" stays readable a little longer than the scene takes. */
 const CONNECTED_COPY_MS = 1500;
 
-export function EmptyStage({ known, offline, device, retrying, onRetry, onOpenConnection, comfyUrl, noModels = false, onFindModels }: {
+export function EmptyStage({ known, offline, restarting = false, device, retrying, onRetry, onOpenConnection, comfyUrl, noModels = false, onFindModels }: {
   known: boolean;
   offline: boolean;
+  /** ComfyUI is down because it was asked to restart: the same scene, calmer words. */
+  restarting?: boolean;
   device?: string;
   retrying: boolean;
   onRetry: () => void;
@@ -86,8 +88,13 @@ export function EmptyStage({ known, offline, device, retrying, onRetry, onOpenCo
           {showPlug ? <OfflineMark key={`plug-${offlineRun}`} className="stage-layer" connectedAt={connectedAt} /> : null}
           {showCanvas ? <EmptyMark className="stage-layer" /> : null}
         </div>
-        <div className="stage-copy" key={copy}>
-          {copy === 'offline' ? (
+        <div className="stage-copy" key={`${copy}${restarting ? "-restarting" : ""}`}>
+          {copy === 'offline' && restarting ? (
+            <>
+              <h2>Restarting ComfyUI</h2>
+              <p>It reads new nodes and model folders as it starts, and the studio reconnects by itself. Usually a few seconds.</p>
+            </>
+          ) : copy === 'offline' ? (
             <>
               <h2>ComfyUI is offline</h2>
               <p>Start ComfyUI to connect your studio.{comfyUrl ? <> Looking for it at <code className="stage-code">{comfyUrl.replace(/^https?:\/\//, '')}</code>.</> : null}</p>

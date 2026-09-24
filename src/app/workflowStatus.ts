@@ -6,7 +6,7 @@ import type { WorkflowValidation } from './types';
  */
 export type WorkflowState = 'ready' | 'unchecked' | 'missing-nodes' | 'needs-setup';
 
-export function workflowState(validation?: WorkflowValidation): { state: WorkflowState; label: string; detail: string } {
+export function workflowState(validation?: WorkflowValidation, comfyRestarting = false): { state: WorkflowState; label: string; detail: string } {
   const missing = validation?.missingNodes?.length || 0;
   const files = validation?.missingFiles?.length || 0;
   const packs = validation?.missingPacks || [];
@@ -27,7 +27,9 @@ export function workflowState(validation?: WorkflowValidation): { state: Workflo
     return { state: 'needs-setup', label: 'Needs setup', detail: 'Something in the graph or its mapping needs fixing before it can run.' };
   }
   if (validation?.unverified) {
-    return { state: 'unchecked', label: 'Not checked', detail: "ComfyUI is offline, so its nodes can't be checked yet." };
+    return comfyRestarting
+      ? { state: 'unchecked', label: 'Checking soon', detail: 'ComfyUI is restarting; this is checked again as soon as it’s back.' }
+      : { state: 'unchecked', label: 'Not checked', detail: "ComfyUI is offline, so its nodes can't be checked yet." };
   }
   return { state: 'ready', label: 'Ready', detail: 'Everything this workflow needs is installed.' };
 }

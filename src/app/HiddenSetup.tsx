@@ -6,6 +6,7 @@ import { VaultHero, type VaultHeroStage } from './VaultHero';
 import { cn } from './format';
 import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import type { HiddenState } from './useHidden';
+import { useComfyRestarting } from './ComfyRestart';
 
 type Step = "offline" | "intro" | "password" | "biometric" | "scanning" | "ready";
 
@@ -62,6 +63,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
   const [busy, setBusy] = useState(false);
   // "Set up anyway" while ComfyUI is offline: stay on the steps instead of bouncing back.
   const [offlineOk, setOfflineOk] = useState(false);
+  const comfyRestarting = useComfyRestarting();
   const passwordRef = useRef<HTMLInputElement>(null);
   const label = support?.label || "Touch ID";
 
@@ -147,7 +149,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     : "Open it from the lock in the dock. Anything you generate there stays hidden.";
 
   const copy: Record<Step, { title: string; description: string }> = {
-    offline: { title: "Waiting for ComfyUI", description: "Hidden removes ComfyUI’s copies of what you hide, so it works best with ComfyUI running. You can create the password now and start ComfyUI later." },
+    offline: comfyRestarting ? { title: "ComfyUI is restarting", description: "Setup carries on as soon as it’s back, usually in a few seconds. You can also set up now." } : { title: "Waiting for ComfyUI", description: "Hidden removes ComfyUI’s copies of what you hide, so it works best with ComfyUI running. You can create the password now and start ComfyUI later." },
     intro: { title: "Hidden", description: "Images you keep to yourself, encrypted on this computer." },
     password: { title: "Choose a password", description: "Works on any device, and whenever Touch ID or Windows Hello doesn’t." },
     biometric: { title: `Unlock with ${label}`, description: support?.available ? `Unlock without typing. Your password still works.` : support?.reason || "Checking this device…" },

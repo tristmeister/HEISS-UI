@@ -27,6 +27,33 @@ export async function fetchManager(force = false): Promise<ManagerInfo> {
 }
 
 /**
+ * Whether ComfyUI is restarting on purpose, as the app's status poll last
+ * heard from the server. Every surface that would otherwise say "offline"
+ * reads this and says "restarting" instead.
+ */
+let restartingNow = false;
+const restartingListeners = new Set<(value: boolean) => void>();
+export function setComfyRestarting(value: boolean) {
+  if (restartingNow === value) return;
+  restartingNow = value;
+  restartingListeners.forEach((listener) => listener(value));
+}
+export function useComfyRestarting() {
+  const [value, setValue] = React.useState(restartingNow);
+  React.useEffect(() => {
+    restartingListeners.add(setValue);
+    setValue(restartingNow);
+    return () => { restartingListeners.delete(setValue); };
+  }, []);
+  return value;
+}
+/** Tells the app a restart just started, so it asks the server at once and polls faster. */
+export function announceComfyRestart() {
+  setComfyRestarting(true);
+  window.dispatchEvent(new CustomEvent('heiss:comfy-restart'));
+}
+
+/**
  * The app registers one confirmation (it knows what is running), so every
  * restart button asks before stopping work, not only the one in Settings.
  */
@@ -77,6 +104,7 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
     setError('');
     try {
       await apiJson('/api/comfy/restart', { method: 'POST' });
+      announceComfyRestart();
     } catch (reason) {
       if (!alive.current) return;
       setPhase('error');
@@ -106,8 +134,10 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
     setError('ComfyUI has not come back yet. Check its window for errors.');
   };
 
-  const off = info !== null && !info.available;
-  const busy = phase === 'restarting';
+  // A restart started anywhere (another button, a setup step, another tab) shows here too.
+  const globalRestarting = useComfyRestarting();
+  const busy = phase === 'restarting' || (globalRestarting && phase !== 'back');
+  const off = !busy && info !== null && !info.available;
   return (
     <div className={cn('comfy-restart', compact && 'is-compact', className)}>
       <button type="button" className={cn('btn', phase === 'back' && 'is-done')} onClick={restart} disabled={off || busy || info === null} aria-live="polite">
@@ -125,6 +155,7 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
           <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
         </p>
       ) : null}
+      {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting and reads new nodes and folders as it starts. Back in a few seconds.</p> : null}
       {phase === 'error' ? <p className="comfy-restart-note is-error">{error}</p> : null}
     </div>
   );

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ComfyRestart } from './ComfyRestart';
+import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
 import type { ConfirmAction } from './useConfirmation';
 import { Boxes, Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
@@ -530,6 +530,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
   const connected = Boolean(health?.ok);
+  const comfyRestarting = useComfyRestarting();
   const updateLabel = updateStatus?.error || (updateStatus?.available ? `${updateStatus.behind || 1} update${updateStatus.behind === 1 ? '' : 's'} available` : updateStatus?.ok ? 'Up to date' : 'Not checked yet');
 
   // On phones the section row scrolls sideways; keep the chosen one in view.
@@ -709,10 +710,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
           <>
             <Group title="ComfyUI">
               <Row
-                label={health ? <Status tone={connected ? 'ok' : 'bad'}>{connected ? 'Connected' : 'Not connected'}</Status> : <Skeleton className="skeleton-text short" />}
-                description={health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
+                label={comfyRestarting ? <Status tone="warn">Restarting</Status> : health ? <Status tone={connected ? 'ok' : 'bad'}>{connected ? 'Connected' : 'Not connected'}</Status> : <Skeleton className="skeleton-text short" />}
+                description={comfyRestarting ? 'ComfyUI is restarting and reconnects by itself, usually within a few seconds.' : health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
               >
-                <button className="btn is-primary" onClick={refreshHealth}>Check again</button>
+                <button className="btn is-primary" onClick={refreshHealth} disabled={comfyRestarting}>{comfyRestarting ? 'Waiting…' : 'Check again'}</button>
               </Row>
               <ComfyAddressRow current={health?.comfyUrl || 'http://127.0.0.1:8188'} showToast={showToast} onSaved={() => { refreshHealth(); refreshModels(false); refreshWorkflows(); }} />
               <Row label="Open ComfyUI" description="Its own interface, in a new tab.">

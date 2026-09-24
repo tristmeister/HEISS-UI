@@ -31,6 +31,7 @@ import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { nodePack, nodePacks } from './node-packs.js';
+import { beginComfyRestart, comfyRestarting, noteComfyRestart } from './comfy-restart.js';
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
@@ -442,7 +443,7 @@ app.get("/api/health", async (_req, res) => {
     const stats = await comfy("/system_stats");
     res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt });
   } catch (error) {
-    res.status(503).json({ ok: false, error: error.message, startedAt: serverStartedAt });
+    res.status(503).json({ ok: false, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
 });
 
@@ -455,12 +456,13 @@ app.get("/api/comfy/status", async (_req, res) => {
     noteComfyReachable();
     const latencyMs = Math.round(performance.now() - startedAt);
     if (!response.ok) {
-      res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
+      res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(false), error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
       return;
     }
     const stats = await response.json();
     const device = stats?.devices?.[0]?.name || "";
     res.json({
+      ...restartFields(true),
       connected: true,
       url: comfyUrl,
       latencyMs,
@@ -472,11 +474,23 @@ app.get("/api/comfy/status", async (_req, res) => {
     noteComfyFetchError(error?.name === "AbortError" ? new Error("timed out") : error);
     const latencyMs = Math.round(performance.now() - startedAt);
     const message = error?.name === "AbortError" ? "Connection timed out" : error?.message || "Connection failed";
-    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
+    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(false), error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
   } finally {
     clearTimeout(timeout);
   }
 });
+
+/** A restart HEISS asked for, as the status poll reports it: restarting, and since when. */
+function restartFields(connected) {
+  const restart = noteComfyRestart(connected);
+  return restart?.phase === "restarting" ? { restarting: true, restartStartedAt: restart.startedAt } : restart?.phase === "failed" ? { restartFailed: true } : {};
+}
+
+/** What to say when ComfyUI does not answer: restarting on purpose, or simply not there. */
+function comfyDownMessage(detail = "") {
+  if (comfyRestarting()) return "ComfyUI is restarting. Try again in a few seconds.";
+  return `ComfyUI is not reachable at ${comfyUrl}. Start it, then try again.${detail ? ` (${detail})` : ""}`;
+}
 
 app.get("/api/models", async (_req, res) => {
   try {
@@ -1009,7 +1023,7 @@ app.post("/api/generate", async (req, res) => {
   } catch (error) {
     // Placeholder generations are only for agent and UI testing without a GPU.
     if (!demoMode) {
-      res.status(503).json({ ok: false, error: `ComfyUI is not reachable at ${comfyUrl}. Start it, then try again.${error?.message ? ` (${error.message})` : ""}` });
+      res.status(503).json({ ok: false, restarting: comfyRestarting(), error: comfyDownMessage(error?.message) });
       return;
     }
   }
@@ -1101,7 +1115,7 @@ async function upscaleContext(res, { force = false } = {}) {
     const { info } = await loadComfyContext({ force });
     return info;
   } catch {
-    res.status(503).json({ ok: false, offline: true, error: "ComfyUI is offline, so smart upscale is unavailable.", install: installState() });
+    res.status(503).json({ ok: false, offline: true, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting; smart upscale is back with it." : "ComfyUI is offline, so smart upscale is unavailable.", install: installState() });
     return null;
   }
 }
@@ -1423,6 +1437,13 @@ app.get("/api/comfy/manager", async (_req, res) => {
 // ComfyUI is started outside HEISS UI, so only ComfyUI-Manager can restart it in place.
 app.post("/api/comfy/restart", async (req, res) => {
   if (!requireLocal(req, res)) return;
+  // A dropped connection below means "already going down" only if ComfyUI was
+  // up to begin with; otherwise "restarting" would show for minutes over nothing.
+  const up = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(4000) }).then((response) => response.ok, () => false);
+  if (!up) {
+    res.status(503).json({ ok: false, error: "ComfyUI isn’t running, so there’s nothing to restart. Start it, and the studio connects by itself." });
+    return;
+  }
   let sawManager = false;
   // Manager 4 (built into ComfyUI) and the Manager custom node from 3.4x only
   // take a bodyless POST; older custom nodes took a GET. A 404/405 just means
@@ -1434,10 +1455,12 @@ app.post("/api/comfy/restart", async (req, res) => {
       response = await fetch(`${comfyUrl}${route}`, { method, signal: AbortSignal.timeout(5000) });
     } catch {
       // ComfyUI dropping the connection mid-answer means it is already going down.
+      beginComfyRestart();
       res.json({ ok: true });
       return;
     }
     if (response.ok) {
+      beginComfyRestart();
       res.json({ ok: true });
       return;
     }

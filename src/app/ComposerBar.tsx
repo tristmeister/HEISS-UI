@@ -197,6 +197,8 @@ export type ComposerBarProps = {
   modelMenu?: ModelMenuState;
   currentProfile: Profile | null;
   comfyOffline: boolean;
+  /** Down on purpose: the button says "Restarting…" and waits instead of offering a retry. */
+  comfyRestarting?: boolean;
   onFindModels?: () => void;
   strayModelCount?: number;
   mode: string;
@@ -245,7 +247,7 @@ export type ComposerBarProps = {
 
 export function ComposerBar(props: ComposerBarProps) {
   const {
-    models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, onFindModels, strayModelCount, mode,
+    models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, strayModelCount, mode,
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
@@ -398,16 +400,18 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || (mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video")}>
+        <Tip content={comfyRestarting ? "ComfyUI is restarting. Generate is back in a few seconds." : comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || (mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video")}>
           <GenerateButton
-            className={cn("generate", Boolean(runningCount) && !comfyOffline && "is-working", comfyOffline && "is-offline")}
-            onClick={comfyOffline ? refreshComfyStatus : generate}
-            disabled={comfyOffline ? comfyRetrying : false}
-            blocked={!comfyOffline && generateDisabled}
-            busy={(comfyOffline && comfyRetrying) || undefined}
-            aria-label={comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, retry connection") : generateDisabledReason || "Generate"}
+            className={cn("generate", Boolean(runningCount) && !comfyOffline && !comfyRestarting && "is-working", comfyRestarting ? "is-restarting" : comfyOffline && "is-offline")}
+            onClick={comfyRestarting ? undefined : comfyOffline ? refreshComfyStatus : generate}
+            disabled={comfyRestarting || (comfyOffline ? comfyRetrying : false)}
+            blocked={!comfyOffline && !comfyRestarting && generateDisabled}
+            busy={comfyRestarting || (comfyOffline && comfyRetrying) || undefined}
+            aria-label={comfyRestarting ? "ComfyUI is restarting" : comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, retry connection") : generateDisabledReason || "Generate"}
           >
-            {comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? "Checking…" : "ComfyUI offline"}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
+            {comfyRestarting
+              ? <><RefreshCw size={14} className="spin" /><span>Restarting…</span></>
+              : comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? "Checking…" : "ComfyUI offline"}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
           </GenerateButton>
         </Tip>
       </div>

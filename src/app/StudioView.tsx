@@ -72,6 +72,7 @@ const ZenStrip = memoLatest(function ZenStrip({ items, activeId, stripRef, onPoi
 });
 
 function comfyStatusLabel(status: any) {
+  if (status?.restarting) return "ComfyUI is restarting…";
   if (status?.checking) return "Checking ComfyUI...";
   if (status?.connected) {
     const detail = [status.device, status.latencyMs ? `${status.latencyMs}ms` : "", status.version ? `v${status.version}` : ""].filter(Boolean).join(" • ");
@@ -81,7 +82,7 @@ function comfyStatusLabel(status: any) {
 }
 
 function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retrying: boolean; onClick: () => void }) {
-  const state = status?.checking || retrying ? "checking" : status?.connected ? "connected" : "disconnected";
+  const state = status?.restarting ? "restarting" : status?.checking || retrying ? "checking" : status?.connected ? "connected" : "disconnected";
   return (
     <Tip content={comfyStatusLabel(status)}>
       <button className={`comfy-status-dot is-${state}`} aria-label={comfyStatusLabel(status)} onClick={onClick}>
@@ -400,6 +401,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               modelMenu={modelMenu}
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
+              comfyRestarting={Boolean(comfyStatus?.restarting)}
               onFindModels={modelFolders?.openDialog}
               strayModelCount={strayModelCount}
               mode={mode}
@@ -500,7 +502,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           ) : (
             <EmptyStage
               known={Boolean(comfyStatus?.checked)}
-              offline={Boolean(comfyOffline)}
+              offline={Boolean(comfyOffline) || Boolean(comfyStatus?.restarting)}
+              restarting={Boolean(comfyStatus?.restarting)}
               device={comfyStatus?.device}
               retrying={Boolean(comfyRetrying)}
               onRetry={retryComfyStatus}
@@ -547,6 +550,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               modelMenu={modelMenu}
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
+              comfyRestarting={Boolean(comfyStatus?.restarting)}
               onFindModels={modelFolders?.openDialog}
               strayModelCount={strayModelCount}
               mode={mode}

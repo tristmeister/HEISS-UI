@@ -8,7 +8,7 @@ import { Field, StudioSelect as Select } from './components';
 import { Segmented } from './SettingsDialog';
 import { workflowState } from './workflowStatus';
 import { ModelSetup } from './ModelSetup';
-import { ComfyRestart } from './ComfyRestart';
+import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
 import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
 
@@ -51,11 +51,13 @@ function WorkflowThumbnail({ src }: { src?: string }) {
 }
 
 function StatusBadge({ validation }: { validation: WorkflowSummary["validation"] }) {
-  const status = workflowState(validation);
+  const comfyRestarting = useComfyRestarting();
+  const status = workflowState(validation, comfyRestarting);
   return <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>;
 }
 
 export function WorkflowGallery({ view }: { view: any }) {
+  const comfyRestarting = useComfyRestarting();
   const {
     confirmAction, mode, onClose, refreshModels, refreshWorkflows, selectWorkflow, setWorkflowPreferences,
     showToast, workflowPreferences, workflows, setWorkflows, model, chooseModel, models
@@ -103,7 +105,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     });
   }, [filter, ofKind, query]);
   const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
-  const selectedStatus = selected ? workflowState(selected.validation) : null;
+  const selectedStatus = selected ? workflowState(selected.validation, comfyRestarting) : null;
   // The same setup panel as the sidebar, for the model this workflow runs.
   const selectedProfile = selected ? models?.profiles.find((profile) => profile.id === selected.profileId) : undefined;
 
@@ -400,7 +402,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         ) : (
           <div className="wf-review">
             {imports.map((item, index) => {
-              const status = workflowState(item.preview.validation);
+              const status = workflowState(item.preview.validation, comfyRestarting);
               return (
                 <div className="wf-review-card" key={`${item.filename}-${index}`}>
                   <div className="wf-review-head">

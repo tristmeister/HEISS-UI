@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiJson } from './api';
-import { fetchManager } from './ComfyRestart';
+import { announceComfyRestart, fetchManager } from './ComfyRestart';
 import type { ModelFolderReport, StrayModelFolder } from './types';
 
 /**
@@ -136,6 +136,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
       let restarted = false;
       if (manager.available) {
         restarted = await apiJson('/api/comfy/restart', { method: 'POST' }).then(() => true, () => false);
+        if (restarted) announceComfyRestart();
       }
       if (!restarted) setStage('waiting');
       const read = await waitUntilRead(paths, Date.now() + (restarted ? 150_000 : 30 * 60_000));

@@ -7,10 +7,12 @@ import { LoraPanel } from './LoraPanel';
 import { ModelSetup } from './ModelSetup';
 import { ModelFoldersNotice } from './ModelFoldersNotice';
 import { workflowState } from './workflowStatus';
+import { useComfyRestarting } from './ComfyRestart';
 import type { WorkflowSummary } from './types';
 import { SafeImg } from './SafeImg';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
+  const comfyRestarting = useComfyRestarting();
   if (!workflow) return (
     <button type="button" className="workflow-card" onClick={onOpen}>
       <div className="workflow-card-thumb"><GalleryHorizontalEnd size={18} /></div>
@@ -22,7 +24,7 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
     </button>
   );
 
-  const status = workflowState(workflow.validation);
+  const status = workflowState(workflow.validation, comfyRestarting);
   return (
     <Tip content="Change workflow">
       <button type="button" className={cn("workflow-card", status.state !== "ready" && "has-issues")} onClick={onOpen}>
