@@ -6,6 +6,7 @@ import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
 import type { AspectPreset, Output, Profile } from './types';
 import { aspectIconStyle, cn, titleFromPrompt } from './format';
+import { wheelPixels } from './wheel';
 
 /** How much room a composer control gets: full label, icon-only, or bare essentials. */
 export type ControlDensity = "full" | "compact" | "mini";
@@ -193,6 +194,32 @@ export function NumberPicker({
 
   useEffect(() => () => clearHold(), []);
 
+  // Native and non-passive: React's onWheel can't preventDefault. The wheel
+  // only steps while the picker has focus, so scrolling a panel past it
+  // scrolls the panel instead of silently changing the value.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const stepByRef = useRef(stepBy);
+  stepByRef.current = stepBy;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let accumulated = 0;
+    const onWheel = (event: WheelEvent) => {
+      if (!root.contains(document.activeElement)) { accumulated = 0; return; }
+      const { y } = wheelPixels(event, root.clientHeight);
+      if (y === 0) return;
+      event.preventDefault();
+      if (Math.sign(y) !== Math.sign(accumulated)) accumulated = 0;
+      accumulated += y;
+      while (Math.abs(accumulated) >= 100) {
+        stepByRef.current(accumulated < 0 ? 1 : -1);
+        accumulated -= Math.sign(accumulated) * 100;
+      }
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    return () => root.removeEventListener("wheel", onWheel);
+  }, []);
+
   const beginEdit = () => {
     setDraft(formatValue(value));
     setEditing(true);
@@ -212,8 +239,8 @@ export function NumberPicker({
   const showSteppers = density !== "mini";
   return (
     <div
+      ref={rootRef}
       className={cn("number-picker", size === "sm" && "is-sm", fill && "is-fill", density !== "full" && `is-density-${density}`)}
-      onWheel={(event) => { event.preventDefault(); stepBy(event.deltaY < 0 ? 1 : -1); }}
     >
       {density === "full" || !icon ? (
         <span className="number-picker-label">{label}</span>
@@ -326,7 +353,7 @@ export function familyLabel(profile: Profile | null) {
   return profile.family;
 }
 
-export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "" }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string }) {
+export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, strayCount = 0 }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; strayCount?: number }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = profiles.find((profile) => profile.id === value) || profiles[0] || null;
@@ -351,6 +378,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
             <div className="model-menu-empty">
               <strong>No models to choose from</strong>
               <span>{emptyHint || "ComfyUI has no model HEISS UI can run yet."}</span>
+              {onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { setOpen(false); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
             </div>
           )}
           {profiles.map((profile) => (
@@ -369,6 +397,13 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                 <span className="model-badge">{badges[profile.id] || familyLabel(profile)}</span>
               </button></Tip>
           ))}
+          {onFindModels && profiles.length ? (
+            // Always one tap from where people notice a model is missing.
+            <button type="button" className={cn("model-menu-find", strayCount > 0 && "has-found")} onClick={() => { setOpen(false); onFindModels(); }}>
+              <span>{strayCount ? `${strayCount} model${strayCount === 1 ? "" : "s"} found` : "Find more models"}</span>
+              <em>{strayCount ? "Add" : "Search"}</em>
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>

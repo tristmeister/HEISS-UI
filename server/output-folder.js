@@ -109,7 +109,7 @@ export async function detectOutputDirs() {
   for (const comfyRoot of roots) add(path.join(comfyRoot, "output"), "comfy");
   const home = os.homedir();
   for (const dir of [
-    "C:\\CUVenv\\ComfyUI\\output",
+    ...(process.platform === "win32" ? ["C:\\ComfyUI_windows_portable\\ComfyUI\\output", "C:\\ComfyUI\\output"] : []),
     path.join(home, "ComfyUI", "output"),
     path.join(home, "Documents", "ComfyUI", "output"),
     path.join(home, "ComfyUI_windows_portable", "ComfyUI", "output"),
@@ -151,13 +151,13 @@ function run(command, args, options = {}) {
   });
 }
 
-const pickPrompt = "Choose the ComfyUI output folder";
+const defaultPickPrompt = "Choose the ComfyUI output folder";
 
 /**
  * Show the operating system's own folder picker on this computer. Resolves to
  * the chosen path, or "" when the dialog was cancelled.
  */
-export async function pickFolder(start = "") {
+export async function pickFolder(start = "", pickPrompt = defaultPickPrompt) {
   const startDir = (() => {
     const dir = normalizeFolderInput(start);
     try { return dir && fs.statSync(dir).isDirectory() ? dir : ""; } catch { return ""; }

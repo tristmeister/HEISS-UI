@@ -5,6 +5,7 @@ import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLef
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
+import { useHorizontalWheel, useWheelRef } from './wheel';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
@@ -14,6 +15,7 @@ import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
+import { ModelFoldersDialog } from './ModelFoldersDialog';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
 import { FailurePanel } from './GenerationFailure';
@@ -24,7 +26,8 @@ import { HiddenSetupDialog } from './HiddenSetup';
 import { HiddenActionsContext } from './hiddenContext';
 import { PixelCurtain } from './PixelCurtain';
 import { downloadUrl } from './GalleryTile';
-import { OfflineMark } from './OfflineMark';
+import { ConnectedCard } from './ConnectedCard';
+import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import type { GalleryItem } from './types';
 import type { HiddenState } from './useHidden';
@@ -38,8 +41,8 @@ function comfyStatusLabel(status: any) {
   return `ComfyUI offline${status?.url ? ` • ${status.url}` : ""}${status?.error ? ` • ${status.error}` : ""}`;
 }
 
-function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => void }) {
-  const state = status?.checking ? "checking" : status?.connected ? "connected" : "disconnected";
+function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retrying: boolean; onClick: () => void }) {
+  const state = status?.checking || retrying ? "checking" : status?.connected ? "connected" : "disconnected";
   return (
     <Tip content={comfyStatusLabel(status)}>
       <button className={`comfy-status-dot is-${state}`} aria-label={comfyStatusLabel(status)} onClick={onClick}>
@@ -50,9 +53,10 @@ function ComfyConnectionDot({ status, onClick }: { status: any; onClick: () => v
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, upscaleBusyIds, activateUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
+  const strayModelCount = (modelFolders?.report?.folders || []).reduce((sum: number, folder: { count: number }) => sum + folder.count, 0);
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
-  const { confirmAction, referenceAssets, referenceInputs, referenceStrength } = view;
+  const { confirmAction, referenceAssets, referenceInputs, referenceStrength, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
   const hidden = view.hidden as HiddenState;
   // Hidden, locked (or mid-unlock): the lock takes the gallery's place.
   const hiddenLocked = hiddenSpace && (!hidden.unlocked || hidden.unlockStage === "opening");
@@ -108,6 +112,26 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
+  const viewerWheelRef = useWheelRef<HTMLElement>(wheelViewer);
+  // Only Ctrl+wheel (page zoom) is swallowed, so the details panel still scrolls.
+  const scrimWheelRef = useWheelRef<HTMLDivElement>((event) => { if (event.ctrlKey) event.preventDefault(); });
+  // A plain wheel scrolls the zen thumbnail strip sideways.
+  useHorizontalWheel(zenStripRef, Boolean(prefs.zenMode && zenGallery.length && zenGalleryOpen));
+  // .bottom-fade is fixed and full width: keep it off the gallery's scrollbar.
+  React.useEffect(() => {
+    const gallery = galleryStageRef.current as HTMLElement | null;
+    if (prefs.zenMode || !gallery) return;
+    const update = () => {
+      // With "both-edges" the gutter is mirrored on the left; only the right half is the scrollbar.
+      const gutters = gallery.offsetWidth - gallery.clientWidth;
+      const mirrored = getComputedStyle(gallery).scrollbarGutter.includes("both-edges");
+      gallery.style.setProperty("--scrollbar-w", `${mirrored ? gutters / 2 : gutters}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(gallery);
+    return () => observer.disconnect();
+  }, [prefs.zenMode]);
   const toggleBundle = React.useCallback((bundleId: string) => {
     setExpandedBundles((current) => {
       const next = new Set(current);
@@ -127,7 +151,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <Tip content={`Group ${pendingBundles.items} outputs from ${pendingBundles.runs} finished run${pendingBundles.runs === 1 ? "" : "s"} into stacks`} side="left">
                 <button type="button" className="dock-chip gallery-tidy" onClick={compactGallery} disabled={compactBusy}>
                   <BrushCleaning size={14} />
-                  <span>{compactBusy ? "Grouping" : "Tidy up"}</span>
+                  <span>{compactBusy ? "Grouping" : "Group runs"}</span>
                   <i className="dock-count"><AnimatedNumber value={pendingBundles.runs} /></i>
                 </button>
               </Tip>
@@ -135,10 +159,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           ) : null}
           {runningCount ? (
             <motion.div key="cancel" {...dockChip}>
-              <Tip content="Cancel all running and queued generations" side="left">
+              <Tip content="Stop all running and queued generations" side="left">
                 <button type="button" className="dock-chip is-cancel" onClick={cancelQueue}>
                   <CircleStop size={14} />
-                  <span>Cancel</span>
+                  <span>Stop</span>
                   <i className="dock-count"><AnimatedNumber value={runningCount} /></i>
                 </button>
               </Tip>
@@ -146,7 +170,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           ) : null}
         </AnimatePresence>
       </div>
-      <ComfyConnectionDot status={comfyStatus} onClick={refreshComfyStatus} />
+      <ComfyConnectionDot status={comfyStatus} retrying={Boolean(comfyRetrying)} onClick={retryComfyStatus} />
       <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden" : "Hidden · locked" : "Hidden: keep images to yourself"}>
         <button
           data-hidden-dock
@@ -201,7 +225,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   if (viewerDragRef.current?.moved) return;
                   openItem(zenDisplayItem);
                 }}
-                onWheel={wheelViewer}
+                ref={viewerWheelRef}
                 onPointerDown={startViewerDrag}
                 onPointerMove={dragViewer}
                 onPointerUp={stopViewerDrag}
@@ -321,6 +345,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               chooseModel={chooseModel}
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
+              onFindModels={modelFolders?.openDialog}
+              strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
               aspectOptions={aspectOptions}
@@ -351,7 +377,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               generateDisabled={Boolean(generateDisabled)}
               generateDisabledReason={generateDisabledReason}
               generate={generate}
-              refreshComfyStatus={refreshComfyStatus}
+              refreshComfyStatus={retryComfyStatus}
+              comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
               referenceStrength={referenceStrength}
               referenceAssets={referenceAssets}
@@ -409,30 +436,24 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onDismissUpscaleNotice={dismissUpscaleNotice}
               titleFromPrompt={titleFromPrompt}
             />
-          ) : comfyOffline ? (
-            <section className="gallery"><div className="empty is-offline">
-              <OfflineMark className="offline-mark" />
-              <h2>ComfyUI is offline</h2>
-              <p>Start ComfyUI to connect your studio.</p>
-              <div className="empty-actions">
-                <button className="reconnect-btn primary" onClick={refreshComfyStatus}><RefreshCw size={13} /> Retry connection</button>
-                <button className="reconnect-btn" onClick={() => openSettings("connection")}><Plug size={13} /> Connection settings</button>
-              </div>
-            </div></section>
-          ) : hiddenSpace ? (
+          ) : hiddenSpace && !comfyOffline ? (
             <section className="gallery"><div className="empty hidden-empty">
               <span className="hidden-empty-mark"><LockKeyhole size={26} /></span>
               <h2>Nothing hidden yet</h2>
               <p>Generate here and it goes straight in, or hide an image from the gallery with <EyeOff size={13} className="inline-icon" /> on its tile.</p>
             </div></section>
           ) : (
-            <section className="gallery"><div className="empty">
-              <img src="/heiss-mark-black.svg" alt="HEISS UI" />
-              <h2>No outputs yet</h2>
-              <p>Start with a prompt. Your creations will appear here.</p>
-            </div></section>
+            <EmptyStage
+              known={Boolean(comfyStatus?.checked)}
+              offline={Boolean(comfyOffline)}
+              device={comfyStatus?.device}
+              retrying={Boolean(comfyRetrying)}
+              onRetry={retryComfyStatus}
+              onOpenConnection={() => openSettings("connection")}
+            />
           )}
             {hiddenLockScreen}
+          {renderedGallery.length && !hiddenLocked ? <ConnectedCard at={comfyReconnectedAt} device={comfyStatus?.device} /> : null}
             {galleryLoaded && hasMoreGallery && !hiddenSpace ? (
               <button className="gallery-load-more" onClick={loadMoreGalleryItems}>
                 Load more
@@ -467,6 +488,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               chooseModel={chooseModel}
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
+              onFindModels={modelFolders?.openDialog}
+              strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
               aspectOptions={aspectOptions}
@@ -497,7 +520,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               generateDisabled={Boolean(generateDisabled)}
               generateDisabledReason={generateDisabledReason}
               generate={generate}
-              refreshComfyStatus={refreshComfyStatus}
+              refreshComfyStatus={retryComfyStatus}
+              comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
               referenceStrength={referenceStrength}
               referenceAssets={referenceAssets}
@@ -510,6 +534,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </>
       )}
       <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
+      {modelFolders ? <ModelFoldersDialog folders={modelFolders} runningCount={runningCount} /> : null}
       <UpscaleSetupDialog
         setup={upscaleSetup}
         status={upscaleStatus}
@@ -534,14 +559,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             if (event.target !== event.currentTarget) return;
             if (Date.now() - viewerDragEndRef.current < 200) return;
             setActive(null);
-          }} onWheel={(event) => event.preventDefault()}>
+          }} ref={scrimWheelRef}>
             <div className="viewer-shell" onClick={(event) => event.stopPropagation()}>
               <div className={cn("viewer-stage", showDetails && "with-side")} data-viewer-empty>
                 <div
                   className={cn("viewer-canvas", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging")}
                   data-open-surface
                   style={{ "--zoom": viewerZoom, "--pan-x": `${viewerPan.x}px`, "--pan-y": `${viewerPan.y}px` } as React.CSSProperties}
-                  onWheel={wheelViewer}
+                  ref={viewerWheelRef}
                   onPointerDown={startViewerDrag}
                   onPointerMove={dragViewer}
                   onPointerUp={stopViewerDrag}
@@ -619,10 +644,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           </div>
                         </div>
                       ) : null}
-                      <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy All Settings</button></Tip>
+                      <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy all settings</button></Tip>
                       <Tip content="Copy this output's LoRA stack into the generator"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Copy LoRAs</button></Tip>
                       {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? (
-                        <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as Reference</button></Tip>
+                        <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
                       ) : null}
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>

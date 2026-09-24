@@ -4,6 +4,7 @@ import { Media } from './components';
 import type { GalleryItem } from './types';
 import { generationGridCount } from './generationEffect';
 import { upscaleDisplayThumbnail, upscaleDisplayUrl } from './useUpscale';
+import { SafeImg } from './SafeImg';
 
 export function generationIdentity(item: GalleryItem) {
   return !item.bundle && item.jobId && Number.isInteger(item.index)
@@ -24,6 +25,8 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   const [resolved, setResolved] = useState(false);
   const [loadedSource, setLoadedSource] = useState('');
   const [useFullImage, setUseFullImage] = useState(false);
+  // The finished file would not load (moved, deleted, ComfyUI unreachable): hand it to Media's fallback.
+  const [failedSource, setFailedSource] = useState('');
   const pending = item.status === 'pending';
   const advanced = mode === 'advanced' && !reducedMotion;
   useEffect(() => {
@@ -38,9 +41,14 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   const previewItem = pending ? item : lastPending.current;
   return (
     <div className={`generation-surface${pending ? ' is-pending' : ''}${resolving ? ' is-resolving' : ''}`}>
-      {item.status === 'done' && item.type === 'image' ? (
-        <img src={source} alt={item.filename} draggable={false} className="generation-result"
-          onLoad={() => setLoadedSource(source)} onError={() => isThumbnail ? setUseFullImage(true) : setResolved(true)} />
+      {item.status === 'done' && item.type === 'image' && source && failedSource !== source ? (
+        <img src={source} alt="" draggable={false} className="generation-result"
+          onLoad={() => setLoadedSource(source)}
+          onError={() => {
+            if (isThumbnail) { setUseFullImage(true); return; }
+            setFailedSource(source);
+            setResolved(true);
+          }} />
       ) : !pending ? <Media item={item} muted={muted} /> : null}
       {pending || resolving ? <GenerationPreview preview={previewItem.preview} fit={fit} aspectRatio={(item.width || 1) / (item.height || 1)}
         finalSource={resolving && loadedSource === source ? source : undefined}
@@ -72,9 +80,15 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
   const [pixelFailed, setPixelFailed] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const advanced = mode === 'advanced' && !reducedMotion;
-  const deferMosaicUntilFinal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent) && /Chrome\//i.test(navigator.userAgent) && !/Edg\//i.test(navigator.userAgent);
-  const frameWidth = fit === 'contain' ? Math.min(size.width, size.height * aspectRatio) : size.width;
-  const frameHeight = fit === 'contain' ? frameWidth / aspectRatio : size.height;
+  // The live mosaic looked blocky on Windows (fractional display scaling).
+  // Kept for every Windows browser, Edge and Firefox included, until the
+  // device-pixel fixes below are confirmed there.
+  const deferMosaicUntilFinal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent);
+  // Whole device pixels, so the frame and its cells never straddle a pixel.
+  const dpr = window.devicePixelRatio || 1;
+  const snap = (value: number) => Math.round(value * dpr) / dpr;
+  const frameWidth = snap(fit === 'contain' ? Math.min(size.width, size.height * aspectRatio) : size.width);
+  const frameHeight = snap(fit === 'contain' ? frameWidth / aspectRatio : size.height);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting));
@@ -124,7 +138,7 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
   return (
     <div ref={host} className="generation-visual" aria-hidden="true">
       <div className="generation-frame" style={{ width: frameWidth, height: frameHeight }}>
-      {preview && (!advanced || pixelFailed) ? <img className="generate-preview" src={preview} alt="" draggable={false} /> : null}
+      {!advanced || pixelFailed ? <SafeImg className="generate-preview" src={preview} draggable={false} /> : null}
       {advanced ? <canvas ref={canvas} className="generation-pixels" /> : null}
       {advanced && (!deferMosaicUntilFinal || finalSource) && visible && foreground ? (
         <EffectBoundary>

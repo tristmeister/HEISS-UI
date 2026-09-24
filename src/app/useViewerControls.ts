@@ -3,6 +3,7 @@ import { clampText, settingMax } from './format';
 import { touchCenter, touchDistance } from './gallery';
 import { normalizeLoras } from './loras';
 import type React from 'react';
+import { wheelPixels } from './wheel';
 import type { GalleryItem, Profile } from './types';
 
 export function useViewerControls(view: any) {
@@ -97,6 +98,8 @@ export function useViewerControls(view: any) {
 
   function submitZenPrompt(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (!prefs.enterToGenerate || event.key !== "Enter" || event.shiftKey) return;
+    // Enter that confirms an IME composition (Japanese, Chinese, Korean) is not a submit.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     event.preventDefault();
     if (!generateDisabled) generate();
   }
@@ -158,17 +161,24 @@ export function useViewerControls(view: any) {
   }
 
   function zoomViewer(nextZoom: number, anchor?: { x: number; y: number; element: HTMLElement }) {
-    const clamped = Math.max(0.5, Math.min(6, Number(nextZoom.toFixed(2))));
+    // Three decimals, so a touchpad's small steps still add up.
+    const clamped = Math.max(0.5, Math.min(6, Math.round(nextZoom * 1000) / 1000));
     if (anchor) setViewerPan(anchoredPan(clamped, anchor.x, anchor.y, anchor.element));
     else if (clamped <= 1) setViewerPan({ x: 0, y: 0 });
     setViewerZoom(clamped);
   }
 
-  function wheelViewer(event: React.WheelEvent) {
+  // Attached natively and non-passive (useWheelRef), so preventDefault holds
+  // and Ctrl+wheel or a touchpad pinch never zooms the page as well.
+  function wheelViewer(event: WheelEvent, element: HTMLElement) {
     event.preventDefault();
     event.stopPropagation();
-    const factor = event.deltaY < 0 ? 1.12 : 1 / 1.12;
-    zoomViewer(viewerZoom * factor, { x: event.clientX, y: event.clientY, element: event.currentTarget as HTMLElement });
+    const { y } = wheelPixels(event, element.clientHeight);
+    if (y === 0) return;
+    // Proportional to how far the wheel moved: a mouse notch (~100 px) is
+    // about x1.16, a precision touchpad glides. Capped per event.
+    const factor = Math.exp(Math.max(-0.35, Math.min(0.35, -y * 0.0015)));
+    zoomViewer(viewerZoom * factor, { x: event.clientX, y: event.clientY, element });
   }
 
   function clickViewer(event: React.MouseEvent) {

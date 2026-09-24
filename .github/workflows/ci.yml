@@ -17,3 +17,37 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
+  # Most users run HEISS UI on Windows. Package a release, unpack it into a path
+  # with spaces, & and parentheses, and start it through the .bat launcher the
+  # way a user would, with no node_modules yet.
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+      - name: Start the release from a hard path
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "Jane & Co (1)"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $zip = Get-ChildItem release\*.zip | Select-Object -First 1
+          & "$env:SystemRoot\System32\tar.exe" -xf $zip.FullName -C $dir
+          $app = Get-ChildItem $dir -Directory | Select-Object -First 1
+          $bat = Join-Path $app.FullName "Start HEISS UI.bat"
+          $proc = Start-Process cmd.exe -ArgumentList "/c", "`"`"$bat`"`"" -WorkingDirectory $app.FullName -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\heiss.log" -RedirectStandardError "$env:RUNNER_TEMP\heiss.err"
+          $ok = $false
+          for ($i = 0; $i -lt 90; $i++) {
+            Start-Sleep -Seconds 2
+            try { if ((Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8787/).StatusCode -eq 200) { $ok = $true; break } } catch {}
+          }
+          Get-Content "$env:RUNNER_TEMP\heiss.log", "$env:RUNNER_TEMP\heiss.err" -ErrorAction SilentlyContinue
+          Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+          Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $ok) { throw "HEISS UI did not answer on port 8787" }

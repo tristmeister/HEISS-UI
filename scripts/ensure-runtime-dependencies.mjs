@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,15 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(path.join(projectRoot, "package.json"), "utf8"));
 const wantDev = process.argv.includes("--dev");
-const npm = process.platform === "win32" ? "npm.cmd" : "npm";
+// npm is npm.cmd on Windows, which Node (since the CVE-2024-27980 fix) only
+// runs through a shell. Under `npm start` npm's own script is known, so run
+// that with this Node; otherwise (the .bat launcher) go through the shell.
+function runNpm(args, options) {
+  const cli = process.env.npm_execpath;
+  if (cli && /npm-cli\.[cm]?js$/.test(cli)) return execFileSync(process.execPath, [cli, ...args], options);
+  if (process.platform === "win32") return execSync(`npm ${args.join(" ")}`, options);
+  return execFileSync("npm", args, options);
+}
 const installed = (name) => existsSync(path.join(projectRoot, "node_modules", name, "package.json"));
 
 const needed = [
@@ -23,7 +31,7 @@ if (missing.length) {
   // --omit=dev would also delete build tools a source checkout already has, so
   // only a release install (no vite present) skips them.
   const releaseInstall = !wantDev && !installed("vite");
-  execFileSync(npm, ["install", "--no-audit", "--no-fund", ...(releaseInstall ? ["--omit=dev"] : [])], {
+  runNpm(["install", "--no-audit", "--no-fund", ...(releaseInstall ? ["--omit=dev"] : [])], {
     cwd: projectRoot,
     stdio: "inherit"
   });
@@ -33,7 +41,7 @@ if (missing.length) {
 if (!wantDev && !existsSync(path.join(projectRoot, "dist", "index.html"))) {
   if (installed("vite")) {
     console.warn("No built app in dist/ yet. Building it once...");
-    execFileSync(npm, ["run", "build"], { cwd: projectRoot, stdio: "inherit" });
+    runNpm(["run", "build"], { cwd: projectRoot, stdio: "inherit" });
   } else {
     console.warn("No built app in dist/. Download a release from https://github.com/tristmeister/HEISS-UI/releases, or run `npm install` and `npm run build` in a source checkout.");
   }

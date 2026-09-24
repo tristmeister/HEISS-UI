@@ -3,6 +3,7 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { comfyModelsDir, modelFolders } from './comfy.js';
+import { renameWithRetry } from "./json-store.js";
 
 /**
  * Fetches text encoders and VAEs a model needs into ComfyUI's own folders. Only
@@ -68,12 +69,12 @@ function remember(entry) {
 
 function targetFor(spec) {
   const modelsDir = comfyModelsDir();
-  if (!modelsDir) throw new Error("ComfyUI is not on this computer, so HEISS cannot put files into its folders. Download it from the link instead.");
+  if (!modelsDir) throw new Error("ComfyUI isn't on this computer. Download the file from the link and add it there.");
   if (!allowedFolders.has(spec.folder)) throw new Error("That file does not belong in a ComfyUI model folder.");
   const name = path.basename(String(spec.file || ""));
   if (!name || name !== spec.file || !/\.(safetensors|gguf)$/i.test(name)) throw new Error("That is not a model file HEISS can download.");
   const url = new URL(spec.url);
-  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname)) throw new Error("HEISS only downloads model files from Hugging Face.");
+  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname)) throw new Error("Only Hugging Face downloads are supported.");
   // Land it where ComfyUI itself reads that kind from, so it shows up without a restart.
   const dirs = folderDirs(spec.folder);
   const dir = dirs.find((item) => path.basename(item) === spec.folder) || dirs[0] || path.join(modelsDir, spec.folder);
@@ -173,7 +174,22 @@ async function fetchInto(entry, signal) {
   fs.mkdirSync(dir, { recursive: true });
   let offset = fileSize(partial);
   entry.receivedBytes = offset;
-  const response = await fetch(entry.url, { redirect: "follow", signal, headers: offset ? { range: `bytes=${offset}-` } : {} });
+  // A whole .part left by a rename that failed last time: asking for the bytes after
+  // its end would only get HTTP 416, so finish it without a request.
+  const known = knownLength(note);
+  if (offset && known && offset >= known) {
+    if (offset === known) return finishDownload(entry, partial, target, note);
+    offset = 0; // Longer than the file itself: start over.
+  }
+  let response = await fetch(entry.url, { redirect: "follow", signal, headers: offset ? { range: `bytes=${offset}-` } : {} });
+  if (offset && response.status === 416) {
+    // Nothing left past the end: complete if the server's size matches, else the part is not this file.
+    const total = Number(/\/(\d+)\s*$/.exec(response.headers.get("content-range") || "")?.[1] || 0);
+    if (total && total === offset) return finishDownload(entry, partial, target, note);
+    await response.body?.cancel().catch(() => {});
+    offset = 0;
+    response = await fetch(entry.url, { redirect: "follow", signal });
+  }
   if (offset && response.status === 200) offset = 0; // Range ignored: start over.
   if (!response.ok || !response.body) {
     throw new Error(`Hugging Face answered ${response.status} for ${entry.file}.`);
@@ -184,7 +200,8 @@ async function fetchInto(entry, signal) {
   if (expected) entry.totalBytes = expected;
   entry.receivedBytes = offset;
   try {
-    fs.writeFileSync(note, JSON.stringify({ id: entry.id, label: entry.label, totalBytes: entry.totalBytes }));
+    // `exact` marks a length the server sent, not the catalog's estimate.
+    fs.writeFileSync(note, JSON.stringify({ id: entry.id, label: entry.label, totalBytes: entry.totalBytes, exact: Boolean(expected) }));
   } catch {
     // Without the note it still resumes this session; only a restart forgets it.
   }
@@ -214,8 +231,24 @@ async function fetchInto(entry, signal) {
   if (expected && fileSize(partial) !== expected) {
     throw new Error(`${entry.file} arrived incomplete. Try again to resume it.`);
   }
-  fs.renameSync(partial, target);
+  finishDownload(entry, partial, target, note);
+}
+
+function finishDownload(entry, partial, target, note) {
+  entry.receivedBytes = fileSize(partial);
+  entry.totalBytes = entry.receivedBytes;
+  renameWithRetry(partial, target);
   fs.rmSync(note, { force: true });
+}
+
+/** The file's length as the server reported it on an earlier try, or 0 when unknown. */
+function knownLength(note) {
+  try {
+    const saved = JSON.parse(fs.readFileSync(note, "utf8"));
+    return saved.exact ? Number(saved.totalBytes || 0) : 0;
+  } catch {
+    return 0;
+  }
 }
 
 /** Throws away a stopped download's partial file. */

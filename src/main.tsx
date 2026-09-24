@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { toast } from "sonner";
 import "./styles.css";
 
+import { useModelFolders } from './app/useModelFolders';
 import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
 import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromGallery } from './app/api';
@@ -121,7 +122,8 @@ function App() {
   // Set when LoRAs are applied for a workflow we're about to switch to (e.g. "Copy
   // all settings"), so the switch doesn't load that workflow's saved stack over them.
   const explicitLorasFor = useRef("");
-  const comfyStatusRequestRef = useRef(false);
+  const comfyStatusRequestRef = useRef<Promise<void> | null>(null);
+  const [comfyRetrying, setComfyRetrying] = useState(false);
   const touchGestureRef = useRef<TouchGesture | null>(null);
   const lastTapRef = useRef(0);
   const {
@@ -236,8 +238,24 @@ function App() {
     return () => { current = false; };
   }, [model]);
 
+  // ComfyUI came back (started late, or restarted): pick everything up again
+  // without a reload. Only a real offline → online change counts.
+  const wasConnected = useRef<boolean | null>(null);
+  const [comfyReconnectedAt, setComfyReconnectedAt] = useState(0);
   useEffect(() => {
-    const timer = window.setInterval(refreshComfyStatus, 5000);
+    if (!comfyStatus.checked) return;
+    const previous = wasConnected.current;
+    wasConnected.current = comfyStatus.connected;
+    if (previous !== false || !comfyStatus.connected) return;
+    refreshModels(false);
+    refreshWorkflows();
+    refreshHealth();
+    refreshUpscaleStatus(prefs.upscaleQuality, { fresh: true });
+    setComfyReconnectedAt(Date.now());
+  }, [comfyStatus.connected, comfyStatus.checked]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => { refreshComfyStatus(); }, 5000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -338,11 +356,33 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [settings, active, zenControls, workflowGalleryOpen, prefs.zenMode]);
 
+  // A file dropped outside a drop zone would make the browser open it and
+  // leave the app. Swallow file drags the zones haven't claimed.
+  useEffect(() => {
+    const isFileDrag = (event: DragEvent) => Boolean(event.dataTransfer?.types.includes("Files"));
+    function onDragOver(event: DragEvent) {
+      if (!isFileDrag(event) || event.defaultPrevented) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "none";
+    }
+    function onDrop(event: DragEvent) {
+      if (isFileDrag(event)) event.preventDefault();
+    }
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       if (settings || active) return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      // AltGr types @ { \ € on many layouts; Windows reports it as Ctrl+Alt.
+      const altGraph = event.getModifierState("AltGraph") || (event.ctrlKey && event.altKey);
+      if (!altGraph && (event.ctrlKey || event.metaKey || event.altKey)) return;
       if (event.key.length !== 1 && event.key !== "Backspace") return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, button, a, [contenteditable='true'], [role='dialog'], [role='listbox'], [data-radix-popper-content-wrapper]")) return;
@@ -565,14 +605,26 @@ function App() {
       .catch((error) => setHealth({ ok: false, error: error instanceof Error ? error.message : "Connection failed" }));
   }
 
-  function refreshComfyStatus() {
-    if (comfyStatusRequestRef.current) return;
-    comfyStatusRequestRef.current = true;
-    setComfyStatus((current) => ({ ...current, checking: true }));
-    apiJson<ComfyStatus>("/api/comfy/status")
-      .then((data) => setComfyStatus({ ...data, checking: false }))
-      .catch((error) => setComfyStatus({ connected: false, checking: false, error: error instanceof Error ? error.message : "Connection failed" }))
-      .finally(() => { comfyStatusRequestRef.current = false; });
+  function refreshComfyStatus(): Promise<void> {
+    if (comfyStatusRequestRef.current) return comfyStatusRequestRef.current;
+    // Only the first check shows as "checking". Later polls keep the last answer
+    // on screen until the new one arrives, so the offline screen and the status
+    // dot do not blink (and restart their animations) every five seconds.
+    setComfyStatus((current) => (current.checked ? current : { ...current, checking: true }));
+    const request = apiJson<ComfyStatus>("/api/comfy/status")
+      .then((data) => setComfyStatus({ ...data, checking: false, checked: true }))
+      .catch((error) => setComfyStatus({ connected: false, checking: false, checked: true, error: error instanceof Error ? error.message : "Connection failed" }))
+      .finally(() => { comfyStatusRequestRef.current = null; });
+    comfyStatusRequestRef.current = request;
+    return request;
+  }
+
+  /** A retry someone asked for: the buttons say "Checking…" for at least a beat, even when the answer is instant. */
+  function retryComfyStatus() {
+    if (comfyRetrying) return;
+    setComfyRetrying(true);
+    const shown = new Promise((resolve) => window.setTimeout(resolve, 700));
+    Promise.all([refreshComfyStatus(), shown]).finally(() => setComfyRetrying(false));
   }
 
   function refreshPaths() {
@@ -589,7 +641,7 @@ function App() {
         body: JSON.stringify({ outputDir })
       });
       setPaths(next);
-      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent gens are not in it" : "Output folder saved", next.report?.state === "mismatch" ? "default" : "success");
+      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent images aren’t in it" : "Output folder saved", next.report?.state === "mismatch" ? "default" : "success");
       loadGallery().catch(() => null);
       return next.report || null;
     } catch (error) {
@@ -659,8 +711,8 @@ function App() {
   async function installUpdate() {
     const release = Boolean(updateStatus?.release);
     if (!await confirmAction(release
-      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads it${updateStatus?.size ? ` (${formatUpdateBytes(updateStatus.size)})` : ""}, checks it against its published checksum and installs it when HEISS UI restarts. Your gallery, settings and models stay where they are, and the current version is kept in case the new one does not start.`, action: "Download update" }
-      : { title: "Update HEISS UI?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
+      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads${updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : " the update"} and installs it when HEISS UI restarts.`, action: "Download update" }
+      : { title: "Update HEISS UI?", description: "Pulls the latest code, installs packages and rebuilds.", action: "Install update" })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
@@ -672,7 +724,7 @@ function App() {
       if (data.updated) {
         try { localStorage.setItem(updateInstalledKey, JSON.stringify({ at: Date.now() })); } catch { /* the success toast just won't show */ }
       }
-      showToast(data.updated ? "Update installed. Restart the server to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
+      showToast(data.updated ? "Update installed. Restart HEISS UI to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Update failed", "error");
     } finally {
@@ -876,6 +928,13 @@ function App() {
   const aspectPickerValue = aspectValue === defaultAspectSize ? "default" : customSize || !aspectOptions.some((item) => item.value === aspectValue) ? "free" : aspectValue;
   const galleryColumnCount = useGalleryColumnCount();
   const runningCount = visibleGallery.filter((item) => item.status === "pending").length;
+  // Models on this computer that ComfyUI does not read, and the one-step fix for them.
+  const modelFolders = useModelFolders({
+    connected: comfyStatus.connected,
+    emptyModels: Boolean(models && comfyStatus.connected && !models.profiles.some((profile) => profile.ready !== false)),
+    onModelsChanged: () => { refreshModels(false); refreshWorkflows(); },
+    showToast
+  });
   const doneGallery = visibleGallery.filter((item) => item.status === "done" || item.status === "error");
   const zenGallery = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
   const zenItem = zenGallery.find((item) => item.id === zenSelectedId) || zenGallery[0] || null;
@@ -889,7 +948,7 @@ function App() {
   const generateDisabled = !currentProfile || modelSetupMissing || missingRequiredReference;
   const generateDisabledReason = missingRequiredReference ? `${missingReferenceInput?.label || "Reference image"} is required`
     : modelMissingParts.length ? `Needs ${modelMissingParts.map((item) => item.label).join(", ")}`
-    : modelSetupMissing ? "Model setup is missing required files"
+    : modelSetupMissing ? "This model needs files first"
     : !currentProfile ? "Choose a workflow" : undefined;
   const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
 
@@ -1040,9 +1099,9 @@ function App() {
     toggleFavorite: (name: string) => { toggleLoraFavorite(name); bumpLoraLibrary(); },
     recordRecents: (names: string[]) => { recordLoraRecents(names); bumpLoraLibrary(); }
   };
-  const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab }} />;
+  const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab }} />;
 
-  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
+  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;

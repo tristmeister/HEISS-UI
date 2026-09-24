@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import type { UpscaleSetupStage } from './useUpscale';
+import { trackCanvasSize } from './canvasSize';
 
 /**
  * The smart upscale setup hero: upscaling, drawn literally. A flowing gray
@@ -102,15 +103,16 @@ export function UpscaleHero({ stage, progress = 0, className }: { stage: Upscale
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const tracked = trackCanvasSize(canvas, 2, () => wakeRef.current());
+    const { dpr } = tracked;
 
     let w = 0, h = 0, pitch = 1, gap = 1, cols = 0, rows = 0, ox = 0, oy = 0, ax = 0, ay = 0;
     let bcols = 0, brows = 0;
     let blocks: Array<{ seed: number; level: number; heat: number; dist: number }> = [];
     const resize = () => {
-      const cw = canvas.clientWidth, ch = canvas.clientHeight;
-      if (!cw || !ch) return false;
-      const nw = Math.round(cw * dpr), nh = Math.round(ch * dpr);
+      const { width: nw, height: nh } = tracked.size;
+      if (!nw || !nh) return false;
+      const cw = nw / dpr;
       if (nw === w && nh === h) return true;
       w = canvas.width = nw;
       h = canvas.height = nh;
@@ -320,10 +322,8 @@ export function UpscaleHero({ stage, progress = 0, className }: { stage: Upscale
       if (visible) wake();
     });
     io.observe(canvas);
-    const ro = new ResizeObserver(wake);
-    ro.observe(canvas);
     wake();
-    return () => { cancelAnimationFrame(raf); io.disconnect(); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); io.disconnect(); tracked.disconnect(); };
   }, []);
 
   // Reduced motion draws one frame per change; otherwise the loop is already running.

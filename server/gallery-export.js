@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { comfyOutputDir } from "./comfy.js";
+import { isInside } from "./paths.js";
 import { filterVisibleGallery, gallery, outputFileCandidates } from "./gallery-store.js";
 
 const crcTable = Uint32Array.from({ length: 256 }, (_, index) => {
@@ -58,7 +59,7 @@ function archiveEntries(privateAssets, includeGallery = true) {
     const base = comfyOutputDir ? path.resolve(comfyOutputDir) : "";
     const file = outputFileCandidates(item).find((candidate) => {
       const resolved = path.resolve(candidate);
-      if (!base || (resolved !== base && !resolved.startsWith(`${base}${path.sep}`))) return false;
+      if (!base || !isInside(base, resolved, { orSame: true })) return false;
       try { return fs.statSync(resolved).isFile(); } catch { return false; }
     });
     if (!file) continue;

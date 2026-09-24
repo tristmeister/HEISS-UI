@@ -9,7 +9,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, startReleaseUpdate } from './updater.js';
-import { allowLanActions, demoMode, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
+import { PORT_IN_USE_CODE } from './release-swap.js';
+import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -29,6 +30,9 @@ import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
+import { nodePack } from './node-packs.js';
+import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
+import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
@@ -37,6 +41,21 @@ const app = express();
 app.use(express.json({ limit: "25mb" }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+
+/**
+ * How to run npm with execFile. On Windows npm is a .cmd, which Node refuses to
+ * run without a shell since the CVE-2024-27980 fix (EINVAL), so run npm's own
+ * JavaScript entry with this Node instead: the one npm started us with, else the
+ * one installed next to node.exe. A shell is the last resort.
+ */
+function npmInvocation(args) {
+  if (process.platform !== "win32") return { command: npmCommand, args, shell: false };
+  const candidates = [process.env.npm_execpath, path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")];
+  const script = candidates.find((file) => file && /\.[cm]?js$/i.test(file) && fs.existsSync(file));
+  if (script) return { command: process.execPath, args: [script, ...args], shell: false };
+  const quote = (arg) => (/^[\w.:=@/\\-]+$/.test(arg) ? arg : `"${arg.replace(/"/g, '""')}"`);
+  return { command: npmCommand, args: args.map(quote), shell: true };
+}
 let comfyCache = { info: null, stats: null, fetchedAt: 0 };
 
 async function loadComfyContext({ force = false } = {}) {
@@ -105,8 +124,10 @@ function requireLanUnlock(req, res, next) {
 app.use(requireLanUnlock);
 
 async function runRepoCommand(command, args) {
-  const { stdout = "", stderr = "" } = await execFileAsync(command, args, {
+  const npm = command === npmCommand ? npmInvocation(args) : { command, args, shell: false };
+  const { stdout = "", stderr = "" } = await execFileAsync(npm.command, npm.args, {
     cwd: root,
+    shell: npm.shell,
     timeout: 600000,
     maxBuffer: 1024 * 1024
   });
@@ -428,6 +449,7 @@ app.get("/api/comfy/status", async (_req, res) => {
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(`${comfyUrl}/system_stats`, { signal: controller.signal });
+    noteComfyReachable();
     const latencyMs = Math.round(performance.now() - startedAt);
     if (!response.ok) {
       res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
@@ -443,6 +465,8 @@ app.get("/api/comfy/status", async (_req, res) => {
       device
     });
   } catch (error) {
+    // A timeout counts here too: this poll is the app asking whether ComfyUI is there.
+    noteComfyFetchError(error?.name === "AbortError" ? new Error("timed out") : error);
     const latencyMs = Math.round(performance.now() - startedAt);
     const message = error?.name === "AbortError" ? "Connection timed out" : error?.message || "Connection failed";
     res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
@@ -481,7 +505,7 @@ app.post("/api/models/downloads", async (req, res) => {
   if (!requireLocal(req, res)) return;
   const spec = catalogDownload(req.body?.id);
   if (!spec) {
-    res.status(400).json({ ok: false, error: "HEISS does not know that file." });
+    res.status(400).json({ ok: false, error: "Unknown file." });
     return;
   }
   try {
@@ -1044,7 +1068,7 @@ app.get("/api/upscale/status", async (req, res) => {
   if (!info) return;
   const status = upscaleStatus(info, req.query.quality);
   // Only worth the extra round trips while the nodes still need installing.
-  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), ...nodeInstallPlan() };
+  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack("seedvr2"), autoInstall: packInstallRoutes("seedvr2"), ...nodeInstallPlan() };
   res.json({ ok: true, ...status });
 });
 
@@ -1260,6 +1284,67 @@ app.post("/api/cache/clear", async (_req, res) => {
   res.json({ ok: true, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
 
+// Model folders ComfyUI is not reading, and adding them to its extra_model_paths.yaml.
+// HEISS can only look at (and change) the machine it runs on, so a remote ComfyUI gets none of this.
+const comfyIsLocal = () => {
+  try { return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(new URL(comfyUrl).hostname); } catch { return false; }
+};
+
+app.get("/api/model-folders", async (_req, res) => {
+  try {
+    res.json(await modelFolderReport({ local: comfyIsLocal() }));
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/model-folders", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    const paths = Array.isArray(req.body?.paths) ? req.body.paths : [];
+    res.json(await linkModelFolders(paths, { picked: String(req.body?.picked || "") }));
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.delete("/api/model-folders", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    res.json(await unlinkModelFolder(String(req.body?.path || "")));
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+// The person points at a folder the scan missed; it still has to read as a models folder.
+app.post("/api/model-folders/pick", async (req, res) => {
+  if (!isLocalClient(req.socket.remoteAddress || "")) {
+    res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
+    return;
+  }
+  try {
+    const picked = await pickFolder("", "Choose the folder that holds your models");
+    res.json(picked ? { ok: true, path: picked } : { ok: true, canceled: true });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+// One-click node pack installs, by registry id only (see pack-installer.js).
+app.post("/api/node-packs/:id/install", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    res.json({ ok: true, install: await startPackInstall(String(req.params.id)) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/node-packs/:id/install", (req, res) => {
+  res.json({ ok: true, install: packInstallState(String(req.params.id)) });
+});
+
 app.get("/api/comfy/manager", async (_req, res) => {
   res.json({ ok: true, ...(await managerInfo()) });
 });
@@ -1388,6 +1473,8 @@ app.get("/comfy/thumb", async (req, res) => {
   try {
     const thumbnail = await getThumbnail(filename, subfolder, type);
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
+    // No sharp (see sharp-loader.js): the full image stands in for the thumbnail.
+    if (thumbnail.original) { res.redirect(302, `/comfy/view?${new URLSearchParams({ filename, subfolder, type })}`); return; }
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
     // This URL identifies an output filename, not immutable image bytes. Its
@@ -1411,7 +1498,23 @@ app.get("/comfy/*path", async (req, res) => {
     for (const header of ["if-none-match", "if-modified-since", "range", "if-range"]) {
       if (req.headers[header]) conditional[header] = req.headers[header];
     }
-    const response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
+    // ComfyUI is stopped or restarting: outputs still open from the output folder.
+    const localFile = () => (proxyPath === "view" ? localOutputFile(String(req.query.filename || ""), String(req.query.subfolder || ""), String(req.query.type || "output")) : null);
+    const sendLocal = (file) => res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } });
+    // It just failed to answer: go straight to disk instead of waiting ~2 s for another refusal (Windows).
+    const known = comfyRecentlyUnreachable() ? localFile() : null;
+    if (known) { sendLocal(known); return; }
+    let response;
+    try {
+      response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
+      noteComfyReachable();
+    } catch (error) {
+      noteComfyFetchError(error);
+      const file = localFile();
+      if (!file) throw error;
+      sendLocal(file);
+      return;
+    }
     res.status(response.status);
     const etag = response.headers.get("etag");
     const lastModified = response.headers.get("last-modified");
@@ -1443,7 +1546,15 @@ if (fs.existsSync(dist)) {
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 
-app.listen(port, host, () => {
+app.listen(port, host, (error) => {
+  // Express 5 hands a failed listen to this callback instead of throwing.
+  if (error) {
+    console.error(error.code === "EADDRINUSE"
+      ? `\n  Port ${port} is already in use. HEISS UI may already be running: http://localhost:${port}\n`
+      : `\n  HEISS UI could not start: ${error.message}\n`);
+    // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
+    process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
+  }
   // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
   // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
   const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;

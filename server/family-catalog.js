@@ -83,8 +83,11 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
 /**
  * slots: text encoder inputs in loader order. kinds: accepted encoder kinds.
  * vae: accepted VAE kinds (first is the one to download). sampling: "ksampler",
- * "custom" (SamplerCustomAdvanced), "pair" (Wan 2.2 14B), "h3".
+ * "custom" (SamplerCustomAdvanced), "pair" (Wan 2.2 14B), "h3", "sana".
+ * pack: a node-packs.js id when the family runs on custom nodes. ownLoaders:
+ * the pack loads encoder and VAE itself (no pickers, no LoRAs).
  * variants: first whose `match` passes wins; the last one is the fallback.
+ * MODELS.md walks through adding a family.
  */
 export const families = {
   sd15: {
@@ -328,15 +331,13 @@ export const families = {
     ],
     size: [1344, 768], frames: 56, fps: 24
   },
-  // NVIDIA's Sana is not native to ComfyUI: the ExtraModels pack loads it, its
-  // Gemma 2 2B encoder and its 32x DC-AE VAE, and fetches all three from
-  // Hugging Face on first use. Settings follow NVlabs/Sana's ComfyUI workflows.
+  // NVIDIA's Sana is not native to ComfyUI; one of two custom node packs runs
+  // it (see sanaRunners), each loading its own Gemma 2 2B encoder and DC-AE VAE.
+  // Settings follow NVlabs/Sana's ComfyUI workflows.
   sana: {
-    label: "Sana", kind: "image", sources: ["sana", "checkpoint"], ownLoaders: true,
+    label: "Sana", kind: "image", sources: ["sana", "sana_diffusers", "checkpoint"], ownLoaders: true,
     slots: [], clipType: null, vae: [],
     latent: "EmptySanaLatentImage", sizeStep: 32, negative: "text", sampling: "sana", aspects: square,
-    requiredNodes: ["SanaCheckpointLoader", "GemmaLoader", "SanaTextEncode", "GemmaTextEncode", "ExtraVAELoader"],
-    nodePack: { name: "ComfyUI_ExtraModels", repository: "https://github.com/lawrence-cj/ComfyUI_ExtraModels.git" },
     variants: [
       // Sprint is a consistency model: its CFG goes in through ScmModelSampling, KSampler stays at 1.
       { id: "sprint", label: "Sprint", match: (name, header, detail) => detail?.sprint ?? /sprint/i.test(name), negative: "none", dtype: "FP32", defaults: { steps: 2, cfg: 4.5, sampler: "scm", scheduler: "sgm_uniform" } },
@@ -348,6 +349,34 @@ export const families = {
     size: [1024, 1024]
   }
 };
+
+/**
+ * The two packs that run Sana, by model source. ExtraModels samples with
+ * ComfyUI's own KSampler (live previews) and fetches its presets itself, but
+ * its encoder and attention are CUDA-or-CPU only. ComfyUI-SANA wraps the
+ * diffusers pipeline, so it also runs on Apple Silicon, and loads folders from
+ * models/diffusers. Local Sana checkpoints go through ExtraModels.
+ */
+export const sanaRunners = {
+  sana: {
+    pack: "extramodels", variantNodes: { sprint: ["ScmModelSampling"] },
+    note: "Sana is not built into ComfyUI; these custom nodes run it.",
+    sizeNode: "EmptySanaLatentImage", placeholder: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px"
+  },
+  sana_diffusers: {
+    pack: "comfyui_sana", note: "Sana is not built into ComfyUI; these custom nodes run it, on Apple Silicon too.",
+    sizeNode: "SanaGenerate", placeholder: "Sana_Sprint_0.6B_1024px_diffusers", repo: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px_diffusers"
+  }
+};
+
+export const sanaRunnerFor = (source) => sanaRunners[source === "sana_diffusers" ? "sana_diffusers" : "sana"];
+
+/** A friendly name for a Sana preset or a diffusers folder of one. */
+export function sanaLabel(name = "") {
+  const base = String(name).split(/[\\/]/).pop() || "";
+  const preset = sanaPresets.find((item) => item.name.split("/").pop() === base.replace(/_diffusers$/i, ""));
+  return preset?.label || "";
+}
 
 /**
  * Sana models the ExtraModels loader fetches by name, in the order HEISS lists
@@ -362,7 +391,9 @@ export const sanaPresets = [
   { name: "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", label: "Sana 1.6B 4K", conf: "SanaMS_1600M_P1_D20_4K" },
   { name: "Efficient-Large-Model/Sana_1600M_2Kpx_BF16", label: "Sana 1.6B 2K", conf: "SanaMS_1600M_P1_D20_2K" },
   { name: "Efficient-Large-Model/Sana_1600M_1024px_MultiLing", label: "Sana 1.6B Multilingual", conf: "SanaMS_1600M_P1_D20" },
-  { name: "Efficient-Large-Model/Sana_600M_1024px", label: "Sana 0.6B", conf: "SanaMS_600M_P1_D28" }
+  { name: "Efficient-Large-Model/Sana_600M_1024px", label: "Sana 0.6B", conf: "SanaMS_600M_P1_D28" },
+  { name: "Efficient-Large-Model/Sana_600M_512px", label: "Sana 0.6B 512px", conf: "SanaMS_600M_P1_D28", hidden: true },
+  { name: "Efficient-Large-Model/Sana_1600M_1024px", label: "Sana 1.6B", conf: "SanaMS_1600M_P1_D20", hidden: true }
 ];
 
 /**
@@ -386,11 +417,11 @@ export function sanaConf(name = "", detail = null) {
 
 // Recognised so HEISS can say what they are, but not runnable here yet.
 export const knownFamilies = {
-  ltx: "LTX-2 video (needs its two-stage audio pipeline; not in HEISS yet)",
+  ltx: "LTX-2 video (needs its two-stage audio pipeline; not in HEISS UI yet)",
   ltxv: "LTX-Video",
   hunyuan_video: "HunyuanVideo 1.0",
   lumina2: "Lumina Image 2.0",
-  wan_i2v: "Wan image-to-video (needs a start image; not in HEISS yet)",
+  wan_i2v: "Wan image-to-video (needs a start image; not in HEISS UI yet)",
   wan_other: "Wan VACE / Fun / camera model",
   qwen_image_edit: "Qwen-Image Edit (image editing model)",
   sdxl_refiner: "SDXL Refiner (used after a base model, not on its own)",

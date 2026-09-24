@@ -33,12 +33,10 @@ jobs:
         # The notes are that version's CHANGELOG.md section (scripts/release.mjs writes it).
         run: |
           node scripts/changelog.mjs notes "${GITHUB_REF_NAME}" > release-notes.md
-          gh release create "${GITHUB_REF_NAME}" release/*.zip release/*.zip.sha256 --title "HEISS UI ${GITHUB_REF_NAME}" --notes-file release-notes.md
+          gh release create "${GITHUB_REF_NAME}" release/*.zip --title "HEISS UI ${GITHUB_REF_NAME}" --notes-file release-notes.md
       - name: Keep the package as a build artifact
         if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: actions/upload-artifact@v4
         with:
           name: heiss-ui-release
-          path: |
-            release/*.zip
-            release/*.zip.sha256
+          path: release/*.zip

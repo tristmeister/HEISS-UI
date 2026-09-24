@@ -55,7 +55,18 @@ let commit = "";
 try { commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root }).toString().trim(); } catch { /* not a checkout */ }
 // Double-click launchers. The first run installs the runtime packages.
 fs.writeFileSync(path.join(target, "Start HEISS UI.command"), "#!/bin/sh\ncd \"$(dirname \"$0\")\" && npm start\n", { mode: 0o755 });
-fs.writeFileSync(path.join(target, "Start HEISS UI.bat"), "@echo off\r\ncd /d \"%~dp0\"\r\nnpm start\r\npause\r\n");
+// The .bat skips npm: npm.cmd run without `call` never returns, so a `pause`
+// after it never ran and the window closed on any error. The last line is one
+// line on purpose: an update replaces this file while it runs, and cmd reads
+// the next line from the new file at the old offset.
+fs.writeFileSync(path.join(target, "Start HEISS UI.bat"), [
+  "@echo off",
+  "cd /d \"%~dp0\"",
+  "if not exist \"scripts\\start.mjs\" (echo Unpack the whole zip first, then start this file from the unpacked folder.& pause & exit /b 1)",
+  "where node >nul 2>nul || (echo HEISS UI needs Node.js 22 LTS or newer: https://nodejs.org & pause & exit /b 1)",
+  "(node scripts\\start.mjs || pause) & exit /b",
+  ""
+].join("\r\n"));
 
 // `files` lists what an update may replace; everything else in the folder
 // (data/, .env, node_modules) belongs to the user.
@@ -64,8 +75,10 @@ fs.writeFileSync(path.join(target, "release.json"), `${JSON.stringify({ version:
 
 const zip = path.join(outDir, `${name}.zip`);
 fs.rmSync(zip, { force: true });
-execFileSync("zip", ["-qry", zip, name], { cwd: outDir });
-// Published next to the zip; the in-app updater refuses a download that does not match it.
+// Windows has no zip command, but its tar (bsdtar) writes zips; CI packages there too.
+// Name System32's copy: a GNU tar from Git may come first on PATH and cannot.
+if (process.platform === "win32") execFileSync(path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe"), ["-a", "-c", "-f", zip, name], { cwd: outDir });
+else execFileSync("zip", ["-qry", zip, name], { cwd: outDir });
+// GitHub publishes this same digest for the release asset; the in-app updater checks against it.
 const sha256 = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex");
-fs.writeFileSync(`${zip}.sha256`, `${sha256}  ${name}.zip\n`);
 console.log(`Packaged ${path.relative(root, zip)} (sha256 ${sha256})`);

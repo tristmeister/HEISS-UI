@@ -4,6 +4,8 @@ import path from "node:path";
 import { comfy, comfyOutputDir } from "./comfy.js";
 import { dataDir, generationSettings, outputFileCandidates, promptTitle } from "./gallery-store.js";
 import { encryptionKeyFromRequest, passwordWrapForBackup } from "./privacy.js";
+import { renameWithRetry } from "./json-store.js";
+import { isInside } from "./paths.js";
 import {
   applyBundlesToItems,
   createBundleRecords,
@@ -68,7 +70,7 @@ function writeManifest(manifest, key) {
   const full = { version: 1, items: manifest.items, bundles: manifest.bundles || [] };
   const tempPath = `${manifestPath}.${crypto.randomUUID()}.tmp`;
   fs.writeFileSync(tempPath, encrypt(Buffer.from(JSON.stringify(full)), key), { mode: 0o600 });
-  fs.renameSync(tempPath, manifestPath);
+  renameWithRetry(tempPath, manifestPath);
   // The plaintext header says only that Hidden exists; older versions also kept a count here.
   fs.writeFileSync(headerPath, JSON.stringify({ version: 2 }, null, 2));
   bumpVaultRevision();
@@ -126,7 +128,7 @@ async function sourceFromOutput(output) {
   if (comfyOutputDir && outputType === "output") {
     const base = path.resolve(comfyOutputDir);
     const candidate = path.resolve(base, subfolder, filename);
-    if (candidate !== base && !candidate.startsWith(`${base}${path.sep}`)) throw new Error("Unsafe ComfyUI output path.");
+    if (!isInside(base, candidate, { orSame: true })) throw new Error("Unsafe ComfyUI output path.");
     if (fs.existsSync(candidate)) return { buffer: fs.readFileSync(candidate), sourcePath: candidate, mime };
   }
   const data = await comfy(`/view?${new URLSearchParams({ filename, subfolder, type: outputType })}`);
@@ -140,7 +142,7 @@ async function galleryItemBytes(item, url) {
   const base = comfyOutputDir ? path.resolve(comfyOutputDir) : "";
   const file = candidates.find((candidate) => {
     const resolved = path.resolve(candidate);
-    if (!base || !resolved.startsWith(`${base}${path.sep}`)) return false;
+    if (!base || !isInside(base, resolved)) return false;
     try { return fs.statSync(resolved).isFile(); } catch { return false; }
   });
   const name = url === item.url ? item.outputName || item.filename : item.upscale?.outputName;
@@ -529,7 +531,7 @@ export function deleteVaultItems(key, ids) {
 /** Moves a Hidden whose key ring is gone out of the way, intact, in case the key ever turns up. */
 export function retireVault() {
   if (!fs.existsSync(vaultDir)) return;
-  fs.renameSync(vaultDir, `${vaultDir}-orphaned-${new Date().toISOString().replace(/[:.]/g, "-")}`);
+  renameWithRetry(vaultDir, `${vaultDir}-orphaned-${new Date().toISOString().replace(/[:.]/g, "-")}`);
   bumpVaultRevision();
 }
 

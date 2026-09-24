@@ -15,24 +15,19 @@ section into the next version and uses it as the GitHub release notes.
   the lock in the dock, generate straight into it, or hide any finished
   image with the eye on its tile and bring it back the same way. Upscale,
   compare, remix and reuse all work inside it. It unlocks with Touch ID or
-  Windows Hello (WebAuthn PRF) as well as the password, shows nothing at all
-  while locked, and locks itself after a while untouched. Setup walks
-  through password and biometrics with its own animated hero, and the
-  settings page manages passkeys, the password, auto-lock, export, an
-  encrypted backup and a full erase.
-- One-click updates for downloaded releases. **Install update** in
-  Settings › About downloads the new release, checks it against its
-  published SHA-256 and swaps it in on **Restart now**, then reloads the page.
-  The data folder, `.env` and installed packages are never touched. The
-  previous version is kept, and a new version that does not start is rolled
-  back by itself, with a note in Settings saying so. Copies from 0.3.0 and
-  earlier need one manual download to get this.
+  Windows Hello as well as the password, shows nothing at all while locked,
+  and locks itself after a while untouched. Setup waits for ComfyUI, then
+  walks through password and biometrics with its own animated hero; Settings
+  manages passkeys, the password, auto-lock, export, an encrypted backup and
+  a full erase.
 
 ### Changed
 - The Hidden password no longer touches the normal gallery: prompts are
   stored as before, generating never waits for an unlock, and prompts sealed
   by the old scheme open back up on the first unlock. Existing Private Vault
   items and passwords carry over as they are.
+- HEISS UI now points you at `localhost` instead of `127.0.0.1`: the same
+  server, but browsers only allow Touch ID and Windows Hello on a name.
 
 ### Fixed
 - Clearing the gallery while the vault was locked deleted the files and then
@@ -44,6 +39,110 @@ section into the next version and uses it as the GitHub release notes.
 - Private prompts leaked through tile titles and the workflow card's
   thumbnail; a locked session could not delete anything.
 - Run grouping only applied once a vault existed.
+
+## [0.4.1] - 2026-09-24
+
+### Changed
+- **Shorter, plainer copy throughout the app.** Dropped reassurances nobody
+  asked for, lines about the app doing things by itself, and explanations of
+  how things work under the hood. Terms are now consistent: HEISS UI (not
+  HEISS or "the server"), Private Vault and vault password, Stop for running
+  generations, and images instead of "gens". The website and README now match
+  the current workflow import, smart upscale and the Settings layout.
+
+### Fixed
+- **Windows: the first start of a download works.** It crashed while
+  installing its packages (current Node refuses to run `npm.cmd` directly),
+  and the launcher window closed before the error could be read. The `.bat`
+  now checks for Node and an unpacked folder, and stays open on any error.
+  Updating a Git copy from Settings failed the same way.
+- Starting HEISS UI a second time said it was ready. It now says the port is
+  taken and HEISS UI is probably already running.
+- **Windows: sharper pixel art at 125% and 150% display scaling.** The
+  generation mosaic, the About wordmark, the update button and the other cell
+  canvases draw on whole screen pixels, so cells and gaps stay even. Without
+  WebGL the About page shows the logo instead of an empty space.
+- Blur was missing on tile buttons, bundle badges and dock chips in Chrome,
+  Edge and Firefox.
+- Scrolling a panel with a mouse wheel changed any number field under the
+  pointer. Fields now only react to the wheel while focused.
+- Thin scrollbars everywhere; the gallery's no longer hides under the bottom
+  fade or pushes the gallery off centre. Sideways strips (zen thumbnails,
+  workflow filters) scroll with a normal wheel, and viewer zoom follows how
+  far the wheel or touchpad moves.
+- Monospace text uses Geist Mono on every system. Long paths are cut at the
+  start so the folder name stays visible. Windows High Contrast shows
+  switches, buttons and focus.
+- AltGr characters start typing into the prompt; confirming an IME word no
+  longer generates; an image dropped outside a drop zone no longer opens in
+  the tab.
+- **Windows: model folders.** Paths are compared regardless of letter case,
+  a disconnected network drive no longer freezes HEISS UI during the scan,
+  `extra_model_paths.yaml` saved with Windows line endings is still
+  recognised, and `C:\ComfyUI_windows_portable` is found.
+- Installing node packs into the portable ComfyUI's Python no longer skips
+  packages that are only installed in your user Python.
+- Downloads, thumbnails, the vault and updates retry when antivirus or
+  indexing briefly holds a file. A download stuck at 100% finishes, and an
+  update that cannot put a folder back says where it left it and retries on
+  the next start.
+- With ComfyUI stopped, images load from disk straight away instead of
+  after a two-second wait each. An output folder at a drive root works.
+- A missing or blocked image library no longer stops HEISS UI from starting;
+  thumbnails fall back to the full image.
+
+## [0.4.0] - 2026-09-24
+
+### Added
+- **Models ComfyUI can't see are found and added in one step.** HEISS looks
+  through shared folders, other ComfyUI installs, the ComfyUI Desktop app,
+  Stability Matrix, A1111 and external drives for models in folders ComfyUI
+  does not read. It says what it found in the sidebar, the model menu and
+  Settings. One click adds the folders to ComfyUI's `extra_model_paths.yaml`
+  (backed up, in a marked section Settings can remove again), restarts
+  ComfyUI and confirms the models arrived.
+- **Custom nodes install with one click.** Models that need a custom node
+  pack say so in the sidebar and the workflow library, with an Install
+  button. Packs in ComfyUI-Manager's list are installed through Manager; the
+  rest are cloned and set up with ComfyUI's own Python when ComfyUI runs on
+  this computer. Smart upscale's SeedVR2 setup uses the same button, and the
+  manual steps stay available for a ComfyUI on another machine.
+- Sana also runs through ComfyUI-SANA (diffusers, works on Apple Silicon):
+  Sana folders in `models/diffusers` show up as ready models, next to the
+  ComfyUI_ExtraModels route for CUDA.
+- ComfyUI coming back is picked up without a reload. With an empty gallery
+  the offline plug snaps into its socket and the scene dissolves into the
+  empty state; with images on screen a small "ComfyUI connected" card slides
+  in and out. Models, workflows and smart upscale refresh by themselves.
+- A new empty state for a gallery with nothing in it yet: a blank pixel
+  canvas where a picture keeps developing and fading.
+- MODELS.md documents how a new model family, and the custom nodes, text
+  encoders or VAEs it needs, gets added.
+
+### Fixed
+- With ComfyUI stopped or restarting, every image in the gallery broke,
+  because images were only ever fetched through ComfyUI. They now open from
+  the output folder, and thumbnails from HEISS's own cache.
+- A finished image whose file would not load (moved, deleted, ComfyUI
+  unreachable) showed the browser's broken-image icon with "Untitled prompt"
+  over the tile. It now shows the tile's unavailable state, and every image
+  with a source that can go missing falls back the same way.
+- The offline screen restarted its animation every five seconds while HEISS
+  checked ComfyUI again, and a first start flashed the empty state before it
+  knew ComfyUI was offline. Both now hold steady until the answer changes.
+- Retry connection (and the composer's ComfyUI offline button) say
+  "Checking…" with a spinning icon while they ask ComfyUI again.
+
+## [0.3.1] - 2026-09-24
+
+### Added
+- One-click updates for downloaded releases. **Install update** in
+  Settings › About downloads the new release, checks it against its
+  published SHA-256 and swaps it in on **Restart now**, then reloads the page.
+  The data folder, `.env` and installed packages are never touched. The
+  previous version is kept, and a new version that does not start is rolled
+  back by itself, with a note in Settings saying so. Copies from 0.3.0 and
+  earlier need one manual download to get this.
 
 ## [0.3.0] - 2026-09-24
 
@@ -248,7 +347,10 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tristmeister/HEISS-UI/releases/tag/v0.2.0

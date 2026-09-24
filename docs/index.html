@@ -92,7 +92,7 @@
           </a>
           <h1 id="hero-title" class="enter" style="--d: 1">ComfyUI,<br /> without the graph.</h1>
           <p class="hero-lead enter" style="--d: 2">
-            A calm, local front end for ComfyUI. Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
+            A local front end for ComfyUI. Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
           </p>
         </div>
 
@@ -448,7 +448,7 @@
             <li class="feature is-active">
               <span class="feature-idx">01</span>
               <h3>Bring your own workflow</h3>
-              <p>Built something good in ComfyUI? Export it as an API workflow, map the inputs you care about and import it. It becomes a clean set of controls, with your graph running underneath.</p>
+              <p>Built something good in ComfyUI? Import its JSON and HEISS UI detects the controls. You get a clean set of controls with your graph running underneath.</p>
               <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">Workflow guide <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </li>
             <li class="feature">
@@ -469,7 +469,7 @@
             <li class="feature">
               <span class="feature-idx">05</span>
               <h3>Upscale and compare</h3>
-              <p>Run any image through an upscale workflow, then drag across it to see exactly what changed.</p>
+              <p>Upscale any image in one click with SeedVR2, then drag across it to see exactly what changed.</p>
             </li>
           </ol>
         </div>
@@ -479,7 +479,7 @@
         <div class="section-head" data-reveal>
           <p class="label">Install</p>
           <h2 id="install-title">Running in a few minutes.</h2>
-          <p class="section-lead">You need <strong>Node.js 20+</strong> and a working <strong>ComfyUI</strong> install. Your models stay right where they are.</p>
+          <p class="section-lead">You need <strong>Node.js 20+</strong> and a working <strong>ComfyUI</strong> install. Your models stay in ComfyUI.</p>
         </div>
 
         <div class="section-body" data-reveal>
@@ -527,7 +527,7 @@
                   <span class="step-n" aria-hidden="true">3</span>
                   <div>
                     <h3>Open it</h3>
-                    <p>Go to <a class="inline" href="http://127.0.0.1:8787">127.0.0.1:8787</a>. Your models, samplers and VAEs show up on their own. Custom workflows go in under <strong>Settings → Workflows</strong>.</p>
+                    <p>Go to <a class="inline" href="http://127.0.0.1:8787">127.0.0.1:8787</a>. Your models, samplers and VAEs are already there. Import your own workflows from the <strong>Workflows</strong> panel.</p>
                   </div>
                 </li>
               </ol>
@@ -562,7 +562,7 @@ Please do the full local setup for me:
 8. Run npm run build.
 9. Start the app with npm start.
 10. Open http://127.0.0.1:8787 and verify the app can reach ComfyUI, detect models, and load the gallery.
-11. For future updates, use Settings -> Update, or run git pull, npm install, and npm run build.
+11. For future updates, use Settings -> About -> Updates, or run git pull, npm install, and npm run build.
 
 Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.</pre>
               </div>
@@ -570,7 +570,7 @@ Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN 
           </div>
 
           <p class="update-note">
-            <span>Updating later:</span> <strong>Settings → Update</strong> inside the app, or <code>git pull</code>, <code>npm install</code>, <code>npm run build</code>.
+            <span>Updating later:</span> <strong>Settings → About</strong> inside the app, or <code>git pull</code>, <code>npm install</code>, <code>npm run build</code>.
           </p>
         </div>
       </section>
@@ -589,7 +589,7 @@ Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN 
           </details>
           <details name="faq">
             <summary>Can I bring my own workflows?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>Yes, and for anything custom it's the way to go. Build and test the graph in ComfyUI, export it in API format, add the control mapping and import it under <strong>Settings → Workflows</strong>. It shows up as soon as the nodes it needs are installed. The <a class="inline" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">workflow guide</a> walks through the mapping.</p></div>
+            <div class="answer"><p>Yes, and for anything custom it's the way to go. Build and test the graph in ComfyUI, export it (API or visual format) and import it in the <strong>Workflows</strong> panel. HEISS UI detects the controls, and you can adjust the mapping before saving. The <a class="inline" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">workflow guide</a> covers the details.</p></div>
           </details>
           <details name="faq">
             <summary>Why not just use ComfyUI directly?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>

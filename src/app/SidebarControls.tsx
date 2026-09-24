@@ -5,8 +5,10 @@ import { maxLoras } from './loras';
 import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import { LoraPanel } from './LoraPanel';
 import { ModelSetup } from './ModelSetup';
+import { ModelFoldersNotice } from './ModelFoldersNotice';
 import { workflowState } from './workflowStatus';
 import type { WorkflowSummary } from './types';
+import { SafeImg } from './SafeImg';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
   if (!workflow) return (
@@ -25,7 +27,7 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
     <Tip content="Change workflow">
       <button type="button" className={cn("workflow-card", status.state !== "ready" && "has-issues")} onClick={onOpen}>
         <div className="workflow-card-thumb">
-          {workflow.thumbnail ? <img src={workflow.thumbnail} alt="" /> : <Wand2 size={18} />}
+          <SafeImg src={workflow.thumbnail} fallback={<Wand2 size={18} />} />
         </div>
         <div className="workflow-card-info">
           <strong>{workflow.name}</strong>
@@ -50,7 +52,7 @@ export function SidebarControls({ view }: { view: any }) {
     setScheduler, setSeed, setSteps, setTextEncoder, setVae,
     setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
     width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
-    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast,
+    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast, modelFolders,
     sidebarTab: tab, setSidebarTab: setTab
   } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void };
 
@@ -75,6 +77,8 @@ export function SidebarControls({ view }: { view: any }) {
       </div>
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />
+
+      {modelFolders ? <ModelFoldersNotice folders={modelFolders} /> : null}
 
       {currentProfile?.missing?.length ? (
         <ModelSetup profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />

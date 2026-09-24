@@ -40,13 +40,13 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Features
 
-- **Bring your own workflow.** Export any ComfyUI API workflow, map the inputs you care about, and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
+- **Bring your own workflow.** Import any ComfyUI workflow (API or visual JSON) and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
 - **Drop in a model and go.** HEISS reads each model file to tell what it is, uses the settings its makers recommend, and pairs it with a matching text encoder and VAE. If one is missing, it says which and can download it for you.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
 - **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works. Queue the next one, cancel any time.
 - **Image and video.** Separate galleries, plus start-image reuse wherever the workflow supports it.
 - **Hidden.** A locked place for the images you keep to yourself: generate into it or hide anything later, unlock with Touch ID, Windows Hello or a password, and upscale, compare and remix inside it. [More ↓](#configuration)
-- **Upscale and compare.** Send an image through an upscale workflow, then drag a slider across it to see what changed.
+- **Upscale and compare.** Upscale any image in one click with SeedVR2, then drag a slider across it to see what changed.
 - **LoRA stacks.** Your LoRAs, grouped by folder, stackable per generation.
 - **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
 
@@ -56,9 +56,11 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Quick start
 
-You need **Node.js 20+** and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
+You need **Node.js 20.9+** (22 LTS recommended) and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
 
 **Easiest:** download the latest `heiss-ui-*.zip` from [Releases](https://github.com/tristmeister/HEISS-UI/releases), unpack it and double-click **Start HEISS UI** (`.command` on macOS, `.bat` on Windows), or run `npm start` in the folder. The app comes prebuilt; the first start installs its three runtime packages, about 30 MB.
+
+On Windows, unpack with **Extract All** first; the launcher does not run from inside the zip. If Windows asks whether to run a downloaded file, right-click the zip › Properties › **Unblock** before unpacking. A plain folder such as `C:\HEISS-UI` works better than a Desktop or Documents folder synced by OneDrive, which can lock files during installs and updates.
 
 **From source**, to follow `main` or change the code:
 
@@ -82,7 +84,7 @@ Install and run HEISS UI from GitHub: https://github.com/tristmeister/HEISS-UI
 
 Please do the full local setup for me:
 
-1. Check whether Node.js 20+ is installed.
+1. Check whether Node.js 20.9+ is installed (22 LTS recommended).
 2. Check whether ComfyUI is installed and running at http://127.0.0.1:8188.
 3. If ComfyUI is not running, help me start my existing ComfyUI install. Do not download models unless I explicitly ask.
 4. Clone https://github.com/tristmeister/HEISS-UI into a normal projects folder.
@@ -120,7 +122,7 @@ For anything custom, this is the way to go.
    }
    ```
 
-4. Import it under **Settings → Workflows**, or drop it into the `workflows/` folder.
+4. Import it in the **Workflows** panel, or drop it into the `workflows/` folder.
 
 It shows up as soon as the nodes it needs are installed. Only the mapped inputs are touched. Everything else runs exactly as you exported it. The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
 
@@ -189,7 +191,7 @@ Set `HOST=0.0.0.0`, allow the chosen `PORT` through your firewall and open your 
 
 <br />
 
-A shortcut that starts ComfyUI and HEISS UI if they aren't running, then opens the browser:
+A shortcut that starts ComfyUI and HEISS UI if they aren't running, then opens the browser. It starts HEISS through `scripts/start.mjs`, like the launcher does, so in-app updates keep working:
 
 ```powershell
 $appRoot = "C:\path\to\heiss-ui"
@@ -201,7 +203,7 @@ if (-not (Get-NetTCPConnection -LocalPort 8188 -State Listen -ErrorAction Silent
 }
 
 if (-not (Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue)) {
-  Start-Process node "server/index.js" -WorkingDirectory $appRoot -WindowStyle Hidden
+  Start-Process node "scripts/start.mjs" -WorkingDirectory $appRoot -WindowStyle Hidden
 }
 
 Start-Process "http://localhost:8787/"
@@ -215,7 +217,7 @@ Start-Process "http://localhost:8787/"
 Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only files it ever adds are text encoders or VAEs you choose to download for a model, and those go into ComfyUI's own folders.
 
 **Which models work?**
-Out of the box: Krea 2, Anima, Z-Image, Flux.2 Dev and Klein, Pony V7, Chroma, Qwen-Image, HiDream, SD 3.5, Flux.1, SDXL (including NoobAI, Illustrious and Pony, plus DMD2, Hyper and Lightning merges) and SD 1.5 for images, and MiniMax H3, HunyuanVideo 1.5, Wan 2.2 and Wan 2.1 for video. Both all-in-one checkpoints and model-only files work; HEISS finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+Out of the box: Krea 2, Anima, Z-Image, Flux.2 Dev and Klein, Pony V7, Chroma, Qwen-Image, HiDream, SD 3.5, Flux.1, SDXL (including NoobAI, Illustrious and Pony, plus DMD2, Hyper and Lightning merges) and SD 1.5 for images, and MiniMax H3, HunyuanVideo 1.5, Wan 2.2 and Wan 2.1 for video. Both all-in-one checkpoints and model-only files work; HEISS UI finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
 
 **Where do my images go?**
 Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.

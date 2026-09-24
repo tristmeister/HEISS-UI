@@ -187,6 +187,8 @@ export type ComposerBarProps = {
   chooseModel: (value: string) => void;
   currentProfile: Profile | null;
   comfyOffline: boolean;
+  onFindModels?: () => void;
+  strayModelCount?: number;
   mode: string;
   aspectPickerValue: string;
   aspectOptions: AspectPreset[];
@@ -218,6 +220,7 @@ export type ComposerBarProps = {
   generateDisabledReason?: string;
   generate: () => void;
   refreshComfyStatus: () => void;
+  comfyRetrying?: boolean;
   referenceInputs?: MediaInput[];
   referenceStrength?: ReferenceStrength | null;
   referenceAssets?: SelectedReferenceAsset[];
@@ -229,13 +232,13 @@ export type ComposerBarProps = {
 
 export function ComposerBar(props: ComposerBarProps) {
   const {
-    models, model, modelProfiles, profileBadges, chooseModel, currentProfile, comfyOffline, mode,
+    models, model, modelProfiles, profileBadges, chooseModel, currentProfile, comfyOffline, onFindModels, strayModelCount, mode,
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
     hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
-    runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus,
+    runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
     referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
   } = props;
 
@@ -250,7 +253,7 @@ export function ComposerBar(props: ComposerBarProps) {
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
-    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} compact badges={profileBadges} density={density} emptyHint={comfyOffline ? "ComfyUI isn't reachable. Start it and your models show up here." : "ComfyUI has no model HEISS UI can run yet. Add one to its models folder, then rescan in Settings."} />
+    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "ComfyUI isn't reachable. Start it and your models show up here." : strayModelCount ? "Your models are in a folder ComfyUI doesn’t read." : "ComfyUI has no model HEISS UI can run yet. Add one to its models folder, or search for yours."} />
     : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
   const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (
@@ -376,10 +379,11 @@ export function ComposerBar(props: ComposerBarProps) {
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && "is-working", comfyOffline && "is-offline")}
             onClick={comfyOffline ? refreshComfyStatus : generate}
-            disabled={!comfyOffline && generateDisabled}
-            aria-label={comfyOffline ? "ComfyUI offline, retry connection" : generateDisabledReason || "Generate"}
+            disabled={comfyOffline ? comfyRetrying : generateDisabled}
+            aria-busy={(comfyOffline && comfyRetrying) || undefined}
+            aria-label={comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, retry connection") : generateDisabledReason || "Generate"}
           >
-            {comfyOffline ? <><RefreshCw size={14} /><span>ComfyUI offline</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
+            {comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? "Checking…" : "ComfyUI offline"}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
           </GenerateButton>
         </Tip>
       </div>

@@ -95,3 +95,20 @@ test("versions compare by number and the release zip carries its checksum", () =
   assert.deepEqual(asset, { version: "0.4.0", name: "heiss-ui-0.4.0.zip", url: "https://x/zip", size: 10, sha256: digest, sumUrl: "https://x/sum" });
   assert.equal(pickAsset({ tag_name: "v0.4.0", assets: [] }), null);
 });
+
+test("moves a rollback could not make are retried, and an update waits until they are done", () => {
+  const root = fixture();
+  write(path.join(updateDir(root), "backup", "kept.txt"), "old");
+  write(path.join(updateDir(root), "backup", "stuck.txt"), "old");
+  write(path.join(root, "blocker", "inside.txt"), "a folder where a file should go");
+  write(path.join(updateDir(root), "leftovers.json"), JSON.stringify([{ from: ".update/backup/stuck.txt", to: "blocker" }, { from: ".update/backup/kept.txt", to: "kept.txt" }]));
+  assert.equal(applyPending(root), null, "no update while files are still stuck");
+  assert.equal(read(path.join(root, "kept.txt")), "old", "what can move is moved");
+  assert.equal(read(path.join(updateDir(root), "backup", "stuck.txt")), "old", "the backup is not wiped");
+  assert.match(takeResult(root).error, /stuck\.txt/);
+  fs.rmSync(path.join(root, "blocker"), { recursive: true });
+  const applied = applyPending(root);
+  assert.equal(applied.to, "0.4.0");
+  assert.equal(read(path.join(root, "blocker")), "old");
+  assert.ok(!fs.existsSync(path.join(updateDir(root), "leftovers.json")));
+});

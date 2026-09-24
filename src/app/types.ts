@@ -106,7 +106,23 @@ export type Profile = {
 };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number };
-export type MissingPart = { part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[] };
+/** A ComfyUI custom node pack (server/node-packs.js). */
+export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
+/** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */
+export type PackAutoInstall = { manager: boolean; local: boolean };
+export type PackInstallState = { id: string; name: string; route: "manager" | "local"; status: "running" | "done" | "error"; step: string; log: string; error: string; startedAt: number; finishedAt: number };
+/** One command per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
+export type ShellPlan = { commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }> };
+export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: string; python: string; cloned: boolean; needsGit: boolean };
+/**
+ * Something a model still needs. A missing node pack carries `nodePack` and its
+ * terminal `install`; a part fetched outside HEISS carries a `command`.
+ */
+export type MissingPart = {
+  part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
+  nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
+  command?: ShellPlan & { target?: string };
+};
 export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number };
 export type DownloadState = { active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
@@ -133,7 +149,7 @@ export type Paths = { outputDir?: string; galleryDir?: string; workflowsDir?: st
 export type OutputFolderState = "empty" | "missing" | "not-folder" | "ok" | "match" | "mismatch";
 export type OutputFolderReport = { path: string; state: OutputFolderState; media?: number; capped?: boolean; checked?: number; found?: number; looksLikeComfy?: boolean; source?: "comfy" | "common" };
 export type Health = { ok: boolean; comfyUrl?: string; error?: string };
-export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean };
+export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean; checked?: boolean };
 export type UpdateDownload = { status: "downloading" | "verifying" | "unpacking" | "ready" | "error"; version?: string; receivedBytes?: number; totalBytes?: number; error?: string };
 export type UpdateResult = { ok: boolean; rolledBack?: boolean; from?: string; to?: string; error?: string };
 export type UpdateStatus = {
@@ -142,7 +158,7 @@ export type UpdateStatus = {
   release?: boolean; url?: string; size?: number; canInstall?: boolean; supervised?: boolean; download?: UpdateDownload; result?: UpdateResult;
 };
 export type AspectPreset = { label: string; value: string; w: number; h: number };
-export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[] };
+export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[] };
 export type WorkflowSummary = {
   id: string;
   profileId: string;
@@ -253,16 +269,7 @@ export type UpscaleStatus = {
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
   /** Only while the nodes are missing: whether Manager is on, and the terminal route otherwise. */
-  nodeSetup?: {
-    manager: boolean;
-    exact: boolean;
-    customNodesDir: string;
-    python: string;
-    cloned: boolean;
-    needsGit: boolean;
-    /** One per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
-    commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }>;
-  };
+  nodeSetup?: NodeInstallPlan & { manager: boolean; pack?: NodePackInfo; autoInstall?: PackAutoInstall };
 };
 export type UpscaleDownloadPreview = {
   quality: UpscaleQuality;
@@ -284,4 +291,30 @@ export type PrivacyStatus = {
   readiness?: { outputDir: boolean; outputPath: string };
   /** This browser is another device on the network, which has to unlock before anything else. */
   remote?: boolean;
+};
+
+/** A models folder ComfyUI is not reading (server/model-folders.js). */
+export type StrayModelFolder = {
+  path: string;
+  label: string;
+  name: string;
+  layout: "comfy" | "stability" | "a1111";
+  app: string;
+  source: string;
+  kinds: Array<{ kind: string; name: string; dir: string; count: number; bytes: number; examples: string[] }>;
+  count: number;
+  bytes: number;
+};
+export type ModelFolderReport = {
+  ok: boolean;
+  offline?: boolean;
+  local?: boolean;
+  root?: string;
+  configPath?: string;
+  configLabel?: string;
+  writable?: boolean;
+  folders: StrayModelFolder[];
+  linked: Array<{ path: string; label: string; read: boolean }>;
+  scannedAt?: number;
+  error?: string;
 };

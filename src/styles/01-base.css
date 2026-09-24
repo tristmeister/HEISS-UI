@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "./00-shadcn.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -61,6 +62,8 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: hsl(var(--background)); color: hsl(var(--foreground)); }
+/* Last resort: a broken image never prints its alt text over the UI. The real handling is SafeImg. */
+img { color: transparent; }
 button, input, textarea, select { font: inherit; }
 button { color: inherit; }
 button:not(:disabled) { transition-timing-function: var(--ease-out); transition-duration: 180ms; }
@@ -80,6 +83,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 }
 
+/* Thin, quiet scrollbars everywhere. Windows otherwise draws 17 px bars that
+   are always visible. Rules that hide a scrollbar still win (specificity). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / .22) transparent;
+}
+
 .app-shell {
   position: fixed; inset: 0; overflow: hidden;
   background: hsl(var(--background)); color: hsl(var(--foreground));
@@ -96,7 +106,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   background: hsl(var(--background));
 }
 .bottom-fade {
-  position: fixed; left: 0; right: 0; bottom: 0;
+  /* --scrollbar-w is set on the gallery from StudioView, so the fade stops
+     short of its scrollbar (17 px and always visible on Windows). */
+  position: fixed; left: 0; right: var(--scrollbar-w, 0px); bottom: 0;
   height: 150px;
   pointer-events: none;
   z-index: 5;
@@ -411,6 +423,8 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   animation: generateIconLift 1.6s var(--ease-soft) infinite;
 }
 .generate:disabled { opacity: 0.5; cursor: not-allowed; }
+/* Checking ComfyUI again is busy, not unavailable: keep it at full strength. */
+.generate.is-offline[aria-busy], .reconnect-btn[aria-busy] { opacity: 1; cursor: progress; }
 .generate.is-offline {
   background: hsl(0 0% 20%);
   color: hsl(0 74% 68%);

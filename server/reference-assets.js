@@ -2,10 +2,12 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Busboy from "busboy";
-import sharp from "sharp";
 import { comfy, comfyOutputDir } from "./comfy.js";
 import { dataDir, filterVisibleGallery, gallery, galleryKey, outputFileCandidates } from "./gallery-store.js";
 import { readVaultAsset, vaultGalleryItemsForRequest } from "./vault.js";
+import { renameWithRetry } from "./json-store.js";
+import { isInside } from "./paths.js";
+import { loadSharp } from "./sharp-loader.js";
 
 const assetsDir = path.join(dataDir, "reference-assets");
 const filesDir = path.join(assetsDir, "files");
@@ -49,7 +51,7 @@ function writeManifest(items) {
   ensureDirs();
   const temporary = `${manifestPath}.${process.pid}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify(items, null, 2), { mode: 0o600 });
-  fs.renameSync(temporary, manifestPath);
+  renameWithRetry(temporary, manifestPath);
 }
 
 function publicUploadAsset(record) {
@@ -162,14 +164,26 @@ export function readMultipartImage(req) {
   });
 }
 
+/**
+ * What the file's first bytes say it is, for when sharp is missing. Only PNG
+ * carries its size this plainly; the others report 0 × 0 like gallery items do.
+ */
+function sniffImage(buffer) {
+  if (buffer.length > 24 && buffer.readUInt32BE(0) === 0x89504e47) return { format: "png", width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  if (buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return { format: "jpeg", width: 0, height: 0 };
+  if (buffer.length > 12 && buffer.toString("latin1", 0, 4) === "RIFF" && buffer.toString("latin1", 8, 12) === "WEBP") return { format: "webp", width: 0, height: 0 };
+  return {};
+}
+
 async function inspectImage(buffer, declaredMime = "") {
-  const metadata = await sharp(buffer, { limitInputPixels: maxPixels }).metadata();
+  const sharp = await loadSharp();
+  const metadata = sharp ? await sharp(buffer, { limitInputPixels: maxPixels }).metadata() : sniffImage(buffer);
   const mime = metadata.format === "jpeg" ? "image/jpeg" : metadata.format === "webp" ? "image/webp" : metadata.format === "png" ? "image/png" : "";
   if (!mime || !acceptedMimes.has(mime)) throw new Error("Reference image must be a PNG, JPEG, or WebP file.");
   if (declaredMime && acceptedMimes.has(declaredMime) && declaredMime !== mime) throw new Error("The uploaded image type does not match its contents.");
   const width = Number(metadata.width || 0);
   const height = Number(metadata.height || 0);
-  if (!width || !height || width * height > maxPixels) throw new Error("Reference image dimensions are invalid or too large.");
+  if ((sharp || metadata.format === "png") && (!width || !height || width * height > maxPixels)) throw new Error("Reference image dimensions are invalid or too large.");
   return { mime, width, height };
 }
 
@@ -184,9 +198,12 @@ export async function saveUploadedReference({ buffer, name, mime: declaredMime =
   const id = crypto.randomUUID();
   const ext = mimeExtension(inspected.mime);
   const file = `${id}.${ext}`;
-  const thumbnail = `${id}.webp`;
   fs.writeFileSync(path.join(filesDir, file), buffer, { mode: 0o600 });
-  await sharp(buffer, { limitInputPixels: maxPixels }).rotate().resize({ width: 480, height: 480, fit: "inside", withoutEnlargement: true }).webp({ quality: 78 }).toFile(path.join(thumbsDir, thumbnail));
+  const sharp = await loadSharp();
+  // Without sharp the thumbnail is a copy of the original, in its own format.
+  const thumbnail = sharp ? `${id}.webp` : `${id}-thumb.${ext}`;
+  if (sharp) await sharp(buffer, { limitInputPixels: maxPixels }).rotate().resize({ width: 480, height: 480, fit: "inside", withoutEnlargement: true }).webp({ quality: 78 }).toFile(path.join(thumbsDir, thumbnail));
+  else fs.writeFileSync(path.join(thumbsDir, thumbnail), buffer, { mode: 0o600 });
   const record = {
     id,
     source: "upload",
@@ -212,7 +229,7 @@ export function readUploadedReference(id, variant = "media") {
   const base = path.resolve(isThumb ? thumbsDir : filesDir);
   const resolved = path.resolve(file);
   if (!resolved.startsWith(`${base}${path.sep}`) || !fs.existsSync(resolved)) return null;
-  return { file: resolved, mime: isThumb ? "image/webp" : record.mime, name: record.name };
+  return { file: resolved, mime: isThumb && record.thumbnail.endsWith(".webp") ? "image/webp" : record.mime, name: record.name };
 }
 
 export function deleteUploadedReference(id) {
@@ -245,7 +262,7 @@ async function publicGalleryBuffer(item) {
   const base = comfyOutputDir ? path.resolve(comfyOutputDir) : "";
   const file = outputFileCandidates(item).find((candidate) => {
     const resolved = path.resolve(candidate);
-    return base && resolved.startsWith(`${base}${path.sep}`) && fs.existsSync(resolved) && fs.statSync(resolved).isFile();
+    return base && isInside(base, resolved) && fs.existsSync(resolved) && fs.statSync(resolved).isFile();
   });
   if (file) return { buffer: fs.readFileSync(file), mime: mimeFromName(file), name: item.outputName || path.basename(file) };
   if (!String(item.url || "").startsWith("/comfy/")) throw new Error("Generated reference image is no longer available.");

@@ -20,6 +20,6 @@ test("the traceback keeps its last lines and unknown errors stay generic", () =>
 
 test("a run with no saved image becomes a visible failure", () => {
   const failure = describeFailure({ message: "ComfyUI finished the run but saved no image.", noOutput: true });
-  assert.equal(failure.title, "Nothing was saved");
+  assert.equal(failure.title, "No image was saved");
   assert.match(failure.hint, /Save Image/);
 });

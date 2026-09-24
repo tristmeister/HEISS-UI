@@ -152,7 +152,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
         </span>
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
-        {item.status === "pending" ? <Tip content="Cancel generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Cancel</span></Tip> : null}
+        {item.status === "pending" ? <Tip content="Stop generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Stop</span></Tip> : null}
         {item.status !== "pending" ? (
           <span className="tile-hover-actions" onPointerDown={(event) => event.stopPropagation()}>
             {canMove ? (

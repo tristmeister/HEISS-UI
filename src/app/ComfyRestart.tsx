@@ -10,7 +10,7 @@ let cached: { info: ManagerInfo; at: number } | null = null;
 let pending: Promise<ManagerInfo> | null = null;
 const listeners = new Set<(info: ManagerInfo) => void>();
 
-async function fetchManager(force = false): Promise<ManagerInfo> {
+export async function fetchManager(force = false): Promise<ManagerInfo> {
   if (!force && cached && Date.now() - cached.at < 20_000) return cached.info;
   if (!pending) {
     pending = apiJson<ManagerInfo & { ok: boolean }>('/api/comfy/manager')
@@ -99,10 +99,10 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
       {off ? (
         <p className="comfy-restart-note">
           {info?.stale
-            ? <>The HEISS server is running older code. Restart it to use this.</>
+            ? <>HEISS UI is running older code. Restart it to use this.</>
             : info?.connected
             ? <>Needs ComfyUI-Manager. Start ComfyUI with <code>--enable-manager</code>, or restart it yourself.</>
-            : info?.error ? <>Could not ask HEISS about ComfyUI: {info.error}</>
+            : info?.error ? <>Could not check ComfyUI: {info.error}</>
             : <>ComfyUI is not answering.</>}{' '}
           <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
         </p>

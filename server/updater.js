@@ -31,7 +31,7 @@ export function isNewer(candidate, current) {
   return false;
 }
 
-/** The zip and where its checksum comes from: a .sha256 asset, or GitHub's own digest. */
+/** The zip and its checksum: GitHub's own digest, or a .sha256 asset (0.3.1 shipped one). */
 export function pickAsset(release) {
   const version = String(release?.tag_name || "").replace(/^v/, "");
   const assets = Array.isArray(release?.assets) ? release.assets : [];

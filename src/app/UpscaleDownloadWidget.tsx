@@ -8,6 +8,7 @@ import { cn } from './format';
 import { formatBytes } from './useUpscale';
 import type { UpscaleSetup } from './useUpscale';
 import type { UpscaleInstall } from './types';
+import { SafeImg } from './SafeImg';
 
 /**
  * While the SeedVR2 weights download with the setup dialog closed, a small
@@ -179,9 +180,9 @@ export function UpscaleDownloadWidget({ widget, setup, install }: {
               <small>{meta}</small>
             </span>
             {waiting && mode !== 'ready' && setup.pending?.thumbnailUrl ? (
-              <img className="udw-thumb" src={setup.pending.thumbnailUrl} alt="" draggable={false} title="Upscales when the download is done" />
+              <SafeImg className="udw-thumb" src={setup.pending.thumbnailUrl} draggable={false} title="Upscales when the download is done" />
             ) : widget.readyThumb ? (
-              <img className="udw-thumb" src={widget.readyThumb} alt="" draggable={false} />
+              <SafeImg className="udw-thumb" src={widget.readyThumb} draggable={false} />
             ) : null}
           </button>
           {mode === 'error' || mode === 'ready' ? (

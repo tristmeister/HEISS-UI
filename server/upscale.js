@@ -4,6 +4,9 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
+import { comfyPython, comfyRootDir, packInstallPlan } from "./node-install.js";
+import { nodePacks } from "./node-packs.js";
+import { renameWithRetry } from "./json-store.js";
 
 // SeedVR2 restores detail rather than interpolating it, so the pipeline mirrors
 // the reference workflow: soften the source with a lanczos pre-scale, then let
@@ -71,7 +74,7 @@ const presets = {
   high: { preScale: 0.7, targetScale: 3, maxShort: 2816, blocksToSwap: 36, tileSize: 1024 }
 };
 
-export const upscaleNodeClasses = ["SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler"];
+export const upscaleNodeClasses = nodePacks.seedvr2.nodes;
 export const faceDetailNodeClasses = ["FaceDetailer", "UltralyticsDetectorProvider", "SAMLoader"];
 
 const repoOverride = process.env.HEISS_SEEDVR2_HF_REPO || process.env.JAI_SEEDVR2_HF_REPO || "";
@@ -188,69 +191,13 @@ function detectedSeedVR2Nodes(info) {
 
 /* ------------------------------------------------------------ node install */
 
-export const seedvr2Repository = "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git";
-const seedvr2Folder = "ComfyUI-SeedVR2_VideoUpscaler";
+export const seedvr2Repository = nodePacks.seedvr2.repository;
 
-/** The ComfyUI folder itself, when it sits on this machine next to the models folder we found. */
-export function comfyRootDir() {
-  const models = comfyModelsDir();
-  return models ? path.dirname(models) : "";
-}
+export { comfyPython, comfyRootDir };
 
-/**
- * The Python that ComfyUI runs with, so pip installs into the right place.
- * Covers a venv inside ComfyUI, the Desktop app's standalone env and the
- * Windows portable build; anything else falls back to a plain `python`.
- */
-export function comfyPython(root, platform = process.platform) {
-  if (!root) return "";
-  const win = platform === "win32";
-  const paths = win ? path.win32 : path.posix;
-  const candidates = win
-    ? [[".venv", "Scripts", "python.exe"], ["venv", "Scripts", "python.exe"], ["..", "python_embeded", "python.exe"], ["..", "python_embedded", "python.exe"]]
-    : [[".venv", "bin", "python"], ["venv", "bin", "python"], ["..", "standalone-env", "bin", "python3"], ["..", ".venv", "bin", "python"]];
-  const found = candidates.map((parts) => paths.join(root, ...parts)).find((file) => fs.existsSync(file));
-  return found ? paths.resolve(found) : "";
-}
-
-/**
- * Setup without ComfyUI Manager: clone the pack into custom_nodes and install
- * its requirements with ComfyUI's own Python. On a machine we can see, the
- * paths are the real ones; if the pack folder is already there but the nodes
- * do not load, only the requirements are missing.
- *
- * Windows gets two spellings. Windows Terminal opens PowerShell 5.1, which
- * knows neither `cd /d` nor `&&` and will not run a quoted path without `&`;
- * `if ($?)` chains steps there the way `&&` does in cmd. Elsewhere a missing
- * environment falls back to `python3`, since many Linux systems have no `python`.
- */
+/** The SeedVR2 pack's terminal install; see node-install.js. */
 export function nodeInstallPlan(root = comfyRootDir(), platform = process.platform) {
-  const win = platform === "win32";
-  const paths = win ? path.win32 : path.posix;
-  const customNodes = root ? paths.join(root, "custom_nodes") : "";
-  const python = comfyPython(root, platform);
-  const cloned = Boolean(customNodes) && fs.existsSync(paths.join(customNodes, seedvr2Folder));
-  const requirements = paths.join(seedvr2Folder, "requirements.txt");
-  const folder = customNodes || paths.join("ComfyUI", "custom_nodes");
-  const clone = `git clone ${seedvr2Repository}`;
-  const commands = [];
-  if (win) {
-    const exe = python ? `"${python}"` : "python";
-    const steps = [`Set-Location "${folder}"`, ...(cloned ? [] : [clone]), `${python ? "& " : ""}${exe} -m pip install -r ${requirements}`];
-    commands.push({ shell: "powershell", label: "PowerShell", command: steps.map((step, i) => (i ? `if ($?) { ${step} }` : step)).join("; ") });
-    commands.push({ shell: "cmd", label: "Command Prompt", command: [`cd /d "${folder}"`, ...(cloned ? [] : [clone]), `${exe} -m pip install -r ${requirements}`].join(" && ") });
-  } else {
-    const exe = python ? `"${python}"` : "python3";
-    commands.push({ shell: "sh", label: "Terminal", command: [`cd "${folder}"`, ...(cloned ? [] : [clone]), `${exe} -m pip install -r ${requirements}`].join(" && ") });
-  }
-  return {
-    exact: Boolean(customNodes && python),
-    customNodesDir: customNodes,
-    python,
-    cloned,
-    needsGit: !cloned,
-    commands
-  };
+  return packInstallPlan(nodePacks.seedvr2, root, platform);
 }
 
 /** Manager 4 (pip, off unless ComfyUI starts with --enable-manager) and the older git install answer on different routes. */
@@ -406,7 +353,7 @@ async function downloadOne(entry, dir, onProgress, signal) {
     fs.rmSync(partial, { force: true });
     throw new VerifyError(`${entry.file} did not match its published checksum, so it was thrown away.`);
   }
-  fs.renameSync(partial, target);
+  renameWithRetry(partial, target);
   rememberValidated(dir, entry.file, spec);
   entry.phase = "verified";
 }

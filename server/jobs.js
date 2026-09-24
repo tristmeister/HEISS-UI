@@ -223,7 +223,7 @@ function learnFromFailure(body, message = "") {
   if (!noEncoder && !noVae) return "";
   rememberMissingParts(body.model, { encoder: noEncoder, vae: noVae });
   const part = noEncoder ? "text encoder" : "VAE";
-  return `This checkpoint has no ${part} built in. HEISS now knows to use a separate one: rescan models, pick it in Advanced (or download it), and generate again.`;
+  return `This checkpoint has no ${part} built in. HEISS UI now uses a separate one: rescan models, pick it in Advanced (or download it), and generate again.`;
 }
 
 async function runJob(id, body) {

@@ -1,0 +1,30 @@
+/* ---------------------------------------------------------------------------
+   Windows High Contrast (forced colors)
+
+   Forced colors drop box-shadows and custom backgrounds, which is how switches,
+   pills and focus rings are drawn here. Give them system-colour edges instead.
+--------------------------------------------------------------------------- */
+
+@media (forced-colors: active) {
+  /* Toggle switches: a visible track, a thumb, and Highlight when on. */
+  .switch { border: 1px solid ButtonText; }
+  .switch-thumb { forced-color-adjust: none; background: ButtonText; }
+  .switch[aria-checked="true"] { forced-color-adjust: none; background: Highlight; }
+  .switch[aria-checked="true"] .switch-thumb { background: HighlightText; }
+  .switch:disabled { border-color: GrayText; }
+  .switch:disabled .switch-thumb { background: GrayText; }
+
+  /* Pill and mosaic buttons are borderless fills; outline them instead. */
+  .btn,
+  .mosaic-button,
+  .lora-pill,
+  .segmented button,
+  .wf-filters button,
+  .number-picker { outline: 1px solid ButtonText; outline-offset: -1px; }
+  .segmented button.active,
+  .wf-filters button.active { outline: 2px solid Highlight; outline-offset: -2px; }
+  .mosaic-button canvas { display: none; }
+
+  /* Focus rings are box-shadows (var(--focus-ring)), which forced colors remove. */
+  :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px !important; }
+}
