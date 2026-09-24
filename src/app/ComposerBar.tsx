@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, ChevronUp, CircleDotDashed, Images, Layers, LockKeyhole, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUp, Dices, ChevronUp, CircleDotDashed, Images, Layers, LockKeyhole, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
@@ -149,17 +149,25 @@ function useComposerHeightVar(rowRef: React.RefObject<HTMLDivElement | null>) {
 
 const generateButtonSpring = { type: "spring" as const, stiffness: 520, damping: 32, mass: 0.68 };
 
-function GenerateButton({ children, className, disabled, onClick, "aria-label": ariaLabel }: { children: React.ReactNode; className?: string; disabled?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>; "aria-label"?: string }) {
+/**
+ * `blocked` looks disabled but stays focusable and clickable, so a press (or a
+ * tap on a phone, where there is no tooltip) explains why nothing can run yet.
+ * `disabled` is only for a genuinely busy button.
+ */
+function GenerateButton({ children, className, disabled, blocked, busy, onClick, "aria-label": ariaLabel }: { children: React.ReactNode; className?: string; disabled?: boolean; blocked?: boolean; busy?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>; "aria-label"?: string }) {
   const prefersReducedMotion = useReducedMotion();
+  const inert = disabled || blocked;
   return (
     <motion.button
       type="button"
       className={className}
       onClick={onClick}
       disabled={disabled}
+      aria-disabled={blocked || undefined}
+      aria-busy={busy || undefined}
       aria-label={ariaLabel}
-      whileHover={prefersReducedMotion || disabled ? undefined : { y: -1 }}
-      whileTap={prefersReducedMotion || disabled ? undefined : { y: 0, scale: 0.965 }}
+      whileHover={prefersReducedMotion || inert ? undefined : { y: -1 }}
+      whileTap={prefersReducedMotion || inert ? undefined : { y: 0, scale: 0.965 }}
       transition={generateButtonSpring}
     >
       {children}
@@ -229,6 +237,9 @@ export type ComposerBarProps = {
   onReferenceRemove: (slot: string) => void;
   onReferenceDeleteRequest: (asset: ReferenceAsset) => Promise<boolean>;
   onReferenceError: (message: string) => void;
+  /** A fixed seed makes every run the same picture, so it is always on show. */
+  pinnedSeed?: string;
+  onRandomSeed?: () => void;
 };
 
 export function ComposerBar(props: ComposerBarProps) {
@@ -240,13 +251,14 @@ export function ComposerBar(props: ComposerBarProps) {
     hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
-    referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError
+    referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
+    pinnedSeed = "", onRandomSeed
   } = props;
 
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
   const displayCount = showVariants ? count : 1;
   const workflowName = currentProfile?.displayName || currentProfile?.label || "";
-  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, hiddenSpace, canUseNegativePrompt, Boolean(models)].join("|");
+  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, hiddenSpace, canUseNegativePrompt, Boolean(models), pinnedSeed.trim()].join("|");
   const { rowRef, plan, level } = useDensityLevel(contentKey);
   useComposerHeightVar(rowRef);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -353,6 +365,14 @@ export function ComposerBar(props: ComposerBarProps) {
             </button>
           </Tip>
           {inline("private", privateToggle)}
+          {pinnedSeed.trim() && onRandomSeed ? (
+            <Tip content={`Every run uses seed ${pinnedSeed.trim()}. Tap for a random seed.`}>
+              <button type="button" className="seed-chip" aria-label={`Seed ${pinnedSeed.trim()} is fixed. Use a random seed`} onClick={onRandomSeed}>
+                <Dices size={14} />
+                <span>{pinnedSeed.trim()}</span>
+              </button>
+            </Tip>
+          ) : null}
         </div>
         <div className="zen-inline-settings" data-fluid-group>
           {inline("workflow", workflowPicker)}
@@ -381,8 +401,9 @@ export function ComposerBar(props: ComposerBarProps) {
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && "is-working", comfyOffline && "is-offline")}
             onClick={comfyOffline ? refreshComfyStatus : generate}
-            disabled={comfyOffline ? comfyRetrying : generateDisabled}
-            aria-busy={(comfyOffline && comfyRetrying) || undefined}
+            disabled={comfyOffline ? comfyRetrying : false}
+            blocked={!comfyOffline && generateDisabled}
+            busy={(comfyOffline && comfyRetrying) || undefined}
             aria-label={comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, retry connection") : generateDisabledReason || "Generate"}
           >
             {comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? "Checking…" : "ComfyUI offline"}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}

@@ -208,7 +208,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     const ids = items.map((item) => item.id);
     setBusy(true);
     try {
-      const result = await apiJson<{ moved: number; ids: string[]; failed: Array<{ id: string; error: string }>; leftBehind: number }>("/api/hidden/hide", json({ ids }));
+      const result = await apiJson<{ moved: number; ids: string[]; hiddenIds?: string[]; failed: Array<{ id: string; error: string }>; leftBehind: number }>("/api/hidden/hide", json({ ids }));
       if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Could not hide the image", "error");
       else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} could not be removed.`, "default");
       return result;

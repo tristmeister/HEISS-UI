@@ -2,6 +2,7 @@ import React from 'react';
 import { Download, ImageUp, Layers, LockKeyhole, Minimize2, Ungroup } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
+import { downloadUrl } from './GalleryTile';
 import { Media, Tip } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import type { GalleryItem } from './types';
@@ -108,7 +109,7 @@ function BundleTileComponent({ expanded, height, item, onSetCover, onToggle, onU
                       <a
                         className="bundle-cell-download"
                         aria-label={`Download ${child.filename || "output"}`}
-                        href={child.url}
+                        href={downloadUrl(child)}
                         download
                         onClick={(event) => event.stopPropagation()}
                       >

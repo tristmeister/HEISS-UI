@@ -58,7 +58,11 @@ function noteServerClock(response: Response, sentAt: number) {
 
 export async function apiJson<T>(url: string, options?: RequestInit): Promise<T> {
   const sentAt = Date.now();
-  const response = await fetch(url, options);
+  // The browser's own wording ("Failed to fetch", "Load failed") means nothing to people.
+  const response = await fetch(url, options).catch((error) => {
+    if (error?.name === "AbortError") throw error;
+    throw new Error("Can’t reach HEISS UI. Check that it’s still running, then try again.");
+  });
   noteServerClock(response, sentAt);
   // A server started before an update answers new routes with the app page.
   if (response.ok && (response.headers.get("content-type") || "").includes("text/html")) {

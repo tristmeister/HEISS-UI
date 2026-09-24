@@ -126,7 +126,8 @@ button:not(:disabled):active {
   display: block;
   will-change: transform, opacity;
 }
-.sr-only-value {
+.sr-only-value,
+.sr-only {
   position: absolute;
   width: 1px;
   height: 1px;

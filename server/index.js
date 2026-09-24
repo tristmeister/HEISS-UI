@@ -373,7 +373,7 @@ app.post("/api/hidden/hide", async (req, res) => {
     hideGalleryItems(result.movedFrom || []);
     removeGalleryItems(result.movedFrom || []);
     await forgetComfyRun({ promptIds: result.promptIds });
-    res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
+    res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), hiddenIds: result.moved.map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
   }
@@ -1037,6 +1037,12 @@ app.post("/api/generate", async (req, res) => {
   const staged = (body.referenceAssets || []).filter((item) => item.comfyName);
   body.stagedInputNames = staged.map((item) => item.comfyName);
   body.hiddenInputNames = staged.filter((item) => String(item.assetId || "").startsWith("vault:")).map((item) => item.comfyName);
+  // A random seed is drawn here rather than inside the graph, so the gallery
+  // records the number that actually ran and the image can be made again.
+  if (!/^\d+$/.test(String(body.seed ?? "").trim())) {
+    body.seed = String(crypto.randomInt(1, 2 ** 31));
+    body.seedRandom = true;
+  }
   const clientJobId = String(req.body?.clientJobId || "").replace(/[^\w-]/g, "");
   const id = clientJobId || crypto.randomUUID();
   body.clientJobId = id;

@@ -619,6 +619,7 @@ export function generationSettings(body) {
     sampler: body.sampler || "",
     scheduler: body.scheduler || "",
     seed: body.seed || "Random",
+    ...(body.seedRandom ? { seedRandom: true } : {}),
     textEncoder: body.textEncoder || "",
     ...(Array.isArray(body.encoders) && body.encoders.length > 1 ? { textEncoders: body.encoders.map(String) } : {}),
     vae: body.vae || "",

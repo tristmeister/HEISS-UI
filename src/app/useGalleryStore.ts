@@ -251,10 +251,19 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
     return page;
   }, [hidden, includeFailed, mode, onLocked, space]);
 
+  // Scroll fires many times near the bottom; one request per cursor at a time.
+  const loadingMoreRef = useRef("");
   const loadMoreGalleryItems = useCallback(async () => {
-    if (!state.hasMore || !state.nextCursor) return;
-    const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&cursor=${encodeURIComponent(state.nextCursor)}&includeFailed=${includeFailed}`);
-    dispatch({ type: "append", page });
+    if (!state.hasMore || !state.nextCursor || loadingMoreRef.current === state.nextCursor) return;
+    loadingMoreRef.current = state.nextCursor;
+    try {
+      const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&cursor=${encodeURIComponent(state.nextCursor)}&includeFailed=${includeFailed}`);
+      dispatch({ type: "append", page });
+    } catch {
+      // Leave the cursor as it was, so the next scroll or the button tries again.
+    } finally {
+      loadingMoreRef.current = "";
+    }
   }, [includeFailed, mode, state.hasMore, state.nextCursor]);
 
   const loadGalleryDelta = useCallback(async () => {

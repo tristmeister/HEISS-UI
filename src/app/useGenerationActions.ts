@@ -18,12 +18,29 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir
+    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
   const galleryRemoveWhere = removeGalleryItemsWhere || ((predicate: (item: GalleryItem) => boolean) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !predicate(item))));
   const galleryPatch = patchGalleryItems || ((update: (item: GalleryItem) => GalleryItem) => setGallery((current: GalleryItem[]) => current.map(update)));
+
+  // A run that finishes while the tab is in the background says so in the tab title.
+  const unseenRef = useRef(0);
+  useEffect(() => {
+    const clear = () => {
+      if (document.visibilityState !== "visible" || !unseenRef.current) return;
+      unseenRef.current = 0;
+      document.title = document.title.replace(/^\(\d+\)\s*/, "");
+    };
+    document.addEventListener("visibilitychange", clear);
+    return () => document.removeEventListener("visibilitychange", clear);
+  }, []);
+  function announceFinished() {
+    if (document.visibilityState === "visible") return;
+    unseenRef.current += 1;
+    document.title = `(${unseenRef.current}) ${document.title.replace(/^\(\d+\)\s*/, "")}`;
+  }
 
   function pendingItemsFor(jobId: string, body: any): GalleryItem[] {
     const itemCount = body.kind === "image" ? Math.max(1, Math.min(8, Number(body.count || 1))) : 1;
@@ -58,12 +75,16 @@ export function useGenerationActions(view: any) {
 
   async function generate() {
     if (generatePostingRef.current) return;
+    if (comfyOffline) {
+      showToast("ComfyUI isn’t reachable, so nothing was sent. Start it, then try again.", "error");
+      return;
+    }
     if (!prompt.trim()) {
       showToast("Enter a prompt to generate", "error");
       return;
     }
     if (!currentProfile) {
-      showToast("Choose a supported model first", "error");
+      showToast(generateDisabledReason || "Choose a workflow first", "error");
       return;
     }
     if (missingRequiredReference) {
@@ -71,7 +92,7 @@ export function useGenerationActions(view: any) {
       return;
     }
     if (generateDisabled) {
-      showToast("This model needs files first. Open Set up in the model menu.", "error");
+      showToast(generateDisabledReason ? `${generateDisabledReason}. Open Set up in the workflow menu.` : "This model needs files first. Open Set up in the workflow menu.", "error");
       return;
     }
     // Asked before anything is sent, so a Hidden prompt never runs in the open.
@@ -122,7 +143,9 @@ export function useGenerationActions(view: any) {
       for (let index = 0; index < imageRuns; index += 1) {
         const clientJobId = clientJobUuid();
         optimisticJobIds.push(clientJobId);
-        const optimisticBody = { ...requestBody, count: requestCount, startImageId: canUseStartImage ? startImageId : "" };
+        // Separate runs from one pinned seed would all be the same picture; step it per run.
+        const runSeed = imageRuns > 1 && /^\d+$/.test(String(seed || "").trim()) ? String(Number(seed) + index) : seed;
+        const optimisticBody = { ...requestBody, seed: runSeed, count: requestCount, startImageId: canUseStartImage ? startImageId : "" };
         const optimisticItems = pendingItemsFor(clientJobId, optimisticBody);
         galleryUpsert(optimisticItems);
         if (prefs.zenMode) setZenSelectedId(optimisticItems[0].id);
@@ -130,7 +153,7 @@ export function useGenerationActions(view: any) {
         const { jobId, items, hidden: wentHidden } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number }>("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...requestBody, clientJobId, count: requestCount, startImage: canUseStartImage && !startImageId ? startImage : "" })
+          body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
         if (wentHidden && !hiddenSpace) {
@@ -147,9 +170,21 @@ export function useGenerationActions(view: any) {
       generatePostingRef.current = false;
 
       await Promise.all(queuedJobs.map(async (jobId) => {
+        // A dropped Wi-Fi, a sleeping laptop or a server restart is not a failed
+        // job: keep asking, slower each time, and give up only after a long gap.
+        let misses = 0;
         while (true) {
-          await new Promise((resolve) => setTimeout(resolve, 1600));
-          const job: Job = await apiJson<Job>(`/api/jobs/${jobId}`);
+          await new Promise((resolve) => setTimeout(resolve, 1600 * Math.min(5, 1 + misses)));
+          let job: Job;
+          try {
+            job = await apiJson<Job>(`/api/jobs/${jobId}`);
+            misses = 0;
+          } catch {
+            misses += 1;
+            if (misses < 12) continue;
+            galleryPatch((item: GalleryItem) => item.jobId === jobId && item.status === "pending" ? { ...item, status: "error", optimistic: false, filename: "Lost contact with HEISS UI. The image may still finish; reload to check." } : item);
+            return null;
+          }
           if (job.status === "missing") {
             galleryPatch((item: GalleryItem) => item.jobId === jobId ? { ...item, status: "error", optimistic: false, filename: "Generation interrupted" } : item);
             return job;
@@ -161,7 +196,8 @@ export function useGenerationActions(view: any) {
             setStatus(message);
             return job;
           }
-          if (job.status === "done" || job.status === "canceled") return job;
+          if (job.status === "done") { announceFinished(); return job; }
+          if (job.status === "canceled") return job;
           if (job.preview || job.previews?.length || job.progress || job.status === "queued" || job.status === "running") {
             galleryPatch((item: GalleryItem) => {
               if (item.jobId !== jobId) return item;
@@ -193,7 +229,7 @@ export function useGenerationActions(view: any) {
           setZenSelectedId(latest.id);
         }
       }
-      setStatus("Ready");
+      setStatus(mode === "image" ? "Finished. Your images are in the gallery." : "Finished. Your video is in the gallery.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Generation failed";
       galleryPatch((item: GalleryItem) => {

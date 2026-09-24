@@ -3,6 +3,7 @@ import { clampText, settingMax } from './format';
 import { touchCenter, touchDistance } from './gallery';
 import { normalizeLoras } from './loras';
 import type React from 'react';
+import { toast } from 'sonner';
 import { wheelPixels } from './wheel';
 import type { GalleryItem, Profile } from './types';
 
@@ -42,7 +43,26 @@ export function useViewerControls(view: any) {
     setActive(item);
   }
 
+  /** Puts back what "Apply settings" replaced: the draft someone was halfway through. */
+  function restoreDraft(before: any) {
+    setMode(before.mode);
+    setModel(before.model);
+    // Switching workflow resets its defaults in an effect; restore the rest after it ran.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      setPrompt(before.prompt);
+      setNegative(before.negative);
+      setSeed(before.seed);
+      setWidth(before.width);
+      setHeight(before.height);
+      setSteps(before.steps);
+      setCfg(before.cfg);
+      setCount(before.count);
+      setLoras(before.loras);
+    }));
+  }
+
   function applyAllSettings(item: GalleryItem) {
+    const before = view.draft ? { ...view.draft } : null;
     const itemSettings = item.settings || {};
     const nextMode = item.type;
     const matchingProfile = models?.profiles.find((profile: Profile) => profile.kind === nextMode && profile.model === item.model);
@@ -77,7 +97,14 @@ export function useViewerControls(view: any) {
     if (setStartImageId) setStartImageId(item.startImageId || item.referenceImage || "");
     setStartImageName(item.referenceImageName || String(itemSettings.referenceImageName || ""));
     setCustomSize(!matchingAspects.some((option: { w: number; h: number }) => option.w === Number(item.width) && option.h === Number(item.height)));
-    showToast("All settings applied", "success");
+    const seedNote = itemSettings.seed && itemSettings.seed !== "Random" ? ` Seed ${itemSettings.seed} is fixed until you change it.` : "";
+    const message = matchingProfile
+      ? `Settings applied.${seedNote}`
+      : `Settings applied, but its workflow isn’t installed, so the current one stays.${seedNote}`;
+    toast(message, {
+      duration: 8000,
+      action: before ? { label: "Undo", onClick: () => restoreDraft(before) } : undefined
+    });
   }
 
   function applyLoras(item: GalleryItem) {
@@ -111,11 +138,15 @@ export function useViewerControls(view: any) {
   }
 
   function submitZenPrompt(event: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!prefs.enterToGenerate || event.key !== "Enter" || event.shiftKey) return;
+    if (event.key !== "Enter" || event.shiftKey) return;
+    // Cmd/Ctrl+Enter always generates, even with "Enter to generate" off.
+    const modified = event.metaKey || event.ctrlKey;
+    if (!prefs.enterToGenerate && !modified) return;
     // Enter that confirms an IME composition (Japanese, Chinese, Korean) is not a submit.
     if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     event.preventDefault();
-    if (!generateDisabled) generate();
+    // generate() explains itself when something is missing, instead of doing nothing.
+    generate();
   }
 
   function startZenStripDrag(event: React.PointerEvent<HTMLDivElement>) {

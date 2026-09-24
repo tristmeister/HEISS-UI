@@ -426,6 +426,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onReferenceRemove={removeReferenceAsset}
               onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "This removes the uploaded image from your reference library.", action: "Delete upload", destructive: true })}
               onReferenceError={(message) => showToast(message, "error")}
+              pinnedSeed={view.seed}
+              onRandomSeed={() => view.setSeed("")}
             />
           </section>
           {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
@@ -568,6 +570,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onReferenceRemove={removeReferenceAsset}
               onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "This removes the uploaded image from your reference library.", action: "Delete upload", destructive: true })}
               onReferenceError={(message) => showToast(message, "error")}
+              pinnedSeed={view.seed}
+              onRandomSeed={() => view.setSeed("")}
             />
           </section>
         </>
@@ -682,8 +686,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           </div>
                         </div>
                       ) : null}
-                      <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy all settings</button></Tip>
-                      <Tip content="Copy this output's LoRA stack into the generator"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Copy LoRAs</button></Tip>
+                      <Tip content="Load this output's prompt and settings into the composer (you can undo)"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Apply these settings</button></Tip>
+                      <Tip content="Load this output's LoRA stack into the composer"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Apply its LoRAs</button></Tip>
                       {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? (
                         <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
                       ) : null}
@@ -756,6 +760,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         );
       })() : null}
       {workflowGalleryOpen ? <WorkflowGallery view={{ ...view, onClose: () => setWorkflowGalleryOpen(false) }} /> : null}
+      {/* Generation progress for screen readers: started, rendering, ready. */}
+      <div className="sr-only" role="status" aria-live="polite">{view.status && view.status !== "Ready" && !/^Rendering|^Queued/.test(view.status) ? view.status : ""}</div>
       {/* The shell is position: fixed, a stacking context of its own, so a toaster
           inside it sits under every portaled dialog and its blurred scrim. */}
       {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={downloadWidget.visible ? { top: 88 } : undefined} mobileOffset={downloadWidget.visible ? { top: 80 } : undefined} />, document.body)}

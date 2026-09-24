@@ -18,10 +18,18 @@ export function useConfirmation(enabled: boolean) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // A second request while one is open waits its turn instead of being refused.
+  const queueRef = useRef<Array<{ options: ConfirmationOptions; resolve: (value: boolean) => void }>>([]);
   const settle = useCallback((accepted: boolean) => {
     const resolve = resolveRef.current;
     resolveRef.current = null;
-    setPending(null);
+    const next = queueRef.current.shift();
+    if (next) {
+      resolveRef.current = next.resolve;
+      setPending(next.options);
+    } else {
+      setPending(null);
+    }
     resolve?.(accepted);
   }, []);
   const settlePrompt = useCallback((value: string | null) => {
@@ -30,12 +38,19 @@ export function useConfirmation(enabled: boolean) {
     setPrompt(null);
     resolve?.(value);
   }, []);
-  useEffect(() => () => { resolveRef.current?.(false); promptResolveRef.current?.(null); }, []);
+  useEffect(() => () => {
+    resolveRef.current?.(false);
+    queueRef.current.forEach((entry) => entry.resolve(false));
+    promptResolveRef.current?.(null);
+  }, []);
 
   const confirmAction: ConfirmAction = useCallback((options) => {
     if (!enabled && !options.irreversible) return Promise.resolve(true);
-    if (resolveRef.current) return Promise.resolve(false);
     return new Promise<boolean>((resolve) => {
+      if (resolveRef.current) {
+        queueRef.current.push({ options, resolve });
+        return;
+      }
       resolveRef.current = resolve;
       setPending(options);
     });

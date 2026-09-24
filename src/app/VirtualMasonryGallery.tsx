@@ -80,17 +80,69 @@ export function VirtualMasonryGallery({
   const safeColumns = Math.max(1, columns);
   const spacing = containerWidth < 620 ? 4 : 7;
   const columnWidth = containerWidth ? Math.floor((containerWidth - spacing * (safeColumns - 1)) / safeColumns) : 240;
+  // Tiles keep the column they were first placed in. A greedy pass over the
+  // whole list reassigned nearly every tile whenever one landed at the top, so
+  // the grid reshuffled under a finger reaching for a tile. Only a new column
+  // count or width lays everything out afresh.
+  const placement = useRef<{ signature: string; columns: Map<string, number> }>({ signature: "", columns: new Map() });
   const columnItems = useMemo(() => {
-    const next = Array.from({ length: safeColumns }, () => ({ height: 0, items: [] as GalleryItem[] }));
+    const signature = `${safeColumns}:${columnWidth}`;
+    if (placement.current.signature !== signature) placement.current = { signature, columns: new Map() };
+    const assigned = placement.current.columns;
+    const heights = Array.from({ length: safeColumns }, () => 0);
+    const keyOf = (item: GalleryItem) => item.jobId && Number.isInteger(item.index) ? `${item.jobId}:${item.index}` : item.id;
+    const height = (item: GalleryItem) => estimatedHeight(item, columnWidth, expandedBundles) + spacing;
+    const present = new Set<string>();
     for (const item of items) {
-      let target = 0;
-      for (let index = 1; index < next.length; index += 1) {
-        if (next[index].height < next[target].height) target = index;
-      }
-      next[target].items.push(item);
-      next[target].height += estimatedHeight(item, columnWidth, expandedBundles) + spacing;
+      const key = keyOf(item);
+      present.add(key);
+      const column = assigned.get(key);
+      if (column !== undefined && column < safeColumns) heights[column] += height(item);
     }
-    return next.map((column) => column.items);
+    for (const key of Array.from(assigned.keys())) if (!present.has(key)) assigned.delete(key);
+    const shortest = () => {
+      let target = 0;
+      for (let column = 1; column < safeColumns; column += 1) if (heights[column] < heights[target]) target = column;
+      return target;
+    };
+    const place = (item: GalleryItem, column: number) => {
+      assigned.set(keyOf(item), column);
+      heights[column] += height(item);
+    };
+    const placed = (item: GalleryItem) => {
+      const column = assigned.get(keyOf(item));
+      return column !== undefined && column < safeColumns;
+    };
+    if (!assigned.size) {
+      // A fresh layout: newest first, so the top row holds the latest outputs.
+      for (const item of items) place(item, shortest());
+    } else {
+      // Where each column's newest tile sits in the list (smaller is newer).
+      const top = Array.from({ length: safeColumns }, () => Infinity);
+      items.forEach((item, index) => {
+        const column = assigned.get(keyOf(item));
+        if (column !== undefined && column < safeColumns && top[column] === Infinity) top[column] = index;
+      });
+      const newestPlaced = Math.min(...top);
+      // Tiles that land above everything (fresh results), oldest of them first,
+      // go to the column whose top tile is the oldest: the latest stay spread
+      // across the top row and every other tile only slides down its column.
+      for (let index = Math.min(newestPlaced, items.length) - 1; index >= 0; index -= 1) {
+        const item = items[index];
+        if (placed(item)) continue;
+        let target = 0;
+        for (let column = 1; column < safeColumns; column += 1) {
+          if (top[column] > top[target] || (top[column] === top[target] && heights[column] < heights[target])) target = column;
+        }
+        place(item, target);
+        top[target] = index;
+      }
+      // Anything else new (an older page loading in below): shortest column.
+      for (const item of items) if (!placed(item)) place(item, shortest());
+    }
+    const next = Array.from({ length: safeColumns }, () => [] as GalleryItem[]);
+    for (const item of items) next[assigned.get(keyOf(item)) ?? 0].push(item);
+    return next;
   }, [columnWidth, expandedBundles, items, safeColumns, spacing]);
 
   return (

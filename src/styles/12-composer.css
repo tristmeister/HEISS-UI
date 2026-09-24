@@ -254,3 +254,26 @@
   .composer-drawer-row { min-height: 48px; }
 }
 
+
+/* --- Pinned seed ----------------------------------------------------------
+   A fixed seed makes every run the same picture; while one is set it shows
+   beside the negative toggle, and one tap goes back to random. */
+.seed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  min-width: 0;
+  max-width: 120px;
+  padding: 0 12px 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--ember-soft, rgb(255 140 90 / .14));
+  color: var(--ember, #ff9a6a);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.seed-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seed-chip:hover { background: rgb(255 140 90 / .22); }
