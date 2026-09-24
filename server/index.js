@@ -199,6 +199,18 @@ function sessionSeconds(req) {
   return Number.isFinite(value) && value > 0 ? value : undefined;
 }
 
+/**
+ * Looking after the computer (model folders and downloads, node installs,
+ * ComfyUI's address and restarts, the output folder, updates, workflow files,
+ * the Hidden password) happens at that computer. Other devices on the network
+ * are for making and looking at images; the app hides these there too.
+ */
+function requireAdmin(req, res) {
+  if (isLocalClient(req.socket.remoteAddress || "")) return true;
+  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on." });
+  return false;
+}
+
 /** Creating or erasing Hidden happens at the computer it runs on, never from the network. */
 function requireThisComputer(req, res) {
   if (isLocalClient(req.socket.remoteAddress || "")) return true;
@@ -289,7 +301,7 @@ app.delete("/api/privacy/passkeys/:id", async (req, res) => {
 });
 
 app.post("/api/privacy/password", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
@@ -438,12 +450,12 @@ app.get("/api/stats", async (_req, res) => {
 // When this server process started, so the app can tell a restart (e.g. after an update) happened.
 const serverStartedAt = Date.now();
 
-app.get("/api/health", async (_req, res) => {
+app.get("/api/health", async (req, res) => {
   try {
     const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt });
+    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: isLocalClient(req.socket.remoteAddress || "") });
   } catch (error) {
-    res.status(503).json({ ok: false, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
+    res.status(503).json({ ok: false, thisComputer: isLocalClient(req.socket.remoteAddress || ""), restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
 });
 
@@ -502,7 +514,7 @@ app.get("/api/models", async (_req, res) => {
 });
 
 app.put("/api/models/types", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     setModelChoice(req.body?.source, req.body?.name, req.body?.type);
     const { info, stats } = await loadComfyContext();
@@ -519,7 +531,7 @@ app.get("/api/models/downloads", (_req, res) => {
 // Fetches a missing text encoder or VAE. Only ids from HEISS's own catalog are
 // accepted, so the server never downloads from a URL a request supplies.
 app.post("/api/models/downloads", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   const spec = catalogDownload(req.body?.id);
   if (!spec) {
     res.status(400).json({ ok: false, error: "Unknown file." });
@@ -536,7 +548,7 @@ app.post("/api/models/downloads", async (req, res) => {
 });
 
 app.post("/api/models/downloads/cancel", (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   const id = String(req.body?.id || "");
   const spec = req.body?.discard ? catalogDownload(id) : null;
   if (spec) discardDownload(spec);
@@ -550,7 +562,7 @@ app.get("/api/paths", async (_req, res) => {
 });
 
 app.post("/api/config/output-dir", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     const outputDir = setComfyOutputDir(req.body?.outputDir || "");
     res.json({ ok: true, outputDir, galleryDir: dataDir, workflowsDir: userWorkflowsDir, report: await inspectOutputDir(outputDir) });
@@ -566,12 +578,12 @@ app.get("/api/output-dir", async (req, res) => {
 });
 
 app.post("/api/output-dir/check", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   res.json(await inspectOutputDir(req.body?.outputDir || ""));
 });
 
 app.get("/api/output-dir/detect", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   res.json({ candidates: await detectOutputDirs() });
 });
 
@@ -620,7 +632,7 @@ app.put("/api/workflows/preferences", (req, res) => {
 });
 
 app.post("/api/workflows/import/preview", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     const raw = req.body?.workflow || req.body;
     const { info } = await loadComfyContext().catch(() => ({ info: {} }));
@@ -631,7 +643,7 @@ app.post("/api/workflows/import/preview", async (req, res) => {
 });
 
 app.post("/api/workflows/import", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     const raw = req.body?.workflow || req.body;
     const { info } = await loadComfyContext().catch(() => ({ info: {} }));
@@ -738,7 +750,7 @@ app.delete("/api/gallery/bundles/:id", (req, res) => {
 });
 
 app.delete("/api/workflows/:id", (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     const result = deleteImportedWorkflow(decodeURIComponent(req.params.id).replace(/^custom:/, ""));
     const preferences = loadWorkflowPreferences();
@@ -976,7 +988,7 @@ app.delete("/api/reference-assets/:id", (req, res) => {
  * saving writes it to .env (like the output folder) and takes effect at once.
  */
 app.post("/api/comfy-url", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   const candidate = normalizeComfyUrl(req.body?.url);
   if (!candidate) {
     res.status(400).json({ ok: false, error: "That doesn’t look like an address. Try something like 127.0.0.1:8188." });
@@ -1155,7 +1167,7 @@ app.post("/api/upscale/install/preview", async (req, res) => {
 });
 
 app.post("/api/upscale/install", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   const info = await upscaleContext(res);
   if (!info) return;
   try {
@@ -1166,7 +1178,7 @@ app.post("/api/upscale/install", async (req, res) => {
 });
 
 app.post("/api/upscale/install/cancel", (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   res.json({ ok: true, install: cancelModelInstall() });
 });
 
@@ -1337,6 +1349,7 @@ app.post("/api/queue/cancel", async (_req, res) => {
 });
 
 app.post("/api/gallery/clear", (req, res) => {
+  if (!requireAdmin(req, res)) return;
   // Clearing the gallery never touches Hidden; that has its own erase.
   const cleared = gallery.filter((item) => item.status === "done" && !item.privateVault);
   const files = deleteGalleryFiles(cleared);
@@ -1354,7 +1367,8 @@ app.post("/api/gallery/errors/clear", (_req, res) => {
   res.json({ ok: true, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
 
-app.post("/api/cache/clear", async (_req, res) => {
+app.post("/api/cache/clear", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
   for (const [id, job] of jobs) {
     if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
       setTerminalJob(id, { status: "canceled" });
@@ -1384,7 +1398,7 @@ app.get("/api/model-folders", async (_req, res) => {
 });
 
 app.post("/api/model-folders", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     const paths = Array.isArray(req.body?.paths) ? req.body.paths : [];
     res.json(await linkModelFolders(paths, { picked: String(req.body?.picked || "") }));
@@ -1394,7 +1408,7 @@ app.post("/api/model-folders", async (req, res) => {
 });
 
 app.delete("/api/model-folders", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     res.json(await unlinkModelFolder(String(req.body?.path || "")));
   } catch (error) {
@@ -1418,7 +1432,7 @@ app.post("/api/model-folders/pick", async (req, res) => {
 
 // One-click node pack installs, by registry id only (see pack-installer.js).
 app.post("/api/node-packs/:id/install", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     res.json({ ok: true, install: await startPackInstall(String(req.params.id)) });
   } catch (error) {
@@ -1436,7 +1450,7 @@ app.get("/api/comfy/manager", async (_req, res) => {
 
 // ComfyUI is started outside HEISS UI, so only ComfyUI-Manager can restart it in place.
 app.post("/api/comfy/restart", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   // A dropped connection below means "already going down" only if ComfyUI was
   // up to begin with; otherwise "restarting" would show for minutes over nothing.
   const up = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(4000) }).then((response) => response.ok, () => false);
@@ -1496,7 +1510,7 @@ app.delete("/api/gallery/:id", (req, res) => {
 });
 
 app.post("/api/open-output-folder", (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   if (!comfyOutputDir || !fs.existsSync(comfyOutputDir)) {
     res.status(404).json({ ok: false, error: "Output folder is not configured." });
     return;
@@ -1515,7 +1529,7 @@ app.get("/api/update/status", async (req, res) => {
 });
 
 app.post("/api/update/install", async (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   try {
     const before = await updateStatus();
     if (!before.ok) {
@@ -1549,7 +1563,7 @@ app.post("/api/update/install", async (req, res) => {
 
 // Only a release started through scripts/start.mjs can restart itself (and swap in an update).
 app.post("/api/update/restart", (req, res) => {
-  if (!requireLocal(req, res)) return;
+  if (!requireAdmin(req, res)) return;
   if (!requestRestart()) {
     res.status(409).json({ ok: false, error: "This copy was not started with its launcher, so it cannot restart itself. Stop it and start it again." });
     return;

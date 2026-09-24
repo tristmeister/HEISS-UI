@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiJson } from './api';
 import { announceComfyRestart, fetchManager } from './ComfyRestart';
 import type { ModelFolderReport, StrayModelFolder } from './types';
+import { useThisComputer } from './device';
 
 /**
  * Model folders ComfyUI is not reading, and the walk from "found" to "ready":
@@ -31,6 +32,8 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   onModelsChanged: () => void;
   showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
 }) {
+  // Model folders belong to the computer running HEISS UI; other devices never scan or ask.
+  const thisComputer = useThisComputer();
   const [report, setReport] = useState<ModelFolderReport | null>(null);
   const [open, setOpen] = useState(false);
   const [stage, setStage] = useState<ModelFolderStage>('scanning');
@@ -76,7 +79,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
 
   // No runnable model at all, and there are models right there: that is the moment to say so.
   useEffect(() => {
-    if (autoOpened.current || !emptyModels || !report?.folders.length) return;
+    if (autoOpened.current || !thisComputer || !emptyModels || !report?.folders.length) return;
     autoOpened.current = true;
     setOpen(true);
   }, [emptyModels, report]);
@@ -178,7 +181,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   }, [scan, showToast]);
 
   const folders = report?.folders || [];
-  const noticeVisible = folders.length > 0 && dismissed !== signature(folders) && stage !== 'done';
+  const noticeVisible = thisComputer && folders.length > 0 && dismissed !== signature(folders) && stage !== 'done';
   return {
     report, stage, open, error, saved, selected, added, noticeVisible,
     setSelected, openDialog, close, scan, add, pick, remove, dismissNotice

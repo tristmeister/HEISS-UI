@@ -1,6 +1,7 @@
 import React from 'react';
 import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
+import { usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
 import { Boxes, Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
@@ -531,6 +532,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
   const connected = Boolean(health?.ok);
   const comfyRestarting = useComfyRestarting();
+  // Folders, models, updates and wiping the gallery are looked after at the computer itself.
+  const thisComputer = useThisComputer();
+  const phoneDevice = usePhone();
   const updateLabel = updateStatus?.error || (updateStatus?.available ? `${updateStatus.behind || 1} update${updateStatus.behind === 1 ? '' : 's'} available` : updateStatus?.ok ? 'Up to date' : 'Not checked yet');
 
   // On phones the section row scrolls sideways; keep the chosen one in view.
@@ -548,7 +552,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   return (
     <Modal open={open} onOpenChange={(next) => { if (!next) onClose(); }} size="sheet" className="settings-modal" bodyClassName="set-layout" title="Settings">
       <nav className="set-nav" aria-label="Settings sections">
-        {SETTINGS_SECTIONS.map((item) => {
+        {SETTINGS_SECTIONS.filter((item) => thisComputer || item.id !== 'models').map((item) => {
           const Icon = item.icon;
           return (
             <button key={item.id} type="button" className={cn('set-nav-item', section === item.id && 'active')} aria-current={section === item.id ? 'page' : undefined} aria-controls="settings-panel" data-section={item.id} onClick={() => onSectionChange(item.id)}>
@@ -571,6 +575,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Layout">
               <SwitchRow label="Zen mode" description="A prompt-first fullscreen layout: one image at a time, the composer below. Leave it with the same switch, the dock’s expand button or Escape." checked={prefs.zenMode} onChange={setZenMode} />
               <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
+              {phoneDevice ? <SwitchRow label="Simple phone studio" description="Just making, browsing and sharing, laid out for your thumb. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
@@ -592,12 +597,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Confirm before removing things" description="Ask before deleting or stopping things. Deletes can still be undone for a few seconds, and anything permanent always asks." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
             <Group title="Reset" tone="danger">
-              <Row label="Delete all finished images" description="Deletes their files from ComfyUI’s output folder, not only from the gallery. Hidden isn’t affected.">
-                <button className="btn is-danger-soft" onClick={clearGallery}>Delete all</button>
-              </Row>
-              <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
-                <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
-              </Row>
+              {thisComputer ? (
+                <>
+                  <Row label="Delete all finished images" description="Deletes their files from ComfyUI’s output folder, not only from the gallery. Hidden isn’t affected.">
+                    <button className="btn is-danger-soft" onClick={clearGallery}>Delete all</button>
+                  </Row>
+                  <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
+                    <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
+                  </Row>
+                </>
+              ) : null}
               <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
                 <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>
               </Row>
@@ -664,7 +673,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'library' ? (
           <>
-            <Group title="Folders" note="Where ComfyUI saves your images.">
+            {thisComputer ? <Group title="Folders" note="Where ComfyUI saves your images.">
               <OutputFolderRow
                 savedDir={paths.outputDir || ''}
                 galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
@@ -676,7 +685,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path">{paths.workflowsDir}</code> : <Skeleton className="skeleton-text path" />}>
                 <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
-            </Group>
+            </Group> : null}
             <Group title="Runs" note="Hidden images only group with each other.">
               <SwitchRow label="Group generation runs" description="Collapse a burst of related outputs into one stack you can open in place." checked={prefs.groupRuns !== false} onChange={(next) => setPrefs({ groupRuns: next })} />
               {prefs.groupRuns !== false ? (
@@ -715,7 +724,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               >
                 <button className="btn is-primary" onClick={refreshHealth} disabled={comfyRestarting}>{comfyRestarting ? 'Waiting…' : 'Check again'}</button>
               </Row>
-              <ComfyAddressRow current={health?.comfyUrl || 'http://127.0.0.1:8188'} showToast={showToast} onSaved={() => { refreshHealth(); refreshModels(false); refreshWorkflows(); }} />
+              {thisComputer ? <ComfyAddressRow current={health?.comfyUrl || 'http://127.0.0.1:8188'} showToast={showToast} onSaved={() => { refreshHealth(); refreshModels(false); refreshWorkflows(); }} /> : null}
               <Row label="Open ComfyUI" description="Its own interface, in a new tab.">
                 <button className="btn" onClick={() => window.open(health?.comfyUrl || 'http://127.0.0.1:8188', '_blank')}><ExternalLink size={14} /> Open</button>
               </Row>
@@ -808,7 +817,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </div>
             </Group>
 
-            <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart HEISS UI to finish updating.' : undefined}>
+            {thisComputer ? <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart HEISS UI to finish updating.' : undefined}>
               {updateStatus?.release ? (
                 <ReleaseUpdateRow
                   status={updateStatus}
@@ -829,7 +838,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   </div>
                 </Row>
               )}
-            </Group>
+            </Group> : null}
 
             <Group title="Links">
               <div className="about-links">

@@ -148,7 +148,7 @@ export type Models = {
 export type Paths = { outputDir?: string; galleryDir?: string; workflowsDir?: string };
 export type OutputFolderState = "empty" | "missing" | "not-folder" | "ok" | "match" | "mismatch";
 export type OutputFolderReport = { path: string; state: OutputFolderState; media?: number; capped?: boolean; checked?: number; found?: number; looksLikeComfy?: boolean; source?: "comfy" | "common" };
-export type Health = { ok: boolean; comfyUrl?: string; error?: string };
+export type Health = { ok: boolean; comfyUrl?: string; error?: string; /** Open on the computer HEISS UI runs on (admin allowed). */ thisComputer?: boolean };
 export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean; checked?: boolean; /** A restart HEISS asked for is under way: not answering is expected. */ restarting?: boolean; restartStartedAt?: number; restartFailed?: boolean };
 export type UpdateDownload = { status: "downloading" | "verifying" | "unpacking" | "ready" | "error"; version?: string; receivedBytes?: number; totalBytes?: number; error?: string };
 export type UpdateResult = { ok: boolean; rolledBack?: boolean; from?: string; to?: string; error?: string };
@@ -226,6 +226,8 @@ export type Preferences = {
   /** Minutes untouched before Hidden locks itself; 0 leaves it to the session. */
   hiddenAutoLockMinutes: number;
   mobileZenDefaulted?: boolean;
+  /** On a phone, show the full studio instead of the simplified phone one. */
+  fullStudioOnPhone?: boolean;
 };
 
 export type UpscaleModelInfo = { key: string; file: string; label: string; detail?: string; bytes: number; present: boolean; partialBytes: number };

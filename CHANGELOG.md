@@ -10,6 +10,26 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **A phone studio.** On a phone, HEISS UI is now its own simplified app
+  for making, browsing and sharing, laid out for your thumb: a slim top bar,
+  the gallery edge to edge, and one "Describe…" pill that opens a full-height
+  create sheet (prompt, reference image, workflow, shape, number of images,
+  steps, and Advanced one link away). Pickers are bottom sheets you swipe
+  away; tiles open on tap and show Share, Upscale, Make another, Hide and
+  Delete on a long press; the viewer has a labelled action bar. Share hands
+  the file to the phone's share sheet where the page allows it (HTTPS),
+  otherwise it saves the file. Added to the home screen it opens full-screen.
+  "Use the full studio" in More (and a switch in Settings) goes back to the
+  complete layout; `?phone=1` shows the phone studio on any screen.
+
+### Changed
+- **Looking after the computer happens at the computer.** Model folders and
+  downloads, node installs, ComfyUI's address and restarts, the output
+  folder, updates, workflow import and delete, deleting every image, clearing
+  the cache and changing the Hidden password are refused from other devices
+  on the network, and the app hides them there instead of offering them.
+
 ### Changed
 - **Restarting ComfyUI looks like restarting, not like a crash.** While a
   restart HEISS asked for is under way, the Generate button says

@@ -4,6 +4,7 @@ import { githubUrl } from './constants';
 import { EmptyMark } from './EmptyMark';
 import { CONNECT_MS, OfflineMark } from './OfflineMark';
 import { cn } from './format';
+import { useThisComputer } from './device';
 
 /**
  * What an empty gallery shows, and how it moves between states:
@@ -40,6 +41,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
   noModels?: boolean;
   onFindModels?: () => void;
 }) {
+  const thisComputer = useThisComputer();
   const [phase, setPhase] = useState<Phase>(!known ? 'waiting' : offline ? 'offline' : 'empty');
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
   const [offlineRun, setOfflineRun] = useState(0);
@@ -100,7 +102,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
               <p>Start ComfyUI to connect your studio.{comfyUrl ? <> Looking for it at <code className="stage-code">{comfyUrl.replace(/^https?:\/\//, '')}</code>.</> : null}</p>
               <div className="empty-actions">
                 <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? 'Checking…' : 'Check again'}</button>
-                <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} /> Change address</button>
+                {thisComputer ? <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} /> Change address</button> : null}
               </div>
               <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">Don’t have ComfyUI yet? <ExternalLink size={11} /></a>
             </>
@@ -112,9 +114,9 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
           ) : copy === 'empty' && noModels ? (
             <>
               <h2>No models yet</h2>
-              <p>HEISS UI runs the checkpoints and diffusion models in ComfyUI’s models folder. Put one there, or let HEISS UI look for models elsewhere on this computer.</p>
+              <p>{thisComputer ? 'HEISS UI runs the checkpoints and diffusion models in ComfyUI’s models folder. Put one there, or let HEISS UI look for models elsewhere on this computer.' : 'Add a checkpoint or diffusion model to ComfyUI on the computer running HEISS UI, and it shows up here.'}</p>
               <div className="empty-actions">
-                {onFindModels ? <button className="reconnect-btn primary" onClick={onFindModels}><FolderSearch size={13} /> Find models</button> : null}
+                {onFindModels && thisComputer ? <button className="reconnect-btn primary" onClick={onFindModels}><FolderSearch size={13} /> Find models</button> : null}
                 <a className="reconnect-btn" href={`${githubUrl}/blob/main/MODELS.md`} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Which models work</a>
               </div>
             </>

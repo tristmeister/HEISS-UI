@@ -162,11 +162,14 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
 
   const page = pages[tab];
   if (!box) return null;
+  // In the phone studio the prompt sits at the top of a full-height sheet, so the
+  // picker comes up from the bottom edge as a sheet of its own.
+  const asSheet = Boolean(anchor?.classList.contains("phone-compose"));
   return createPortal(
     <motion.div
       ref={popRef}
-      className={cn("reference-popover", dropActive && "is-drop-target")}
-      style={{ left: box.left, width: box.width, bottom: box.bottom }}
+      className={cn("reference-popover", dropActive && "is-drop-target", asSheet && "is-sheet")}
+      style={asSheet ? undefined : { left: box.left, width: box.width, bottom: box.bottom }}
       role="dialog"
       aria-label={`Choose ${label}`}
       aria-busy={upload.busy || Boolean(selectingId) || undefined}
@@ -391,7 +394,7 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
   // Find the prompt bar whenever this renders into it. On first mount there may be
   // no inputs yet (the workflow is still loading), so nothing is rendered to look from.
   React.useLayoutEffect(() => {
-    const next = rootRef.current?.closest<HTMLElement>(".zen-prompt") || null;
+    const next = rootRef.current?.closest<HTMLElement>(".zen-prompt, .phone-compose") || null;
     setHost((current) => current === next ? current : next);
   });
 

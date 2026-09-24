@@ -23,6 +23,7 @@ import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
+import { setThisComputer, usePhone } from './app/device';
 import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
 import { registerRestartConfirm, setComfyRestarting } from './app/ComfyRestart';
 import { memoLatest } from './lib/memo-latest';
@@ -646,7 +647,7 @@ function App() {
 
   function refreshHealth() {
     apiJson<Health>("/api/health")
-      .then(setHealth)
+      .then((data) => { setHealth(data); if (typeof data.thisComputer === "boolean") setThisComputer(data.thisComputer); })
       .catch((error) => setHealth({ ok: false, error: error instanceof Error ? error.message : "Connection failed" }));
   }
 

@@ -25,7 +25,9 @@ import { HiddenLockScreen, HiddenUnlockSheet } from './HiddenLock';
 import { HiddenSetupDialog } from './HiddenSetup';
 import { HiddenActionsContext } from './hiddenContext';
 import { LockMark } from './LockMark';
-import { downloadUrl } from './GalleryTile';
+import { downloadUrl, TileLongPressContext } from './GalleryTile';
+import { PhoneShell, PhoneViewerBar, type PhoneItemActions } from './PhoneStudio';
+import { usePhone } from './device';
 import { ConnectedCard } from './ConnectedCard';
 import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
@@ -122,6 +124,24 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     if (!hidden.enabled) { hidden.ensureReady({ kind: "enter" }); return; }
     // Straight from the click, so the system's Touch ID sheet is allowed to show.
     if (!hidden.unlocked && hidden.usablePasskey && hidden.support?.available) hidden.unlockBiometric();
+  };
+  // Phones get the simplified phone studio, unless someone chose the full one.
+  const phone = usePhone() && !prefs.fullStudioOnPhone;
+  const [phoneCreate, setPhoneCreate] = React.useState(false);
+  const [phoneActionsFor, setPhoneActionsFor] = React.useState<GalleryItem | null>(null);
+  const openTileActions = React.useCallback((item: GalleryItem) => setPhoneActionsFor(item), []);
+  const phoneItemActions: PhoneItemActions = {
+    showToast,
+    smartUpscale: prefs.smartUpscale !== false,
+    upscaleBusy: (item) => Boolean(upscaleBusyIds?.has(item.id)),
+    upscale: activateUpscale,
+    cancelUpscale,
+    // "Make another like this": the settings go into the composer, which opens.
+    reuse: (item) => { applyAllSettings(item); setActive(null); setPhoneCreate(true); },
+    useAsReference: canUseStartImage ? (item) => { useOutputAsStartImage(item); setActive(null); setPhoneCreate(true); } : undefined,
+    hide: (item) => hideItems([item]),
+    unhide: (item) => unhideItems([item]),
+    remove: (item) => deleteItem(item)
   };
   const hiddenCount = hiddenSpace ? renderedGallery.filter((item: GalleryItem) => item.status === "done").length : 0;
   const hiddenLockScreen = (
@@ -263,11 +283,85 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       ) : null}
     </AnimatePresence>
   );
+  // The gallery, its empty and offline stages and the lock: the same in every layout.
+  const galleryBody = (
+    <>
+          {hiddenLocked || galleryCrossing ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
+            <StableGallery
+              cancelJob={cancelJob}
+              expandedBundles={expandedBundles}
+              gatheringIds={gatheringIds}
+              settlingBundles={settlingBundles}
+              setBundleCover={setBundleCover}
+              toggleBundle={toggleBundle}
+              ungroupBundle={ungroupBundle}
+              columns={galleryColumnCount}
+              copyPromptAndToast={(item) => copyAndToast(item.prompt || item.filename || "", "Prompt copied")}
+              deleteItem={deleteItem}
+              formatElapsed={formatElapsed}
+              items={renderedGallery}
+              openItem={openItem}
+              scrollRef={galleryStageRef}
+              smartUpscale={prefs.smartUpscale !== false}
+              upscaleBusyIds={upscaleBusyIds}
+              onUpscale={activateUpscale}
+              onCancelUpscale={cancelUpscale}
+              upscaleNotices={upscaleNotices}
+              onDismissUpscaleNotice={dismissUpscaleNotice}
+              titleFromPrompt={titleFromPrompt}
+            />
+          ) : hiddenSpace && !comfyOffline ? (
+            <section className="gallery"><div className="empty stage-empty hidden-empty">
+              <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
+              <div className="stage-copy">
+                <h2>Nothing hidden yet</h2>
+                <p>Generate here, or hide images from the gallery with <EyeOff size={13} className="inline-icon" />.</p>
+              </div>
+            </div></section>
+          ) : (
+            <EmptyStage
+              known={Boolean(comfyStatus?.checked)}
+              offline={Boolean(comfyOffline) || Boolean(comfyStatus?.restarting)}
+              restarting={Boolean(comfyStatus?.restarting)}
+              device={comfyStatus?.device}
+              retrying={Boolean(comfyRetrying)}
+              onRetry={retryComfyStatus}
+              onOpenConnection={() => openSettings("connection")}
+              comfyUrl={health?.comfyUrl || comfyStatus?.url}
+              noModels={Boolean(models) && !modelProfiles?.length}
+              onFindModels={modelFolders?.openDialog}
+            />
+          )}
+            {hiddenLockScreen}
+          {renderedGallery.length && !hiddenLocked ? <ConnectedCard at={comfyReconnectedAt} device={comfyStatus?.device} /> : null}
+            {galleryLoaded && hasMoreGallery && !hiddenSpace ? (
+              <button className="gallery-load-more" onClick={loadMoreGalleryItems}>
+                Load more
+              </button>
+            ) : null}
+    </>
+  );
+
   return (
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <HiddenActionsContext.Provider value={hiddenActions}>
-    <div className={cn(prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && canUseNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
-      {prefs.zenMode ? (
+    <TileLongPressContext.Provider value={phone ? openTileActions : null}>
+    <div className={cn(phone ? "phone-shell" : prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && canUseNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
+      {phone ? (
+        <PhoneShell
+          view={view}
+          galleryBody={galleryBody}
+          canUseNegativePrompt={canUseNegativePrompt}
+          comfyOffline={Boolean(comfyOffline)}
+          hiddenLocked={Boolean(hiddenLocked)}
+          toggleHiddenSpace={toggleHiddenSpace}
+          createOpen={phoneCreate}
+          setCreateOpen={setPhoneCreate}
+          itemActions={phoneItemActions}
+          actionsFor={phoneActionsFor}
+          setActionsFor={setPhoneActionsFor}
+        />
+      ) : prefs.zenMode ? (
         <>
           <div className="zen-stage">
             {hiddenLocked ? null : zenDisplayItem ? (
@@ -467,59 +561,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       ) : (
         <>
           <main ref={galleryStageRef} className="stage-gallery" onScroll={onGalleryScroll}>
-          {hiddenLocked || galleryCrossing ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
-            <StableGallery
-              cancelJob={cancelJob}
-              expandedBundles={expandedBundles}
-              gatheringIds={gatheringIds}
-              settlingBundles={settlingBundles}
-              setBundleCover={setBundleCover}
-              toggleBundle={toggleBundle}
-              ungroupBundle={ungroupBundle}
-              columns={galleryColumnCount}
-              copyPromptAndToast={(item) => copyAndToast(item.prompt || item.filename || "", "Prompt copied")}
-              deleteItem={deleteItem}
-              formatElapsed={formatElapsed}
-              items={renderedGallery}
-              openItem={openItem}
-              scrollRef={galleryStageRef}
-              smartUpscale={prefs.smartUpscale !== false}
-              upscaleBusyIds={upscaleBusyIds}
-              onUpscale={activateUpscale}
-              onCancelUpscale={cancelUpscale}
-              upscaleNotices={upscaleNotices}
-              onDismissUpscaleNotice={dismissUpscaleNotice}
-              titleFromPrompt={titleFromPrompt}
-            />
-          ) : hiddenSpace && !comfyOffline ? (
-            <section className="gallery"><div className="empty stage-empty hidden-empty">
-              <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
-              <div className="stage-copy">
-                <h2>Nothing hidden yet</h2>
-                <p>Generate here, or hide images from the gallery with <EyeOff size={13} className="inline-icon" />.</p>
-              </div>
-            </div></section>
-          ) : (
-            <EmptyStage
-              known={Boolean(comfyStatus?.checked)}
-              offline={Boolean(comfyOffline) || Boolean(comfyStatus?.restarting)}
-              restarting={Boolean(comfyStatus?.restarting)}
-              device={comfyStatus?.device}
-              retrying={Boolean(comfyRetrying)}
-              onRetry={retryComfyStatus}
-              onOpenConnection={() => openSettings("connection")}
-              comfyUrl={health?.comfyUrl || comfyStatus?.url}
-              noModels={Boolean(models) && !modelProfiles?.length}
-              onFindModels={modelFolders?.openDialog}
-            />
-          )}
-            {hiddenLockScreen}
-          {renderedGallery.length && !hiddenLocked ? <ConnectedCard at={comfyReconnectedAt} device={comfyStatus?.device} /> : null}
-            {galleryLoaded && hasMoreGallery && !hiddenSpace ? (
-              <button className="gallery-load-more" onClick={loadMoreGalleryItems}>
-                Load more
-              </button>
-            ) : null}
+            {galleryBody}
             <div className="bottom-fade" />
           </main>
           {studioDock}
@@ -744,6 +786,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                     </div>
                   </aside>
                 ) : null}
+                {phone ? (
+                  <PhoneViewerBar item={active} actions={phoneItemActions} showDetails={Boolean(showDetails)} onToggleDetails={() => setShowDetails((value: boolean) => !value)} />
+                ) : (
                 <div data-open-trigger className={cn("viewer-dock", showDetails && "with-side")}>
                   <Tip content="Zoom out (-)"><button className="icon-button is-zoom-control" aria-label="Zoom out" onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
                   <Tip content="Reset zoom (0)"><button className="text-button viewer-zoom is-zoom-control" onClick={resetViewer}>{viewerZoom > 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
@@ -790,6 +835,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>
                   <Tip content="Close (Esc)"><button className="icon-button viewer-dock-close" aria-label="Close" onClick={() => setActive(null)}><X size={16} /></button></Tip>
                 </div>
+                )}
                 {/* Phones and tablets: the dock has no room for Close, so it sits in the corner. */}
                 <button className="viewer-close" aria-label="Close viewer" onClick={() => setActive(null)}><X size={18} /></button>
               </div>
@@ -804,6 +850,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           inside it sits under every portaled dialog and its blurred scrim. */}
       {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={downloadWidget.visible ? { top: 88 } : undefined} mobileOffset={downloadWidget.visible ? { top: 80 } : undefined} />, document.body)}
     </div>
+    </TileLongPressContext.Provider>
     </HiddenActionsContext.Provider>
     </GenerationPreviewMode.Provider>
   );

@@ -8,6 +8,7 @@ import { formatEta } from './UpscaleDownloadWidget';
 import { cn } from './format';
 import { downloadFor, useModelDownloads } from './useModelDownloads';
 import type { MissingPart, ModelDownload, Profile } from './types';
+import { useThisComputer } from './device';
 
 function formatBytes(bytes = 0) {
   if (!bytes) return '';
@@ -46,7 +47,9 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const { state, landed, start, pause, discard } = useModelDownloads();
   const [remoteAnswer, setRemote] = React.useState(false);
   // Known before anyone clicks: a ComfyUI elsewhere cannot receive downloads from here.
-  const remote = remoteAnswer || state?.local === false;
+  const thisComputer = useThisComputer();
+  // Downloads land on the computer running HEISS UI; from another device they are its job.
+  const remote = remoteAnswer || state?.local === false || !thisComputer;
   const missing = profile.missing || [];
 
   const run = async (action: () => Promise<unknown>) => {
@@ -151,7 +154,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       {manual && !moving ? (
         <button type="button" className="btn is-ghost model-setup-recheck" onClick={onInstalled}><RefreshCw size={13} /> Check again</button>
       ) : null}
-      {remote ? <p className="model-setup-note">ComfyUI runs on another computer, so put these files into its models folders there, then rescan.</p> : null}
+      {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer, so put these files into its models folders there, then rescan.' : 'Add these on the computer running HEISS UI; this workflow is ready here once they are in place.'}</p> : null}
     </section>
   );
 }

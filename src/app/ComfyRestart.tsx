@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, RotateCw } from 'lucide-react';
 import { apiJson } from './api';
 import { cn } from './format';
+import { useThisComputer } from './device';
 
 export type ManagerInfo = { connected: boolean; available: boolean; version: string | null; stale?: boolean; error?: string };
 
@@ -138,6 +139,9 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
   const globalRestarting = useComfyRestarting();
   const busy = phase === 'restarting' || (globalRestarting && phase !== 'back');
   const off = !busy && info !== null && !info.available;
+  const thisComputer = useThisComputer();
+  // Restarting is looked after at the computer; elsewhere only its progress shows.
+  if (!thisComputer && !busy) return <p className={cn('comfy-restart-note', className)}>Restart ComfyUI from the computer running HEISS UI.</p>;
   return (
     <div className={cn('comfy-restart', compact && 'is-compact', className)}>
       <button type="button" className={cn('btn', phase === 'back' && 'is-done')} onClick={restart} disabled={off || busy || info === null} aria-live="polite">

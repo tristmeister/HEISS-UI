@@ -17,8 +17,11 @@ export function useFocusTrap(ref: RefObject<HTMLElement | null>, open: boolean) 
     const focusables = () => Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((node) => node.offsetParent !== null || node === document.activeElement);
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== 'Tab' || !root) return;
-      // A dialog opened on top (a delete confirmation) manages its own focus.
-      if (document.querySelector('[role="alertdialog"], [role="dialog"]:not([data-focus-trap])')) return;
+      // Only the topmost layer keeps focus: a confirmation or a sheet opened on
+      // top (portaled later, so later in the document) manages its own.
+      const layers = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+      const top = layers[layers.length - 1];
+      if (top && top !== root && !root.contains(top)) return;
       const items = focusables();
       if (!items.length) { event.preventDefault(); root.focus(); return; }
       const first = items[0];

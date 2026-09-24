@@ -14,6 +14,12 @@ import { useHiddenActions } from './hiddenContext';
 import type { UpscaleNotice } from './useUpscale';
 import { useDismiss } from './useDismiss';
 
+/**
+ * The phone studio's tiles: no corner buttons, a long press opens the tile's
+ * actions as a sheet instead. Null everywhere else.
+ */
+export const TileLongPressContext = React.createContext<((item: GalleryItem) => void) | null>(null);
+
 type GalleryTileProps = {
   item: GalleryItem;
   width: number;
@@ -102,6 +108,26 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   useDismiss(overlayRef, menuOpen, closeMenu);
   const act = (run: () => void) => { setMenuOpen(false); run(); };
+  const onLongPress = React.useContext(TileLongPressContext);
+  const press = useRef<{ timer: number; x: number; y: number; fired: boolean } | null>(null);
+  const cancelPress = () => { if (press.current) window.clearTimeout(press.current.timer); };
+  const longPress = onLongPress && item.status !== "pending" ? {
+    onPointerDown: (event: React.PointerEvent) => {
+      if (event.pointerType === "mouse") return;
+      cancelPress();
+      const state = { x: event.clientX, y: event.clientY, fired: false, timer: 0 };
+      state.timer = window.setTimeout(() => { state.fired = true; onLongPress(item); }, 450);
+      press.current = state;
+    },
+    onPointerMove: (event: React.PointerEvent) => {
+      const state = press.current;
+      if (state && Math.hypot(event.clientX - state.x, event.clientY - state.y) > 10) cancelPress();
+    },
+    onPointerUp: cancelPress,
+    onPointerCancel: cancelPress,
+    // The system's own long-press menu (save image, copy) would cover ours.
+    onContextMenu: (event: React.MouseEvent) => { event.preventDefault(); if (!press.current?.fired) onLongPress(item); }
+  } : null;
   return (
     <motion.div
       data-tile-id={item.id}
@@ -115,7 +141,16 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
         scale: tileEnterTransition,
       }}
     >
-      <button className={cn("tile", item.status)} style={{ width: "100%", height: "100%" } as React.CSSProperties} onClick={() => item.status !== "pending" && openItem(item)}>
+      <button
+        className={cn("tile", item.status, onLongPress && "is-pressable")}
+        style={{ width: "100%", height: "100%" } as React.CSSProperties}
+        {...longPress}
+        onClick={() => {
+          // A long press already opened the actions; the lift that ends it is not a tap.
+          if (press.current?.fired) { press.current = null; return; }
+          if (item.status !== "pending") openItem(item);
+        }}
+      >
         {item.status === "pending" || item.status === "done" ? (
           <GenerationMedia item={item} muted>
           <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
@@ -152,7 +187,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
       </button>
       {/* Controls are siblings of the tile's button, never inside it: a button
           inside a button is invalid and unreachable by keyboard. */}
-      <div ref={overlayRef} className={cn("tile-overlay", menuOpen && "is-menu-open")}>
+      <div ref={overlayRef} className={cn("tile-overlay", menuOpen && "is-menu-open", onLongPress && "is-phone")}>
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} onCancelUpscale={onCancelUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
         {item.status === "pending" ? <Tip content="Stop generation"><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}

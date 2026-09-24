@@ -11,6 +11,7 @@ import { ModelSetup } from './ModelSetup';
 import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
 import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
+import { useThisComputer } from './device';
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
 type Filter = "all" | "favorites" | "attention";
@@ -58,6 +59,8 @@ function StatusBadge({ validation }: { validation: WorkflowSummary["validation"]
 
 export function WorkflowGallery({ view }: { view: any }) {
   const comfyRestarting = useComfyRestarting();
+  // Importing and deleting workflow files happens at the computer running HEISS UI.
+  const thisComputer = useThisComputer();
   const {
     confirmAction, mode, onClose, refreshModels, refreshWorkflows, selectWorkflow, setWorkflowPreferences,
     showToast, workflowPreferences, workflows, setWorkflows, model, chooseModel, models
@@ -261,7 +264,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       bodyClassName="wf-layout"
       title="Workflows"
       description="Pick what your next generation runs on, or bring your own ComfyUI workflow."
-      headerActions={<button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button>}
+      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button> : undefined}
       contentProps={{
         onDragEnter: (event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } },
         onDragOver: (event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); },
@@ -310,7 +313,7 @@ export function WorkflowGallery({ view }: { view: any }) {
             <Search size={20} />
             <h3>{query ? "Nothing matches" : filter === "favorites" ? "No favorites yet" : `No ${kind} workflows yet`}</h3>
             <p>{query ? "Try another name or clear the search." : filter === "favorites" ? "Heart a workflow to keep it at hand." : "Import a ComfyUI workflow to get started."}</p>
-            {query ? <button className="btn" onClick={() => setQuery("")}>Clear search</button> : filter === "favorites" ? <button className="btn" onClick={() => setFilter("all")}>Show all</button> : <button className="btn is-primary" onClick={openImport}><Upload size={14} /> Import workflow</button>}
+            {query ? <button className="btn" onClick={() => setQuery("")}>Clear search</button> : filter === "favorites" ? <button className="btn" onClick={() => setFilter("all")}>Show all</button> : thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={14} /> Import workflow</button> : null}
           </div>
         )}
       </section>
@@ -349,7 +352,7 @@ export function WorkflowGallery({ view }: { view: any }) {
               <button className="btn is-primary" onClick={() => useWorkflow(selected)} disabled={busy || !selected.validation.ok || selected.profileId === model}>
                 {selected.profileId === model ? <><Check size={15} /> In use</> : "Use workflow"}
               </button>
-              {selected.deleteId ? <button className="btn is-ghost is-danger-text" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={14} /> Delete</button> : null}
+              {selected.deleteId && thisComputer ? <button className="btn is-ghost is-danger-text" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={14} /> Delete</button> : null}
             </div>
 
             <dl className="wf-facts">
