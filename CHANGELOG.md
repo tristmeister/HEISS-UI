@@ -26,6 +26,8 @@ section into the next version and uses it as the GitHub release notes.
 - When an upscale effort ran on a different SeedVR2 weight because its own
   was not downloaded, Settings still just said Ready. It now says it is
   running on a fallback, names the weight, and offers the download again.
+- With no models, the model picker opened an empty popover. It now says why
+  there is nothing to choose.
 
 ## [0.2.1] - 2026-09-24
 
