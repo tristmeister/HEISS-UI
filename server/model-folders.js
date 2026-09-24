@@ -334,6 +334,29 @@ export function heissSections(text = "") {
   return sections;
 }
 
+/** The folders a HEISS section adds (base_path joined with each kind's names), as written by sectionFor. */
+export function sectionDirs(section) {
+  const dirs = [];
+  let multi = false;
+  for (const raw of section.block.split(/\r?\n/)) {
+    const line = raw.replace(/\s+$/, "");
+    const entry = line.match(/^    ([A-Za-z0-9_]+): (.+)$/);
+    if (entry) {
+      multi = entry[2] === "|";
+      if (entry[1] !== "base_path" && !multi) dirs.push(unquote(entry[2]));
+    } else if (multi && /^        \S/.test(line)) {
+      dirs.push(line.trim());
+    } else {
+      multi = false;
+    }
+  }
+  return dirs.map((name) => path.resolve(section.path, name));
+}
+
+function unquote(value) {
+  return value.startsWith("'") && value.endsWith("'") ? value.slice(1, -1).replace(/''/g, "'") : value;
+}
+
 function yamlString(value) {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
@@ -375,9 +398,12 @@ export async function modelFolderReport({ local = true, scan = {} } = {}) {
   try { configText = fs.readFileSync(setup.configPath, "utf8"); } catch { /* not made yet */ }
   // `read`: ComfyUI has picked the folder up, which only happens once it restarted after HEISS added it.
   const readDirs = Object.values(setup.kinds).flat();
+  // Read only when ComfyUI reads every folder the section adds, not just any folder
+  // inside it: a ComfyUI's own models folder has read subfolders from the start.
   const linked = heissSections(configText).map((section) => {
-    const base = realpath(section.path);
-    return { path: section.path, label: tildePath(section.path), read: readDirs.some((dir) => isInside(base, dir, { orSame: true })) };
+    const dirs = sectionDirs(section).map(realpath);
+    const allRead = dirs.length ? dirs.every((dir) => read.has(pathKey(dir))) : readDirs.some((dir) => isInside(realpath(section.path), dir, { orSame: true }));
+    return { path: section.path, label: tildePath(section.path), read: allRead };
   });
   const folders = [];
   for (const folder of await findModelFolders(knownKinds, scan)) {

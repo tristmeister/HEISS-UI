@@ -20,6 +20,16 @@ section into the next version and uses it as the GitHub release notes.
   Missing text encoders, VAEs and Ideogram's unconditional model can be
   downloaded from the setup panel.
 
+### Fixed
+- Restart ComfyUI said ComfyUI-Manager was missing with the Manager custom
+  node 3.4x, which only restarts on a POST.
+- Adding model folders could report "models ready" before ComfyUI read
+  them, when the added folder sat inside one ComfyUI already reads (its own
+  `models` folder). It now waits until every added folder is read, so the
+  models no longer stay listed as found afterwards.
+- A model's setup card in the sidebar was cut off with a node install
+  open; it now scrolls.
+
 ## [0.5.0] - 2026-09-24
 
 ### Added

@@ -39,7 +39,7 @@ globalThis.fetch = async (url) => {
   return new Response(JSON.stringify(body), { status: body ? 200 : 404, headers: { "content-type": "application/json" } });
 };
 
-const { heissSections, linkModelFolders, modelFolderReport, readLayout, sectionFor, tildePath, unlinkModelFolder } = await import("./model-folders.js");
+const { heissSections, linkModelFolders, modelFolderReport, readLayout, sectionDirs, sectionFor, tildePath, unlinkModelFolder } = await import("./model-folders.js");
 const scan = { home, drives: false };
 const config = path.join(comfyRoot, "extra_model_paths.yaml");
 
@@ -79,6 +79,22 @@ test("adding writes a marked, backed-up section ComfyUI can read, and removing t
 
   await unlinkModelFolder(shared);
   assert.equal(fs.readFileSync(config, "utf8").trim(), "# mine\nother:\n    base_path: /elsewhere\n    loras: loras");
+  resetFolderPaths();
+});
+
+test("a section counts as read only once ComfyUI reads every folder it adds", async () => {
+  // ComfyUI's own models folder: checkpoints is read from the start, the added unet folder is not.
+  const models = path.join(comfyRoot, "models");
+  const text = sectionFor(models, [{ kind: "diffusion_models", name: "unet" }, { kind: "loras", name: "a" }, { kind: "loras", name: "b's" }]);
+  assert.deepEqual(sectionDirs(heissSections(text)[0]), ["unet", "a", "b's"].map((name) => path.resolve(models, name)));
+  fs.writeFileSync(config, text);
+  const before = await modelFolderReport({ scan });
+  assert.equal(before.linked[0].read, false, "checkpoints being read says nothing about unet");
+  folderPaths.diffusion_models[0].push(path.join(models, "unet"));
+  folderPaths.loras[0].push(path.join(models, "a"), path.join(models, "b's"));
+  const after = await modelFolderReport({ scan });
+  assert.equal(after.linked[0].read, true);
+  fs.rmSync(config, { force: true });
   resetFolderPaths();
 });
 

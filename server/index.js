@@ -1375,9 +1375,10 @@ app.get("/api/comfy/manager", async (_req, res) => {
 app.post("/api/comfy/restart", async (req, res) => {
   if (!requireLocal(req, res)) return;
   let sawManager = false;
-  // Manager 4 (built into ComfyUI) only takes a bodyless POST; older Manager
-  // custom nodes took a GET. A 404/405 just means "not this one", try the next.
-  const attempts = [["POST", "/v2/manager/reboot"], ["GET", "/v2/manager/reboot"], ["GET", "/api/manager/reboot"], ["GET", "/manager/reboot"]];
+  // Manager 4 (built into ComfyUI) and the Manager custom node from 3.4x only
+  // take a bodyless POST; older custom nodes took a GET. A 404/405 just means
+  // "not this one", try the next.
+  const attempts = [["POST", "/v2/manager/reboot"], ["POST", "/manager/reboot"], ["GET", "/v2/manager/reboot"], ["GET", "/api/manager/reboot"], ["GET", "/manager/reboot"]];
   for (const [method, route] of attempts) {
     let response;
     try {
