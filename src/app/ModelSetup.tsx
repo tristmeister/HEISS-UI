@@ -127,7 +127,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
             {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'} It picks up where it left off.</p> : null}
             {rowState === 'idle' || rowState === 'manual' ? <p className="model-setup-detail">{item.detail}</p> : null}
             {item.nodePack ? (
-              <NodeInstall pack={item.nodePack} plan={item.install} showToast={showToast} onRestarted={onInstalled} afterRestart={`${profile.displayName} is ready after that.`} />
+              <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={`${profile.displayName} is ready after that.`} />
             ) : item.command ? (
               <div className="model-setup-command"><ShellCommand plan={item.command} showToast={showToast} /></div>
             ) : null}

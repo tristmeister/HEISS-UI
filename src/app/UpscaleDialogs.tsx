@@ -9,7 +9,7 @@ import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
 import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
 
 // Until the server reports the pack, the same entry as server/node-packs.js.
-const seedvr2Pack = { name: "SeedVR2", repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git", search: "SeedVR2" };
+const seedvr2Pack = { id: "seedvr2", name: "SeedVR2", repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git", search: "SeedVR2" };
 
 const STEPS = [
   { label: "Nodes", stages: ["checking", "offline", "nodes"] },
@@ -151,6 +151,7 @@ export function UpscaleSetupDialog({
           pack={status?.nodeSetup?.pack || seedvr2Pack}
           plan={status?.nodeSetup}
           managerHint={status?.nodeSetup?.manager}
+          autoInstall={status?.nodeSetup?.autoInstall}
           showToast={showToast}
           onRestarted={() => setup.recheck()}
           afterRestart="That is it: this dialog moves on by itself."

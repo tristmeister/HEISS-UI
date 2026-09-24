@@ -31,8 +31,11 @@ section into the next version and uses it as the GitHub release notes.
   model show up, and ComfyUI fetches their weights on first use. Sana files in
   `checkpoints/` are recognised from their weights.
 - Models that run on custom nodes say so where you pick them, in the sidebar
-  and the workflow library, with the same install steps as smart upscale:
-  through ComfyUI-Manager when it is on, otherwise one terminal command.
+  and the workflow library, with an Install button. HEISS asks
+  ComfyUI-Manager to install packs from its list, and installs the rest itself
+  (git clone plus pip with ComfyUI's own Python) when ComfyUI runs on this
+  computer. Smart upscale's SeedVR2 setup uses the same button. The manual
+  steps are still there for a ComfyUI on another machine.
 - MODELS.md documents how a new model family gets added.
 
 ### Changed

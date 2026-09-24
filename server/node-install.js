@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfyModelsDir, missingNodes } from "./comfy.js";
 import { nodePack } from "./node-packs.js";
+import { packInstallRoutes } from "./pack-installer.js";
 
 /**
  * How to add a custom node pack to ComfyUI when HEISS cannot do it itself:
@@ -109,6 +110,7 @@ export function missingPackPart(info, packId, { detail = "", extra = [] } = {}) 
     downloads: [],
     missingNodes: absent,
     nodePack: { id: pack.id, name: pack.name, repository: pack.repository, folder: pack.folder, search: pack.search || "", note: pack.note || "" },
-    install: packInstallPlan(pack)
+    install: packInstallPlan(pack),
+    autoInstall: packInstallRoutes(pack.id)
   };
 }

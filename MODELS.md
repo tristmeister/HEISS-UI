@@ -36,14 +36,19 @@ catalog, so a family that is described correctly needs no UI work.
 3. **Custom nodes: register the pack.** Add it to `nodePacks` in
    `server/node-packs.js`: `name`, `repository` (a `.git` URL), `folder` (its
    `custom_nodes` folder), `nodes` (classes it must load), and optionally
-   `search` (what finds it in Manager's list) and `note` (one line for the
-   panel). Then point the family at it with `pack: "<id>"`. When a model runs
+   `manager` (its id in ComfyUI-Manager's list, from `custom-node-list.json`
+   or api.comfy.org), `search` (what finds it there) and `note` (one line
+   for the panel). Then point the family at it with `pack: "<id>"`. When a model runs
    on more than one pack (for example one CUDA-only, one that also runs on
    Apple Silicon), describe each as a runner the way `sanaRunners` does, one
-   model source per runner. HEISS then shows the pack's install steps
-   wherever the model appears. With ComfyUI-Manager on, the Manager route
-   (Install via Git URL) opens first; otherwise one terminal command clones
-   the pack and installs its requirements with ComfyUI's own Python.
+   model source per runner. HEISS then shows an **Install** button wherever
+   the model appears (`server/pack-installer.js`): packs with a `manager` id
+   are queued in ComfyUI-Manager when it answers; otherwise, with ComfyUI on
+   this computer, HEISS clones the pack and installs its requirements with
+   ComfyUI's own Python. Manager 4 cannot install by Git URL (only in its
+   legacy UI, behind a config flag), so unlisted packs always take the local
+   route. Manual steps (Manager or terminal) stay one tap away and are all a
+   remote ComfyUI gets.
 
 4. **Describe the family** in `families`. Settings live on variants; the last
    variant is the fallback. `match(name, header, detail)` picks a variant, so

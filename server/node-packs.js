@@ -6,7 +6,9 @@
  *
  * id: { name, repository, folder (its custom_nodes folder), nodes (classes
  *       that prove it is loaded), search (optional: what finds it in
- *       Manager's node list), note (optional, one line for the panel) }
+ *       Manager's node list), manager (optional: its id there, so one click
+ *       can queue the install in Manager), note (optional, one line for the
+ *       panel) }
  */
 export const nodePacks = {
   seedvr2: {
@@ -14,6 +16,7 @@ export const nodePacks = {
     repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",
     folder: "ComfyUI-SeedVR2_VideoUpscaler",
     search: "SeedVR2",
+    manager: "seedvr2_videoupscaler",
     nodes: ["SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler"]
   },
   extramodels: {

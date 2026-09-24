@@ -108,6 +108,9 @@ export type EncoderSlot = { slot: string; label: string; options: string[]; defa
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number };
 /** A ComfyUI custom node pack (server/node-packs.js). */
 export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
+/** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */
+export type PackAutoInstall = { manager: boolean; local: boolean };
+export type PackInstallState = { id: string; name: string; route: "manager" | "local"; status: "running" | "done" | "error"; step: string; log: string; error: string; startedAt: number; finishedAt: number };
 /** One command per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
 export type ShellPlan = { commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }> };
 export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: string; python: string; cloned: boolean; needsGit: boolean };
@@ -117,7 +120,7 @@ export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: stri
  */
 export type MissingPart = {
   part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
-  nodePack?: NodePackInfo; install?: NodeInstallPlan; missingNodes?: string[];
+  nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
 export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number };
@@ -264,7 +267,7 @@ export type UpscaleStatus = {
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
   /** Only while the nodes are missing: whether Manager is on, and the terminal route otherwise. */
-  nodeSetup?: NodeInstallPlan & { manager: boolean; pack?: NodePackInfo };
+  nodeSetup?: NodeInstallPlan & { manager: boolean; pack?: NodePackInfo; autoInstall?: PackAutoInstall };
 };
 export type UpscaleDownloadPreview = {
   quality: UpscaleQuality;

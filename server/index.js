@@ -29,6 +29,7 @@ import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { nodePack } from './node-packs.js';
+import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
@@ -840,7 +841,7 @@ app.get("/api/upscale/status", async (req, res) => {
   if (!info) return;
   const status = upscaleStatus(info, req.query.quality);
   // Only worth the extra round trips while the nodes still need installing.
-  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack("seedvr2"), ...nodeInstallPlan() };
+  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack("seedvr2"), autoInstall: packInstallRoutes("seedvr2"), ...nodeInstallPlan() };
   res.json({ ok: true, ...status });
 });
 
@@ -1045,6 +1046,20 @@ app.post("/api/cache/clear", async (_req, res) => {
   await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
   await comfy("/free", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }) }).catch(() => null);
   res.json({ ok: true, outputs: revealGalleryItemsForRequest(gallery, _req) });
+});
+
+// One-click node pack installs, by registry id only (see pack-installer.js).
+app.post("/api/node-packs/:id/install", async (req, res) => {
+  if (!requireLocal(req, res)) return;
+  try {
+    res.json({ ok: true, install: await startPackInstall(String(req.params.id)) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/node-packs/:id/install", (req, res) => {
+  res.json({ ok: true, install: packInstallState(String(req.params.id)) });
 });
 
 app.get("/api/comfy/manager", async (_req, res) => {

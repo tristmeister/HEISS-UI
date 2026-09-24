@@ -398,3 +398,25 @@ test("every node pack is one registry entry, and a missing one comes with both i
   assert.deepEqual([part.part, part.nodePack.repository, part.missingNodes.length], ["comfy", nodePacks.seedvr2.repository, 3]);
   assert.ok(part.install.commands.length >= 1);
 });
+
+test("one-click pack installs only take registry ids, and run locally with ComfyUI's Python", async () => {
+  const { packInstallRoutes, packInstallState, startPackInstall } = await import("./pack-installer.js");
+  await assert.rejects(() => startPackInstall("https://evil.example/pack.git"), /Unknown node pack/);
+  const root = path.join(scratch, "ComfyUI");
+  assert.deepEqual(packInstallRoutes("seedvr2", root), { manager: true, local: false });
+  // A ComfyUI of our own: its venv Python, and the pack already cloned so no git is needed.
+  fs.mkdirSync(path.join(root, ".venv", "bin"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".venv", "bin", "python"), "#!/bin/sh\necho pip \"$@\"\n", { mode: 0o755 });
+  fs.mkdirSync(path.join(root, "custom_nodes", "ComfyUI-SANA"), { recursive: true });
+  fs.writeFileSync(path.join(root, "custom_nodes", "ComfyUI-SANA", "requirements.txt"), "diffusers\n");
+  assert.deepEqual(packInstallRoutes("comfyui_sana", root), { manager: false, local: true });
+  const started = await startPackInstall("comfyui_sana");
+  assert.equal(started.route, "local");
+  let state = started;
+  for (let i = 0; i < 50 && state.status === "running"; i += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    state = packInstallState("comfyui_sana");
+  }
+  assert.equal(state.status, "done", state.error);
+  assert.match(state.log, /pip -m pip install -r requirements.txt/);
+});

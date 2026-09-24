@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Download, RotateCw } from 'lucide-react';
 import { ComfyRestart, useComfyManager } from './ComfyRestart';
-import { copyText } from './api';
+import { apiJson, copyText } from './api';
 import { cn } from './format';
-import type { NodePackInfo, ShellPlan } from './types';
+import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
 
 type Toast = (message: string, tone?: 'default' | 'success' | 'error') => void;
 
@@ -48,14 +48,76 @@ export function ShellCommand({ plan, showToast }: { plan: ShellPlan; showToast: 
 }
 
 /**
+ * The Install button: HEISS asks ComfyUI-Manager to install the pack when it is
+ * in Manager's list, or clones it and installs its requirements itself when
+ * ComfyUI runs on this computer. Progress comes from polling the server.
+ */
+function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
+  pack: NodePackInfo & { id: string };
+  onDone: (state: PackInstallState | null) => void;
+  showToast: Toast;
+  onRestarted: () => void;
+  afterRestart: string;
+}) {
+  const [state, setState] = useState<PackInstallState | null>(null);
+  const alive = React.useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const url = `/api/node-packs/${encodeURIComponent(pack.id)}/install`;
+  // An install started earlier (another panel, a reload) keeps reporting here.
+  useEffect(() => {
+    apiJson<{ install: PackInstallState | null }>(url).then(({ install }) => { if (alive.current && install) follow(install); }).catch(() => null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url]);
+  const follow = async (first: PackInstallState) => {
+    let current: PackInstallState | null = first;
+    setState(current);
+    while (alive.current && current?.status === 'running') {
+      await new Promise((resolve) => window.setTimeout(resolve, 1200));
+      current = (await apiJson<{ install: PackInstallState | null }>(url).catch(() => ({ install: current }))).install;
+      if (alive.current) setState(current);
+    }
+    if (alive.current) onDone(current);
+  };
+  const start = async () => {
+    try {
+      const { install } = await apiJson<{ install: PackInstallState }>(url, { method: 'POST' });
+      await follow(install);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not start the install', 'error');
+    }
+  };
+  if (state?.status === 'done') {
+    return (
+      <div className="node-quick is-done" role="status">
+        <p><Check size={13} strokeWidth={3} /> {pack.name} is installed. <strong>Restart ComfyUI</strong> to load it; {afterRestart.charAt(0).toLowerCase() + afterRestart.slice(1)}</p>
+        <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
+      </div>
+    );
+  }
+  const running = state?.status === 'running';
+  return (
+    <div className="node-quick">
+      <button type="button" className="btn is-primary" onClick={start} disabled={running}>
+        {running ? <RotateCw size={14} className="is-spinning" /> : <Download size={14} />}
+        {running ? state.step || 'Installing…' : state?.status === 'error' ? 'Try again' : `Install ${pack.name}`}
+      </button>
+      {running ? <p className="upscale-fine">{state.route === 'manager' ? 'ComfyUI-Manager is doing this. ' : "Using ComfyUI's own Python. "}It can take a few minutes.</p> : null}
+      {state?.status === 'error' ? <p className="upscale-fine is-warn">{state.error}</p> : null}
+    </div>
+  );
+}
+
+/**
  * Adding a custom node pack to ComfyUI, the same way everywhere: through
  * ComfyUI-Manager when it answers (its Git URL install), otherwise one
  * terminal command that clones the pack and installs its requirements with
  * ComfyUI's own Python. Manager 4 ships switched off (ComfyUI needs
  * --enable-manager), so without it the terminal route opens first.
  */
-export function NodeInstall({ pack, plan, managerHint, showToast, onRestarted, afterRestart = 'HEISS UI notices the new nodes by itself.' }: {
+export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, onRestarted, afterRestart = 'HEISS UI notices the new nodes by itself.' }: {
   pack: NodePackInfo;
+  /** The one-click routes the server has for this pack; without one only the manual steps show. */
+  autoInstall?: PackAutoInstall;
   plan?: ShellPlan & { cloned?: boolean; needsGit?: boolean; exact?: boolean; customNodesDir?: string; python?: string };
   /** What the server last knew about Manager, used until ComfyUI answers directly. */
   managerHint?: boolean;
@@ -74,6 +136,18 @@ export function NodeInstall({ pack, plan, managerHint, showToast, onRestarted, a
     decided.current = true;
     setRoute(manager.available ? 'manager' : 'terminal');
   }, [manager]);
+  // One click where HEISS can do it; the manual routes stay one tap away.
+  const canQuick = Boolean(pack.id && autoInstall && (autoInstall.local || (autoInstall.manager && hasManager)));
+  const [manual, setManual] = useState(false);
+  const [quickError, setQuickError] = useState('');
+  if (canQuick && !manual && !quickError) {
+    return (
+      <div className="node-install">
+        <QuickInstall pack={pack as NodePackInfo & { id: string }} showToast={showToast} onRestarted={onRestarted} afterRestart={afterRestart} onDone={(state) => { if (state?.status === 'error') setQuickError(state.error || 'The install stopped.'); }} />
+        <button type="button" className="comfy-restart-link node-install-manual" onClick={() => setManual(true)}>Install it yourself instead</button>
+      </div>
+    );
+  }
   const restartStep = (n: number) => (
     <li>
       <span className="upscale-step-n">{n}</span>
@@ -85,6 +159,7 @@ export function NodeInstall({ pack, plan, managerHint, showToast, onRestarted, a
   );
   return (
     <div className="node-install">
+      {quickError && !manual ? <p className="upscale-fine is-warn">The one-click install stopped: {quickError} Here is how to do it by hand.</p> : null}
       <div className="upscale-routes" role="tablist" aria-label="How to install">
         {(['manager', 'terminal'] as const).map((value) => (
           <button key={value} type="button" role="tab" aria-selected={route === value} className={cn(route === value && 'is-active')} onClick={() => setRoute(value)}>
