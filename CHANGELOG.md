@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-24
+
 ### Added
 - Hidden replaces Private Vault. It is a place, not a switch: open it from
   the lock in the dock, generate straight into it, or hide any finished
@@ -370,7 +372,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.0...v0.3.1
