@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { COMMON } from './HeatMark';
+import { trackCanvasSize } from './canvasSize';
 
 /**
  * The engine behind the pixel-cell scenes (offline, empty gallery): one
@@ -98,7 +99,8 @@ export function useCellScene(config: CellSceneConfig) {
     mctx.globalCompositeOperation = 'source-over';
 
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const tracked = trackCanvasSize(canvas, 2, () => { if (!running()) draw(performance.now()); });
+    const { dpr } = tracked;
     const compile = (type: number, src: string) => {
       const shader = gl.createShader(type)!;
       gl.shaderSource(shader, src);
@@ -111,7 +113,7 @@ export function useCellScene(config: CellSceneConfig) {
     const fs = compile(gl.FRAGMENT_SHADER, COMMON + SCENE_HEAD + configRef.current.fragment);
     const prog = gl.createProgram()!;
     if (vs && fs) { gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog); }
-    if (!vs || !fs || !gl.getProgramParameter(prog, gl.LINK_STATUS)) { setFailed(true); return; }
+    if (!vs || !fs || !gl.getProgramParameter(prog, gl.LINK_STATUS)) { tracked.disconnect(); setFailed(true); return; }
     gl.useProgram(prog);
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
@@ -134,8 +136,8 @@ export function useCellScene(config: CellSceneConfig) {
 
     let size = { w: 0, h: 0 };
     const layout = () => {
-      const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
-      const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+      const w = Math.max(1, tracked.size.width);
+      const h = Math.max(1, tracked.size.height);
       if (w === size.w && h === size.h) return;
       size = { w, h };
       canvas.width = w;
@@ -173,8 +175,6 @@ export function useCellScene(config: CellSceneConfig) {
     const wake = () => { if (running() && !raf) raf = requestAnimationFrame(frame); };
     const io = new IntersectionObserver(([entry]) => { onScreen = entry.isIntersecting; wake(); });
     io.observe(canvas);
-    const ro = new ResizeObserver(() => { if (!running()) draw(performance.now()); });
-    ro.observe(canvas);
     document.addEventListener('visibilitychange', wake);
     const lost = (event: Event) => { event.preventDefault(); setFailed(true); };
     canvas.addEventListener('webglcontextlost', lost);
@@ -184,7 +184,7 @@ export function useCellScene(config: CellSceneConfig) {
     return () => {
       cancelAnimationFrame(raf);
       io.disconnect();
-      ro.disconnect();
+      tracked.disconnect();
       document.removeEventListener('visibilitychange', wake);
       canvas.removeEventListener('webglcontextlost', lost);
       gl.getExtension('WEBGL_lose_context')?.loseContext();

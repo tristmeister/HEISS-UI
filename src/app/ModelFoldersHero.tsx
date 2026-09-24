@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { field, hash, heatColor } from './UpscaleHero';
 import type { ModelFolderStage } from './useModelFolders';
+import { trackCanvasSize } from './canvasSize';
 
 /**
  * The model folders hero: a pixel folder in the same cell field as smart
@@ -70,13 +71,14 @@ export function ModelFoldersHero({ stage, files = 0, className }: { stage: Model
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const tracked = trackCanvasSize(canvas, 2, () => wakeRef.current());
+    const { dpr } = tracked;
 
     let w = 0, h = 0, pitch = 1, gap = 1, cols = 0, rows = 0, ox = 0, oy = 0, fx = 0, fy = 0;
     const resize = () => {
-      const cw = canvas.clientWidth, ch = canvas.clientHeight;
-      if (!cw || !ch) return false;
-      const nw = Math.round(cw * dpr), nh = Math.round(ch * dpr);
+      const { width: nw, height: nh } = tracked.size;
+      if (!nw || !nh) return false;
+      const cw = nw / dpr;
       if (nw === w && nh === h) return true;
       w = canvas.width = nw;
       h = canvas.height = nh;
@@ -295,10 +297,8 @@ export function ModelFoldersHero({ stage, files = 0, className }: { stage: Model
       if (visible) wake();
     });
     io.observe(canvas);
-    const ro = new ResizeObserver(wake);
-    ro.observe(canvas);
     wake();
-    return () => { cancelAnimationFrame(raf); io.disconnect(); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); io.disconnect(); tracked.disconnect(); };
   }, []);
 
   useEffect(() => { wakeRef.current(); }, [stage, files]);

@@ -38,7 +38,7 @@ globalThis.fetch = async (url) => {
   return new Response(JSON.stringify(body), { status: body ? 200 : 404, headers: { "content-type": "application/json" } });
 };
 
-const { heissSections, linkModelFolders, modelFolderReport, readLayout, sectionFor, unlinkModelFolder } = await import("./model-folders.js");
+const { heissSections, linkModelFolders, modelFolderReport, readLayout, sectionFor, tildePath, unlinkModelFolder } = await import("./model-folders.js");
 const scan = { home, drives: false };
 const config = path.join(comfyRoot, "extra_model_paths.yaml");
 
@@ -97,4 +97,24 @@ test("a section's quoting survives odd folder names", () => {
   const text = sectionFor("/Users/o'neil/models", [{ kind: "loras", name: "my loras" }]);
   assert.match(text, /base_path: '\/Users\/o''neil\/models'/);
   assert.match(text, /loras: 'my loras'/);
+});
+
+test("sections survive a CRLF save, and adding and removing keep CRLF", async () => {
+  const crlf = sectionFor("D:\\AI\\models", [{ kind: "loras", name: "loras" }, { kind: "vae", name: "vae" }]).replace(/\n/g, "\r\n");
+  assert.deepEqual(heissSections(`# mine\r\n\r\n${crlf}`).map((section) => section.path), ["D:\\AI\\models"]);
+
+  fs.writeFileSync(config, "# mine\r\nother:\r\n    base_path: /elsewhere\r\n    loras: loras\r\n");
+  await modelFolderReport({ scan });
+  await linkModelFolders([shared], { scan });
+  const text = fs.readFileSync(config, "utf8");
+  assert.equal(heissSections(text).length, 1);
+  assert.doesNotMatch(text, /[^\r]\n/, "every line ends in CRLF");
+  await unlinkModelFolder(shared);
+  assert.equal(fs.readFileSync(config, "utf8"), "# mine\r\nother:\r\n    base_path: /elsewhere\r\n    loras: loras\r\n");
+  fs.rmSync(config, { force: true });
+});
+
+test("Windows paths are shown in full, not with ~", () => {
+  assert.equal(tildePath("C:\\Users\\me\\AI", "C:\\Users\\me", "win32"), "C:\\Users\\me\\AI");
+  assert.equal(tildePath("/Users/me/AI", "/Users/me", "darwin"), "~/AI");
 });

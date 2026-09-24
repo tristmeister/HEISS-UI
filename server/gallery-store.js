@@ -3,6 +3,7 @@ import path from "node:path";
 import { comfyOutputDir, root } from './comfy.js';
 import { protectGalleryItemForStorage } from './privacy.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
+import { isInside } from './paths.js';
 
 export const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
 export const galleryPath = path.join(dataDir, "gallery.json");
@@ -248,7 +249,7 @@ export function deleteGalleryFiles(items) {
   for (const item of items) {
     for (const file of outputFileCandidates(item)) {
       const resolved = path.resolve(file);
-      if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`)) {
+      if (!isInside(base, resolved, { orSame: true })) {
         skipped += 1;
         continue;
       }
@@ -269,7 +270,7 @@ function outputFileExistsIn(item, baseDir) {
   const base = path.resolve(baseDir);
   return outputFileCandidates(item, base).some((file) => {
     const resolved = path.resolve(file);
-    if (resolved !== base && !resolved.startsWith(`${base}${path.sep}`)) return false;
+    if (!isInside(base, resolved, { orSame: true })) return false;
     try {
       return fs.existsSync(resolved) && fs.statSync(resolved).isFile();
     } catch {

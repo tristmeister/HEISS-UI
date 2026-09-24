@@ -41,7 +41,10 @@ button:not(:disabled):active { scale: .96; }
   background-color: #0a0a0a;
   background-image: radial-gradient(circle, rgb(255 255 255 / .038) .7px, transparent .8px);
   background-size: 24px 24px;
-  scrollbar-gutter: stable;
+  /* both-edges mirrors the gutter on the left, so on Windows (classic
+     scrollbars) the gallery stays centred under the top strip and composer.
+     Overlay scrollbars (macOS) have no gutter, so nothing changes there. */
+  scrollbar-gutter: stable both-edges;
 }
 .bottom-fade { height: 218px; }
 .bottom-fade::before {

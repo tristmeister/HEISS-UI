@@ -68,8 +68,8 @@
   border: 1px solid rgb(255 255 255 / .1);
   border-radius: 18px;
   background: rgb(30 30 30 / .9);
-  backdrop-filter: blur(22px) saturate(1.25);
   -webkit-backdrop-filter: blur(22px) saturate(1.25);
+  backdrop-filter: blur(22px) saturate(1.25);
   box-shadow: 0 8px 26px rgb(0 0 0 / .36), inset 0 1px 0 rgb(255 255 255 / .06);
   color: hsl(var(--foreground));
   font-size: 12.5px;

@@ -5,6 +5,7 @@ import { BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronR
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
+import { useHorizontalWheel, useWheelRef } from './wheel';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
@@ -71,6 +72,26 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
+  const viewerWheelRef = useWheelRef<HTMLElement>(wheelViewer);
+  // Only Ctrl+wheel (page zoom) is swallowed, so the details panel still scrolls.
+  const scrimWheelRef = useWheelRef<HTMLDivElement>((event) => { if (event.ctrlKey) event.preventDefault(); });
+  // A plain wheel scrolls the zen thumbnail strip sideways.
+  useHorizontalWheel(zenStripRef, Boolean(prefs.zenMode && zenGallery.length && zenGalleryOpen));
+  // .bottom-fade is fixed and full width: keep it off the gallery's scrollbar.
+  React.useEffect(() => {
+    const gallery = galleryStageRef.current as HTMLElement | null;
+    if (prefs.zenMode || !gallery) return;
+    const update = () => {
+      // With "both-edges" the gutter is mirrored on the left; only the right half is the scrollbar.
+      const gutters = gallery.offsetWidth - gallery.clientWidth;
+      const mirrored = getComputedStyle(gallery).scrollbarGutter.includes("both-edges");
+      gallery.style.setProperty("--scrollbar-w", `${mirrored ? gutters / 2 : gutters}px`);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(gallery);
+    return () => observer.disconnect();
+  }, [prefs.zenMode]);
   const toggleBundle = React.useCallback((bundleId: string) => {
     setExpandedBundles((current) => {
       const next = new Set(current);
@@ -134,7 +155,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   if (viewerDragRef.current?.moved) return;
                   openItem(zenDisplayItem);
                 }}
-                onWheel={wheelViewer}
+                ref={viewerWheelRef}
                 onPointerDown={startViewerDrag}
                 onPointerMove={dragViewer}
                 onPointerUp={stopViewerDrag}
@@ -486,14 +507,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             if (event.target !== event.currentTarget) return;
             if (Date.now() - viewerDragEndRef.current < 200) return;
             setActive(null);
-          }} onWheel={(event) => event.preventDefault()}>
+          }} ref={scrimWheelRef}>
             <div className="viewer-shell" onClick={(event) => event.stopPropagation()}>
               <div className={cn("viewer-stage", showDetails && "with-side")} data-viewer-empty>
                 <div
                   className={cn("viewer-canvas", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging")}
                   data-open-surface
                   style={{ "--zoom": viewerZoom, "--pan-x": `${viewerPan.x}px`, "--pan-y": `${viewerPan.y}px` } as React.CSSProperties}
-                  onWheel={wheelViewer}
+                  ref={viewerWheelRef}
                   onPointerDown={startViewerDrag}
                   onPointerMove={dragViewer}
                   onPointerUp={stopViewerDrag}

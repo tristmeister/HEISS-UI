@@ -1,9 +1,10 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import sharp from "sharp";
-import { comfyUrl, localOutputFile } from "./comfy.js";
+import { comfyRecentlyUnreachable, comfyUrl, localOutputFile, noteComfyFetchError, noteComfyReachable } from "./comfy.js";
 import { dataDir } from "./gallery-store.js";
+import { renameWithRetry } from "./json-store.js";
+import { loadSharp } from "./sharp-loader.js";
 
 // Small on-demand cache of downscaled previews for the gallery grid, so a LAN client
 // only has to pull a full-resolution image when it actually opens the viewer.
@@ -38,12 +39,22 @@ function cachedThumbnail(key) {
 /** The original's bytes: from ComfyUI, or from disk while ComfyUI is not answering. */
 async function sourceBytes(filename, subfolder, type) {
   const params = new URLSearchParams({ filename, subfolder, type });
-  try {
-    const response = await fetch(`${comfyUrl}/view?${params}`, { signal: AbortSignal.timeout(15000) });
-    return response.ok ? Buffer.from(await response.arrayBuffer()) : null;
-  } catch {
+  const local = () => {
     const file = localOutputFile(filename, subfolder, type);
     return file ? fs.readFileSync(file) : undefined;
+  };
+  // ComfyUI just failed to answer: skip the slow refused connection when the file is here.
+  if (comfyRecentlyUnreachable()) {
+    const bytes = local();
+    if (bytes) return bytes;
+  }
+  try {
+    const response = await fetch(`${comfyUrl}/view?${params}`, { signal: AbortSignal.timeout(15000) });
+    noteComfyReachable();
+    return response.ok ? Buffer.from(await response.arrayBuffer()) : null;
+  } catch (error) {
+    noteComfyFetchError(error);
+    return local();
   }
 }
 
@@ -58,6 +69,8 @@ async function build(filename, subfolder, type) {
   const key = cacheKey(filename, subfolder, type);
   const file = cachePath(key, sourceHash);
   if (fs.existsSync(file)) return { file, etag: `\"${sourceHash}\"` };
+  const sharp = await loadSharp();
+  if (!sharp) return { original: true };
   const resized = await sharp(source)
     .resize({ width: longestEdge, height: longestEdge, fit: "inside", withoutEnlargement: true })
     .webp({ quality })
@@ -66,7 +79,7 @@ async function build(filename, subfolder, type) {
   fs.mkdirSync(thumbnailDir, { recursive: true, mode: 0o700 });
   const temp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(temp, resized);
-  fs.renameSync(temp, file);
+  renameWithRetry(temp, file);
   // Best-effort: drop any earlier cached thumbnail for this resource under a stale ETag.
   for (const entry of fs.readdirSync(thumbnailDir)) {
     if (entry.startsWith(`${key}-`) && path.join(thumbnailDir, entry) !== file) {
@@ -77,8 +90,10 @@ async function build(filename, subfolder, type) {
 }
 
 // Concurrent requests for the same not-yet-cached image share one build instead of
-// each downloading and resizing the source independently.
+// each downloading and resizing the source independently. Without sharp there is
+// nothing to build: an earlier thumbnail, else `{ original: true }` (serve the full image).
 export async function getThumbnail(filename, subfolder, type) {
+  if (!(await loadSharp())) return cachedThumbnail(cacheKey(filename, subfolder, type)) || { original: true };
   const dedupeKey = `${type}:${subfolder}:${filename}`;
   if (pending.has(dedupeKey)) return pending.get(dedupeKey);
   const promise = build(filename, subfolder, type).finally(() => pending.delete(dedupeKey));
@@ -90,6 +105,8 @@ export async function getThumbnail(filename, subfolder, type) {
 // derivative on disk, so this resizes in memory only — nothing is cached.
 export async function resizeInMemory(buffer, mime) {
   if (!mime?.startsWith("image/") || mime === "image/svg+xml") return null;
+  const sharp = await loadSharp();
+  if (!sharp) return null;
   try {
     return await sharp(buffer)
       .resize({ width: longestEdge, height: longestEdge, fit: "inside", withoutEnlargement: true })

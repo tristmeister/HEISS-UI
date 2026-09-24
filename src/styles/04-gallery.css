@@ -199,8 +199,8 @@
   position: absolute; top: 8px; right: 8px;
   border: 1px solid rgb(255 255 255 / 0.12);
   background: rgb(0 0 0 / 0.55);
-  backdrop-filter: blur(12px) saturate(1.4);
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
   color: #fff !important;
   margin: 0 !important;
   font-size: 11px !important;
@@ -608,7 +608,7 @@
   padding: 2px 7px;
   border-radius: 6px;
   background: rgb(255 255 255 / .06);
-  font: 500 10.5px "Geist Mono", ui-monospace, Menlo, monospace;
+  font: 500 10.5px var(--font-mono);
   color: hsl(var(--muted-foreground));
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -649,7 +649,7 @@
   overflow: auto;
   border-radius: var(--r-item);
   background: rgb(0 0 0 / .35);
-  font: 11px/1.55 "Geist Mono", ui-monospace, Menlo, monospace;
+  font: 11px/1.55 var(--font-mono);
   color: hsl(var(--muted-foreground));
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -17,15 +17,18 @@ import path from "node:path";
 
 const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
-/** Windows can refuse a rename for a moment while antivirus or an indexer holds the file. */
-function renameWithRetry(from, to) {
+/**
+ * Windows can refuse a rename for a moment while antivirus or an indexer holds the file.
+ * The defaults wait about 0.3 s in total; `retries` and `step` (ms, growing linearly) stretch that.
+ */
+export function renameWithRetry(from, to, { retries = 5, step = 20 } = {}) {
   for (let attempt = 0; ; attempt += 1) {
     try {
       fs.renameSync(from, to);
       return;
     } catch (error) {
-      if (attempt >= 5 || !["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw error;
-      sleepSync(20 * (attempt + 1));
+      if (attempt >= retries || !["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw error;
+      sleepSync(step * (attempt + 1));
     }
   }
 }

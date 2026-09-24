@@ -6,6 +6,7 @@ import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
 import type { AspectPreset, Output, Profile } from './types';
 import { aspectIconStyle, cn, titleFromPrompt } from './format';
+import { wheelPixels } from './wheel';
 
 /** How much room a composer control gets: full label, icon-only, or bare essentials. */
 export type ControlDensity = "full" | "compact" | "mini";
@@ -193,6 +194,32 @@ export function NumberPicker({
 
   useEffect(() => () => clearHold(), []);
 
+  // Native and non-passive: React's onWheel can't preventDefault. The wheel
+  // only steps while the picker has focus, so scrolling a panel past it
+  // scrolls the panel instead of silently changing the value.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const stepByRef = useRef(stepBy);
+  stepByRef.current = stepBy;
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    let accumulated = 0;
+    const onWheel = (event: WheelEvent) => {
+      if (!root.contains(document.activeElement)) { accumulated = 0; return; }
+      const { y } = wheelPixels(event, root.clientHeight);
+      if (y === 0) return;
+      event.preventDefault();
+      if (Math.sign(y) !== Math.sign(accumulated)) accumulated = 0;
+      accumulated += y;
+      while (Math.abs(accumulated) >= 100) {
+        stepByRef.current(accumulated < 0 ? 1 : -1);
+        accumulated -= Math.sign(accumulated) * 100;
+      }
+    };
+    root.addEventListener("wheel", onWheel, { passive: false });
+    return () => root.removeEventListener("wheel", onWheel);
+  }, []);
+
   const beginEdit = () => {
     setDraft(formatValue(value));
     setEditing(true);
@@ -212,8 +239,8 @@ export function NumberPicker({
   const showSteppers = density !== "mini";
   return (
     <div
+      ref={rootRef}
       className={cn("number-picker", size === "sm" && "is-sm", fill && "is-fill", density !== "full" && `is-density-${density}`)}
-      onWheel={(event) => { event.preventDefault(); stepBy(event.deltaY < 0 ? 1 : -1); }}
     >
       {density === "full" || !icon ? (
         <span className="number-picker-label">{label}</span>

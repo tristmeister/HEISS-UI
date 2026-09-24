@@ -345,11 +345,33 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [settings, active, zenControls, workflowGalleryOpen, prefs.zenMode]);
 
+  // A file dropped outside a drop zone would make the browser open it and
+  // leave the app. Swallow file drags the zones haven't claimed.
+  useEffect(() => {
+    const isFileDrag = (event: DragEvent) => Boolean(event.dataTransfer?.types.includes("Files"));
+    function onDragOver(event: DragEvent) {
+      if (!isFileDrag(event) || event.defaultPrevented) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "none";
+    }
+    function onDrop(event: DragEvent) {
+      if (isFileDrag(event)) event.preventDefault();
+    }
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return;
       if (settings || active) return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      // AltGr types @ { \ € on many layouts; Windows reports it as Ctrl+Alt.
+      const altGraph = event.getModifierState("AltGraph") || (event.ctrlKey && event.altKey);
+      if (!altGraph && (event.ctrlKey || event.metaKey || event.altKey)) return;
       if (event.key.length !== 1 && event.key !== "Backspace") return;
       const target = event.target as HTMLElement | null;
       if (target?.closest("input, textarea, select, button, a, [contenteditable='true'], [role='dialog'], [role='listbox'], [data-radix-popper-content-wrapper]")) return;

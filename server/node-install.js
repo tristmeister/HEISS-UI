@@ -33,6 +33,20 @@ export function comfyPython(root, platform = process.platform) {
 }
 
 /**
+ * Whether this is the Windows portable build's python_embeded. It must ignore
+ * per-user packages (%APPDATA%\Python): otherwise pip calls them "already
+ * satisfied" and installs nothing into python_embeded, and the nodes fail to
+ * import after the restart. Hence `-s` and PYTHONNOUSERSITE=1 for it.
+ */
+export const isEmbeddedPython = (python) => /[\\/]python_embedd?ed[\\/]/i.test(String(python || ""));
+
+/** The arguments before `install` for ComfyUI's pip. */
+export const pipArgs = (python) => [...(isEmbeddedPython(python) ? ["-s"] : []), "-m", "pip"];
+
+/** The environment for running that Python. */
+export const pythonEnv = (python, env = process.env) => (isEmbeddedPython(python) ? { ...env, PYTHONNOUSERSITE: "1" } : env);
+
+/**
  * Setup without ComfyUI Manager: clone the pack into custom_nodes and install
  * its requirements with ComfyUI's own Python. On a machine we can see, the
  * paths are the real ones; if the pack folder is already there but the nodes
@@ -57,9 +71,13 @@ export function packInstallPlan(pack, root = comfyRootDir(), platform = process.
   const commands = [];
   if (win) {
     const exe = python ? `"${python}"` : "python";
-    const steps = [`Set-Location "${folder}"`, ...(cloned ? [] : [clone]), `${python ? "& " : ""}${exe} -m pip install -r ${requirements}`];
+    const embedded = isEmbeddedPython(python);
+    const pip = `${exe} ${pipArgs(python).join(" ")} install -r ${requirements}`;
+    // -LiteralPath: a plain Set-Location reads [ ] in a folder name as wildcards.
+    const steps = [`Set-Location -LiteralPath "${folder}"`, ...(cloned ? [] : [clone]), ...(embedded ? ['$env:PYTHONNOUSERSITE = "1"'] : []), `${python ? "& " : ""}${pip}`];
     commands.push({ shell: "powershell", label: "PowerShell", command: steps.map((step, i) => (i ? `if ($?) { ${step} }` : step)).join("; ") });
-    commands.push({ shell: "cmd", label: "Command Prompt", command: [`cd /d "${folder}"`, ...(cloned ? [] : [clone]), `${exe} -m pip install -r ${requirements}`].join(" && ") });
+    // Quoted whole, or cmd keeps the space before && in the value.
+    commands.push({ shell: "cmd", label: "Command Prompt", command: [`cd /d "${folder}"`, ...(cloned ? [] : [clone]), ...(embedded ? ['set "PYTHONNOUSERSITE=1"'] : []), pip].join(" && ") });
   } else {
     const exe = python ? `"${python}"` : "python3";
     commands.push({ shell: "sh", label: "Terminal", command: [`cd "${folder}"`, ...(cloned ? [] : [clone]), `${exe} -m pip install -r ${requirements}`].join(" && ") });
@@ -85,7 +103,7 @@ export function diffusersDownloadPlan(repo, root = comfyRootDir(), platform = pr
   const name = repo.split("/").pop();
   const target = root ? paths.join(root, "models", "diffusers", name) : paths.join("ComfyUI", "models", "diffusers", name);
   const code = `from huggingface_hub import snapshot_download; snapshot_download('${repo}', local_dir=r'${target}')`;
-  const exe = python ? `"${python}"` : win ? "python" : "python3";
+  const exe = `${python ? `"${python}"` : win ? "python" : "python3"}${isEmbeddedPython(python) ? " -s" : ""}`;
   const commands = win
     ? [
       { shell: "powershell", label: "PowerShell", command: `${python ? "& " : ""}${exe} -c "${code}"` },

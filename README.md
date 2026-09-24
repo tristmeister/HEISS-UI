@@ -56,9 +56,11 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Quick start
 
-You need **Node.js 20+** and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
+You need **Node.js 20.9+** (22 LTS recommended) and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
 
 **Easiest:** download the latest `heiss-ui-*.zip` from [Releases](https://github.com/tristmeister/HEISS-UI/releases), unpack it and double-click **Start HEISS UI** (`.command` on macOS, `.bat` on Windows), or run `npm start` in the folder. The app comes prebuilt; the first start installs its three runtime packages, about 30 MB.
+
+On Windows, unpack with **Extract All** first; the launcher does not run from inside the zip. If Windows asks whether to run a downloaded file, right-click the zip › Properties › **Unblock** before unpacking. A plain folder such as `C:\HEISS-UI` works better than a Desktop or Documents folder synced by OneDrive, which can lock files during installs and updates.
 
 **From source**, to follow `main` or change the code:
 
@@ -82,7 +84,7 @@ Install and run HEISS UI from GitHub: https://github.com/tristmeister/HEISS-UI
 
 Please do the full local setup for me:
 
-1. Check whether Node.js 20+ is installed.
+1. Check whether Node.js 20.9+ is installed (22 LTS recommended).
 2. Check whether ComfyUI is installed and running at http://127.0.0.1:8188.
 3. If ComfyUI is not running, help me start my existing ComfyUI install. Do not download models unless I explicitly ask.
 4. Clone https://github.com/tristmeister/HEISS-UI into a normal projects folder.
@@ -180,7 +182,7 @@ Set `HOST=0.0.0.0`, allow the chosen `PORT` through your firewall and open your 
 
 <br />
 
-A shortcut that starts ComfyUI and HEISS UI if they aren't running, then opens the browser:
+A shortcut that starts ComfyUI and HEISS UI if they aren't running, then opens the browser. It starts HEISS through `scripts/start.mjs`, like the launcher does, so in-app updates keep working:
 
 ```powershell
 $appRoot = "C:\path\to\heiss-ui"
@@ -192,7 +194,7 @@ if (-not (Get-NetTCPConnection -LocalPort 8188 -State Listen -ErrorAction Silent
 }
 
 if (-not (Get-NetTCPConnection -LocalPort 8787 -State Listen -ErrorAction SilentlyContinue)) {
-  Start-Process node "server/index.js" -WorkingDirectory $appRoot -WindowStyle Hidden
+  Start-Process node "scripts/start.mjs" -WorkingDirectory $appRoot -WindowStyle Hidden
 }
 
 Start-Process "http://127.0.0.1:8787/"

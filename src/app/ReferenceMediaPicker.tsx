@@ -11,6 +11,11 @@ import { SafeImg } from './SafeImg';
 
 type PickerTab = "generation" | "upload";
 
+// Files dragged from Windows Explorer can arrive with an empty type (often
+// .webp and .avif): fall back to the extension. The server sniffs the bytes.
+const IMAGE_EXTENSION = /\.(png|jpe?g|webp|avif|gif|bmp)$/i;
+const isImageFile = (file: File) => file.type.startsWith("image/") || (!file.type && IMAGE_EXTENSION.test(file.name));
+
 type PageState = {
   items: ReferenceAsset[];
   cursor: string;
@@ -396,7 +401,7 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
 
   const upload = React.useCallback(async (file: File | undefined, slot: string) => {
     if (!file || !slot || uploadSlot) return null;
-    if (!file.type.startsWith("image/")) { onError?.("Choose an image file"); return null; }
+    if (!isImageFile(file)) { onError?.("Choose an image file"); return null; }
     setUploadSlot(slot);
     setProgress(0);
     try {
@@ -423,7 +428,8 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
   live.current = { upload, targetSlot, openSlot };
   React.useEffect(() => {
     if (!host || !inputs.length) return;
-    const hasImage = (event: DragEvent) => Array.from(event.dataTransfer?.items || []).some((item) => item.kind === "file" && item.type.startsWith("image/"));
+    // Names aren't readable mid-drag, so an untyped file counts until the drop checks it.
+    const hasImage = (event: DragEvent) => Array.from(event.dataTransfer?.items || []).some((item) => item.kind === "file" && (!item.type || item.type.startsWith("image/")));
     const targetOf = (event: DragEvent): "" | "prompt" | "popover" => {
       const node = event.target instanceof Element ? event.target : null;
       if (node?.closest(".reference-popover")) return "popover";
@@ -455,7 +461,7 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
       const target = targetOf(event);
       window.clearTimeout(clearTimer);
       setDropTarget("");
-      const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/"));
+      const file = Array.from(event.dataTransfer?.files || []).find(isImageFile);
       if (!file || !target) return;
       event.preventDefault();
       setLanding(true);
@@ -468,7 +474,7 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
       });
     };
     const paste = (event: ClipboardEvent) => {
-      const file = Array.from(event.clipboardData?.files || []).find((item) => item.type.startsWith("image/"));
+      const file = Array.from(event.clipboardData?.files || []).find(isImageFile);
       if (!file) return;
       event.preventDefault();
       live.current.upload(file, live.current.targetSlot());

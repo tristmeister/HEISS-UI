@@ -80,9 +80,15 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
   const [pixelFailed, setPixelFailed] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const advanced = mode === 'advanced' && !reducedMotion;
-  const deferMosaicUntilFinal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent) && /Chrome\//i.test(navigator.userAgent) && !/Edg\//i.test(navigator.userAgent);
-  const frameWidth = fit === 'contain' ? Math.min(size.width, size.height * aspectRatio) : size.width;
-  const frameHeight = fit === 'contain' ? frameWidth / aspectRatio : size.height;
+  // The live mosaic looked blocky on Windows (fractional display scaling).
+  // Kept for every Windows browser, Edge and Firefox included, until the
+  // device-pixel fixes below are confirmed there.
+  const deferMosaicUntilFinal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent);
+  // Whole device pixels, so the frame and its cells never straddle a pixel.
+  const dpr = window.devicePixelRatio || 1;
+  const snap = (value: number) => Math.round(value * dpr) / dpr;
+  const frameWidth = snap(fit === 'contain' ? Math.min(size.width, size.height * aspectRatio) : size.width);
+  const frameHeight = snap(fit === 'contain' ? frameWidth / aspectRatio : size.height);
 
   useEffect(() => {
     const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting));

@@ -109,7 +109,7 @@ export async function detectOutputDirs() {
   for (const comfyRoot of roots) add(path.join(comfyRoot, "output"), "comfy");
   const home = os.homedir();
   for (const dir of [
-    "C:\\CUVenv\\ComfyUI\\output",
+    ...(process.platform === "win32" ? ["C:\\ComfyUI_windows_portable\\ComfyUI\\output", "C:\\ComfyUI\\output"] : []),
     path.join(home, "ComfyUI", "output"),
     path.join(home, "Documents", "ComfyUI", "output"),
     path.join(home, "ComfyUI_windows_portable", "ComfyUI", "output"),

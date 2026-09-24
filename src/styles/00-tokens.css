@@ -6,6 +6,9 @@
 --------------------------------------------------------------------------- */
 
 :root {
+  /* Type. Geist Mono ships with the app; Consolas is the Windows fallback. */
+  --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
   /* Material. Floating chrome over content, and solid modal sheets. */
   /* Frosted: translucent enough for the blur to read, with a faint grain. */
   --surface-float: rgb(24 24 24 / .76);

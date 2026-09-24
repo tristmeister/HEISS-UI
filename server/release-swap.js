@@ -21,6 +21,12 @@ import path from "node:path";
 /** Exit code the server uses to ask the supervisor for a restart. */
 export const RESTART_CODE = 75;
 
+/**
+ * Exit code for "the port is taken" (another HEISS UI is usually already running).
+ * The version itself is fine, so a supervisor should not roll an update back over it.
+ */
+export const PORT_IN_USE_CODE = 78;
+
 /** Never moved, whatever a release lists. */
 const KEEP = new Set(["data", ".env", "node_modules", ".update", ".git"]);
 
@@ -79,12 +85,70 @@ export function checkStaged(dir, version) {
 
 const fileText = (file) => { try { return fs.readFileSync(file, "utf8"); } catch { return ""; } };
 
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+
+/**
+ * Windows refuses a rename for a moment while antivirus, the indexer or Explorer
+ * holds a file. Retries for about 2 s in total. Synchronous: nothing else runs yet.
+ */
+function moveSync(from, to) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      fs.renameSync(from, to);
+      return;
+    } catch (error) {
+      if (attempt >= 10 || !["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw error;
+      sleepSync(35 * (attempt + 1));
+    }
+  }
+}
+
+const removeTree = (target) => fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+
+/**
+ * Tries every move even when some fail, so one locked folder never leaves the
+ * rest half-swapped. Moves that failed are kept in .update/leftovers.json (paths
+ * relative to the install) and tried again before the next update.
+ */
+function moveAll(root, moves, log) {
+  const failed = [];
+  for (const move of moves) {
+    const from = path.join(root, move.from);
+    const to = path.join(root, move.to);
+    if (!fs.existsSync(from)) continue;
+    try {
+      if (move.replace) removeTree(to);
+      moveSync(from, to);
+    } catch (error) {
+      failed.push({ ...move, error: error.message });
+      log(`Could not move ${move.from} to ${move.to}: ${error.message}`);
+    }
+  }
+  const file = path.join(root, ".update", "leftovers.json");
+  if (failed.length) writeJson(file, failed);
+  else fs.rmSync(file, { force: true });
+  return failed;
+}
+
+const describeLeftovers = (failed) => failed.map((move) => `${move.from} → ${move.to}`).join(", ");
+
+/** Finishes moves an earlier rollback could not make. Returns the ones still stuck. */
+export function retryLeftovers(root, log = () => {}) {
+  const leftovers = readJson(path.join(updateDir(root), "leftovers.json"));
+  if (!Array.isArray(leftovers) || !leftovers.length) return [];
+  const failed = moveAll(root, leftovers, log);
+  if (!failed.length) log("Finished putting back the files an earlier rollback left behind.");
+  return failed;
+}
+
 /**
  * Moves the pending release into place and the current one into .update/backup.
  * Returns what changed, or null when nothing was pending. Throws only after
  * putting the old version back.
  */
 export function applyPending(root, log = () => {}) {
+  // Checked on every start, so a rollback Windows blocked halfway is finished as soon as it can be.
+  const stuck = retryLeftovers(root, log);
   const pending = readPending(root);
   if (!pending) return null;
   const dir = updateDir(root);
@@ -97,8 +161,16 @@ export function applyPending(root, log = () => {}) {
     return null;
   }
 
+  // The backup may still hold files a rollback could not put back; never delete those.
+  if (stuck.length) {
+    const error = `Files from an earlier rollback are still in .update: ${describeLeftovers(stuck)}. Close anything using the HEISS UI folder and start again.`;
+    writeResult(root, { ok: false, from, to: pending.version, error });
+    log(`Skipped the update to ${pending.version}: ${error}`);
+    return null;
+  }
+
   const backup = path.join(dir, "backup");
-  fs.rmSync(backup, { recursive: true, force: true });
+  removeTree(backup);
   fs.mkdirSync(backup, { recursive: true });
   const lockBefore = fileText(path.join(root, "package-lock.json"));
   const incoming = appEntries(pending.dir);
@@ -108,20 +180,28 @@ export function applyPending(root, log = () => {}) {
   try {
     for (const name of outgoing) {
       if (!fs.existsSync(path.join(root, name))) continue;
-      fs.renameSync(path.join(root, name), path.join(backup, name));
+      moveSync(path.join(root, name), path.join(backup, name));
       moved.push(name);
     }
     for (const name of incoming) {
       if (!fs.existsSync(path.join(pending.dir, name))) continue;
-      fs.renameSync(path.join(pending.dir, name), path.join(root, name));
+      moveSync(path.join(pending.dir, name), path.join(root, name));
       placed.push(name);
     }
   } catch (error) {
-    // Put everything back exactly as it was.
-    for (const name of placed) fs.rmSync(path.join(root, name), { recursive: true, force: true });
-    for (const name of moved) fs.renameSync(path.join(backup, name), path.join(root, name));
+    // Put everything back exactly as it was, as far as Windows lets us.
+    for (const name of placed) {
+      try {
+        removeTree(path.join(root, name));
+      } catch (removeError) {
+        log(`Could not remove the new ${name}: ${removeError.message}`);
+      }
+    }
+    // `replace` clears a new copy that was still in the way above.
+    const failed = moveAll(root, moved.map((name) => ({ from: path.join(path.relative(root, backup), name), to: name, replace: true })), log);
     clearStaging(root);
-    writeResult(root, { ok: false, from, to: pending.version, error: `Could not swap the files in: ${error.message}` });
+    const left = failed.length ? ` Some files could not be put back: ${describeLeftovers(failed)}.` : "";
+    writeResult(root, { ok: false, from, to: pending.version, error: `Could not swap the files in: ${error.message}.${left}`, leftovers: failed });
     throw error;
   }
 
@@ -139,17 +219,18 @@ export function rollback(root, reason, log = () => {}) {
   const backup = path.join(dir, "backup");
   if (!applied || !fs.existsSync(backup)) return false;
   const failed = path.join(dir, "failed");
-  fs.rmSync(failed, { recursive: true, force: true });
+  removeTree(failed);
   fs.mkdirSync(failed, { recursive: true });
-  for (const name of applied.placed || []) {
-    if (fs.existsSync(path.join(root, name))) fs.renameSync(path.join(root, name), path.join(failed, name));
-  }
-  for (const name of applied.moved || []) {
-    if (fs.existsSync(path.join(backup, name))) fs.renameSync(path.join(backup, name), path.join(root, name));
-  }
+  // Best effort per entry: one locked file must not stop the rest from going back.
+  const rel = (target) => path.relative(root, target);
+  const stuck = moveAll(root, [
+    ...(applied.placed || []).map((name) => ({ from: name, to: path.join(rel(failed), name) })),
+    ...(applied.moved || []).map((name) => ({ from: path.join(rel(backup), name), to: name, replace: true }))
+  ], log);
   fs.rmSync(path.join(dir, "applied.json"), { force: true });
-  writeResult(root, { ok: false, rolledBack: true, from: applied.from, to: applied.to, error: reason });
-  log(`HEISS UI ${applied.to} did not start (${reason}). Went back to ${applied.from || "the previous version"}.`);
+  const left = stuck.length ? ` Some files could not be put back yet and will be retried on the next start: ${describeLeftovers(stuck)}.` : "";
+  writeResult(root, { ok: false, rolledBack: true, from: applied.from, to: applied.to, error: `${reason}${left}`, ...(stuck.length ? { leftovers: stuck } : {}) });
+  log(`HEISS UI ${applied.to} did not start (${reason}). Went back to ${applied.from || "the previous version"}.${left}`);
   return true;
 }
 
@@ -159,11 +240,11 @@ export function confirmApplied(root) {
   const applied = readJson(file);
   if (!applied) return;
   fs.rmSync(file, { force: true });
-  fs.rmSync(path.join(updateDir(root), "failed"), { recursive: true, force: true });
+  removeTree(path.join(updateDir(root), "failed"));
   writeResult(root, { ok: true, from: applied.from, to: applied.to });
 }
 
 export function clearStaging(root) {
-  fs.rmSync(path.join(updateDir(root), "staged"), { recursive: true, force: true });
+  removeTree(path.join(updateDir(root), "staged"));
   fs.rmSync(path.join(updateDir(root), "pending.json"), { force: true });
 }

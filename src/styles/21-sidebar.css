@@ -398,7 +398,7 @@
   border-radius: 7px;
   background: transparent;
   color: hsl(var(--foreground) / .85);
-  font: 500 12px/1 "Geist Mono", ui-monospace, Menlo, monospace;
+  font: 500 12px/1 var(--font-mono);
   text-align: center;
   font-variant-numeric: tabular-nums;
   cursor: text;

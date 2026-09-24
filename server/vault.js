@@ -4,6 +4,8 @@ import path from "node:path";
 import { comfyOutputDir } from "./comfy.js";
 import { dataDir, generationSettings, promptTitle } from "./gallery-store.js";
 import { activePrivacyKey, encryptionKeyFromRequest } from "./privacy.js";
+import { renameWithRetry } from "./json-store.js";
+import { isInside } from "./paths.js";
 import {
   applyBundlesToItems,
   createBundleRecords,
@@ -66,7 +68,7 @@ function writeManifest(manifest, key) {
   const full = { version: 1, items: manifest.items, bundles: manifest.bundles || [] };
   const tempPath = `${manifestPath}.${crypto.randomUUID()}.tmp`;
   fs.writeFileSync(tempPath, encrypt(Buffer.from(JSON.stringify(full)), key), { mode: 0o600 });
-  fs.renameSync(tempPath, manifestPath);
+  renameWithRetry(tempPath, manifestPath);
   writeHeader(full.items.length);
 }
 
@@ -97,7 +99,7 @@ function sourceFromOutput(output) {
   if (!filename || outputType !== "output" || path.basename(filename) !== filename) throw new Error("Private Vault only accepts generated Comfy output files.");
   const base = path.resolve(comfyOutputDir);
   const candidate = path.resolve(base, subfolder, filename);
-  if (candidate !== base && !candidate.startsWith(`${base}${path.sep}`)) throw new Error("Unsafe Comfy output path.");
+  if (!isInside(base, candidate, { orSame: true })) throw new Error("Unsafe Comfy output path.");
   return { buffer: fs.readFileSync(candidate), sourcePath: candidate, mime: mimeFor(filename, output.type) };
 }
 

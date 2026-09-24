@@ -18,6 +18,47 @@ section into the next version and uses it as the GitHub release notes.
   generations, and images instead of "gens". The website and README now match
   the current workflow import, smart upscale and the Settings layout.
 
+### Fixed
+- **Windows: the first start of a download works.** It crashed while
+  installing its packages (current Node refuses to run `npm.cmd` directly),
+  and the launcher window closed before the error could be read. The `.bat`
+  now checks for Node and an unpacked folder, and stays open on any error.
+  Updating a Git copy from Settings failed the same way.
+- Starting HEISS UI a second time said it was ready. It now says the port is
+  taken and HEISS UI is probably already running.
+- **Windows: sharper pixel art at 125% and 150% display scaling.** The
+  generation mosaic, the About wordmark, the update button and the other cell
+  canvases draw on whole screen pixels, so cells and gaps stay even. Without
+  WebGL the About page shows the logo instead of an empty space.
+- Blur was missing on tile buttons, bundle badges and dock chips in Chrome,
+  Edge and Firefox.
+- Scrolling a panel with a mouse wheel changed any number field under the
+  pointer. Fields now only react to the wheel while focused.
+- Thin scrollbars everywhere; the gallery's no longer hides under the bottom
+  fade or pushes the gallery off centre. Sideways strips (zen thumbnails,
+  workflow filters) scroll with a normal wheel, and viewer zoom follows how
+  far the wheel or touchpad moves.
+- Monospace text uses Geist Mono on every system. Long paths are cut at the
+  start so the folder name stays visible. Windows High Contrast shows
+  switches, buttons and focus.
+- AltGr characters start typing into the prompt; confirming an IME word no
+  longer generates; an image dropped outside a drop zone no longer opens in
+  the tab.
+- **Windows: model folders.** Paths are compared regardless of letter case,
+  a disconnected network drive no longer freezes HEISS UI during the scan,
+  `extra_model_paths.yaml` saved with Windows line endings is still
+  recognised, and `C:\ComfyUI_windows_portable` is found.
+- Installing node packs into the portable ComfyUI's Python no longer skips
+  packages that are only installed in your user Python.
+- Downloads, thumbnails, the vault and updates retry when antivirus or
+  indexing briefly holds a file. A download stuck at 100% finishes, and an
+  update that cannot put a folder back says where it left it and retries on
+  the next start.
+- With ComfyUI stopped, images load from disk straight away instead of
+  after a two-second wait each. An output folder at a drive root works.
+- A missing or blocked image library no longer stops HEISS UI from starting;
+  thumbnails fall back to the full image.
+
 ## [0.4.0] - 2026-09-24
 
 ### Added

@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { comfy } from "./comfy.js";
+import { isInside, pathKey, samePath } from "./paths.js";
 
 /**
  * Model folders ComfyUI is not reading, and the one-line fix for each.
@@ -39,8 +41,9 @@ const layouts = {
 
 /* ------------------------------------------------------------ helpers */
 
+// .native: on Windows it resolves mapped and subst drives the way Python's realpath does.
 function realpath(dir) {
-  try { return fs.realpathSync(dir); } catch { return path.resolve(dir); }
+  try { return fs.realpathSync.native(dir); } catch { return path.resolve(dir); }
 }
 
 function isDir(dir) {
@@ -56,6 +59,29 @@ function subdirs(dir) {
   } catch {
     return [];
   }
+}
+
+/** The same as subdirs, without blocking the event loop; a folder that does not answer in time counts as empty. */
+async function subdirsAsync(dir, timeout = 1500) {
+  const list = async () => {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    const names = [];
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) continue;
+      if (entry.isDirectory()) names.push(entry.name);
+      else if (entry.isSymbolicLink()) {
+        try { if ((await fs.promises.stat(path.join(dir, entry.name))).isDirectory()) names.push(entry.name); } catch { /* dangling */ }
+      }
+    }
+    return names;
+  };
+  return withTimeout(list().catch(() => []), timeout, []);
+}
+
+function withTimeout(promise, ms, fallback) {
+  let timer;
+  const late = new Promise((resolve) => { timer = setTimeout(() => resolve(fallback), ms); });
+  return Promise.race([promise, late]).finally(() => clearTimeout(timer));
 }
 
 /** Model files in a folder and three levels below it (people sort into subfolders). */
@@ -80,7 +106,9 @@ function modelFiles(dir, limit = 400) {
   return { files: found, bytes };
 }
 
-export function tildePath(dir, home = os.homedir()) {
+/** A path shortened with ~ for home. Not on Windows, where people do not read `~\` as their user folder. */
+export function tildePath(dir, home = os.homedir(), platform = process.platform) {
+  if (platform === "win32") return dir;
   return dir === home || dir.startsWith(home + path.sep) ? `~${dir.slice(home.length)}` : dir;
 }
 
@@ -122,17 +150,29 @@ export async function comfyModelSetup() {
   // ComfyUI's own folder: the one whose custom_nodes it loads and that holds main.py.
   const root = nodesDirs.map((dir) => path.dirname(dir)).find((dir) => fs.existsSync(path.join(dir, "main.py"))) || "";
   const baseDir = argValues(argv, "--base-directory")[0] || "";
-  const configs = argValues(argv, "--extra-model-paths-config").map((file) => path.resolve(root || baseDir || ".", file));
+  // ComfyUI opens a relative config from its working folder. The portable build's
+  // launcher runs it from the folder above ComfyUI, next to python_embeded.
+  const portable = root && ["python_embeded", "python_embedded"].some((name) => isDir(path.join(path.dirname(root), name)));
+  const workingDir = portable ? path.dirname(root) : root || baseDir || ".";
+  const configs = argValues(argv, "--extra-model-paths-config").map((file) => path.resolve(workingDir, file));
   const rootConfig = root ? path.join(root, "extra_model_paths.yaml") : "";
   // Prefer a file ComfyUI was pointed at (the Desktop app's own), then its folder's, if we may write there.
   const configPath = [...configs, rootConfig].find((file) => file && canWrite(file)) || configs[0] || rootConfig;
   return { kinds, root, configPath, reachable: Boolean(root || configs.length) };
 }
 
+/**
+ * Whether HEISS can write the file and its backup next to it. On Windows
+ * accessSync(W_OK) passes for every folder (it only reads the read-only flag),
+ * so the folder is tested by making and removing a file in it.
+ */
 function canWrite(file) {
   try {
-    if (fs.existsSync(file)) { fs.accessSync(file, fs.constants.W_OK); return true; }
-    fs.accessSync(path.dirname(file), fs.constants.W_OK);
+    if (fs.existsSync(file)) fs.closeSync(fs.openSync(file, "r+"));
+    const probe = path.join(path.dirname(file), `.heiss-write-test-${process.pid}`);
+    fs.rmSync(probe, { force: true });
+    fs.closeSync(fs.openSync(probe, "wx"));
+    fs.rmSync(probe, { force: true });
     return true;
   } catch {
     return false;
@@ -147,7 +187,10 @@ function canWrite(file) {
  * Stability Matrix's or A1111's.
  */
 export function readLayout(dir, knownKinds) {
-  const names = subdirs(dir);
+  return layoutFromNames(subdirs(dir), knownKinds);
+}
+
+function layoutFromNames(names, knownKinds) {
   if (!names.length) return null;
   const valid = new Set(knownKinds);
   const comfyKinds = names
@@ -165,8 +208,42 @@ export function readLayout(dir, knownKinds) {
 
 const skipNames = /^(Library|Applications|System|node_modules|Pictures|Music|Movies|Photos Library\.photoslibrary|AppData|\$Recycle\.Bin|Windows|Program Files.*|ProgramData|proc|sys|dev|snap|venv|\.venv|site-packages|__pycache__)$/i;
 
+// Below C:\'s second level only folders named like an AI install are opened, so
+// C:\ComfyUI_windows_portable\ComfyUI\models is found without walking all of C:.
+const aiNames = /comfy|stable|diffusion|models?$|^ai$|^sd|forge|webui|matrix|invoke|fooocus|swarm|a1111|automatic/i;
+
+/**
+ * Drive letters other than C: that are local disks. Network drives (DriveType 4)
+ * and optical drives (5) are skipped: a disconnected NAS mapping can take about
+ * 20 s per call. Asked of PowerShell (wmic is gone from new Windows) with a
+ * time limit; without an answer, only letters that answer quickly are used.
+ */
+let driveCache = null;
+async function localDrives() {
+  if (driveCache && Date.now() - driveCache.at < 60000) return driveCache.letters;
+  const script = "Get-CimInstance Win32_LogicalDisk | ForEach-Object { \"$($_.DeviceID) $($_.DriveType)\" }";
+  const answer = await new Promise((resolve) => {
+    execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { timeout: 5000, windowsHide: true }, (error, stdout) => resolve(error ? null : String(stdout)));
+  });
+  let letters;
+  if (answer) {
+    letters = [...answer.matchAll(/^([A-Z]):\s+(\d+)\s*$/gim)]
+      .filter(([, , type]) => !["4", "5"].includes(type))
+      .map(([, letter]) => letter.toUpperCase());
+  } else {
+    const probes = [..."DEFGHIJKLMNOPQRSTUVWXYZ"].map(async (letter) => {
+      const ok = await withTimeout(fs.promises.stat(`${letter}:\\`).then((stat) => stat.isDirectory(), () => false), 1000, false);
+      return ok ? letter : "";
+    });
+    letters = (await Promise.all(probes)).filter(Boolean);
+  }
+  letters = letters.filter((letter) => letter !== "C");
+  driveCache = { at: Date.now(), letters };
+  return letters;
+}
+
 /** Folders worth a look: shared spots other apps use, then a shallow walk of home and the other drives. */
-function candidateRoots(home, drivesToo = true) {
+async function candidateRoots(home, drivesToo = true) {
   const explicit = [];
   const add = (dir, source) => { if (dir) explicit.push({ dir, source }); };
   if (process.platform === "darwin") {
@@ -191,48 +268,51 @@ function candidateRoots(home, drivesToo = true) {
   const walkRoots = [{ dir: home, depth: 4, source: "home" }];
   const drives = !drivesToo ? "" : process.platform === "darwin" ? "/Volumes" : process.platform === "linux" ? path.join("/media", os.userInfo().username) : "";
   if (drives) {
-    for (const name of subdirs(drives)) {
+    for (const name of await subdirsAsync(drives)) {
       const dir = path.join(drives, name);
       if (realpath(dir) !== "/") walkRoots.push({ dir, depth: 3, source: "drive" });
     }
   }
   if (process.platform === "win32" && drivesToo) {
-    for (const letter of "DEFGHIJKLMNOPQRSTUVWXYZ") {
-      const dir = `${letter}:\\`;
-      if (isDir(dir)) walkRoots.push({ dir, depth: 3, source: "drive" });
-    }
-    walkRoots.push({ dir: "C:\\", depth: 2, source: "drive" });
+    for (const letter of await localDrives()) walkRoots.push({ dir: `${letter}:\\`, depth: 3, source: "drive" });
+    walkRoots.push({ dir: "C:\\", depth: 3, narrowFrom: 3, source: "drive" });
   }
   return { explicit, walkRoots };
 }
 
 /**
  * Every models folder on this machine, found by shape: ComfyUI installs,
- * shared folders, other apps. Bounded so a huge disk cannot stall setup.
+ * shared folders, other apps. Bounded so a huge disk cannot stall setup, and
+ * asynchronous with a time limit per folder, so a slow drive never blocks the
+ * server while it looks.
  */
-export function findModelFolders(knownKinds, { home = os.homedir(), drives = true, budget = 6000, deadline = Date.now() + 4000 } = {}) {
-  const { explicit, walkRoots } = candidateRoots(home, drives);
+export async function findModelFolders(knownKinds, { home = os.homedir(), drives = true, budget = 6000, deadline } = {}) {
+  const { explicit, walkRoots } = await candidateRoots(home, drives);
+  // Counted from here, so asking Windows for its drives does not use up the walk's time.
+  const until = deadline ?? Date.now() + 4000;
   const found = new Map();
-  const consider = (dir, source) => {
+  // Returns the folder's subfolder names when it is not a models folder, for the walk to go on.
+  const consider = async (dir, source) => {
+    const names = await subdirsAsync(dir);
     const real = realpath(dir);
-    if (found.has(real)) return true;
-    const layout = readLayout(dir, knownKinds);
-    if (!layout) return false;
-    found.set(real, { dir: real, source, ...layout });
-    return true;
+    if (found.has(pathKey(real))) return null;
+    const layout = layoutFromNames(names, knownKinds);
+    if (!layout) return names;
+    found.set(pathKey(real), { dir: real, source, ...layout });
+    return null;
   };
-  for (const { dir, source } of explicit) if (isDir(dir)) consider(dir, source);
+  for (const { dir, source } of explicit) await consider(dir, source);
   let visited = 0;
-  for (const { dir: start, depth: maxDepth, source } of walkRoots) {
+  for (const { dir: start, depth: maxDepth, narrowFrom = Infinity, source } of walkRoots) {
     const queue = [{ dir: start, depth: 0 }];
-    while (queue.length && visited < budget && Date.now() < deadline) {
+    while (queue.length && visited < budget && Date.now() < until) {
       const { dir, depth } = queue.shift();
       visited += 1;
       // A models folder is a leaf here: its own subfolders are its kinds.
-      if (depth > 0 && consider(dir, source)) continue;
-      if (depth >= maxDepth) continue;
-      for (const name of subdirs(dir)) {
-        if (skipNames.test(name)) continue;
+      const names = depth > 0 ? await consider(dir, source) : await subdirsAsync(dir);
+      if (!names || depth >= maxDepth) continue;
+      for (const name of names) {
+        if (skipNames.test(name) || (depth + 1 >= narrowFrom && !aiNames.test(name))) continue;
         queue.push({ dir: path.join(dir, name), depth: depth + 1 });
       }
     }
@@ -248,7 +328,8 @@ const endMark = "# <<< HEISS UI";
 /** Sections HEISS added before, by the folder they point at. */
 export function heissSections(text = "") {
   const sections = [];
-  const pattern = /^# >>> Added by HEISS UI: (.+)\n([\s\S]*?)^# <<< HEISS UI\s*$/gm;
+  // \r?: Notepad and other Windows editors save CRLF.
+  const pattern = /^# >>> Added by HEISS UI: (.+?)\r?\n([\s\S]*?)^# <<< HEISS UI\s*$/gm;
   for (const match of text.matchAll(pattern)) sections.push({ path: match[1].trim(), block: match[0] });
   return sections;
 }
@@ -288,21 +369,22 @@ export async function modelFolderReport({ local = true, scan = {} } = {}) {
     return { ok: true, local: false, folders: [], linked: [], configPath: setup.configPath };
   }
   const knownKinds = Object.keys(setup.kinds);
-  const read = new Set(Object.values(setup.kinds).flat());
+  // Keyed without case on Windows: the yaml may say d:\ai\models for D:\AI\Models.
+  const read = new Set(Object.values(setup.kinds).flat().map((dir) => pathKey(dir)));
   let configText = "";
   try { configText = fs.readFileSync(setup.configPath, "utf8"); } catch { /* not made yet */ }
   // `read`: ComfyUI has picked the folder up, which only happens once it restarted after HEISS added it.
-  const readDirs = [...read];
+  const readDirs = Object.values(setup.kinds).flat();
   const linked = heissSections(configText).map((section) => {
     const base = realpath(section.path);
-    return { path: section.path, label: tildePath(section.path), read: readDirs.some((dir) => dir === base || dir.startsWith(base + path.sep)) };
+    return { path: section.path, label: tildePath(section.path), read: readDirs.some((dir) => isInside(base, dir, { orSame: true })) };
   });
   const folders = [];
-  for (const folder of findModelFolders(knownKinds, scan)) {
+  for (const folder of await findModelFolders(knownKinds, scan)) {
     const kinds = [];
     for (const { name, kind } of folder.map) {
       const dir = realpath(path.join(folder.dir, name));
-      if (read.has(dir)) continue;
+      if (read.has(pathKey(dir))) continue;
       const { files, bytes } = modelFiles(dir);
       if (!files.length) continue;
       kinds.push({ kind, name, dir, count: files.length, bytes, examples: files.slice(0, 3).map((file) => path.basename(file)) });
@@ -353,21 +435,22 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
   if (!file) throw new Error("Couldn’t find where ComfyUI keeps its settings.");
   let text = "";
   try { text = fs.readFileSync(file, "utf8"); } catch { /* a new file */ }
-  const already = new Set(heissSections(text).map((section) => section.path));
-  let backup = "";
-  if (text) {
-    backup = `${file}.heiss-backup`;
-    fs.copyFileSync(file, backup);
-  }
-  let next = text && !text.endsWith("\n") ? `${text}\n` : text;
+  // Keep the file's own line endings (a Windows editor saves CRLF).
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  const already = new Set(heissSections(text).map((section) => pathKey(section.path)));
+  const backup = text ? `${file}.heiss-backup` : "";
+  let next = text && !text.endsWith("\n") ? `${text}${eol}` : text;
   const added = [];
   for (const folder of chosen) {
-    if (already.has(folder.path)) continue;
-    next += `${next ? "\n" : ""}${sectionFor(folder.path, folder.kinds, next)}`;
+    if (already.has(pathKey(folder.path))) continue;
+    already.add(pathKey(folder.path));
+    next += `${next ? eol : ""}${sectionFor(folder.path, folder.kinds, next).replace(/\n/g, eol)}`;
     added.push(folder.path);
   }
-  if (!added.length) return { ok: true, added, configPath: file, backup };
+  if (!added.length) return { ok: true, added, configPath: file, backup: "" };
   try {
+    // Inside the try, so a folder Windows will not let us write to gets the friendly message too.
+    if (backup) fs.copyFileSync(file, backup);
     fs.writeFileSync(file, next);
   } catch (error) {
     throw new Error(`Couldn’t write ${tildePath(file)} (${error.code || error.message}).`);
@@ -381,13 +464,15 @@ export async function unlinkModelFolder(dir) {
   const setup = await comfyModelSetup();
   if (!setup?.configPath) throw new Error("ComfyUI is not reachable.");
   const text = fs.readFileSync(setup.configPath, "utf8");
-  const section = heissSections(text).find((item) => item.path === String(dir));
+  const section = heissSections(text).find((item) => item.path === String(dir)) || heissSections(text).find((item) => samePath(item.path, String(dir)));
   if (!section) throw new Error("HEISS UI didn’t add this folder, so it can’t remove it.");
-  let next = text.replace(section.block, "").replace(/\n{3,}/g, "\n\n");
+  const eol = text.includes("\r\n") ? "\r\n" : "\n";
+  // The blank line that went in before the section goes out with it.
+  let next = text.replace(section.block, "").replace(/(\r?\n){3,}/g, eol + eol).replace(/(\r?\n)+$/, eol);
   // ComfyUI's loader walks the file as a mapping and fails on one that is only
   // comments, so a file with nothing left in it goes, and a comments-only one gets `{}`.
   if (!next.trim()) fs.rmSync(setup.configPath);
-  else fs.writeFileSync(setup.configPath, /^[^#\s]/m.test(next) ? next : `${next.trimEnd()}\n{}\n`);
+  else fs.writeFileSync(setup.configPath, /^[^#\s]/m.test(next) ? next : `${next.trimEnd()}${eol}{}${eol}`);
   lastReport = null;
   return { ok: true, removed: section.path };
 }

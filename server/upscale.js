@@ -6,6 +6,7 @@ import { pipeline } from "node:stream/promises";
 import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
 import { comfyPython, comfyRootDir, packInstallPlan } from "./node-install.js";
 import { nodePacks } from "./node-packs.js";
+import { renameWithRetry } from "./json-store.js";
 
 // SeedVR2 restores detail rather than interpolating it, so the pipeline mirrors
 // the reference workflow: soften the source with a lanczos pre-scale, then let
@@ -352,7 +353,7 @@ async function downloadOne(entry, dir, onProgress, signal) {
     fs.rmSync(partial, { force: true });
     throw new VerifyError(`${entry.file} did not match its published checksum, so it was thrown away.`);
   }
-  fs.renameSync(partial, target);
+  renameWithRetry(partial, target);
   rememberValidated(dir, entry.file, spec);
   entry.phase = "verified";
 }

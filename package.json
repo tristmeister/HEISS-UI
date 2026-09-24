@@ -12,6 +12,9 @@
   },
   "homepage": "https://tristmeister.github.io/HEISS-UI/",
   "type": "module",
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "predev": "node scripts/ensure-runtime-dependencies.mjs --dev",
     "dev": "concurrently \"vite --host 127.0.0.1 --port 5173\" \"node server/index.js\"",
@@ -35,6 +38,7 @@
   },
   "devDependencies": {
     "@fontsource-variable/geist": "^5.2.8",
+    "@fontsource-variable/geist-mono": "^5.3.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tailwindcss/vite": "^4.2.4",

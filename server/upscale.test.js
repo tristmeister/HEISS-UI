@@ -164,7 +164,18 @@ test("Windows gets a PowerShell spelling and a Command Prompt one", async () => 
   const { nodeInstallPlan } = await import("./upscale.js");
   const [powershell, cmd] = nodeInstallPlan("C:\\ComfyUI_windows_portable\\ComfyUI", "win32").commands;
   // PowerShell 5.1 has no && and no cd /d; $? chains the steps instead.
-  assert.equal(powershell.command, "Set-Location \"C:\\ComfyUI_windows_portable\\ComfyUI\\custom_nodes\"; if ($?) { git clone https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git }; if ($?) { python -m pip install -r ComfyUI-SeedVR2_VideoUpscaler\\requirements.txt }");
+  assert.equal(powershell.command, "Set-Location -LiteralPath \"C:\\ComfyUI_windows_portable\\ComfyUI\\custom_nodes\"; if ($?) { git clone https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git }; if ($?) { python -m pip install -r ComfyUI-SeedVR2_VideoUpscaler\\requirements.txt }");
   assert.doesNotMatch(powershell.command, /&&|cd \/d/);
   assert.equal(cmd.command, "cd /d \"C:\\ComfyUI_windows_portable\\ComfyUI\\custom_nodes\" && git clone https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git && python -m pip install -r ComfyUI-SeedVR2_VideoUpscaler\\requirements.txt");
+});
+
+test("the portable build's embedded Python ignores per-user packages", async () => {
+  const { isEmbeddedPython, pipArgs, pythonEnv } = await import("./node-install.js");
+  const embedded = "C:\\ComfyUI_windows_portable\\python_embeded\\python.exe";
+  assert.equal(isEmbeddedPython(embedded), true);
+  assert.equal(isEmbeddedPython("C:\\ComfyUI\\.venv\\Scripts\\python.exe"), false);
+  assert.deepEqual(pipArgs(embedded), ["-s", "-m", "pip"]);
+  assert.deepEqual(pipArgs("/opt/comfy/.venv/bin/python"), ["-m", "pip"]);
+  assert.equal(pythonEnv(embedded, {}).PYTHONNOUSERSITE, "1");
+  assert.equal(pythonEnv("python", {}).PYTHONNOUSERSITE, undefined);
 });

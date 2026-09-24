@@ -13,7 +13,7 @@
 .mf-hero[data-stage="done"]::before { opacity: .6; background: radial-gradient(closest-side at 50% 50%, rgb(255 236 214 / .2), transparent 70%); }
 .mf-hero[data-stage="error"]::before { opacity: .5; background: radial-gradient(closest-side at 50% 50%, rgb(255 110 90 / .2), transparent 70%); }
 
-.mf-modal code { font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--foreground) / .85); }
+.mf-modal code { font: 500 11px var(--font-mono); color: hsl(var(--foreground) / .85); overflow-wrap: anywhere; }
 .mf-modal .modal-foot .mf-other { margin-right: auto; }
 
 /* ----------------------------------------------------------- Folder rows */
@@ -77,7 +77,7 @@
 .mf-count { display: grid; flex: none; justify-items: end; gap: 2px; padding-top: 1px; }
 .mf-count b { font-size: 20px; font-weight: 600; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: hsl(var(--foreground)); }
 .mf-folder:not(.is-checked) .mf-count b { color: hsl(var(--muted-foreground)); }
-.mf-count span { font: 500 10.5px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--muted-foreground) / .7); }
+.mf-count span { font: 500 10.5px var(--font-mono); color: hsl(var(--muted-foreground) / .7); }
 
 /* While ComfyUI restarts: each folder with a smouldering cell that turns over. */
 .mf-folders.is-moving { margin-bottom: 0; }
@@ -238,7 +238,19 @@
 .model-menu-find-cta { justify-self: start; margin-top: 8px; }
 
 /* Settings: folders HEISS added, with a way back out. */
-.set-folder-path { overflow: hidden; font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace; white-space: nowrap; text-overflow: ellipsis; }
+.set-folder-path { overflow: hidden; font: 500 11.5px var(--font-mono); white-space: nowrap; text-overflow: ellipsis; }
+
+/* Long paths lose their start, not their end, so the folder name stays
+   visible ("…\ComfyUI\models\checkpoints"). rtl only moves the ellipsis;
+   the LRMs keep a leading "/" or "C:" and a trailing "\" in place. */
+.set-folder-path,
+.mf-folder-copy code,
+.mf-linked code,
+.upscale-files code { direction: rtl; text-align: left; }
+.set-folder-path::before, .set-folder-path::after,
+.mf-folder-copy code::before, .mf-folder-copy code::after,
+.mf-linked code::before, .mf-linked code::after,
+.upscale-files code::before, .upscale-files code::after { content: "\200E"; }
 
 @media (prefers-reduced-motion: reduce) {
   .mf-glyph i.is-on,

@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "./00-shadcn.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -82,6 +83,13 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   }
 }
 
+/* Thin, quiet scrollbars everywhere. Windows otherwise draws 17 px bars that
+   are always visible. Rules that hide a scrollbar still win (specificity). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(255 255 255 / .22) transparent;
+}
+
 .app-shell {
   position: fixed; inset: 0; overflow: hidden;
   background: hsl(var(--background)); color: hsl(var(--foreground));
@@ -98,7 +106,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
   background: hsl(var(--background));
 }
 .bottom-fade {
-  position: fixed; left: 0; right: 0; bottom: 0;
+  /* --scrollbar-w is set on the gallery from StudioView, so the fade stops
+     short of its scrollbar (17 px and always visible on Windows). */
+  position: fixed; left: 0; right: var(--scrollbar-w, 0px); bottom: 0;
   height: 150px;
   pointer-events: none;
   z-index: 5;

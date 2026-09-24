@@ -3,7 +3,8 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { comfy } from "./comfy.js";
-import { comfyPython, comfyRootDir } from "./node-install.js";
+import { StringDecoder } from "node:string_decoder";
+import { comfyPython, comfyRootDir, pipArgs, pythonEnv } from "./node-install.js";
 import { nodePack } from "./node-packs.js";
 
 /**
@@ -49,14 +50,19 @@ async function managerAnswers() {
   }
 }
 
-function run(state, command, args, cwd) {
+function run(state, command, args, cwd, env = process.env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, env: { ...process.env, GIT_TERMINAL_PROMPT: "0" }, windowsHide: true });
+    // UTF-8 output from Python whatever the Windows code page, so names in the log stay readable.
+    const child = spawn(command, args, { cwd, env: { ...env, GIT_TERMINAL_PROMPT: "0", PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }, windowsHide: true });
     state.child = child;
     const timer = setTimeout(() => child.kill(), stepTimeoutMs);
-    const collect = (chunk) => { state.log = (state.log + chunk.toString()).slice(-tailLimit); };
-    child.stdout.on("data", collect);
-    child.stderr.on("data", collect);
+    // One decoder per stream, so a character split across two chunks is not garbled.
+    const collector = () => {
+      const decoder = new StringDecoder("utf8");
+      return (chunk) => { state.log = (state.log + decoder.write(chunk)).slice(-tailLimit); };
+    };
+    child.stdout.on("data", collector());
+    child.stderr.on("data", collector());
     child.on("error", (error) => {
       clearTimeout(timer);
       reject(new Error(error.code === "ENOENT" ? `${path.basename(command)} is not installed on this computer.` : error.message));
@@ -82,7 +88,7 @@ async function installLocally(state, pack) {
   }
   if (fs.existsSync(path.join(target, "requirements.txt"))) {
     state.step = "Installing what they need";
-    await run(state, python, ["-m", "pip", "install", "-r", "requirements.txt"], target);
+    await run(state, python, [...pipArgs(python), "install", "-r", "requirements.txt"], target, pythonEnv(python));
   }
 }
 

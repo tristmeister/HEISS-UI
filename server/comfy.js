@@ -3,13 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import os from "node:os";
+import { isInside } from "./paths.js";
 
 export const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const root = path.resolve(__dirname, "..");
 export const comfyUrl = process.env.COMFY_URL || "http://127.0.0.1:8188";
 export const host = process.env.HOST || "127.0.0.1";
 export const port = Number(process.env.PORT || 8787);
-const localComfyOutputDir = "C:\\CUVenv\\ComfyUI\\output";
 /**
  * An output file on this computer, for when ComfyUI itself cannot serve it
  * (stopped, restarting). Only files inside the output folder; null otherwise.
@@ -18,11 +18,12 @@ export function localOutputFile(filename, subfolder = "", type = "output") {
   if (type !== "output" || !comfyOutputDir || !filename) return null;
   const base = path.resolve(comfyOutputDir);
   const file = path.resolve(base, String(subfolder || ""), String(filename));
-  if (file !== base && !file.startsWith(base + path.sep)) return null;
+  if (!isInside(base, file, { orSame: true })) return null;
   try { return fs.statSync(file).isFile() ? file : null; } catch { return null; }
 }
 
-export let comfyOutputDir = process.env.COMFY_OUTPUT_DIR || (fs.existsSync(localComfyOutputDir) ? localComfyOutputDir : "");
+// Resolved, so a hand-written `D:/x` becomes `D:\x` on Windows (Explorer opens its default view otherwise).
+export let comfyOutputDir = process.env.COMFY_OUTPUT_DIR ? path.resolve(process.env.COMFY_OUTPUT_DIR) : "";
 
 /**
  * Turn whatever got pasted into a folder path: Explorer's "Copy as path" wraps it
@@ -115,8 +116,31 @@ export function isLocalClient(remote = "") {
   return localHosts.has(remote) || localHosts.has(String(remote || "").replace(/^::ffff:/, ""));
 }
 
+/*
+ * Whether ComfyUI just failed to answer. On Windows a refused localhost
+ * connection takes about 2 s, so while this is set the image routes read the
+ * output folder first instead of making every image wait. Cleared by any
+ * answer from ComfyUI, and expires on its own after a few seconds.
+ */
+let comfyUnreachableUntil = 0;
+export const comfyRecentlyUnreachable = () => Date.now() < comfyUnreachableUntil;
+export function noteComfyReachable() {
+  comfyUnreachableUntil = 0;
+}
+/** Call with what a fetch to ComfyUI threw; a canceled request says nothing about ComfyUI. */
+export function noteComfyFetchError(error) {
+  if (error?.name !== "AbortError") comfyUnreachableUntil = Date.now() + 5000;
+}
+
 export async function comfy(pathname, options = {}) {
-  const response = await fetch(`${comfyUrl}${pathname}`, options);
+  let response;
+  try {
+    response = await fetch(`${comfyUrl}${pathname}`, options);
+  } catch (error) {
+    noteComfyFetchError(error);
+    throw error;
+  }
+  noteComfyReachable();
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     throw new Error(normalizeComfyError(`Comfy ${response.status}: ${text || response.statusText}`));

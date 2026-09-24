@@ -9,6 +9,7 @@ import { Segmented } from './SettingsDialog';
 import { workflowState } from './workflowStatus';
 import { ModelSetup } from './ModelSetup';
 import { ComfyRestart } from './ComfyRestart';
+import { scrollSideways, useWheelRef } from './wheel';
 import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
@@ -87,6 +88,8 @@ export function WorkflowGallery({ view }: { view: any }) {
   const [dragging, setDragging] = useState(false);
   const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  // The filter pills scroll sideways with a plain wheel; their scrollbar is hidden.
+  const filtersWheelRef = useWheelRef<HTMLDivElement>(scrollSideways);
 
   const ofKind = useMemo(() => workflows.filter((item) => item.kind === kind), [kind, workflows]);
   const attentionCount = ofKind.filter((item) => !item.validation.ok).length;
@@ -273,7 +276,7 @@ export function WorkflowGallery({ view }: { view: any }) {
           </label>
           <Segmented label="Kind" value={kind} onChange={(next) => { setKind(next); setFilter("all"); }} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} />
         </div>
-        <div className="wf-filters" role="radiogroup" aria-label="Filter workflows">
+        <div ref={filtersWheelRef} className="wf-filters" role="radiogroup" aria-label="Filter workflows">
           {([["all", `All ${ofKind.length}`], ["favorites", "Favorites"], ...(attentionCount ? [["attention", `Needs attention ${attentionCount}`]] : [])] as Array<[Filter, string]>).map(([value, label]) => (
             <button key={value} type="button" role="radio" aria-checked={filter === value} className={cn(filter === value && "active")} onClick={() => setFilter(value)}>{label}</button>
           ))}

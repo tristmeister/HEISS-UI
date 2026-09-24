@@ -125,7 +125,7 @@
   border-radius: 7px;
   background: var(--control-fill);
   color: hsl(var(--foreground));
-  font: 600 11px/1 "Geist Mono", ui-monospace, Menlo, monospace;
+  font: 600 11px/1 var(--font-mono);
 }
 
 .upscale-url {
@@ -141,7 +141,7 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font: 500 11.5px/1.4 "Geist Mono", ui-monospace, Menlo, monospace;
+  font: 500 11.5px/1.4 var(--font-mono);
   color: hsl(var(--foreground));
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -168,7 +168,7 @@
 /* A command wraps instead of truncating: every character of it matters. */
 .upscale-url.is-block { align-items: flex-start; padding: 10px 6px 10px 14px; border-radius: var(--r-item); }
 .upscale-url.is-block code { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; user-select: all; }
-.upscale-steps code:not(.upscale-url code) { font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--foreground)); }
+.upscale-steps code:not(.upscale-url code) { font: 500 11.5px var(--font-mono); color: hsl(var(--foreground)); }
 .upscale-steps .upscale-fine { margin-top: 6px; }
 
 /* Manager or terminal: a small pill switch above the steps. */
@@ -220,8 +220,8 @@
   animation: upscale-smoulder 1.6s ease-in-out infinite;
 }
 .upscale-watcher span { flex: 1; min-width: 0; }
-.upscale-watcher code { font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--foreground)); }
-.upscale-watcher em { flex: none; font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; font-style: normal; color: hsl(var(--muted-foreground) / .65); }
+.upscale-watcher code { font: 500 11.5px var(--font-mono); color: hsl(var(--foreground)); }
+.upscale-watcher em { flex: none; font: 500 11px var(--font-mono); font-style: normal; color: hsl(var(--muted-foreground) / .65); }
 
 .upscale-fine { margin: 12px 0 0; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground) / .8); overflow-wrap: anywhere; }
 .upscale-fine.is-warn { color: var(--danger-ink); }
@@ -266,9 +266,9 @@
 .upscale-efforts button:hover { background: var(--control-hover); }
 .upscale-efforts button.is-active { background: var(--selected); color: hsl(var(--foreground)); }
 .upscale-efforts strong { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
-.upscale-efforts strong em { font: 600 11px "Geist Mono", ui-monospace, Menlo, monospace; font-style: normal; color: var(--ember); }
+.upscale-efforts strong em { font: 600 11px var(--font-mono); font-style: normal; color: var(--ember); }
 .upscale-efforts span { max-width: 100%; overflow: hidden; font-size: 11.5px; white-space: nowrap; text-overflow: ellipsis; }
-.upscale-efforts small { font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--muted-foreground) / .7); }
+.upscale-efforts small { font: 500 11px var(--font-mono); color: hsl(var(--muted-foreground) / .7); }
 
 /* Files: one joined list, each row name over file, size on the right. */
 .upscale-files { display: grid; gap: 2px; margin: 12px 0 0; padding: 0; list-style: none; }
@@ -287,13 +287,13 @@
 .upscale-files.is-live li > div { gap: 9px; }
 .upscale-files strong { display: flex; align-items: baseline; gap: 8px; font-size: 13px; font-weight: 550; color: hsl(var(--foreground)); }
 .upscale-files strong em { font-size: 11.5px; font-style: normal; font-weight: 400; color: hsl(var(--muted-foreground)); }
-.upscale-files code { overflow: hidden; font: 500 10.5px/1.4 "Geist Mono", ui-monospace, Menlo, monospace; color: hsl(var(--muted-foreground) / .7); white-space: nowrap; text-overflow: ellipsis; }
+.upscale-files code { overflow: hidden; font: 500 10.5px/1.4 var(--font-mono); color: hsl(var(--muted-foreground) / .7); white-space: nowrap; text-overflow: ellipsis; }
 .upscale-files li > span {
   flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font: 500 11.5px "Geist Mono", ui-monospace, Menlo, monospace;
+  font: 500 11.5px var(--font-mono);
   font-variant-numeric: tabular-nums;
   color: hsl(var(--muted-foreground));
 }
@@ -302,8 +302,8 @@
 
 .upscale-dest { display: flex; align-items: center; gap: 8px; margin-top: 10px; padding: 0 4px; font-size: 12px; color: hsl(var(--muted-foreground)); }
 .upscale-dest svg { flex: none; }
-.upscale-dest code { flex: 1; min-width: 0; overflow: hidden; font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; white-space: nowrap; text-overflow: ellipsis; }
-.upscale-dest span { flex: none; font: 500 11px "Geist Mono", ui-monospace, Menlo, monospace; }
+.upscale-dest code { flex: 1; min-width: 0; overflow: hidden; font: 500 11px var(--font-mono); white-space: nowrap; text-overflow: ellipsis; }
+.upscale-dest span { flex: none; font: 500 11px var(--font-mono); }
 .upscale-dest.is-short span { color: var(--danger-ink); }
 
 /* Download meter: one big number, the details beside it. */
@@ -403,7 +403,7 @@
 .udw-text { display: grid; flex: 1; gap: 5px; min-width: 0; }
 .udw-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .udw-title strong { overflow: hidden; font-size: 13px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; text-overflow: ellipsis; }
-.udw-title em { flex: none; font: 600 12px "Geist Mono", ui-monospace, Menlo, monospace; font-style: normal; font-variant-numeric: tabular-nums; color: var(--ember); }
+.udw-title em { flex: none; font: 600 12px var(--font-mono); font-style: normal; font-variant-numeric: tabular-nums; color: var(--ember); }
 .udw-text small { overflow: hidden; font-size: 11.5px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); white-space: nowrap; text-overflow: ellipsis; }
 .udw .cell-bar { height: 5px; }
 .udw-thumb { flex: none; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; outline: 1px solid rgb(255 255 255 / .1); outline-offset: -1px; }

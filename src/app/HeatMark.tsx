@@ -1,4 +1,5 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { trackCanvasSize } from './canvasSize';
 
 /**
  * The website's footer wordmark, brought into the app: "HEISS UI" in pixel
@@ -173,15 +174,16 @@ function drawMask(canvas: HTMLCanvasElement, cell: number, width: number, height
 export function HeatMark({ className }: { className?: string }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // No WebGL (Remote Desktop, VMs, blocklisted GPUs): show the static lockup.
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return;
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' });
-    if (!gl) return;
+    if (!gl) { setFailed(true); return; }
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
     const compile = (type: number, src: string) => {
       const shader = gl.createShader(type)!;
@@ -191,13 +193,15 @@ export function HeatMark({ className }: { className?: string }) {
     };
     const vs = compile(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}');
     const fs = compile(gl.FRAGMENT_SHADER, COMMON + MARK);
-    if (!vs || !fs) return;
+    if (!vs || !fs) { setFailed(true); return; }
     const prog = gl.createProgram()!;
     gl.attachShader(prog, vs);
     gl.attachShader(prog, fs);
     gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { setFailed(true); return; }
     gl.useProgram(prog);
+    const tracked = trackCanvasSize(canvas, 2, () => { if (reduce) frame(performance.now()); });
+    const { dpr } = tracked;
     gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
     const loc = gl.getAttribLocation(prog, 'p');
@@ -211,8 +215,8 @@ export function HeatMark({ className }: { className?: string }) {
 
     let size = { w: 0, h: 0, cell: 1 };
     const layout = () => {
-      const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
-      const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+      const w = Math.max(1, tracked.size.width);
+      const h = Math.max(1, tracked.size.height);
       const cell = Math.max(2, Math.floor(Math.min(w / GRID_W, h / GRID_H)));
       if (w === size.w && h === size.h) return;
       canvas.width = w;
@@ -290,14 +294,15 @@ export function HeatMark({ className }: { className?: string }) {
       if (visible && !raf) raf = requestAnimationFrame(frame);
     });
     io.observe(wrap);
-    const ro = new ResizeObserver(() => { if (reduce) frame(performance.now()); });
-    ro.observe(canvas);
+    const lost = (event: Event) => { event.preventDefault(); setFailed(true); };
+    canvas.addEventListener('webglcontextlost', lost);
     raf = requestAnimationFrame(frame);
 
     return () => {
       cancelAnimationFrame(raf);
       io.disconnect();
-      ro.disconnect();
+      tracked.disconnect();
+      canvas.removeEventListener('webglcontextlost', lost);
       wrap.removeEventListener('pointermove', move);
       wrap.removeEventListener('pointerleave', leave);
       wrap.removeEventListener('pointerdown', press);
@@ -307,7 +312,9 @@ export function HeatMark({ className }: { className?: string }) {
 
   return (
     <div ref={wrapRef} className={className} style={{ aspectRatio: heatMarkAspect }} role="img" aria-label="HEISS UI">
-      <canvas ref={canvasRef} aria-hidden="true" />
+      {failed
+        ? <img className="about-mark-fallback" src="/heiss-lockup-white.svg" alt="" aria-hidden="true" draggable={false} />
+        : <canvas ref={canvasRef} aria-hidden="true" />}
     </div>
   );
 }

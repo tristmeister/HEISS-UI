@@ -9,7 +9,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, startReleaseUpdate } from './updater.js';
-import { allowLanActions, demoMode, comfy, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
+import { PORT_IN_USE_CODE } from './release-swap.js';
+import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -39,6 +40,21 @@ const app = express();
 app.use(express.json({ limit: "25mb" }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+
+/**
+ * How to run npm with execFile. On Windows npm is a .cmd, which Node refuses to
+ * run without a shell since the CVE-2024-27980 fix (EINVAL), so run npm's own
+ * JavaScript entry with this Node instead: the one npm started us with, else the
+ * one installed next to node.exe. A shell is the last resort.
+ */
+function npmInvocation(args) {
+  if (process.platform !== "win32") return { command: npmCommand, args, shell: false };
+  const candidates = [process.env.npm_execpath, path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js")];
+  const script = candidates.find((file) => file && /\.[cm]?js$/i.test(file) && fs.existsSync(file));
+  if (script) return { command: process.execPath, args: [script, ...args], shell: false };
+  const quote = (arg) => (/^[\w.:=@/\\-]+$/.test(arg) ? arg : `"${arg.replace(/"/g, '""')}"`);
+  return { command: npmCommand, args: args.map(quote), shell: true };
+}
 let comfyCache = { info: null, stats: null, fetchedAt: 0 };
 
 async function loadComfyContext({ force = false } = {}) {
@@ -107,8 +123,10 @@ function requireLanUnlock(req, res, next) {
 app.use(requireLanUnlock);
 
 async function runRepoCommand(command, args) {
-  const { stdout = "", stderr = "" } = await execFileAsync(command, args, {
+  const npm = command === npmCommand ? npmInvocation(args) : { command, args, shell: false };
+  const { stdout = "", stderr = "" } = await execFileAsync(npm.command, npm.args, {
     cwd: root,
+    shell: npm.shell,
     timeout: 600000,
     maxBuffer: 1024 * 1024
   });
@@ -228,6 +246,7 @@ app.get("/api/comfy/status", async (_req, res) => {
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
     const response = await fetch(`${comfyUrl}/system_stats`, { signal: controller.signal });
+    noteComfyReachable();
     const latencyMs = Math.round(performance.now() - startedAt);
     if (!response.ok) {
       res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
@@ -243,6 +262,8 @@ app.get("/api/comfy/status", async (_req, res) => {
       device
     });
   } catch (error) {
+    // A timeout counts here too: this poll is the app asking whether ComfyUI is there.
+    noteComfyFetchError(error?.name === "AbortError" ? new Error("timed out") : error);
     const latencyMs = Math.round(performance.now() - startedAt);
     const message = error?.name === "AbortError" ? "Connection timed out" : error?.message || "Connection failed";
     res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
@@ -1232,6 +1253,8 @@ app.get("/comfy/thumb", async (req, res) => {
   try {
     const thumbnail = await getThumbnail(filename, subfolder, type);
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
+    // No sharp (see sharp-loader.js): the full image stands in for the thumbnail.
+    if (thumbnail.original) { res.redirect(302, `/comfy/view?${new URLSearchParams({ filename, subfolder, type })}`); return; }
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
     // This URL identifies an output filename, not immutable image bytes. Its
@@ -1255,14 +1278,21 @@ app.get("/comfy/*path", async (req, res) => {
     for (const header of ["if-none-match", "if-modified-since", "range", "if-range"]) {
       if (req.headers[header]) conditional[header] = req.headers[header];
     }
+    // ComfyUI is stopped or restarting: outputs still open from the output folder.
+    const localFile = () => (proxyPath === "view" ? localOutputFile(String(req.query.filename || ""), String(req.query.subfolder || ""), String(req.query.type || "output")) : null);
+    const sendLocal = (file) => res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } });
+    // It just failed to answer: go straight to disk instead of waiting ~2 s for another refusal (Windows).
+    const known = comfyRecentlyUnreachable() ? localFile() : null;
+    if (known) { sendLocal(known); return; }
     let response;
     try {
       response = await fetch(`${comfyUrl}/${proxyPath}${query}`, { headers: conditional });
+      noteComfyReachable();
     } catch (error) {
-      // ComfyUI is stopped or restarting: outputs still open from the output folder.
-      const file = proxyPath === "view" ? localOutputFile(String(req.query.filename || ""), String(req.query.subfolder || ""), String(req.query.type || "output")) : null;
+      noteComfyFetchError(error);
+      const file = localFile();
       if (!file) throw error;
-      res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } });
+      sendLocal(file);
       return;
     }
     res.status(response.status);
@@ -1296,7 +1326,15 @@ if (fs.existsSync(dist)) {
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 
-app.listen(port, host, () => {
+app.listen(port, host, (error) => {
+  // Express 5 hands a failed listen to this callback instead of throwing.
+  if (error) {
+    console.error(error.code === "EADDRINUSE"
+      ? `\n  Port ${port} is already in use. HEISS UI may already be running: http://127.0.0.1:${port}\n`
+      : `\n  HEISS UI could not start: ${error.message}\n`);
+    // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
+    process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
+  }
   const shownHost = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
   // Under `npm run dev*` the page comes from Vite; this server only answers the API.
   const dev = /^dev/.test(process.env.npm_lifecycle_event || "");

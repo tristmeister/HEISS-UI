@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { cn } from './format';
+import { trackCanvasSize } from './canvasSize';
 
 /**
  * A button whose face is a field of square cells, like the generation mosaic.
@@ -27,18 +28,24 @@ export function MosaicButton({ busy, disabled, onClick, children, className, ton
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const CELL = 5;          // CSS px per cell
-    const GAP = 1;
+    const tracked = trackCanvasSize(canvas, 2, () => wakeRef.current());
+    const { dpr } = tracked;
+    // Everything is in whole device pixels, so cells and gaps stay even at
+    // 125% / 150% scaling. At 2x this is the original 5 px cell with a 1 px gap.
+    const PITCH = Math.max(3, Math.round(5 * dpr));
+    const GAP = Math.max(1, Math.round(dpr));
+    const FULL = PITCH - GAP;
+    const DOT = Math.max(1, Math.round(1.4 * dpr));
+    const SPARK = Math.max(1, Math.round(1.6 * dpr));
     let w = 0, h = 0, cols = 0, rows = 0;
     let seeds = new Float32Array(0);
     const resize = () => {
-      const cw = canvas.clientWidth, ch = canvas.clientHeight;
-      if (Math.round(cw * dpr) === w && Math.round(ch * dpr) === h) return;
-      w = canvas.width = Math.round(cw * dpr);
-      h = canvas.height = Math.round(ch * dpr);
-      cols = Math.ceil(cw / CELL);
-      rows = Math.ceil(ch / CELL);
+      const { width, height } = tracked.size;
+      if (width === w && height === h) return;
+      w = canvas.width = width;
+      h = canvas.height = height;
+      cols = Math.ceil(w / PITCH);
+      rows = Math.ceil(h / PITCH);
       seeds = new Float32Array(cols * rows).map(() => Math.random());
     };
 
@@ -65,7 +72,6 @@ export function MosaicButton({ busy, disabled, onClick, children, className, ton
         if (heat < 0.01) { heat = 0; progress = 0; }
       }
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const hover = hoverRef.current;
       const front = progress * cols;
@@ -74,7 +80,7 @@ export function MosaicButton({ busy, disabled, onClick, children, className, ton
           const seed = seeds[x * rows + y];
           const behind = front - x;
           let r = 255, g = 255, b = 255, a = 0.05 + 0.05 * hover;
-          let size = 1.4;
+          let size = DOT;
           if (heat > 0 && behind > 0) {
             // Colour runs deep red far behind the front, ember in the body, white at the edge.
             const k = Math.min(1, behind / Math.max(6, cols * 0.5));
@@ -84,17 +90,17 @@ export function MosaicButton({ busy, disabled, onClick, children, className, ton
             b = Math.round(40 + 42 * (1 - k) + 170 * edge);
             const twinkle = reduce ? 0.7 : 0.45 + 0.55 * Math.max(0, Math.sin(t * (2.2 + seed * 3) + seed * 40));
             a = heat * Math.min(1, 0.18 + twinkle * (0.55 - k * 0.3) + edge * 0.6) * (seed > 0.12 ? 1 : 0.25);
-            size = CELL - GAP;
+            size = FULL;
           } else if (heat > 0 && behind > -4) {
             // Sparks just ahead of the front.
             const lead = 1 + behind / 4;
             a = heat * lead * (seed > 0.7 ? 0.5 : 0.08);
-            size = seed > 0.7 ? CELL - GAP : 1.6;
+            size = seed > 0.7 ? FULL : SPARK;
           }
           if (a <= 0.01) continue;
           ctx.fillStyle = `rgba(${r},${g},${b},${a})`;
-          const cx = x * CELL + CELL / 2, cy = y * CELL + CELL / 2;
-          ctx.fillRect(cx - size / 2, cy - size / 2, size, size);
+          const inset = (PITCH - size) >> 1;
+          ctx.fillRect(x * PITCH + inset, y * PITCH + inset, size, size);
         }
       }
       // At rest the field is static: draw once and sleep until something changes.
@@ -103,9 +109,7 @@ export function MosaicButton({ busy, disabled, onClick, children, className, ton
     const wake = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(draw); } };
     wakeRef.current = wake;
     wake();
-    const ro = new ResizeObserver(wake);
-    ro.observe(canvas);
-    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+    return () => { cancelAnimationFrame(raf); tracked.disconnect(); };
   }, []);
   useEffect(() => { wakeRef.current(); }, [busy]);
 

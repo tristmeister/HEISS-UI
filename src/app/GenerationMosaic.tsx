@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { ImageGeneration, PRESETS, type ImageGenerationHandle } from 'img-fx';
+import { ImageGeneration, PRESETS, setMaxDpr, type ImageGenerationHandle } from 'img-fx';
 import { createRevealBitmap, GENERATION_PIXEL_SCALE } from './generationEffect';
+
+// img-fx renders at up to 1.25x by default, then stretches without smoothing,
+// which doubles every fifth row and column at 150% Windows scaling.
+setMaxDpr(2);
 
 // The React API exposes named presets rather than per-instance reveal timing.
 // Customize our organic preset once, preserving its loader and pixel grid.
