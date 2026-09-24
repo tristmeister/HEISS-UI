@@ -21,6 +21,7 @@ import { useGalleryStore } from './app/useGalleryStore';
 import { upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/useUpscale';
 import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
+import { useVisibleInterval } from './hooks/use-visible-interval';
 
 /** Snap a raw pixel dimension to something ComfyUI will accept: a multiple of the
  *  workflow's step (default 8), clamped to its width/height range. */
@@ -254,10 +255,7 @@ function App() {
     setComfyReconnectedAt(Date.now());
   }, [comfyStatus.connected, comfyStatus.checked]);
 
-  useEffect(() => {
-    const timer = window.setInterval(() => { refreshComfyStatus(); }, 5000);
-    return () => window.clearInterval(timer);
-  }, []);
+  useVisibleInterval(refreshComfyStatus, 5000);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 620px)");
@@ -267,14 +265,8 @@ function App() {
     return () => query.removeEventListener("change", update);
   }, []);
 
-  useEffect(() => {
-    // A locked Hidden has nothing to poll for.
-    if (hiddenSpace && !hidden.unlocked) return;
-    const timer = window.setInterval(() => {
-      loadGalleryDelta();
-    }, 2500);
-    return () => window.clearInterval(timer);
-  }, [loadGalleryDelta, hiddenSpace, hidden.unlocked]);
+  // A locked Hidden has nothing to poll for.
+  useVisibleInterval(loadGalleryDelta, 2500, !hiddenSpace || hidden.unlocked);
 
   useEffect(() => {
     if (!prefs.zenMode || active || settings || zenControls) return;
@@ -605,6 +597,11 @@ function App() {
       .catch((error) => setHealth({ ok: false, error: error instanceof Error ? error.message : "Connection failed" }));
   }
 
+  /** The status poll mostly returns the same answer; a new object would re-render the whole app every five seconds. */
+  function setComfyStatusIfChanged(next: ComfyStatus) {
+    setComfyStatus((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+  }
+
   function refreshComfyStatus(): Promise<void> {
     if (comfyStatusRequestRef.current) return comfyStatusRequestRef.current;
     // Only the first check shows as "checking". Later polls keep the last answer
@@ -612,8 +609,8 @@ function App() {
     // dot do not blink (and restart their animations) every five seconds.
     setComfyStatus((current) => (current.checked ? current : { ...current, checking: true }));
     const request = apiJson<ComfyStatus>("/api/comfy/status")
-      .then((data) => setComfyStatus({ ...data, checking: false, checked: true }))
-      .catch((error) => setComfyStatus({ connected: false, checking: false, checked: true, error: error instanceof Error ? error.message : "Connection failed" }))
+      .then((data) => setComfyStatusIfChanged({ ...data, checking: false, checked: true }))
+      .catch((error) => setComfyStatusIfChanged({ connected: false, checking: false, checked: true, error: error instanceof Error ? error.message : "Connection failed" }))
       .finally(() => { comfyStatusRequestRef.current = null; });
     comfyStatusRequestRef.current = request;
     return request;

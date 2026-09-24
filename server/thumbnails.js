@@ -58,17 +58,48 @@ async function sourceBytes(filename, subfolder, type) {
   }
 }
 
+/**
+ * An output that is on this computer is identified by its size and modified
+ * time, so a cached thumbnail is found with one stat instead of downloading
+ * and hashing the full image on every request. A reused filename changes both.
+ */
+function localSource(filename, subfolder, type) {
+  const file = localOutputFile(filename, subfolder, type);
+  if (!file) return null;
+  try {
+    const stat = fs.statSync(file);
+    const sourceHash = crypto.createHash("sha256").update(`local:${stat.size}:${stat.mtimeMs}`).digest("hex");
+    return { file, sourceHash };
+  } catch {
+    return null;
+  }
+}
+
 async function build(filename, subfolder, type) {
-  // ComfyUI installations do not consistently provide a useful ETag, and a
-  // reused filename can therefore otherwise receive an unrelated old preview.
+  const key = cacheKey(filename, subfolder, type);
+  const local = localSource(filename, subfolder, type);
+  if (local) {
+    const file = cachePath(key, local.sourceHash);
+    if (fs.existsSync(file)) return { file, etag: `\"${local.sourceHash}\"` };
+    let source;
+    try { source = fs.readFileSync(local.file); } catch { source = null; }
+    if (source) return writeThumbnail(key, local.sourceHash, source);
+  }
+  // Not on this computer (a remote ComfyUI, or an input/temp file). ComfyUI
+  // installations do not consistently provide a useful ETag, and a reused
+  // filename could otherwise receive an unrelated old preview, so hash the bytes.
   const source = await sourceBytes(filename, subfolder, type);
   // ComfyUI is down and the file is not on this computer: an earlier thumbnail still beats nothing.
-  if (source === undefined) return cachedThumbnail(cacheKey(filename, subfolder, type));
+  if (source === undefined) return cachedThumbnail(key);
   if (!source) return null;
   const sourceHash = crypto.createHash("sha256").update(source).digest("hex");
-  const key = cacheKey(filename, subfolder, type);
   const file = cachePath(key, sourceHash);
   if (fs.existsSync(file)) return { file, etag: `\"${sourceHash}\"` };
+  return writeThumbnail(key, sourceHash, source);
+}
+
+async function writeThumbnail(key, sourceHash, source) {
+  const file = cachePath(key, sourceHash);
   const sharp = await loadSharp();
   if (!sharp) return { original: true };
   const resized = await sharp(source)

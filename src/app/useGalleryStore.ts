@@ -82,21 +82,31 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
   if (action.type === "clear") return initialState;
   if (action.type === "reset") {
     const pageItems = action.page.items || action.page.outputs || [];
-    const pageItemsById = mergeItems({}, pageItems);
+    // Keep the existing object for an unchanged item, so memoised tiles skip re-rendering.
+    const pageItemsById: Record<string, GalleryItem> = {};
+    for (const item of pageItems) {
+      const key = itemKey(item);
+      if (key) pageItemsById[key] = sameItem(state.itemsById[key], item) ? state.itemsById[key] : item;
+    }
     const optimisticItems = Object.values(state.itemsById).filter((item) => {
       const key = itemKey(item);
       return item.optimistic && item.status === "pending" && key && !pageItemsById[key];
     });
-    const itemsById = mergeItems(pageItemsById, optimisticItems);
-    return {
+    const merged = mergeItems(pageItemsById, optimisticItems);
+    const keys = Object.keys(merged);
+    const unchanged = keys.length === Object.keys(state.itemsById).length && keys.every((key) => merged[key] === state.itemsById[key]);
+    const itemsById = unchanged ? state.itemsById : merged;
+    const next: GalleryState = {
       itemsById,
-      sortedIds: orderedIds(itemsById),
+      sortedIds: unchanged ? state.sortedIds : orderedIds(itemsById),
       revision: Number(action.page.revision || state.revision),
       nextCursor: action.page.nextCursor || "",
       hasMore: Boolean(action.page.hasMore),
       loaded: true,
       totalApprox: Math.max(Number(action.page.totalApprox || pageItems.length || 0), Object.keys(itemsById).length),
     };
+    const same = (Object.keys(next) as (keyof GalleryState)[]).every((key) => next[key] === state[key]);
+    return same ? state : next;
   }
   if (action.type === "append") {
     const pageItems = action.page.items || action.page.outputs || [];
@@ -118,6 +128,8 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
   }
   if (action.type === "upsert") {
     const itemsById = mergeItems(state.itemsById, action.items);
+    // An empty delta must not hand React a new state object: that re-renders the whole app every poll.
+    if (itemsById === state.itemsById && Number(action.revision || state.revision) === state.revision) return state;
     return {
       ...state,
       itemsById,

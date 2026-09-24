@@ -772,13 +772,15 @@ app.get("/api/gallery", (req, res) => {
 });
 
 app.get("/api/gallery/delta", (req, res) => {
+  const since = Number(req.query.since || 0);
   // Collapsed runs only come out of a full page, so with any run grouped the
-  // browser reloads rather than patching tiles in and out of their stacks.
+  // browser reloads rather than patching tiles in and out of their stacks -
+  // but only when something actually changed since its last page.
   if (listBundles().length) {
-    res.json({ revision: galleryRevisionValue(), reset: true, upserts: [], removes: [] });
+    const revision = galleryRevisionValue();
+    res.json({ revision, reset: since !== revision, upserts: [], removes: [] });
     return;
   }
-  const since = Number(req.query.since || 0);
   const type = String(req.query.type || "");
   const includeFailed = req.query.includeFailed !== "0";
   const delta = galleryDelta({ since, type, includeFailed });

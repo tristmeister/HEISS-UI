@@ -51,9 +51,19 @@ function loadHiddenGalleryIds() {
   }
 }
 
+// Sorting parses createdAt inside the comparator; items are replaced rather than
+// mutated, so the parsed time can be remembered per item object.
+const parsedTimes = new WeakMap();
+
 function galleryTime(item) {
-  const parsed = Date.parse(item?.createdAt || "");
-  return Number.isFinite(parsed) ? parsed : 0;
+  if (!item || typeof item !== "object") return 0;
+  let time = parsedTimes.get(item);
+  if (time === undefined) {
+    const parsed = Date.parse(item.createdAt || "");
+    time = Number.isFinite(parsed) ? parsed : 0;
+    parsedTimes.set(item, time);
+  }
+  return time;
 }
 
 export function galleryKey(item) {
@@ -79,11 +89,16 @@ function bumpRevision(changes = {}) {
   galleryRevision = Math.max(galleryRevision + 1, Date.now());
   const upserts = Array.isArray(changes.upserts) ? changes.upserts : [];
   const removes = Array.isArray(changes.removes) ? changes.removes : [];
-  if (upserts.length || removes.length) {
-    galleryChanges.push({ revision: galleryRevision, upserts, removes });
+  if (upserts.length || removes.length || changes.reset) {
+    galleryChanges.push({ revision: galleryRevision, upserts, removes, reset: Boolean(changes.reset) });
     if (galleryChanges.length > changeLogLimit) galleryChanges.splice(0, galleryChanges.length - changeLogLimit);
   }
   return galleryRevision;
+}
+
+/** Something the delta log cannot express changed (run grouping): browsers reload the page. */
+export function markGalleryReset() {
+  return bumpRevision({ reset: true });
 }
 
 function diffGallery(before, after) {
@@ -193,6 +208,7 @@ export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}
   const removes = new Set();
   for (const change of galleryChanges) {
     if (change.revision <= numericSince) continue;
+    if (change.reset) return { revision: galleryRevision, reset: true, upserts: [], removes: [] };
     for (const item of change.upserts || []) {
       const key = galleryKey(item);
       if (!key) continue;
@@ -311,9 +327,58 @@ function outputFolderTrusted() {
   return trusted;
 }
 
+// Every gallery page checks every output still exists, so a stat per item
+// would mean thousands of blocking calls per request. Each folder's listing is
+// read once instead, and read again when the folder's modified time changes
+// (a file was added or deleted, e.g. in Finder or Explorer).
+const folderListings = new Map();
+const listingRecheckMs = 1000;
+const listingMaxAgeMs = 60_000;
+const caseInsensitiveFs = process.platform === "darwin" || process.platform === "win32";
+const listedName = (name) => (caseInsensitiveFs ? name.toLowerCase() : name);
+
+function folderListing(dir) {
+  const now = Date.now();
+  const cached = folderListings.get(dir);
+  if (cached && now - cached.statAt < listingRecheckMs) return cached.names;
+  let stat;
+  try { stat = fs.statSync(dir); } catch { stat = null; }
+  if (!stat?.isDirectory()) {
+    folderListings.set(dir, { statAt: now, readAt: now, mtimeMs: -1, names: null });
+    return null;
+  }
+  // A listing read within 2 s of the folder's last change may predate a write in
+  // the same mtime tick (FAT/exFAT round to 2 s), so it is only reused after that.
+  if (cached && cached.mtimeMs === stat.mtimeMs && cached.readAt - stat.mtimeMs > 2000 && now - cached.readAt < listingMaxAgeMs) {
+    cached.statAt = now;
+    return cached.names;
+  }
+  let names = null;
+  try { names = new Set(fs.readdirSync(dir).map(listedName)); } catch { names = null; }
+  if (folderListings.size > 500) folderListings.clear();
+  folderListings.set(dir, { statAt: now, readAt: now, mtimeMs: stat.mtimeMs, names });
+  return names;
+}
+
+// Where an item's output could be, worked out once per item object (items are
+// replaced, never mutated) and output folder.
+const itemOutputPaths = new WeakMap();
+
+function outputPathsFor(item, base) {
+  const cached = itemOutputPaths.get(item);
+  if (cached?.base === base) return cached.paths;
+  const paths = outputFileCandidates(item, base)
+    .map((file) => path.resolve(file))
+    .filter((file) => isInside(base, file, { orSame: true }))
+    .map((file) => ({ dir: path.dirname(file), name: listedName(path.basename(file)) }));
+  itemOutputPaths.set(item, { base, paths });
+  return paths;
+}
+
 export function hasExistingOutputFile(item) {
   if (!comfyOutputDir || !outputFolderTrusted()) return true;
-  return outputFileExistsIn(item, comfyOutputDir);
+  const base = path.resolve(comfyOutputDir);
+  return outputPathsFor(item, base).some(({ dir, name }) => Boolean(folderListing(dir)?.has(name)));
 }
 
 export function saveGallery() {

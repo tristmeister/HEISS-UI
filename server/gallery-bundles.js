@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { dataDir } from './gallery-store.js';
+import { dataDir, markGalleryReset } from './gallery-store.js';
 import {
   applyBundlesToItems,
   createBundleRecords,
@@ -44,6 +44,8 @@ let bundles = readBundles();
 function persist() {
   fs.mkdirSync(dataDir, { recursive: true });
   writeJsonFile(bundlesPath, { bundles });
+  // Grouped pages are rebuilt server-side, so every open browser has to reload.
+  markGalleryReset();
 }
 
 export function bundleCandidate(item) {
