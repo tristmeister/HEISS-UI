@@ -11,46 +11,43 @@ section into the next version and uses it as the GitHub release notes.
 ## [Unreleased]
 
 ### Added
-- ComfyUI coming back feels like pairing AirPods. With an empty gallery the
-  offline plug snaps into its socket, the contact flashes, the socket warms
-  up and the scene dissolves into the empty state; with images on screen a
-  small "ComfyUI connected" card slides in and out. Models, workflows and
-  smart upscale pick themselves up again without a reload.
-- A new empty state for a gallery with nothing in it yet: a blank pixel
-  canvas where a picture keeps developing and fading, like your first
-  generation will.
-- Sana also runs through ComfyUI-SANA (diffusers, runs on Apple Silicon): its
-  model folders in `models/diffusers` show up as ready models, next to the
+- **Models ComfyUI can't see are found and added in one step.** HEISS looks
+  through shared folders, other ComfyUI installs, the ComfyUI Desktop app,
+  Stability Matrix, A1111 and external drives for models in folders ComfyUI
+  does not read. It says what it found in the sidebar, the model menu and
+  Settings. One click adds the folders to ComfyUI's `extra_model_paths.yaml`
+  (backed up, in a marked section Settings can remove again), restarts
+  ComfyUI and confirms the models arrived.
+- **Custom nodes install with one click.** Models that need a custom node
+  pack say so in the sidebar and the workflow library, with an Install
+  button. Packs in ComfyUI-Manager's list are installed through Manager; the
+  rest are cloned and set up with ComfyUI's own Python when ComfyUI runs on
+  this computer. Smart upscale's SeedVR2 setup uses the same button, and the
+  manual steps stay available for a ComfyUI on another machine.
+- Sana also runs through ComfyUI-SANA (diffusers, works on Apple Silicon):
+  Sana folders in `models/diffusers` show up as ready models, next to the
   ComfyUI_ExtraModels route for CUDA.
-- Models that run on custom nodes say so where you pick them, in the sidebar
-  and the workflow library, with an Install button. HEISS asks
-  ComfyUI-Manager to install packs from its list, and installs the rest itself
-  (git clone plus pip with ComfyUI's own Python) when ComfyUI runs on this
-  computer. Smart upscale's SeedVR2 setup uses the same button. The manual
-  steps are still there for a ComfyUI on another machine.
-- MODELS.md documents how a new model family gets added.
-- Models in a folder ComfyUI does not read are found and added in one
-  step. HEISS looks through shared folders, other ComfyUI installs, the
-  ComfyUI Desktop app, Stability Matrix, A1111 and external drives. It says
-  what it found in the sidebar, the model menu and Settings. It then adds
-  the folder to ComfyUI's `extra_model_paths.yaml` (backed up, in a marked
-  section Settings can remove again), restarts ComfyUI and shows when the
-  models are there.
+- ComfyUI coming back is picked up without a reload. With an empty gallery
+  the offline plug snaps into its socket and the scene dissolves into the
+  empty state; with images on screen a small "ComfyUI connected" card slides
+  in and out. Models, workflows and smart upscale refresh by themselves.
+- A new empty state for a gallery with nothing in it yet: a blank pixel
+  canvas where a picture keeps developing and fading.
+- MODELS.md documents how a new model family, and the custom nodes, text
+  encoders or VAEs it needs, gets added.
 
 ### Fixed
 - With ComfyUI stopped or restarting, every image in the gallery broke,
   because images were only ever fetched through ComfyUI. They now open from
   the output folder, and thumbnails from HEISS's own cache.
-- A first start no longer flashes the empty state before it knows ComfyUI
-  is offline.
 - A finished image whose file would not load (moved, deleted, ComfyUI
   unreachable) showed the browser's broken-image icon with "Untitled prompt"
   over the tile. It now shows the tile's unavailable state, and every image
   with a source that can go missing falls back the same way.
-- The offline screen vanished and restarted its animation every five
-  seconds while HEISS checked ComfyUI again. Later checks now keep the
-  screen, and the status dot, steady until the answer changes.
-- Retry connection (and the composer's ComfyUI offline button) now say
+- The offline screen restarted its animation every five seconds while HEISS
+  checked ComfyUI again, and a first start flashed the empty state before it
+  knew ComfyUI was offline. Both now hold steady until the answer changes.
+- Retry connection (and the composer's ComfyUI offline button) say
   "Checking…" with a spinning icon while they ask ComfyUI again.
 
 ## [0.3.1] - 2026-09-24
