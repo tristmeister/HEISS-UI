@@ -59,7 +59,7 @@ npm run release -- minor             # bump, date the changelog, commit "Release
 git push --atomic origin main vX.Y.Z # publishes the GitHub release
 ```
 
-`patch`, `minor` or an exact version like `1.0.0` all work; `--push` pushes for you. The script checks the tree is clean and in sync, runs the tests and the build, and moves the **Unreleased** notes into the new version. Pushing the tag runs the Release workflow, which checks the tag matches `package.json`, builds the download and publishes it with that changelog section as the notes. Release copies of the app find it through their update check.
+`patch`, `minor` or an exact version like `1.0.0` all work; `--push` pushes for you. The script checks the tree is clean and in sync, runs the tests and the build, and moves the **Unreleased** notes into the new version. Pushing the tag runs the Release workflow, which checks the tag matches `package.json`, builds the download and publishes it with that changelog section as the notes, next to a `.sha256` of the zip. Release copies find it through their update check and install it in one click: `server/updater.js` downloads and verifies it, and `scripts/start.mjs` (a release's `npm start`) swaps it in on restart and rolls back if it does not start. A release without the `.sha256` can still be installed as long as GitHub reports the zip's digest.
 
 Between releases a source checkout shows how far it is past its tag in **Settings › About**, for example `v0.2.0 + 3`.
 

@@ -10,6 +10,15 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- One-click updates for downloaded releases. **Install update** in
+  Settings › About downloads the new release, checks it against its
+  published SHA-256 and swaps it in on **Restart now**, then reloads the page.
+  The data folder, `.env` and installed packages are never touched. The
+  previous version is kept, and a new version that does not start is rolled
+  back by itself, with a note in Settings saying so. Copies from 0.3.0 and
+  earlier need one manual download to get this.
+
 ## [0.3.0] - 2026-09-24
 
 ### Added

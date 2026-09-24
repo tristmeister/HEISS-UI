@@ -45,6 +45,7 @@ function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[
 
 
 const updateInstalledKey = "heiss-ui:update-installed";
+const formatUpdateBytes = (bytes = 0) => `${(bytes / 1024 ** 2).toFixed(bytes > 100 * 1024 ** 2 ? 0 : 1)} MB`;
 
 function App() {
   const now = Date.now();
@@ -55,6 +56,7 @@ function App() {
   const [comfyStatus, setComfyStatus] = useState<ComfyStatus>({ connected: false, checking: true });
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState(false);
+  const [restarting, setRestarting] = useState(false);
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus | null>(null);
   const [privacyBusy, setPrivacyBusy] = useState(false);
   const [privacyPassword, setPrivacyPassword] = useState("");
@@ -162,17 +164,35 @@ function App() {
   }, [loadGallery]);
 
   // After "Install update" the server has to restart; once this page sees a server
-  // that started after the install, say the update landed.
+  // that started after the install, say the update landed (or that it was undone).
   useEffect(() => {
     let pending: { at: number } | null = null;
     try { pending = JSON.parse(localStorage.getItem(updateInstalledKey) || "null"); } catch { pending = null; }
     if (!pending?.at) return;
-    fetch("/api/health").then((response) => response.json()).then((data: { startedAt?: number }) => {
+    fetch("/api/health").then((response) => response.json()).then(async (data: { startedAt?: number }) => {
       if (!data?.startedAt || data.startedAt < pending!.at) return;
       try { localStorage.removeItem(updateInstalledKey); } catch { /* nothing to clear */ }
-      showToast("HEISS UI is updated and running the new version", "success");
+      const status = await apiJson<UpdateStatus>("/api/update/status").catch(() => null);
+      if (status) setUpdateStatus(status);
+      const result = status?.result;
+      if (result && !result.ok) showToast(result.rolledBack ? `HEISS UI ${result.to} would not start, so it went back to ${result.from}${result.error ? ` (${result.error})` : ""}.` : result.error || "The update did not install", "error");
+      else showToast(result?.to ? `Updated to HEISS UI ${result.to}` : "HEISS UI is updated and running the new version", "success");
     }).catch(() => null);
   }, []);
+
+  // A release download runs on the server; follow it while it is in flight.
+  const downloadStage = updateStatus?.download?.status;
+  useEffect(() => {
+    if (downloadStage !== "downloading" && downloadStage !== "verifying" && downloadStage !== "unpacking") return;
+    const timer = window.setInterval(() => {
+      apiJson<UpdateStatus>("/api/update/status").then((data) => {
+        setUpdateStatus(data);
+        if (data.download?.status === "ready") showToast(`HEISS UI ${data.latest} is ready. Restart to finish.`, "success");
+        if (data.download?.status === "error") showToast(data.download.error || "The update download failed", "error");
+      }).catch(() => null);
+    }, 800);
+    return () => window.clearInterval(timer);
+  }, [downloadStage]);
 
   // The LoRA library lives on the server and syncs edit by edit. Speak up only
   // when edits are actually stuck (a server restart with nothing to sync is not
@@ -636,7 +656,8 @@ function App() {
   async function checkForUpdates(notify = true) {
     try {
       setUpdateBusy(true);
-      const data = await apiJson<UpdateStatus>("/api/update/status");
+      // The check the person asks for always goes to GitHub; polling uses the server's cache.
+      const data = await apiJson<UpdateStatus>("/api/update/status?fresh=1");
       setUpdateStatus(data);
       if (notify) showToast(data.available ? "Update available" : data.ok ? "Already up to date" : data.error || "Update check failed", data.ok ? "success" : "error");
     } catch (error) {
@@ -649,11 +670,18 @@ function App() {
   }
 
   async function installUpdate() {
-    if (!await confirmAction({ title: "Update HEISS UI?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
+    const release = Boolean(updateStatus?.release);
+    if (!await confirmAction(release
+      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads it${updateStatus?.size ? ` (${formatUpdateBytes(updateStatus.size)})` : ""}, checks it against its published checksum and installs it when HEISS UI restarts. Your gallery, settings and models stay where they are, and the current version is kept in case the new one does not start.`, action: "Download update" }
+      : { title: "Update HEISS UI?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
       setUpdateStatus(data);
+      if (release) {
+        if (data.message) showToast(data.message, "default");
+        return;
+      }
       if (data.updated) {
         try { localStorage.setItem(updateInstalledKey, JSON.stringify({ at: Date.now() })); } catch { /* the success toast just won't show */ }
       }
@@ -663,6 +691,32 @@ function App() {
     } finally {
       setUpdateBusy(false);
     }
+  }
+
+  /** Restarts a release copy through its launcher, which swaps in the downloaded update. */
+  async function restartForUpdate() {
+    const at = Date.now();
+    try {
+      await apiJson("/api/update/restart", { method: "POST" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Could not restart HEISS UI", "error");
+      return;
+    }
+    try { localStorage.setItem(updateInstalledKey, JSON.stringify({ at })); } catch { /* the toast just won't show */ }
+    setRestarting(true);
+    // Wait for a server that started after the restart, then load its new page.
+    const deadline = at + 3 * 60 * 1000;
+    const poll = async () => {
+      const data = await fetch("/api/health", { cache: "no-store" }).then((response) => response.json()).catch(() => null);
+      if (data?.startedAt && data.startedAt >= at) { window.location.reload(); return; }
+      if (Date.now() > deadline) {
+        setRestarting(false);
+        showToast("HEISS UI did not come back. Start it again with its launcher.", "error");
+        return;
+      }
+      window.setTimeout(poll, 1000);
+    };
+    window.setTimeout(poll, 1500);
   }
 
   function applyProfile(profile: Profile, setModelId = true) {
@@ -1001,7 +1055,7 @@ function App() {
   };
   const sidebarControls = <SidebarControls view={{ canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab }} />;
 
-  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); }, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
+  const baseView = { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, lockPrivacy, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, privateGeneration, privacyBusy, privacyConfirmPassword, privacyPassword, privacyStatus, privacyGateDismissed, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, refreshHealth, refreshModels, refreshPrivacyStatus, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrivacyConfirmPassword, setPrivacyPassword, setPrivateGeneration, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setupPrivacyPassword, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, unlockPrivacy, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, continueWithoutPrivacy: () => { setPrivacyGateDismissed(true); setPrivateGeneration(false); }, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;

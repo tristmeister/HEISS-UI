@@ -126,7 +126,9 @@ It shows up as soon as the nodes it needs are installed. Only the mapped inputs 
 
 ## Updating
 
-Inside the app: **Settings → Update**, then restart the server. From the terminal:
+**A downloaded release** updates itself: **Settings → About → Install update** downloads the new release, checks it against its published SHA-256 and swaps it in when you press **Restart now**. Your `data` folder, `.env` and installed packages stay where they are. The previous version is kept in `.update/backup`, and if the new one does not start, HEISS UI goes back to it by itself. This needs the copy to run through its launcher (or `npm start`), and a release from 0.3.1 on; older copies need one manual download first.
+
+**A Git checkout**: **Settings → About → Install update**, then restart the server. From the terminal:
 
 ```bash
 git pull

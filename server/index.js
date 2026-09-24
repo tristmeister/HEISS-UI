@@ -8,6 +8,7 @@ import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { printBanner } from './banner.js';
+import { releaseStatus, requestRestart, startReleaseUpdate } from './updater.js';
 import { allowLanActions, demoMode, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
@@ -111,31 +112,9 @@ async function runRepoCommand(command, args) {
   return `${stdout}${stderr}`.trim();
 }
 
-const releasesUrl = "https://github.com/tristmeister/HEISS-UI/releases";
-
-/** A copy unpacked from a GitHub release: compare its version with the latest release. */
-async function releaseUpdateStatus() {
-  const release = JSON.parse(fs.readFileSync(path.join(root, "release.json"), "utf8"));
-  const current = String(release.version || "");
-  const response = await fetch("https://api.github.com/repos/tristmeister/HEISS-UI/releases/latest", { headers: { accept: "application/vnd.github+json" } });
-  // No release published yet counts as up to date, not as a failure.
-  if (response.status === 404) return { ok: true, release: true, available: false, current, latest: current, branch: "release", url: releasesUrl };
-  if (!response.ok) throw new Error(`GitHub answered ${response.status} when checking for a new release.`);
-  const latestRelease = await response.json();
-  const latest = String(latestRelease.tag_name || "").replace(/^v/, "");
-  const newer = (a, b) => {
-    const [x, y] = [a, b].map((value) => value.split(".").map((part) => Number.parseInt(part, 10) || 0));
-    for (let index = 0; index < Math.max(x.length, y.length); index += 1) {
-      if ((x[index] || 0) !== (y[index] || 0)) return (x[index] || 0) > (y[index] || 0);
-    }
-    return false;
-  };
-  return { ok: true, release: true, available: Boolean(latest) && newer(latest, current), current, latest, branch: "release", url: latestRelease.html_url || releasesUrl };
-}
-
-async function updateStatus() {
+async function updateStatus({ fresh = false } = {}) {
   if (!fs.existsSync(path.join(root, ".git"))) {
-    if (fs.existsSync(path.join(root, "release.json"))) return releaseUpdateStatus();
+    if (fs.existsSync(path.join(root, "release.json"))) return releaseStatus(root, { fresh });
     return { ok: false, available: false, current: "", latest: "", branch: "", error: "This copy is not a Git checkout." };
   }
   const branch = (await runRepoCommand("git", ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
@@ -1126,7 +1105,7 @@ app.post("/api/open-output-folder", (req, res) => {
 app.get("/api/update/status", async (req, res) => {
   if (!requireLocal(req, res)) return;
   try {
-    res.json(await updateStatus());
+    res.json(await updateStatus({ fresh: req.query.fresh === "1" }));
   } catch (error) {
     res.status(500).json({ ok: false, available: false, error: error.message });
   }
@@ -1145,8 +1124,13 @@ app.post("/api/update/install", async (req, res) => {
       return;
     }
     if (before.release) {
-      // A release copy has no git to pull; the new version is a fresh download.
-      res.json({ ...before, updated: false, message: `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
+      // A release copy has no git to pull: download the new release, swap it in on restart.
+      if (!before.canInstall && before.download?.status !== "ready") {
+        res.json({ ...before, updated: false, message: `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
+        return;
+      }
+      if (before.download?.status === "ready") { res.json({ ...before, updated: false }); return; }
+      res.json({ ...before, updated: false, download: await startReleaseUpdate(root) });
       return;
     }
     const branch = before.branch && before.branch !== "HEAD" ? before.branch : "main";
@@ -1158,6 +1142,16 @@ app.post("/api/update/install", async (req, res) => {
   } catch (error) {
     res.status(500).json({ ok: false, updated: false, error: error.message });
   }
+});
+
+// Only a release started through scripts/start.mjs can restart itself (and swap in an update).
+app.post("/api/update/restart", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  if (!requestRestart()) {
+    res.status(409).json({ ok: false, error: "This copy was not started with its launcher, so it cannot restart itself. Stop it and start it again." });
+    return;
+  }
+  res.json({ ok: true });
 });
 
 app.post("/api/shutdown", (_req, res) => {
@@ -1234,4 +1228,6 @@ app.listen(port, host, () => {
   // Under `npm run dev*` the page comes from Vite; this server only answers the API.
   const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
   printBanner({ version: appVersion, url: `http://${shownHost}:${dev ? 5173 : port}`, comfyUrl });
+  // Tells scripts/start.mjs this version runs, so a fresh update is kept.
+  process.send?.({ type: "ready", version: appVersion });
 });

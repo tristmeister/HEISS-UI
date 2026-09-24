@@ -24,3 +24,6 @@ data
 
 # PP Neue Bit is a commercial font; the app doesn't use it, keep any local copy out of the repo.
 /public/fonts/PPNeueBit*
+
+# In-app updates of a release copy (downloads, backup)
+.update/

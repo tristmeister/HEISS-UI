@@ -134,7 +134,13 @@ export type OutputFolderState = "empty" | "missing" | "not-folder" | "ok" | "mat
 export type OutputFolderReport = { path: string; state: OutputFolderState; media?: number; capped?: boolean; checked?: number; found?: number; looksLikeComfy?: boolean; source?: "comfy" | "common" };
 export type Health = { ok: boolean; comfyUrl?: string; error?: string };
 export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean };
-export type UpdateStatus = { ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string };
+export type UpdateDownload = { status: "downloading" | "verifying" | "unpacking" | "ready" | "error"; version?: string; receivedBytes?: number; totalBytes?: number; error?: string };
+export type UpdateResult = { ok: boolean; rolledBack?: boolean; from?: string; to?: string; error?: string };
+export type UpdateStatus = {
+  ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string;
+  /** A copy unpacked from a GitHub release rather than a Git checkout. */
+  release?: boolean; url?: string; size?: number; canInstall?: boolean; supervised?: boolean; download?: UpdateDownload; result?: UpdateResult;
+};
 export type AspectPreset = { label: string; value: string; w: number; h: number };
 export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[] };
 export type WorkflowSummary = {

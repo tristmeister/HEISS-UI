@@ -8,7 +8,7 @@ import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
 import { apiJson } from './api';
-import type { ModelFile, Models, OutputFolderReport, UpscaleInstall, UpscaleStatus } from './types';
+import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 
 export const SETTINGS_SECTIONS = [
@@ -119,6 +119,104 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
     );
   }
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
+}
+
+/* ------------------------------------------------------------ Updates */
+
+/**
+ * A release copy: download the new release, then restart into it. Each stage
+ * says what happens next, and a rolled-back update says so plainly.
+ */
+function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInstall, onRestart }: {
+  status: UpdateStatus;
+  busy: boolean;
+  restarting: boolean;
+  checking: boolean;
+  onCheck: () => void;
+  onInstall: () => void;
+  onRestart: () => void;
+}) {
+  const download = status.download;
+  const latest = status.latest || download?.version || '';
+  const notes = status.url ? <a className="btn is-ghost" href={status.url} target="_blank" rel="noreferrer"><ExternalLink size={13} /> What's new</a> : null;
+  const check = (
+    <MosaicButton busy={checking} disabled={checking || busy} onClick={onCheck}>
+      {checking ? 'Checking for updates…' : status.ok && !status.available ? 'Up to date · check again' : 'Check for updates'}
+    </MosaicButton>
+  );
+  const result = status.result;
+  const resultRow = result && !result.ok ? (
+    <Row
+      label={<Status tone="bad">{result.rolledBack ? `${result.to} would not start` : 'The last update did not install'}</Status>}
+      description={result.rolledBack ? `HEISS UI went back to ${result.from}, and nothing was lost${result.error ? ` (${result.error})` : ''}.` : result.error}
+    />
+  ) : null;
+
+  if (restarting) {
+    return <Row label={<Status tone="warn">Restarting into {latest}</Status>} description="This page reloads by itself when HEISS UI is back, usually within a few seconds." />;
+  }
+  if (download?.status === 'downloading' || download?.status === 'verifying' || download?.status === 'unpacking') {
+    const ratio = download.totalBytes ? Math.min(1, (download.receivedBytes || 0) / download.totalBytes) : 0;
+    return (
+      <Row
+        label={<Status tone="warn">{download.status === 'downloading' ? `Downloading ${latest}` : 'Checking the download'}</Status>}
+        description={download.status === 'downloading' ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}. You can keep working.` : 'Matching it against its published checksum and unpacking it.'}
+        stacked
+      >
+        <div className="set-progress"><div style={{ width: `${Math.round((download.status === 'downloading' ? ratio : 1) * 100)}%` }} /></div>
+      </Row>
+    );
+  }
+  if (download?.status === 'ready') {
+    return (
+      <Row
+        label={<Status tone="ok">{latest} is ready to install</Status>}
+        description={status.supervised ? 'Restarting swaps it in and reloads this page. Generations still running are lost, so let them finish first.' : 'Close HEISS UI and start it again with Start HEISS UI to switch to it.'}
+        stacked
+      >
+        <div className="about-update">
+          {status.supervised ? <button className="btn is-primary" onClick={onRestart}>Restart now</button> : null}
+          {notes}
+        </div>
+      </Row>
+    );
+  }
+  if (status.available) {
+    return (
+      <>
+        {resultRow}
+        <Row
+          label={<Status tone="warn">HEISS UI {latest} is out</Status>}
+          description={download?.status === 'error'
+            ? `The download stopped: ${download.error}`
+            : status.canInstall
+              ? `You have ${status.current}. It downloads${status.size ? ` ${formatBytes(status.size)}` : ''}, gets checked and installs on a restart. Your gallery and settings stay.`
+              : `You have ${status.current}. This release has to be downloaded by hand: replace this folder with it and keep your data folder.`}
+          stacked
+        >
+          <div className="about-update">
+            {status.canInstall
+              ? <button className="btn is-primary" onClick={onInstall} disabled={busy}>{download?.status === 'error' ? 'Try again' : 'Install update'}</button>
+              : status.url ? <a className="btn is-primary" href={status.url} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Download</a> : null}
+            {notes}
+            {check}
+          </div>
+        </Row>
+      </>
+    );
+  }
+  return (
+    <>
+      {resultRow}
+      <Row
+        label={<Status tone={status.error ? 'bad' : status.ok ? 'ok' : undefined}>{status.error || (result?.ok && result.to ? `Updated to ${result.to}` : status.ok ? 'Up to date' : 'Not checked yet')}</Status>}
+        description={status.current ? `HEISS UI ${status.current}. Checks GitHub for a newer release.` : 'Checks GitHub for a newer release.'}
+        stacked
+      >
+        <div className="about-update">{check}</div>
+      </Row>
+    </>
+  );
 }
 
 /* ------------------------------------------------------------ Output folder */
@@ -294,7 +392,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     privacyStatus, privacyBusy, privacyPassword, setPrivacyPassword, privacyConfirmPassword, setPrivacyConfirmPassword,
     setupPrivacyPassword, unlockPrivacy, lockPrivacy, refreshPrivacyStatus,
     health, refreshHealth, models, refreshModels, refreshWorkflows,
-    updateStatus, updateBusy, checkForUpdates, installUpdate, workflows, modelProfiles
+    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, workflows, modelProfiles
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
 
@@ -653,14 +751,26 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </Group>
 
             <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart the local server to finish updating.' : undefined}>
-              <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? 'Pulls the latest code, installs packages and rebuilds.' : 'Checks GitHub for a newer commit.'} stacked>
-                <div className="about-update">
-                  <MosaicButton busy={checking} disabled={checking || updateBusy} onClick={runUpdateCheck}>
-                    {checking ? 'Checking for updates…' : updateStatus?.ok && !updateStatus.available ? 'Up to date · check again' : 'Check for updates'}
-                  </MosaicButton>
-                  {updateStatus?.available ? <button className="btn is-primary" onClick={installUpdate} disabled={updateBusy}>{updateBusy ? 'Installing…' : 'Install update'}</button> : null}
-                </div>
-              </Row>
+              {updateStatus?.release ? (
+                <ReleaseUpdateRow
+                  status={updateStatus}
+                  busy={updateBusy}
+                  restarting={Boolean(restarting)}
+                  checking={checking}
+                  onCheck={runUpdateCheck}
+                  onInstall={installUpdate}
+                  onRestart={restartForUpdate}
+                />
+              ) : (
+                <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? 'Pulls the latest code, installs packages and rebuilds.' : 'Checks GitHub for a newer commit.'} stacked>
+                  <div className="about-update">
+                    <MosaicButton busy={checking} disabled={checking || updateBusy} onClick={runUpdateCheck}>
+                      {checking ? 'Checking for updates…' : updateStatus?.ok && !updateStatus.available ? 'Up to date · check again' : 'Check for updates'}
+                    </MosaicButton>
+                    {updateStatus?.available ? <button className="btn is-primary" onClick={installUpdate} disabled={updateBusy}>{updateBusy ? 'Installing…' : 'Install update'}</button> : null}
+                  </div>
+                </Row>
+              )}
             </Group>
 
             <Group title="Links">
