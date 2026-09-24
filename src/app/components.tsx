@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useDismiss } from './useDismiss';
-import { ChevronDown, Info, Minus, Plus } from 'lucide-react';
+import { ChevronDown, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -353,15 +353,99 @@ export function familyLabel(profile: Profile | null) {
   return profile.family;
 }
 
-export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, strayCount = 0 }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; strayCount?: number }) {
+/** Favorites and recents for the model menu, and how to change them. */
+export type ModelMenuState = {
+  favorites: string[];
+  /** Profile ids, most recently used first. */
+  recents: string[];
+  toggleFavorite: (id: string) => void;
+};
+
+const menuSearchFrom = 9;
+const menuRecentLimit = 4;
+
+function profileText(profile: Profile) {
+  return `${profile.displayName || ""} ${profile.label || ""} ${profile.description || ""} ${familyLabel(profile)}`.toLowerCase();
+}
+
+/**
+ * The model menu. With a handful of models it is a plain list; past that it
+ * gets a search field, and it always splits into Favorites (starred), Recent
+ * and the rest by family, scrolling inside a capped height with "Find more
+ * models" pinned below. Arrow keys move, Enter picks, typing searches.
+ */
+export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [cursor, setCursor] = useState(-1);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
   const selected = profiles.find((profile) => profile.id === value) || profiles[0] || null;
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => { setOpen(false); setQuery(""); setCursor(-1); }, []);
   useDismiss(pickerRef, open, close);
+  const searchable = profiles.length >= menuSearchFrom;
+
+  const sections = React.useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    if (needle) {
+      const words = needle.split(/\s+/);
+      return [{ id: "results", label: "", rows: profiles.filter((profile) => words.every((word) => profileText(profile).includes(word))) }];
+    }
+    if (!menu) return [{ id: "all", label: "", rows: profiles }];
+    const favorites = new Set(menu.favorites);
+    const byId = new Map(profiles.map((profile) => [profile.id, profile]));
+    const starred = profiles.filter((profile) => favorites.has(profile.id));
+    const recent = menu.recents.filter((id) => !favorites.has(id)).map((id) => byId.get(id)).filter((profile): profile is Profile => Boolean(profile)).slice(0, menuRecentLimit);
+    const shown = new Set([...starred, ...recent].map((profile) => profile.id));
+    // The rest by family, so seven Sana variants sit together instead of scattering.
+    const rest = profiles.filter((profile) => !shown.has(profile.id)).sort((a, b) =>
+      familyLabel(a).localeCompare(familyLabel(b)) || (a.displayName || a.label).localeCompare(b.displayName || b.label));
+    return [
+      { id: "favorites", label: "Favorites", rows: starred },
+      { id: "recent", label: "Recent", rows: recent },
+      { id: "all", label: starred.length || recent.length ? "All models" : "", rows: rest }
+    ].filter((section) => section.rows.length);
+  }, [menu, profiles, query]);
+  const flat = React.useMemo(() => sections.flatMap((section) => section.rows), [sections]);
+
+  // Opening scrolls the current model into view; a search starts on its first hit.
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => {
+      searchRef.current?.focus({ preventScroll: true });
+      listRef.current?.querySelector<HTMLElement>(".model-option.active")?.scrollIntoView({ block: "nearest" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+  useEffect(() => { setCursor(query ? 0 : -1); }, [query]);
+  useEffect(() => {
+    if (cursor < 0) return;
+    listRef.current?.querySelector<HTMLElement>(`[data-row="${cursor}"]`)?.scrollIntoView({ block: "nearest" });
+  }, [cursor]);
+
+  const pick = (id: string) => { onChange(id); close(); };
+  const onMenuKey = (event: React.KeyboardEvent) => {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      if (!flat.length) return;
+      const from = cursor < 0 ? Math.max(0, flat.findIndex((profile) => profile.id === value)) - (event.key === "ArrowDown" ? 1 : 0) : cursor;
+      setCursor((from + (event.key === "ArrowDown" ? 1 : -1) + flat.length) % flat.length);
+    } else if (event.key === "Enter" && cursor >= 0 && flat[cursor]) {
+      event.preventDefault();
+      pick(flat[cursor].id);
+    } else if (searchable && event.key.length === 1 && !event.metaKey && !event.ctrlKey && document.activeElement !== searchRef.current) {
+      // Typing anywhere in the menu goes to the search field.
+      searchRef.current?.focus();
+    }
+  };
+
+  const favorites = new Set(menu?.favorites || []);
+  let rowIndex = -1;
   return (
     <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button type="button" data-open-trigger className="model-trigger" onClick={() => setOpen((next) => !next)}>
+      <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button type="button" data-open-trigger className="model-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
           {compact ? (
             <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No model"}</strong></span>
           ) : (
@@ -373,33 +457,62 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
           <ChevronDown size={14} className={cn(open && "flip")} />
         </button></Tip>
       {open ? (
-        <div className="model-menu" data-open-surface>
+        <div className={cn("model-menu", searchable && "has-search")} data-open-surface onKeyDown={onMenuKey}>
           {profiles.length ? null : (
             <div className="model-menu-empty">
               <strong>No models to choose from</strong>
               <span>{emptyHint || "ComfyUI has no model HEISS UI can run yet."}</span>
-              {onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { setOpen(false); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
+              {onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
             </div>
           )}
-          {profiles.map((profile) => (
-            <Tip key={profile.id} content={profile.displayName || profile.label}><button
-                type="button"
-                className={cn("model-option", profile.id === value && "active")}
-                onClick={() => {
-                  onChange(profile.id);
-                  setOpen(false);
-                }}
-              >
-                <span className="model-copy">
-                  <strong>{profile.displayName || profile.label}</strong>
-                  <em>{profile.description || familyLabel(profile)}</em>
-                </span>
-                <span className="model-badge">{badges[profile.id] || familyLabel(profile)}</span>
-              </button></Tip>
-          ))}
+          {searchable ? (
+            <label className="model-menu-search">
+              <Search size={14} aria-hidden="true" />
+              <input ref={searchRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" spellCheck={false} autoComplete="off" />
+              {query ? <button type="button" className="model-menu-clear" aria-label="Clear search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={12} /></button> : null}
+            </label>
+          ) : null}
+          {profiles.length ? (
+            <div className="model-menu-list" ref={listRef} role="listbox" aria-label="Models">
+              {sections.map((section) => (
+                <div key={section.id} className="model-menu-section" role="group" aria-label={section.label || undefined}>
+                  {section.label ? <div className="model-menu-label">{section.label}</div> : null}
+                  {section.rows.map((profile) => {
+                    rowIndex += 1;
+                    const starred = favorites.has(profile.id);
+                    const badge = menu ? familyLabel(profile) : badges[profile.id] || familyLabel(profile);
+                    return (
+                      <div key={`${section.id}:${profile.id}`} className={cn("model-row", starred && "is-starred")}>
+                        <Tip content={profile.displayName || profile.label}><button
+                            type="button"
+                            role="option"
+                            aria-selected={profile.id === value}
+                            data-row={rowIndex}
+                            className={cn("model-option", profile.id === value && "active", rowIndex === cursor && "is-cursor")}
+                            onClick={() => pick(profile.id)}
+                          >
+                            <span className="model-copy">
+                              <strong>{profile.displayName || profile.label}</strong>
+                              <em>{profile.description || familyLabel(profile)}</em>
+                            </span>
+                            {badge ? <span className="model-badge">{badge}</span> : null}
+                          </button></Tip>
+                        {menu ? (
+                          <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>
+                            <Star size={13} fill={starred ? "currentColor" : "none"} />
+                          </button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+              {query && !flat.length ? <div className="model-menu-none">No model matches “{query.trim()}”.</div> : null}
+            </div>
+          ) : null}
           {onFindModels && profiles.length ? (
             // Always one tap from where people notice a model is missing.
-            <button type="button" className={cn("model-menu-find", strayCount > 0 && "has-found")} onClick={() => { setOpen(false); onFindModels(); }}>
+            <button type="button" className={cn("model-menu-find", strayCount > 0 && "has-found")} onClick={() => { close(); onFindModels(); }}>
               <span>{strayCount ? `${strayCount} model${strayCount === 1 ? "" : "s"} found` : "Find more models"}</span>
               <em>{strayCount ? "Add" : "Search"}</em>
             </button>

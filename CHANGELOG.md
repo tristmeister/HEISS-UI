@@ -10,6 +10,14 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Changed
+- **The model menu stays manageable with many models.** It scrolls inside a
+  capped height with "Find more models" pinned below, gets a search field
+  once there are more than eight models, and splits into Favorites (star any
+  model), Recent and the rest grouped by family. Arrow keys and Enter pick,
+  and typing searches. Picking a model in the composer now counts as recent
+  too.
+
 ## [0.5.1] - 2026-09-24
 
 ### Added
