@@ -145,7 +145,8 @@ export function inferModels(info, stats = {}) {
   };
   const { profiles, modelFiles } = familyProfiles(info, {
     prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras,
-    incompatible: (name) => incompatibleModels.includes(name)
+    incompatible: (name) => incompatibleModels.includes(name),
+    cuda: (stats?.devices || []).some((device) => device?.type === "cuda")
   });
 
   for (const workflow of loadCustomWorkflows()) {

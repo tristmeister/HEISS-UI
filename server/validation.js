@@ -106,6 +106,7 @@ function sanitizeFamilyBody(input, info, stats) {
     pairModel: profile.pairModel,
     vpredPatch: profile.vpredPatch,
     krea2Enhancer: profile.family === "krea2" && Boolean(info["ComfyUI-Krea2T-Enhancer"]),
+    sana: profile.sana || null,
     weightDtype: String(input.weightDtype || "default"),
     prompt,
     negative: String(input.negative || ""),

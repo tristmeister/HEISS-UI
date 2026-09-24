@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { families } from './family-catalog.js';
+import { families, sanaConf } from './family-catalog.js';
 import { krea2RawShift } from './model-families.js';
 
 /**
@@ -62,6 +62,7 @@ export function familyGraph(body) {
   const count = Math.max(1, Math.min(8, Number(body.count || 1)));
   const frames = Number(body.frames || family.frames || 33);
   const bundled = body.source === "checkpoint" ? (body.bundled || { encoder: true, vae: true }) : { encoder: false, vae: false };
+  if (family.sampling === "sana") return sanaGraph({ add, graph, body, variant, seed, width, height, count });
 
   // ---- Load
   let model;
@@ -197,6 +198,35 @@ export function familyGraph(body) {
   } else {
     add("SaveImage", { images, filename_prefix: "heiss-ui/image" });
   }
+  return graph;
+}
+
+/**
+ * Sana through the ExtraModels nodes: its loader, Gemma for the prompt (with
+ * Sana's own instruction preamble) and the plain Gemma encode for the negative,
+ * the 32-channel latent and the DC-AE VAE. Every loader fetches its weights
+ * from Hugging Face the first time.
+ */
+function sanaGraph({ add, graph, body, variant, seed, width, height, count }) {
+  const settings = { conf: sanaConf(body.model), dtype: variant.dtype || "BF16", gemmaDevice: "cpu", gemmaDtype: "default", ...body.sana };
+  let model = [add("SanaCheckpointLoader", { ckpt_name: body.model, model: settings.conf, dtype: settings.dtype, enable_cfg_passthrough: true }), 0];
+  const gemma = [add("GemmaLoader", { model_name: "Efficient-Large-Model/gemma-2-2b-it", device: settings.gemmaDevice, dtype: settings.gemmaDtype }), 0];
+  const vae = [add("ExtraVAELoader", { vae_name: "mit-han-lab/dc-ae-f32c32-sana-1.1-diffusers", vae_type: "dcae-f32c32-sana-1.1-diffusers", dtype: settings.dtype }), 0];
+  const positive = [add("SanaTextEncode", { text: body.prompt || "", GEMMA: gemma }), 0];
+  const negative = [add("GemmaTextEncode", { text: variant.negative === "none" ? "" : body.negative || "", GEMMA: gemma }), 0];
+  let cfg = Number(body.cfg || 1);
+  if (variant.id === "sprint") {
+    model = [add("ScmModelSampling", { model, cfg_scale: cfg, zsnr: false }), 0];
+    cfg = 1;
+  }
+  const latent = [add("EmptySanaLatentImage", { width, height, batch_size: count }), 0];
+  const samples = [add("KSampler", {
+    model, seed, steps: Number(body.steps || 20), cfg,
+    sampler_name: body.sampler || "euler", scheduler: body.scheduler || "normal",
+    positive, negative, latent_image: latent, denoise: 1
+  }), 0];
+  const images = [add("VAEDecode", { samples, vae }), 0];
+  add("SaveImage", { images, filename_prefix: "heiss-ui/image" });
   return graph;
 }
 

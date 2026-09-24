@@ -10,6 +10,14 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- NVIDIA Sana runs built in. With the ComfyUI_ExtraModels custom nodes
+  installed, SANA 1.5 (1.6B, 4.8B), SANA Sprint, the 2K/4K models and the
+  multilingual model show up as ready models; ComfyUI fetches the weights,
+  the Gemma 2 2B text encoder and the DC-AE VAE on first use. Sana files in
+  `checkpoints/` are recognised from their weights, and without the nodes
+  HEISS says which pack to install.
+
 ### Changed
 - The ComfyUI offline screen shows an animated pixel plug that keeps trying
   to reach its socket, in the same cell style as the wordmark. It pauses when

@@ -93,7 +93,7 @@ export type Profile = {
   /** LoRAs the workflow's loader accepts; rgthree stacks take 4. */
   maxLoras?: number;
   /** Built-in families: where the file sits, which variant it is, and what fills its parts. */
-  source?: ModelSource;
+  source?: ModelSource | "sana";
   variant?: string;
   variantLabel?: string;
   encoderSlots?: EncoderSlot[];

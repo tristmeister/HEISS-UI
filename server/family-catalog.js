@@ -327,8 +327,62 @@ export const families = {
       { id: "standard", label: "MiniMax H3", defaults: { steps: 20, cfg: 1, sampler: "res_multistep", scheduler: "simple" } }
     ],
     size: [1344, 768], frames: 56, fps: 24
+  },
+  // NVIDIA's Sana is not native to ComfyUI: the ExtraModels pack loads it, its
+  // Gemma 2 2B encoder and its 32x DC-AE VAE, and fetches all three from
+  // Hugging Face on first use. Settings follow NVlabs/Sana's ComfyUI workflows.
+  sana: {
+    label: "Sana", kind: "image", sources: ["sana", "checkpoint"], ownLoaders: true,
+    slots: [], clipType: null, vae: [],
+    latent: "EmptySanaLatentImage", sizeStep: 32, negative: "text", sampling: "sana", aspects: square,
+    requiredNodes: ["SanaCheckpointLoader", "GemmaLoader", "SanaTextEncode", "GemmaTextEncode", "ExtraVAELoader"],
+    nodePack: { name: "ComfyUI_ExtraModels", repository: "https://github.com/lawrence-cj/ComfyUI_ExtraModels.git" },
+    variants: [
+      // Sprint is a consistency model: its CFG goes in through ScmModelSampling, KSampler stays at 1.
+      { id: "sprint", label: "Sprint", match: (name, header, detail) => detail?.sprint ?? /sprint/i.test(name), negative: "none", dtype: "FP32", defaults: { steps: 2, cfg: 4.5, sampler: "scm", scheduler: "sgm_uniform" } },
+      { id: "4k", label: "4K", match: (name) => /4k/i.test(name), size: [4096, 4096], defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
+      { id: "2k", label: "2K", match: (name) => /2k/i.test(name), size: [2048, 2048], defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
+      { id: "512", label: "512px", match: (name) => /512px/i.test(name), size: [512, 512], defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
+      { id: "standard", label: "Sana", defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } }
+    ],
+    size: [1024, 1024]
   }
 };
+
+/**
+ * Sana models the ExtraModels loader fetches by name, in the order HEISS lists
+ * them. `conf` is the loader's model config (it picks its own for these, but
+ * the input is required). Older duplicates of the same weights are left out.
+ */
+export const sanaPresets = [
+  { name: "Efficient-Large-Model/SANA1.5_4.8B_1024px", label: "SANA 1.5 4.8B", conf: "SanaMS1.5_4800M_P1_D60" },
+  { name: "Efficient-Large-Model/SANA1.5_1.6B_1024px", label: "SANA 1.5 1.6B", conf: "SanaMS1.5_1600M_P1_D20" },
+  { name: "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", label: "SANA Sprint 1.6B", conf: "SanaSprint_1600M_P1_D20" },
+  { name: "Efficient-Large-Model/Sana_Sprint_0.6B_1024px", label: "SANA Sprint 0.6B", conf: "SanaSprint_600M_P1_D28" },
+  { name: "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", label: "Sana 1.6B 4K", conf: "SanaMS_1600M_P1_D20_4K" },
+  { name: "Efficient-Large-Model/Sana_1600M_2Kpx_BF16", label: "Sana 1.6B 2K", conf: "SanaMS_1600M_P1_D20_2K" },
+  { name: "Efficient-Large-Model/Sana_1600M_1024px_MultiLing", label: "Sana 1.6B Multilingual", conf: "SanaMS_1600M_P1_D20" },
+  { name: "Efficient-Large-Model/Sana_600M_1024px", label: "Sana 0.6B", conf: "SanaMS_600M_P1_D28" }
+];
+
+/**
+ * The ExtraModels config for a Sana file of our own: a preset's, else from the
+ * header's depth and width (1.5 adds q/k norms, Sprint a CFG embedder), else
+ * from the name.
+ */
+export function sanaConf(name = "", detail = null) {
+  const preset = sanaPresets.find((item) => item.name === name);
+  if (preset) return preset.conf;
+  const base = String(name).split(/[\\/]/).pop() || "";
+  const sprint = detail?.sprint ?? /sprint/i.test(base);
+  const depth = detail?.depth || (/4[._]?8b|4800m/i.test(base) ? 60 : /0[._]?6b|600m/i.test(base) ? 28 : 20);
+  if (depth === 60) return "SanaMS1.5_4800M_P1_D60";
+  if (depth === 28) return sprint ? "SanaSprint_600M_P1_D28" : "SanaMS_600M_P1_D28";
+  if (sprint) return "SanaSprint_1600M_P1_D20";
+  if (/4k/i.test(base)) return "SanaMS_1600M_P1_D20_4K";
+  if (/2k/i.test(base)) return "SanaMS_1600M_P1_D20_2K";
+  return (detail?.qkNorm ?? /1[._]?5/.test(base)) ? "SanaMS1.5_1600M_P1_D20" : "SanaMS_1600M_P1_D20";
+}
 
 // Recognised so HEISS can say what they are, but not runnable here yet.
 export const knownFamilies = {
@@ -364,6 +418,7 @@ export function isZImageBase(name = "") {
 export function familyFromName(name = "", source = "unet") {
   const base = String(name).split(/[\\/]/).pop() || "";
   const tests = [
+    ["sana", /(^|[^a-z])sana([^a-z]|$)/i],
     ["minimax_h3", /minimax[-_ ]?h3|\bh3[-_]/i],
     ["wan22_14b", /wan[-_ ]?2[._]?2.*(high|low)[-_ ]?noise|(high|low)[-_ ]?noise.*wan/i],
     ["wan22_5b", /wan[-_ ]?2[._]?2.*5b|ti2v/i],
@@ -449,6 +504,15 @@ export function familyFromHeader(header) {
     return { family: "flux1", detail: { schnell: !has("guidance_in.in_layer.weight") } };
   }
   if (has("video_patch_proj.weight") && has("audio_patch_proj.weight")) return { family: "minimax_h3" };
+  // Sana's GLUMBConv feed-forward, in its own and in diffusers' naming.
+  if (has("blocks.0.mlp.inverted_conv.conv.weight") || has("transformer_blocks.0.ff.conv_inverted.weight")) {
+    const native = has("blocks.0.mlp.inverted_conv.conv.weight");
+    const block = native ? /^blocks\.(\d+)\./ : /^transformer_blocks\.(\d+)\./;
+    const depth = Math.max(...[...keys.keys()].map((key) => Number(block.exec(key)?.[1] ?? -1))) + 1;
+    const sprint = native ? has("cfg_embedder.mlp.0.weight") : [...keys.keys()].some((key) => key.includes("guidance"));
+    const qkNorm = has(native ? "blocks.0.attn.q_norm.weight" : "transformer_blocks.0.attn1.norm_q.weight");
+    return { family: "sana", detail: { depth, sprint, qkNorm } };
+  }
   if (has("adaln_single.emb.timestep_embedder.linear_1.bias") && !has("pos_embed.proj.bias")) {
     return { family: has("audio_adaln_single.linear.weight") ? "ltx" : "ltxv" };
   }

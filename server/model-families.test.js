@@ -302,3 +302,60 @@ test("a staged reference image becomes the start image of a built-in graph", asy
   assert.equal(byType(graph, "VAEEncode").length, 1);
   assert.equal(byType(graph, "KSampler")[0].inputs.denoise, 0.6);
 });
+
+/* ------------------------------------------------------------ Sana */
+
+const sanaNodes = (presets) => ({
+  SanaCheckpointLoader: list({ ckpt_name: [presets], model: [["SanaMS1.5_1600M_P1_D20"]], dtype: [["auto", "FP32", "FP16", "BF16"]] }),
+  GemmaLoader: node(), SanaTextEncode: node(), GemmaTextEncode: node(), ExtraVAELoader: node(), ScmModelSampling: node(),
+  EmptySanaLatentImage: list({ width: ["INT", { default: 512, min: 16, max: 16384, step: 8 }], height: ["INT", { default: 512, min: 16, max: 16384, step: 8 }], batch_size: ["INT", { default: 1, min: 1, max: 4096 }] })
+});
+
+test("Sana is recognised from its own and diffusers-style weights", () => {
+  const blocks = (prefix, count, extra = {}) => ({ ...Object.fromEntries(Array.from({ length: count }, (_, i) => [`${prefix}.${i}.norm.weight`, t([1])])), ...extra });
+  assert.deepEqual(familyFromHeader(blocks("blocks", 20, { "blocks.0.mlp.inverted_conv.conv.weight": t([11200, 2240, 1, 1]), "blocks.0.attn.q_norm.weight": t([2240]) })),
+    { family: "sana", detail: { depth: 20, sprint: false, qkNorm: true } });
+  assert.deepEqual(familyFromHeader(blocks("blocks", 28, { "blocks.0.mlp.inverted_conv.conv.weight": t([1, 1, 1, 1]), "cfg_embedder.mlp.0.weight": t([1, 1]) })).detail,
+    { depth: 28, sprint: true, qkNorm: false });
+  assert.equal(familyFromHeader(blocks("transformer_blocks", 20, { "transformer_blocks.0.ff.conv_inverted.weight": t([1, 1, 1, 1]), "adaln_single.emb.timestep_embedder.linear_1.bias": t([1]) })).family, "sana", "not LTX-Video");
+  const local = put("checkpoints", "mySanaTune.safetensors", blocks("blocks", 60, { "blocks.0.mlp.inverted_conv.conv.weight": t([1, 1, 1, 1]) }));
+  assert.equal(classifyModel("checkpoint", local).family, "sana");
+  assert.equal(classifyModel("checkpoint", "Sana_Sprint_0.6B_1024px.pth").variant.id, "sprint");
+});
+
+test("Sana presets appear once the ExtraModels nodes are in, and runs need nothing else", () => {
+  assert.equal(inferModels(objectInfo()).profiles.some((profile) => profile.family === "sana"), false);
+  const presets = ["Efficient-Large-Model/SANA1.5_1.6B_1024px", "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", "Efficient-Large-Model/Sana_1600M_512px"];
+  const info = objectInfo({ extra: sanaNodes(presets) });
+  info.KSampler.input.required.sampler_name[0].push("scm");
+  const sana = inferModels(info).profiles.filter((profile) => profile.family === "sana");
+  assert.deepEqual(sana.map((profile) => [profile.displayName, profile.variant, profile.ready]), [
+    ["SANA 1.5 1.6B", "standard", true], ["SANA Sprint 1.6B", "sprint", true], ["Sana 1.6B 4K", "4k", true]
+  ]);
+  const [standard, sprint, big] = sana;
+  assert.deepEqual([standard.capabilities.vae, standard.capabilities.lora, standard.capabilities.textEncoder, standard.constraints.width.step], [false, false, false, 32]);
+  assert.deepEqual([sprint.defaults.sampler, sprint.capabilities.negativePrompt, big.defaults.width], ["scm", false, 4096]);
+
+  const body = sanitizeGenerateBody({ kind: "image", workflow: sprint.workflow, profileId: sprint.id, prompt: "an astronaut" }, info, { devices: [{ type: "cuda" }] });
+  const graph = familyGraph(body);
+  assert.deepEqual(byType(graph, "SanaCheckpointLoader")[0].inputs, { ckpt_name: presets[1], model: "SanaSprint_1600M_P1_D20", dtype: "FP32", enable_cfg_passthrough: true });
+  assert.deepEqual([byType(graph, "GemmaLoader")[0].inputs.device, byType(graph, "GemmaLoader")[0].inputs.dtype], ["cuda", "BF16"]);
+  assert.equal(byType(graph, "ScmModelSampling")[0].inputs.cfg_scale, 4.5);
+  assert.deepEqual([byType(graph, "KSampler")[0].inputs.cfg, byType(graph, "KSampler")[0].inputs.sampler_name], [1, "scm"]);
+  assert.equal(byType(graph, "SanaTextEncode")[0].inputs.text, "an astronaut");
+  assert.equal(byType(graph, "SaveImage").length, 1);
+  assert.equal(byType(graph, "CheckpointLoaderSimple").length + byType(graph, "VAELoader").length + byType(graph, "CLIPLoader").length, 0);
+
+  const mac = familyGraph(sanitizeGenerateBody({ kind: "image", workflow: standard.workflow, profileId: standard.id, prompt: "a cat", negative: "blurry" }, info, { devices: [{ type: "mps" }] }));
+  assert.deepEqual(byType(mac, "GemmaLoader")[0].inputs.device, "cpu");
+  assert.equal(byType(mac, "GemmaTextEncode")[0].inputs.text, "blurry");
+  assert.equal(byType(mac, "ScmModelSampling").length, 0);
+});
+
+test("a Sana file without the ExtraModels nodes says which pack to install", () => {
+  const models = inferModels(objectInfo({ checkpoints: ["Sana_1600M_1024px.pth"] }));
+  const sana = models.profiles.find((profile) => profile.family === "sana");
+  assert.equal(sana.ready, false);
+  assert.deepEqual(sana.missing.map((item) => item.label), ["ComfyUI_ExtraModels nodes"]);
+  assert.match(sana.missing[0].detail, /git clone https:\/\/github.com\/lawrence-cj\/ComfyUI_ExtraModels/);
+});
