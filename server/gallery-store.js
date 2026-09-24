@@ -503,6 +503,11 @@ export function cleanupGalleryState(jobs) {
       .map((item) => `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`)
   );
   gallery = gallery.filter((item) => {
+    // An upscale whose job this server never ran (it restarted mid-upscale) is not running anymore.
+    if (item.upscale?.status === "running" && !jobs.has(item.upscale.jobId)) {
+      item.upscale = { ...item.upscale, status: "canceled", progress: null };
+      changed = true;
+    }
     if (item.status !== "pending") return true;
     if (item.jobId && !jobs.has(item.jobId)) {
       item.status = "error";

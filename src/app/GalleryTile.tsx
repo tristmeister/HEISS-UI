@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Copy, Download, Eye, EyeOff, Loader2, Trash2 } from 'lucide-react';
+import { Copy, Download, Eye, EyeOff, Loader2, Square, Trash2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
@@ -28,6 +28,7 @@ type GalleryTileProps = {
   smartUpscale?: boolean;
   upscaleBusy?: boolean;
   onUpscale?: (item: GalleryItem) => void;
+  onCancelUpscale?: (item: GalleryItem) => void;
   upscaleNotice?: UpscaleNotice;
   onDismissUpscaleNotice?: (id: string) => void;
 };
@@ -42,14 +43,14 @@ function upscaleTooltip(item: GalleryItem) {
   const state = item.upscale;
   if (state?.status === "running") {
     const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
-    return `Upscaling${step}`;
+    return `Upscaling${step} · click to stop`;
   }
   if (state?.status === "error") return `Upscale failed: ${state.error || "unknown error"}. Click to retry`;
   if (state?.url) return item.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale";
   return "Smart upscale";
 }
 
-function UpscaleButton({ item, busy, onUpscale, held = false }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void; held?: boolean }) {
+function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void; onCancelUpscale: (item: GalleryItem) => void; held?: boolean }) {
   const state = item.upscale;
   const running = state?.status === "running";
   const ratio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
@@ -63,18 +64,18 @@ function UpscaleButton({ item, busy, onUpscale, held = false }: { item: GalleryI
         className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", busy && "is-busy", held && "is-held")}
         aria-label={upscaleTooltip(item)}
         aria-pressed={state?.url ? active : undefined}
-        aria-disabled={running || busy}
+        aria-disabled={busy}
         style={{ "--upscale-ratio": ratio } as React.CSSProperties}
         onPointerDown={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key !== "Enter" && event.key !== " ") return;
           event.preventDefault();
           event.stopPropagation();
-          if (!running && !busy) onUpscale(item);
+          if (!busy) (running ? onCancelUpscale(item) : onUpscale(item));
         }}
-        onClick={(event) => { event.stopPropagation(); if (!running && !busy) onUpscale(item); }}
+        onClick={(event) => { event.stopPropagation(); if (!busy) (running ? onCancelUpscale(item) : onUpscale(item)); }}
       >
-        {running || busy ? <Loader2 size={14} className="spin" /> : <UpscaleArrow size={15} />}
+        {busy ? <Loader2 size={14} className="spin" /> : running ? <Square size={10} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={15} />}
         {running ? <span className="tile-upscale-ring" /> : null}
       </span>
     </Tip>
@@ -94,7 +95,7 @@ const tileEnterTransition = {
   mass: 0.86,
 };
 
-function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
+function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, onCancelUpscale = () => {}, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
   const ratio = item.progress?.max ? Math.min(1, Math.max(0, item.progress.value / item.progress.max)) : 0;
   const indeterminate = !item.progress?.max;
   const mountedRef = useRef(false);
@@ -150,7 +151,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
           <strong>{titleFromPrompt(item.prompt || item.filename)}</strong>
           <em>{item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.status === "error" ? "Failed" : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
-        {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} held={Boolean(upscaleNotice)} /> : null}
+        {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} onCancelUpscale={onCancelUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
         {item.status === "pending" ? <Tip content="Stop generation"><span className="tile-action" onClick={(event) => { event.stopPropagation(); cancelJob(item.jobId); }}>Stop</span></Tip> : null}
         {item.status !== "pending" ? (

@@ -1174,6 +1174,26 @@ app.post("/api/upscale", async (req, res) => {
     : runUpscaleJob(jobId, body, info), 0);
 });
 
+// Stops an image's running upscale. runUpscaleJob sees the canceled job and resets the tile.
+app.post("/api/upscale/cancel", async (req, res) => {
+  const itemId = String(req.body?.galleryItemId || "");
+  const entry = [...jobs].find(([, job]) => job.kind === "upscale" && job.galleryItemId === itemId && !job.terminalAt);
+  if (!entry) {
+    // Nothing is running it (the server restarted mid-upscale): just clear the spinner.
+    const item = findUpscaleTarget(itemId);
+    if (item?.upscale?.status === "running") updateGalleryJob(item.id, { upscale: { ...item.upscale, status: "canceled", progress: null } });
+    res.json({ ok: true, stale: true });
+    return;
+  }
+  const [jobId, job] = entry;
+  setTerminalJob(jobId, { status: "canceled" });
+  if (job.promptId) {
+    await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ delete: [job.promptId] }) }).catch(() => null);
+    await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt_id: job.promptId }) }).catch(() => null);
+  }
+  res.json({ ok: true });
+});
+
 app.post("/api/upscale/toggle", (req, res) => {
   try {
     const itemId = String(req.body?.galleryItemId || "");

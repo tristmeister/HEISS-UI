@@ -214,7 +214,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function cancelQueue() {
-    if (!await confirmAction({"title": "Stop all generations?", "description": "All queued and running generations will be canceled.", "action": "Stop all", "destructive": true})) return;
+    if (!await confirmAction({"title": "Stop all generations?", "description": "All queued and running generations and upscales will be canceled.", "action": "Stop all", "destructive": true})) return;
     galleryRemoveWhere((item: GalleryItem) => item.status === "pending" || item.status === "canceled");
     await fetch("/api/queue/cancel", { method: "POST" }).catch(() => null);
     setStatus("Ready");

@@ -47,7 +47,8 @@ const noticeTitles: Record<string, string> = {
   video: "Only images can be upscaled",
   unfinished: "Still rendering",
   source: "Could not read the original",
-  switch: "Could not switch versions"
+  switch: "Could not switch versions",
+  cancel: "Could not stop the upscale"
 };
 
 export function upscaleNoticeFrom(error: unknown, fallbackReason = ""): UpscaleNotice {
@@ -319,6 +320,22 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     }
   }, [loadGalleryDelta, markBusy, setNotice]);
 
+  const cancelUpscale = useCallback(async (item: GalleryItem) => {
+    markBusy(item.id, true);
+    try {
+      await apiJson("/api/upscale/cancel", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ galleryItemId: item.id })
+      });
+    } catch (error) {
+      setNotice(item.id, upscaleNoticeFrom(error, "cancel"));
+    } finally {
+      // The run notices the cancel on its next poll, so give it a moment to land.
+      window.setTimeout(() => { markBusy(item.id, false); loadGalleryDelta(); }, 1800);
+    }
+  }, [loadGalleryDelta, markBusy, setNotice]);
+
   /** One click: upscale the first time, then flip between the two versions. */
   const activateUpscale = useCallback((item: GalleryItem) => {
     if (item.upscale?.url) return toggleUpscale(item);
@@ -350,6 +367,7 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     openUpscaleSetup: openSetup,
     upscaleItem,
     toggleUpscale,
+    cancelUpscale,
     activateUpscale
   };
 }

@@ -120,6 +120,14 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ prompt: graph, client_id: jobId, extra_data: { preview_method: "none" } })
     });
+    // Canceled while ComfyUI was taking the prompt: take it back out instead of running it.
+    if (jobs.get(jobId)?.terminalAt) {
+      await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ delete: [queued.prompt_id] }) }).catch(() => null);
+      await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt_id: queued.prompt_id }) }).catch(() => null);
+      target.setPromptId?.(queued.prompt_id);
+      target.patch({ status: "canceled", progress: null });
+      return;
+    }
     jobs.set(jobId, { ...jobs.get(jobId), status: "running", promptId: queued.prompt_id });
     target.setPromptId?.(queued.prompt_id);
     socket = watchUpscaleProgress(jobId, target, queued.prompt_id);

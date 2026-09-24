@@ -25,6 +25,7 @@ type VirtualMasonryGalleryProps = {
   smartUpscale?: boolean;
   upscaleBusyIds?: Set<string>;
   onUpscale?: (item: GalleryItem) => void;
+  onCancelUpscale?: (item: GalleryItem) => void;
   upscaleNotices?: Map<string, UpscaleNotice>;
   onDismissUpscaleNotice?: (id: string) => void;
 };
@@ -71,6 +72,7 @@ export function VirtualMasonryGallery({
   ungroupBundle,
   upscaleBusyIds,
   onUpscale,
+  onCancelUpscale,
   upscaleNotices,
   onDismissUpscaleNotice,
 }: VirtualMasonryGalleryProps) {
@@ -114,6 +116,7 @@ export function VirtualMasonryGallery({
           smartUpscale={smartUpscale}
           upscaleBusyIds={upscaleBusyIds}
           onUpscale={onUpscale}
+          onCancelUpscale={onCancelUpscale}
           upscaleNotices={upscaleNotices}
           onDismissUpscaleNotice={onDismissUpscaleNotice}
           spacing={spacing}
@@ -146,6 +149,7 @@ function VirtualMasonryColumn({
   ungroupBundle,
   upscaleBusyIds,
   onUpscale,
+  onCancelUpscale,
   upscaleNotices,
   onDismissUpscaleNotice,
   width,
@@ -200,6 +204,7 @@ function VirtualMasonryColumn({
                 smartUpscale={smartUpscale}
                 upscaleBusy={Boolean(upscaleBusyIds?.has(item.id))}
                 onUpscale={onUpscale}
+                onCancelUpscale={onCancelUpscale}
                 upscaleNotice={upscaleNotices?.get(item.id)}
                 onDismissUpscaleNotice={onDismissUpscaleNotice}
                 titleFromPrompt={titleFromPrompt}
