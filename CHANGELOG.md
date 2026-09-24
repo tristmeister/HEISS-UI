@@ -23,6 +23,8 @@ section into the next version and uses it as the GitHub release notes.
 ### Fixed
 - Restart ComfyUI said ComfyUI-Manager was missing with the Manager custom
   node 3.4x, which only restarts on a POST.
+- Install buttons for custom nodes now work through the ComfyUI-Manager
+  custom node (3.x) too, not only the Manager built into newer ComfyUI.
 - Adding model folders could report "models ready" before ComfyUI read
   them, when the added folder sat inside one ComfyUI already reads (its own
   `models` folder). It now waits until every added folder is read, so the

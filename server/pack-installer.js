@@ -13,9 +13,9 @@ import { nodePack } from "./node-packs.js";
  *
  * Two routes, best first:
  *   manager - the pack is in ComfyUI-Manager's list and Manager answers: queue
- *             an install task there (Manager 4 cannot install by Git URL
- *             unless its legacy UI and a config flag are on, so unlisted
- *             packs never go this way).
+ *             an install task there, through Manager 4's /v2 queue or the
+ *             Manager 3 custom node's (Manager cannot install by Git URL
+ *             unless a config flag is on, so unlisted packs never go this way).
  *   local   - ComfyUI sits on this machine: clone the pack into custom_nodes
  *             and install its requirements with ComfyUI's own Python.
  * Either way ComfyUI loads the nodes only after a restart.
@@ -41,13 +41,17 @@ export function packInstallRoutes(id, root = comfyRootDir()) {
   return { manager: Boolean(pack.manager), local: Boolean(root && comfyPython(root)) };
 }
 
-async function managerAnswers() {
-  try {
-    await comfy("/v2/manager/version", { signal: AbortSignal.timeout(5000) });
-    return true;
-  } catch {
-    return false;
+/** Which ComfyUI-Manager answers: 4 (built into ComfyUI, /v2 routes), 3 (the custom node), or 0. */
+async function managerGeneration() {
+  for (const [route, generation] of [["/v2/manager/version", 4], ["/manager/version", 3]]) {
+    try {
+      await comfy(route, { signal: AbortSignal.timeout(5000) });
+      return generation;
+    } catch {
+      // Try the next.
+    }
   }
+  return 0;
 }
 
 function run(state, command, args, cwd, env = process.env) {
@@ -118,13 +122,52 @@ async function installWithManager(state, pack) {
   throw new Error("ComfyUI-Manager did not finish in time.");
 }
 
+/**
+ * Manager 3 (the custom node) queues by registry id too, but reports results
+ * only over its websocket and clears them when the queue ends. So HEISS waits
+ * for the queue to stop and then checks the pack is among the installed ones.
+ */
+async function installWithManager3(state, pack) {
+  state.step = "Queued in ComfyUI-Manager";
+  try {
+    await comfy("/manager/queue/install", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ui_id: `heiss-${crypto.randomUUID()}`, id: pack.manager, version: "latest", selected_version: "latest",
+        mode: "remote", channel: "default", skip_post_install: false
+      })
+    });
+  } catch (error) {
+    throw new Error(/\b(403|404)\b/.test(error.message) ? "ComfyUI-Manager refused the install. Its security level may be too strict." : error.message);
+  }
+  // Bodyless POST: Manager rejects form content types here. Older versions took a GET.
+  await comfy("/manager/queue/start", { method: "POST" }).catch(() => comfy("/manager/queue/start").catch(() => null));
+  state.step = "ComfyUI-Manager is installing";
+  const deadline = Date.now() + stepTimeoutMs;
+  let quiet = 0;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const status = await comfy("/manager/queue/status").catch(() => null);
+    // Two idle answers in a row: the worker is done (or never had to start).
+    quiet = status && !status.is_processing ? quiet + 1 : 0;
+    if (quiet < 2) continue;
+    const installed = await comfy("/customnode/installed").catch(() => null);
+    const packs = Object.entries(installed || {});
+    if (packs.some(([name, info]) => name === pack.manager || info?.cnr_id === pack.manager || info?.aux_id === pack.manager)) return;
+    throw new Error("ComfyUI-Manager did not install it. Its window says why.");
+  }
+  throw new Error("ComfyUI-Manager did not finish in time.");
+}
+
 /** Starts (or reports) the install of one pack; the caller polls packInstallState. */
 export async function startPackInstall(id) {
   const pack = nodePack(id);
   const current = installs.get(id);
   if (current?.status === "running") return snapshot(current);
   const routes = packInstallRoutes(id);
-  const viaManager = routes.manager && await managerAnswers();
+  const generation = routes.manager ? await managerGeneration() : 0;
+  const viaManager = generation > 0;
   if (!viaManager && !routes.local) {
     throw new Error("ComfyUI runs on another computer and Manager cannot install this pack, so it needs the steps below.");
   }
@@ -134,7 +177,7 @@ export async function startPackInstall(id) {
     try {
       if (viaManager) {
         try {
-          await installWithManager(state, pack);
+          await (generation === 4 ? installWithManager(state, pack) : installWithManager3(state, pack));
         } catch (error) {
           // Manager refused (security level) or failed: do it ourselves when we can.
           if (!routes.local) throw error;
