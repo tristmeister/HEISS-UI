@@ -1353,10 +1353,13 @@ app.get("/api/comfy/manager", async (_req, res) => {
 app.post("/api/comfy/restart", async (req, res) => {
   if (!requireLocal(req, res)) return;
   let sawManager = false;
-  for (const route of ["/v2/manager/reboot", "/api/manager/reboot", "/manager/reboot"]) {
+  // Manager 4 (built into ComfyUI) only takes a bodyless POST; older Manager
+  // custom nodes took a GET. A 404/405 just means "not this one", try the next.
+  const attempts = [["POST", "/v2/manager/reboot"], ["GET", "/v2/manager/reboot"], ["GET", "/api/manager/reboot"], ["GET", "/manager/reboot"]];
+  for (const [method, route] of attempts) {
     let response;
     try {
-      response = await fetch(`${comfyUrl}${route}`, { signal: AbortSignal.timeout(5000) });
+      response = await fetch(`${comfyUrl}${route}`, { method, signal: AbortSignal.timeout(5000) });
     } catch {
       // ComfyUI dropping the connection mid-answer means it is already going down.
       res.json({ ok: true });
