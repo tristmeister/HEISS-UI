@@ -10,6 +10,14 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Fixed
+- With ComfyUI offline, HEISS pretended to work: it listed fake "(Demo)"
+  models and "generated" placeholder images. It now shows ComfyUI as offline
+  and refuses to generate. Demo mode is a developer opt-in
+  (`npm run dev:demo` or `HEISS_DEMO=1`) for testing without a GPU.
+- A generate request ComfyUI would reject (a missing model, a bad slot)
+  quietly became a placeholder image instead of an error.
+
 ## [0.2.1] - 2026-09-24
 
 ### Added

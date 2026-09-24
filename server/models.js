@@ -228,6 +228,12 @@ export function inferModels(info, stats = {}) {
   };
 }
 
+/** No ComfyUI to ask: nothing to offer, and say why instead of blaming missing nodes. */
+export function offlineModelResult(comfyUrl = "") {
+  return { ...inferModels({}, {}), reason: `ComfyUI is not reachable${comfyUrl ? ` at ${comfyUrl}` : ""}.` };
+}
+
+/** Fake models for HEISS_DEMO=1 (agent and UI testing without ComfyUI). */
 export function mockModelResult() {
   const imageProfiles = [
     buildProfile({

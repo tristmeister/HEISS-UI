@@ -15,6 +15,8 @@
   "scripts": {
     "predev": "node scripts/ensure-runtime-dependencies.mjs --dev",
     "dev": "concurrently \"vite --host 127.0.0.1 --port 5173\" \"node server/index.js\"",
+    "predev:demo": "node scripts/ensure-runtime-dependencies.mjs --dev",
+    "dev:demo": "concurrently \"vite --host 127.0.0.1 --port 5173\" \"node -e \\\"process.env.HEISS_DEMO='1';import('./server/index.js')\\\"\"",
     "predev:lan": "node scripts/ensure-runtime-dependencies.mjs --dev",
     "dev:lan": "concurrently \"vite --host 0.0.0.0 --port 5173\" \"node -e \\\"process.env.HOST='0.0.0.0';process.env.HEISS_ALLOW_LAN='1';import('./server/index.js')\\\"\"",
     "prestart": "node scripts/ensure-runtime-dependencies.mjs",

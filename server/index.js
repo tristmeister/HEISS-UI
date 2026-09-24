@@ -7,8 +7,8 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { allowLanActions, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
-import { inferModels, mockModelResult } from './models.js';
+import { allowLanActions, demoMode, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
+import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
 import { cancelDownload, discardDownload, downloadState, startDownload } from './model-downloads.js';
@@ -247,7 +247,7 @@ app.get("/api/comfy/status", async (_req, res) => {
     const response = await fetch(`${comfyUrl}/system_stats`, { signal: controller.signal });
     const latencyMs = Math.round(performance.now() - startedAt);
     if (!response.ok) {
-      res.json({ connected: false, isMock: true, url: comfyUrl, latencyMs, error: `HTTP ${response.status} (Demo Mode Active)` });
+      res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
       return;
     }
     const stats = await response.json();
@@ -262,7 +262,7 @@ app.get("/api/comfy/status", async (_req, res) => {
   } catch (error) {
     const latencyMs = Math.round(performance.now() - startedAt);
     const message = error?.name === "AbortError" ? "Connection timed out" : error?.message || "Connection failed";
-    res.json({ connected: false, isMock: true, url: comfyUrl, latencyMs, error: `${message} (Demo Mode Active)` });
+    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
   } finally {
     clearTimeout(timeout);
   }
@@ -273,7 +273,7 @@ app.get("/api/models", async (_req, res) => {
     const { info, stats } = await loadComfyContext({ force: true });
     res.json(inferModels(info, stats));
   } catch {
-    res.json(mockModelResult());
+    res.json(demoMode ? mockModelResult() : offlineModelResult(comfyUrl));
   }
 });
 
@@ -368,11 +368,11 @@ app.post("/api/output-dir/browse", async (req, res) => {
 app.get("/api/workflows", async (_req, res) => {
   try {
     const { info, stats } = await loadComfyContext().catch(() => ({ info: {}, stats: {} }));
-    const models = Object.keys(info || {}).length ? inferModels(info, stats) : mockModelResult();
+    const models = Object.keys(info || {}).length ? inferModels(info, stats) : demoMode ? mockModelResult() : offlineModelResult(comfyUrl);
     const preferences = loadWorkflowPreferences();
     res.json({ workflows: workflowSummaries({ info, profiles: models.profiles, preferences }), preferences });
   } catch {
-    const models = mockModelResult();
+    const models = demoMode ? mockModelResult() : offlineModelResult(comfyUrl);
     const preferences = loadWorkflowPreferences();
     res.json({ workflows: workflowSummaries({ info: {}, profiles: models.profiles, preferences }), preferences });
   }
@@ -756,10 +756,24 @@ app.post("/api/generate", async (req, res) => {
   }
   let body;
   let isMockJob = false;
+  let context = null;
   try {
-    const { info, stats } = await loadComfyContext();
-    body = sanitizeGenerateBody(req.body, info, stats);
-  } catch {
+    context = await loadComfyContext();
+  } catch (error) {
+    // Placeholder generations are only for agent and UI testing without a GPU.
+    if (!demoMode) {
+      res.status(503).json({ ok: false, error: `ComfyUI is not reachable at ${comfyUrl}. Start it, then try again.${error?.message ? ` (${error.message})` : ""}` });
+      return;
+    }
+  }
+  if (context) {
+    try {
+      body = sanitizeGenerateBody(req.body, context.info, context.stats);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message });
+      return;
+    }
+  } else {
     const prompt = String(req.body?.prompt || "").trim();
     if (!prompt) {
       res.status(400).json({ error: "Prompt is required." });
