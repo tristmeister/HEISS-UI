@@ -334,7 +334,7 @@ export async function modelFolderReport({ local = true, scan = {} } = {}) {
  */
 export async function linkModelFolders(paths = [], { picked = "", scan = {} } = {}) {
   const report = lastReport?.ok ? lastReport : await modelFolderReport({ scan });
-  if (!report.local) throw new Error("ComfyUI runs on another computer, so HEISS cannot change its settings.");
+  if (!report.local) throw new Error("ComfyUI runs on another computer, so HEISS UI can’t change its settings.");
   const chosen = [];
   for (const wanted of paths.map(String)) {
     const folder = report.folders.find((item) => item.path === wanted);
@@ -350,7 +350,7 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
   if (!chosen.length) throw new Error("Nothing to add. Scan again and pick a folder.");
   // An added folder is written under its real path, which is also how it is reported back.
   const file = report.configPath;
-  if (!file) throw new Error("HEISS could not find where ComfyUI keeps its settings.");
+  if (!file) throw new Error("Couldn’t find where ComfyUI keeps its settings.");
   let text = "";
   try { text = fs.readFileSync(file, "utf8"); } catch { /* a new file */ }
   const already = new Set(heissSections(text).map((section) => section.path));
@@ -370,7 +370,7 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
   try {
     fs.writeFileSync(file, next);
   } catch (error) {
-    throw new Error(`HEISS could not write ${tildePath(file)} (${error.code || error.message}).`);
+    throw new Error(`Couldn’t write ${tildePath(file)} (${error.code || error.message}).`);
   }
   lastReport = null;
   return { ok: true, added, configPath: file, backup };
@@ -382,7 +382,7 @@ export async function unlinkModelFolder(dir) {
   if (!setup?.configPath) throw new Error("ComfyUI is not reachable.");
   const text = fs.readFileSync(setup.configPath, "utf8");
   const section = heissSections(text).find((item) => item.path === String(dir));
-  if (!section) throw new Error("HEISS did not add that folder, so it leaves it alone.");
+  if (!section) throw new Error("HEISS UI didn’t add this folder, so it can’t remove it.");
   let next = text.replace(section.block, "").replace(/\n{3,}/g, "\n\n");
   // ComfyUI's loader walks the file as a mapping and fails on one that is only
   // comments, so a file with nothing left in it goes, and a comments-only one gets `{}`.

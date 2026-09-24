@@ -46,10 +46,10 @@ export function ModelFoldersNotice({ folders: state }: { folders: ModelFolders }
             <button type="button" className="mf-notice-main" onClick={state.openDialog}>
               <FolderGlyph />
               <span className="mf-notice-text">
-                <strong>{count === 1 ? '1 model' : `${count} models`} ComfyUI can’t see</strong>
-                <span>In {where}. Add {folders.length === 1 ? 'it' : 'them'} in one step.</span>
+                <strong>{count === 1 ? '1 model' : `${count} models`} found</strong>
+                <span>In {where}, which ComfyUI doesn’t read.</span>
               </span>
-              <span className="mf-notice-cta">Show</span>
+              <span className="mf-notice-cta">Add</span>
             </button>
             <button type="button" className="mf-notice-close" aria-label="Hide this" onClick={state.dismissNotice}><X size={12} /></button>
           </div>

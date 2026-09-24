@@ -89,7 +89,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
   if (state?.status === 'done') {
     return (
       <div className="node-quick is-done" role="status">
-        <p><Check size={13} strokeWidth={3} /> {pack.name} is installed. <strong>Restart ComfyUI</strong> to load it; {afterRestart.charAt(0).toLowerCase() + afterRestart.slice(1)}</p>
+        <p><Check size={13} strokeWidth={3} /> {pack.name} is installed. <strong>Restart ComfyUI</strong> to load it{afterRestart ? <>; {afterRestart.charAt(0).toLowerCase() + afterRestart.slice(1)}</> : '.'}</p>
         <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
       </div>
     );
@@ -114,7 +114,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
  * ComfyUI's own Python. Manager 4 ships switched off (ComfyUI needs
  * --enable-manager), so without it the terminal route opens first.
  */
-export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, onRestarted, afterRestart = 'HEISS UI notices the new nodes by itself.' }: {
+export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, onRestarted, afterRestart = '' }: {
   pack: NodePackInfo;
   /** The one-click routes the server has for this pack; without one only the manual steps show. */
   autoInstall?: PackAutoInstall;
@@ -175,7 +175,7 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
             <div>
               In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>.{pack.search ? <> Searching the node list for <strong>{pack.search}</strong> works too.</> : null}
               {pack.note ? <p className="upscale-fine">{pack.note}</p> : null}
-              {!hasManager ? <p className="upscale-fine">ComfyUI is not answering as having Manager. Newer ComfyUI ships it switched off: start ComfyUI with <code>--enable-manager</code>, or use the terminal instead.</p> : null}
+              {!hasManager ? <p className="upscale-fine">ComfyUI-Manager is off. Start ComfyUI with <code>--enable-manager</code>, or use the terminal.</p> : null}
             </div>
           </li>
           <li>

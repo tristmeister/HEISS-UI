@@ -94,11 +94,11 @@ function requireLanUnlock(req, res, next) {
     return;
   }
   if (!isPrivacyEnabled()) {
-    res.status(403).json({ ok: false, error: "Set a privacy password on this computer before using LAN mode." });
+    res.status(403).json({ ok: false, error: "Turn on Private Vault on this computer before using LAN mode." });
     return;
   }
   if (!encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, locked: true, error: "Unlock HEISS UI with the LAN password." });
+    res.status(401).json({ ok: false, locked: true, error: "Enter the vault password to continue." });
     return;
   }
   next();
@@ -152,7 +152,7 @@ app.post("/api/privacy/setup", (req, res) => {
   if (!requireLocal(req, res)) return;
   try {
     if (isPrivacyEnabled()) {
-      res.status(400).json({ ok: false, error: "Privacy password is already set." });
+      res.status(400).json({ ok: false, error: "Private Vault is already on." });
       return;
     }
     const key = setPrivacyPassword(req.body?.password || "");
@@ -281,7 +281,7 @@ app.post("/api/models/downloads", async (req, res) => {
   if (!requireLocal(req, res)) return;
   const spec = catalogDownload(req.body?.id);
   if (!spec) {
-    res.status(400).json({ ok: false, error: "HEISS does not know that file." });
+    res.status(400).json({ ok: false, error: "Unknown file." });
     return;
   }
   try {
@@ -798,7 +798,7 @@ app.post("/api/generate", async (req, res) => {
     }
   }
   if (body.privateVault && !isPrivacyEnabled()) {
-    res.status(400).json({ ok: false, error: "Create a privacy password before using Private Vault." });
+    res.status(400).json({ ok: false, error: "Turn on Private Vault in Settings first." });
     return;
   }
   if (body.privateVault && !requestKey) {

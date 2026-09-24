@@ -83,20 +83,20 @@ function ModelFolderSettings({ folders, confirmAction, onOpen }: { folders: Mode
   // Settings is where people come to check: look again, quietly, each time it opens.
   React.useEffect(() => { folders.scan({ quiet: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Group title="Model folders" note={report?.configLabel ? <>HEISS UI keeps these in <code>{report.configLabel}</code>, marked so they come out cleanly.</> : undefined}>
+    <Group title="Model folders" note={report?.configLabel ? <>Stored in <code>{report.configLabel}</code>.</> : undefined}>
       {linked.map((item) => (
         <Row key={item.path} label={<span className="set-folder-path" title={item.path}>{item.label}</span>} description={item.read ? 'Added by HEISS UI · read by ComfyUI' : 'Added by HEISS UI · ComfyUI reads it after a restart'}>
           <button className="btn is-ghost" onClick={async () => {
-            if (!await confirmAction({ title: `Stop using ${item.label}?`, description: 'ComfyUI stops reading this folder after its next restart. The files stay where they are.', action: 'Remove folder' })) return;
+            if (!await confirmAction({ title: `Stop using ${item.label}?`, description: 'ComfyUI stops reading this folder after its next restart.', action: 'Remove folder' })) return;
             folders.remove(item.path);
           }}>Remove</button>
         </Row>
       ))}
       <Row
-        label={stray ? <Status tone="warn">{stray} model{stray === 1 ? '' : 's'} ComfyUI can’t see</Status> : 'Look for models'}
-        description={stray ? 'They are in a folder ComfyUI does not read. Add it in one step.' : 'Finds models in folders ComfyUI does not read: other installs, shared folders, external drives.'}
+        label={stray ? <Status tone="warn">{stray} model{stray === 1 ? '' : 's'} found</Status> : 'Find models'}
+        description={stray ? 'They’re in a folder ComfyUI doesn’t read.' : 'Searches other ComfyUI installs, shared folders and external drives.'}
       >
-        <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? 'Add' : 'Look'}</button>
+        <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? 'Add' : 'Search'}</button>
       </Row>
     </Group>
   );
@@ -176,19 +176,19 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
   const resultRow = result && !result.ok ? (
     <Row
       label={<Status tone="bad">{result.rolledBack ? `${result.to} would not start` : 'The last update did not install'}</Status>}
-      description={result.rolledBack ? `HEISS UI went back to ${result.from}, and nothing was lost${result.error ? ` (${result.error})` : ''}.` : result.error}
+      description={result.rolledBack ? `Still on ${result.from}.${result.error ? ` ${result.error}` : ''}` : result.error}
     />
   ) : null;
 
   if (restarting) {
-    return <Row label={<Status tone="warn">Restarting into {latest}</Status>} description="This page reloads by itself when HEISS UI is back, usually within a few seconds." />;
+    return <Row label={<Status tone="warn">Restarting into {latest}</Status>} description="This page reloads when it’s done." />;
   }
   if (download?.status === 'downloading' || download?.status === 'verifying' || download?.status === 'unpacking') {
     const ratio = download.totalBytes ? Math.min(1, (download.receivedBytes || 0) / download.totalBytes) : 0;
     return (
       <Row
         label={<Status tone="warn">{download.status === 'downloading' ? `Downloading ${latest}` : 'Checking the download'}</Status>}
-        description={download.status === 'downloading' ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}. You can keep working.` : 'Matching it against its published checksum and unpacking it.'}
+        description={download.status === 'downloading' ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}. You can keep working.` : 'Verifying and unpacking.'}
         stacked
       >
         <div className="set-progress"><div style={{ width: `${Math.round((download.status === 'downloading' ? ratio : 1) * 100)}%` }} /></div>
@@ -199,7 +199,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
     return (
       <Row
         label={<Status tone="ok">{latest} is ready to install</Status>}
-        description={status.supervised ? 'Restarting swaps it in and reloads this page. Generations still running are lost, so let them finish first.' : 'Close HEISS UI and start it again with Start HEISS UI to switch to it.'}
+        description={status.supervised ? 'Running generations stop when HEISS UI restarts.' : 'Quit HEISS UI and open it again to switch.'}
         stacked
       >
         <div className="about-update">
@@ -218,7 +218,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
           description={download?.status === 'error'
             ? `The download stopped: ${download.error}`
             : status.canInstall
-              ? `You have ${status.current}. It downloads${status.size ? ` ${formatBytes(status.size)}` : ''}, gets checked and installs on a restart. Your gallery and settings stay.`
+              ? `You have ${status.current}.${status.size ? ` ${formatBytes(status.size)},` : ''} installs on restart.`
               : `You have ${status.current}. This release has to be downloaded by hand: replace this folder with it and keep your data folder.`}
           stacked
         >
@@ -261,8 +261,8 @@ function describeFolder(report: OutputFolderReport | null): { tone?: 'ok' | 'war
     case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Gens still show up, but HEISS UI cannot delete their files or use Private Vault until it knows this folder.' };
     case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'Nothing exists at that path on this computer.' };
     case 'not-folder': return { tone: 'bad', label: 'Not a folder', detail: 'That path points at a file.' };
-    case 'mismatch': return { tone: 'warn', label: 'Your gens are not here', detail: `None of your last ${report.checked} gens are in this folder (${fileCount(report)}). ComfyUI is probably saving somewhere else. Try Find automatically.` };
-    case 'match': return { tone: 'ok', label: 'Linked', detail: `${report.found === report.checked ? `All ${report.checked}` : `${report.found} of ${report.checked}`} recent gens found here · ${fileCount(report)}` };
+    case 'mismatch': return { tone: 'warn', label: 'Your recent images aren’t here', detail: `None of your last ${report.checked} images are in this folder (${fileCount(report)}). ComfyUI is probably saving somewhere else. Try Find automatically.` };
+    case 'match': return { tone: 'ok', label: 'Linked', detail: `${report.found === report.checked ? `All ${report.checked}` : `${report.found} of ${report.checked}`} recent images found here · ${fileCount(report)}` };
     default: return { tone: report.looksLikeComfy ? 'ok' : 'warn', label: report.looksLikeComfy ? 'Linked' : 'Set', detail: `${fileCount(report)}${report.looksLikeComfy ? '' : ' · does not look like a ComfyUI folder'}. It gets confirmed after your next gen.` };
   }
 }
@@ -371,7 +371,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
               <code className="set-path">{item.path}</code>
               <span>
                 {item.source === 'comfy' ? 'From ComfyUI · ' : ''}
-                {item.state === 'match' ? `${item.found} of ${item.checked} recent gens here` : item.state === 'mismatch' ? 'Your recent gens are not here' : fileCount(item)}
+                {item.state === 'match' ? `${item.found} of ${item.checked} recent images here` : item.state === 'mismatch' ? 'Your recent images aren’t here' : fileCount(item)}
               </span>
               {item.state === 'match' ? <Check size={14} className="set-folder-pick-mark" aria-hidden="true" /> : null}
             </button>
@@ -529,9 +529,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Safety">
-              <SwitchRow label="Confirm before removing things" description="Ask before deleting, cancelling, resetting or clearing the cache." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
+              <SwitchRow label="Confirm before removing things" description="Ask before deleting, canceling, resetting or clearing the cache." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
-            <Group title="Reset" tone="danger" note="Generated files on disk are never touched.">
+            <Group title="Reset" tone="danger">
               <Row label="Clear the gallery" description="Remove finished items from what HEISS UI shows.">
                 <button className="btn is-danger-soft" onClick={clearGallery}>Clear gallery</button>
               </Row>
@@ -585,8 +585,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   <SwitchRow
                     label="Face detail pass"
                     description={faceDetailReady
-                      ? 'After the upscale, finds each face, re-renders it up close with the model and prompt that made the image, and blends it back. Sharper eyes and skin, same face.'
-                      : 'Re-renders faces up close after the upscale. Needs the ComfyUI Impact Pack and Impact Subpack nodes.'}
+                      ? 'Sharpens faces after the upscale.'
+                      : 'Sharpens faces after the upscale. Needs the Impact Pack and Impact Subpack nodes.'}
                     checked={Boolean(prefs.upscaleFaceDetail) && faceDetailReady}
                     disabled={!faceDetailReady}
                     onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
@@ -602,7 +602,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'library' ? (
           <>
-            <Group title="Folders" note="The output folder is where ComfyUI saves files. HEISS UI uses it to delete files with their cards and for Private Vault, and checks it against your recent gens.">
+            <Group title="Folders" note="Where ComfyUI saves your images.">
               <OutputFolderRow
                 savedDir={paths.outputDir || ''}
                 galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
@@ -615,7 +615,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Reload</button>
               </Row>
             </Group>
-            <Group title="Runs" note="Grouping is exact and local, never similarity matching. Private outputs only group with each other, inside the vault.">
+            <Group title="Runs" note="Private outputs only group with each other.">
               <SwitchRow label="Group generation runs" description="Collapse a burst of related outputs into one stack you can open in place." checked={prefs.groupRuns !== false} onChange={(next) => setPrefs({ groupRuns: next })} />
               {prefs.groupRuns !== false ? (
                 <>
@@ -673,7 +673,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Group title="Unlock">
                 <Row label="Password" stacked>
                   <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); unlockPrivacy(); }}>
-                    <input className="modal-input" type="password" autoComplete="current-password" aria-label="Privacy password" placeholder="Privacy password" value={privacyPassword} onChange={(event) => setPrivacyPassword(event.target.value)} />
+                    <input className="modal-input" type="password" autoComplete="current-password" aria-label="Vault password" placeholder="Vault password" value={privacyPassword} onChange={(event) => setPrivacyPassword(event.target.value)} />
                     <button className="btn is-primary" type="submit" disabled={privacyBusy || !privacyPassword}>{privacyBusy ? 'Unlocking…' : 'Unlock'}</button>
                   </form>
                 </Row>
@@ -709,18 +709,18 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Models">
               <Row label="Image models"><span className="set-value">{models ? models.imageModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
               <Row label="Video models"><span className="set-value">{models ? models.videoModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
-              <Row label="Rescan" description="Pick up models and workflows added since the studio started.">
+              <Row label="Rescan" description="Find new models and workflows.">
                 <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
             {modelFolders ? <ModelFolderSettings folders={modelFolders} confirmAction={confirmAction} onOpen={() => { onClose(); modelFolders.openDialog(); }} /> : null}
             {typedModels.length ? (
-              <Group title="Model types" note="HEISS reads each model file to tell what it is and which text encoders and VAE it needs. Pick a type here when it could not tell, or guessed wrong.">
+              <Group title="Model types" note="Set the type for models that weren’t recognized or were detected wrong.">
                 {typedModels.map((file) => {
                   const key = `${file.source}:${file.name}`;
                   const folder = file.source === 'checkpoint' ? 'Checkpoint' : 'Diffusion model';
                   const how = file.via === 'choice' ? 'set by you' : file.via === 'file' ? 'read from its weights' : file.via === 'name' ? 'guessed from its name' : '';
-                  const status = [folder, file.label ? `${file.label}${how ? ` (${how})` : ''}` : '', file.reason || (file.supported ? '' : 'Not recognised. Pick what it is to use it.')]
+                  const status = [folder, file.label ? `${file.label}${how ? ` (${how})` : ''}` : '', file.reason || (file.supported ? '' : 'Not recognized. Pick a type to use it.')]
                     .filter(Boolean).join(' · ');
                   return (
                     <Row key={key} label={<span className="set-model-name" title={file.name}>{file.name.split(/[\\/]/).pop()}</span>} description={status} disabled={typeBusy === key}>
@@ -760,7 +760,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </div>
             </section>
 
-            <Group title="Your studio" note={stats && stats.outputs ? <>Since {formatDay(stats.firstAt)} · {stats.activeDays} active day{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <> · busiest day {formatDay(stats.busiestDay)} with {stats.busiestCount}</> : null}. Counted from your local gallery, nothing leaves this machine.</> : 'Counted from your local gallery, nothing leaves this machine.'}>
+            <Group title="Your studio" note={stats && stats.outputs ? <>Since {formatDay(stats.firstAt)} · {stats.activeDays} active day{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <> · busiest day {formatDay(stats.busiestDay)} with {stats.busiestCount}</> : null}.</> : undefined}>
               <div className="about-stats">
                 {[
                   { value: stats ? compact(stats.outputs) : null, label: 'Outputs', hint: stats ? `${compact(stats.images)} images · ${compact(stats.videos)} videos` : '' },
@@ -779,7 +779,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </div>
             </Group>
 
-            <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart the local server to finish updating.' : undefined}>
+            <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart HEISS UI to finish updating.' : undefined}>
               {updateStatus?.release ? (
                 <ReleaseUpdateRow
                   status={updateStatus}
@@ -815,7 +815,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="J-AI Studio by Jasper" description="HEISS UI started as a fork of J-AI Studio. The calm, prompt-first idea and much of the foundation are his work.">
                 <a className="btn is-ghost" href="https://github.com/jasperdevs/J-AI-Studio" target="_blank" rel="noreferrer"><ExternalLink size={13} /> J-AI Studio</a>
               </Row>
-              <Row label="ComfyUI" description="Every image and video is rendered by your local ComfyUI; HEISS UI is the studio around it.">
+              <Row label="ComfyUI" description="Renders every image and video.">
                 <a className="btn is-ghost" href="https://github.com/comfyanonymous/ComfyUI" target="_blank" rel="noreferrer"><ExternalLink size={13} /> ComfyUI</a>
               </Row>
             </Group>

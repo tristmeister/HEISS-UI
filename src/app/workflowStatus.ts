@@ -11,10 +11,10 @@ export function workflowState(validation?: WorkflowValidation): { state: Workflo
   const files = validation?.missingFiles?.length || 0;
   const packs = validation?.missingPacks || [];
   if (validation && !validation.ok && packs.length) {
-    return { state: 'missing-nodes', label: 'Needs ComfyUI nodes', detail: `Runs on ${packs.join(' and ')}, which ComfyUI does not ship. It installs once; the steps are right here.` };
+    return { state: 'missing-nodes', label: 'Needs ComfyUI nodes', detail: `Needs ${packs.join(' and ')}, which ComfyUI doesn’t include.` };
   }
   if (validation && !validation.ok && files) {
-    return { state: 'needs-setup', label: `Needs ${files} file${files === 1 ? '' : 's'}`, detail: 'A file this model needs is not installed yet. Get it right here.' };
+    return { state: 'needs-setup', label: `Needs ${files} file${files === 1 ? '' : 's'}`, detail: 'A file this model needs isn’t installed yet.' };
   }
   if (validation && !validation.ok && missing) {
     return { state: 'missing-nodes', label: `Missing ${missing} node${missing === 1 ? '' : 's'}`, detail: 'Install the missing custom nodes in ComfyUI, then check again.' };

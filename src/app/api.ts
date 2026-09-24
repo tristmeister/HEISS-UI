@@ -62,7 +62,7 @@ export async function apiJson<T>(url: string, options?: RequestInit): Promise<T>
   noteServerClock(response, sentAt);
   // A server started before an update answers new routes with the app page.
   if (response.ok && (response.headers.get("content-type") || "").includes("text/html")) {
-    throw new Error("The HEISS server is out of date. Restart it to use this.");
+    throw new Error("HEISS UI is running older code. Restart it to use this.");
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

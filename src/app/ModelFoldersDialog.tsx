@@ -64,24 +64,24 @@ function Steps({ stage }: { stage: ModelFolderStage }) {
 function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: ModelFolders['added']): { title: string; description: string } {
   const count = folders.reduce((sum, folder) => sum + folder.count, 0);
   switch (stage) {
-    case 'scanning': return { title: 'Looking for your models', description: 'Checking your folders, other ComfyUI installs and connected drives for models ComfyUI is not reading.' };
+    case 'scanning': return { title: 'Searching for models', description: 'Checking your folders, other ComfyUI installs and connected drives.' };
     case 'found': return {
-      title: `${plural(count, 'model')} ComfyUI can’t see`,
+      title: `Add ${plural(count, 'model')}`,
       description: folders.length === 1
-        ? `They are in ${folders[0].name}, a folder ComfyUI does not read. Add it and they show up here.`
-        : `They are in ${plural(folders.length, 'folder')} ComfyUI does not read. Add them and they show up here.`
+        ? `They’re in ${folders[0].name}, which ComfyUI doesn’t read.`
+        : `They’re in ${plural(folders.length, 'folder')} ComfyUI doesn’t read.`
     };
-    case 'none': return { title: 'ComfyUI sees all your models', description: 'No models on this computer are hiding in a folder ComfyUI does not read. If yours live somewhere unusual, point HEISS UI at the folder.' };
+    case 'none': return { title: 'All your models are in ComfyUI', description: 'Keep models somewhere else? Choose the folder.' };
     case 'remote': return { title: 'ComfyUI runs on another computer', description: 'HEISS UI can only look through the folders of the computer it runs on.' };
-    case 'offline': return { title: 'Waiting for ComfyUI', description: 'The folder check asks ComfyUI which folders it reads. It carries on as soon as ComfyUI answers.' };
-    case 'adding': return { title: 'Adding to ComfyUI', description: 'Writing the folders into ComfyUI’s model settings. The old settings are kept as a backup.' };
+    case 'offline': return { title: 'Waiting for ComfyUI', description: 'Start ComfyUI to continue.' };
+    case 'adding': return { title: 'Adding folders', description: 'The previous settings are kept as a backup.' };
     case 'restarting': return { title: 'Restarting ComfyUI', description: 'ComfyUI reads its model folders when it starts. This takes a few seconds.' };
-    case 'waiting': return { title: 'Restart ComfyUI to finish', description: 'ComfyUI reads its model folders when it starts. Quit it and open it again the way you usually do, and HEISS UI picks up from there.' };
+    case 'waiting': return { title: 'Restart ComfyUI to finish', description: 'ComfyUI reads its model folders when it starts. Quit ComfyUI and open it again.' };
     case 'done': return {
-      title: added.count ? `${plural(added.count, 'model')} ready` : 'Your folder is in',
-      description: 'ComfyUI reads the folder from now on. Anything you add to it shows up in HEISS UI after a rescan.'
+      title: added.count ? `${plural(added.count, 'model')} ready` : 'Folder added',
+      description: 'New files in it show up after a rescan.'
     };
-    case 'error': return { title: 'That did not work', description: 'Nothing was lost: ComfyUI’s old settings are kept as a backup.' };
+    case 'error': return { title: 'Couldn’t add the folder', description: 'ComfyUI’s settings were not changed.' };
   }
 }
 
@@ -134,7 +134,7 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
   let footer: React.ReactNode = null;
 
   if (stage === 'scanning') {
-    body = <Watcher>Looking through your folders and drives</Watcher>;
+    body = <Watcher>Searching…</Watcher>;
   } else if (stage === 'found') {
     body = (
       <>
@@ -144,8 +144,8 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
           ))}
         </ul>
         <p className="upscale-fine">
-          HEISS UI adds {chosen.length === 1 ? 'it' : 'them'} to ComfyUI’s <code title={report?.configPath}>extra_model_paths.yaml</code> and keeps a backup. Nothing is moved or copied.
-          {runningCount ? <> ComfyUI restarts once, which stops the {plural(runningCount, 'generation')} still running.</> : <> ComfyUI restarts once to read {chosen.length === 1 ? 'it' : 'them'}.</>}
+          Adds {chosen.length === 1 ? 'it' : 'them'} to <code title={report?.configPath}>extra_model_paths.yaml</code>.
+          {runningCount ? <> ComfyUI restarts once, which stops the {plural(runningCount, 'generation')} still running.</> : <> ComfyUI restarts once.</>}
         </p>
         {report?.writable === false ? <p className="upscale-fine is-warn">HEISS UI may not change {report.configLabel}. Check its permissions, or add the folder in ComfyUI yourself.</p> : null}
       </>
@@ -175,10 +175,10 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
     );
     footer = <button className="btn is-primary" onClick={state.close}>Done</button>;
   } else if (stage === 'offline') {
-    body = <Watcher>Waiting for ComfyUI to answer</Watcher>;
-    footer = <>{later}<button className="btn" onClick={() => state.scan()}><RefreshCw size={13} /> Check now</button></>;
+    body = <Watcher>Waiting for ComfyUI…</Watcher>;
+    footer = <>{later}<button className="btn" onClick={() => state.scan()}><RefreshCw size={13} /> Check again</button></>;
   } else if (stage === 'adding') {
-    body = <Watcher>Writing ComfyUI’s model settings</Watcher>;
+    body = <Watcher>Adding folders…</Watcher>;
   } else if (stage === 'restarting' || stage === 'waiting') {
     body = (
       <>
@@ -191,7 +191,7 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
             </li>
           ))}
         </ul>
-        <Watcher>{stage === 'restarting' ? 'Waiting for ComfyUI to come back' : 'Watching for ComfyUI to restart'}</Watcher>
+        <Watcher>{stage === 'restarting' ? 'Waiting for ComfyUI…' : 'Waiting for ComfyUI to restart…'}</Watcher>
         {stage === 'waiting' ? <ComfyRestart compact className="upscale-restart" /> : null}
       </>
     );

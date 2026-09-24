@@ -329,7 +329,7 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
           <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Private" : "Upload"} · change</small>
         </button>
         {isStart && strength ? (
-          <Tip content="How much the model may change your image: low keeps it close, high only borrows its layout and colours">
+          <Tip content="How much the model may change your image: low keeps it close, high only borrows its layout and colors">
             <label className="ref-strength">
               <span>Change<b>{Math.round(strength.value * 100)}%</b></span>
               <input

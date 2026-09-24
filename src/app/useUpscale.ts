@@ -58,7 +58,7 @@ export function upscaleNoticeFrom(error: unknown, fallbackReason = ""): UpscaleN
   return {
     reason,
     title: noticeTitles[reason] || (offline ? "Could not reach HEISS UI" : "Upscale could not start"),
-    message: offline ? "The HEISS UI server did not answer. Check that it is still running, then try again." : message
+    message: offline ? "Check that HEISS UI is still running, then try again." : message
   };
 }
 
@@ -115,13 +115,14 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
     try {
       response = await fetch(url);
     } catch {
-      return failStatus("Could not reach the HEISS UI server.", true);
+      return failStatus("Could not reach HEISS UI.", true);
     }
     // Report what actually came back rather than guessing at a cause: a non-JSON
     // body means something other than this route answered (SPA shell, proxy).
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("application/json")) {
-      return failStatus(`The smart upscale status route answered with ${contentType || "an unknown type"} (HTTP ${response.status}) instead of JSON. The server process is serving older code - restart it from this checkout.`);
+      console.warn(`Smart upscale status: ${contentType || "unknown type"} (HTTP ${response.status}) instead of JSON`);
+      return failStatus("HEISS UI is running older code. Restart it to finish updating.");
     }
     let payload: UpscaleStatus & { error?: string; offline?: boolean };
     try {

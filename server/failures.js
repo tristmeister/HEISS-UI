@@ -52,9 +52,9 @@ export function describeFailure({ message = "", nodeType = "", nodeId = "", exce
   const raw = String(message || "ComfyUI execution failed");
   if (noOutput) {
     return {
-      title: "Nothing was saved",
+      title: "No image was saved",
       summary: raw,
-      hint: "The run ended without an image HEISS can show. The workflow may end in a preview node instead of Save Image, or ComfyUI skipped a step. Check the workflow's output, or run it once in ComfyUI to see what it does.",
+      hint: "The run ended without an image HEISS UI can show. The workflow may end in a preview node instead of Save Image, or ComfyUI skipped a step. Check the workflow's output, or run it once in ComfyUI to see what it does.",
       nodeType: "", nodeId: "", exceptionType: "", detail: raw, traceback: "", at: Date.now()
     };
   }

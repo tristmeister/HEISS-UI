@@ -68,12 +68,12 @@ function remember(entry) {
 
 function targetFor(spec) {
   const modelsDir = comfyModelsDir();
-  if (!modelsDir) throw new Error("ComfyUI is not on this computer, so HEISS cannot put files into its folders. Download it from the link instead.");
+  if (!modelsDir) throw new Error("ComfyUI isn't on this computer. Download the file from the link and add it there.");
   if (!allowedFolders.has(spec.folder)) throw new Error("That file does not belong in a ComfyUI model folder.");
   const name = path.basename(String(spec.file || ""));
   if (!name || name !== spec.file || !/\.(safetensors|gguf)$/i.test(name)) throw new Error("That is not a model file HEISS can download.");
   const url = new URL(spec.url);
-  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname)) throw new Error("HEISS only downloads model files from Hugging Face.");
+  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname)) throw new Error("Only Hugging Face downloads are supported.");
   // Land it where ComfyUI itself reads that kind from, so it shows up without a restart.
   const dirs = folderDirs(spec.folder);
   const dir = dirs.find((item) => path.basename(item) === spec.folder) || dirs[0] || path.join(modelsDir, spec.folder);

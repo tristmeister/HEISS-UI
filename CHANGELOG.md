@@ -10,6 +10,14 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Changed
+- **Shorter, plainer copy throughout the app.** Dropped reassurances nobody
+  asked for, lines about the app doing things by itself, and explanations of
+  how things work under the hood. Terms are now consistent: HEISS UI (not
+  HEISS or "the server"), Private Vault and vault password, Stop for running
+  generations, and images instead of "gens". The website and README now match
+  the current workflow import, smart upscale and the Settings layout.
+
 ## [0.4.0] - 2026-09-24
 
 ### Added

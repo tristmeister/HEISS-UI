@@ -417,11 +417,11 @@ export function sanaConf(name = "", detail = null) {
 
 // Recognised so HEISS can say what they are, but not runnable here yet.
 export const knownFamilies = {
-  ltx: "LTX-2 video (needs its two-stage audio pipeline; not in HEISS yet)",
+  ltx: "LTX-2 video (needs its two-stage audio pipeline; not in HEISS UI yet)",
   ltxv: "LTX-Video",
   hunyuan_video: "HunyuanVideo 1.0",
   lumina2: "Lumina Image 2.0",
-  wan_i2v: "Wan image-to-video (needs a start image; not in HEISS yet)",
+  wan_i2v: "Wan image-to-video (needs a start image; not in HEISS UI yet)",
   wan_other: "Wan VACE / Fun / camera model",
   qwen_image_edit: "Qwen-Image Edit (image editing model)",
   sdxl_refiner: "SDXL Refiner (used after a base model, not on its own)",

@@ -57,7 +57,7 @@ export function useGenerationActions(view: any) {
   async function generate() {
     if (generatePostingRef.current) return;
     if (!prompt.trim()) {
-      showToast("Prompt is required", "error");
+      showToast("Enter a prompt to generate", "error");
       return;
     }
     if (!currentProfile) {
@@ -69,7 +69,7 @@ export function useGenerationActions(view: any) {
       return;
     }
     if (generateDisabled) {
-      showToast("Model setup is missing required files", "error");
+      showToast("This model needs files first. Open Set up in the model menu.", "error");
       return;
     }
     generatePostingRef.current = true;
@@ -169,7 +169,7 @@ export function useGenerationActions(view: any) {
           if (job.progress?.max) {
             setStatus(`Rendering ${job.progress.value}/${job.progress.max}`);
           } else {
-            setStatus(job.status === "queued" ? "Queued" : "Rendering on the right");
+            setStatus(job.status === "queued" ? "Queued" : "Started");
           }
         }
       }));
@@ -199,7 +199,7 @@ export function useGenerationActions(view: any) {
 
   async function cancelJob(jobId: string | undefined) {
     if (!jobId) return;
-    if (!await confirmAction({"title": "Stop generation?", "description": "This stops the current generation before it finishes.", "action": "Stop generation", "destructive": true})) return;
+    if (!await confirmAction({"title": "Stop generation?", "description": "It won’t be saved.", "action": "Stop generation", "destructive": true})) return;
     galleryRemove([jobId]);
     await fetch(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
     setStatus("Ready");
@@ -221,7 +221,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function clearFailedItems() {
-    if (!await confirmAction({"title": "Clear failed generations?", "description": "Remove failed and interrupted entries from your gallery.", "action": "Clear failed", "destructive": true})) return;
+    if (!await confirmAction({"title": "Clear failed generations?", "description": "Removes failed and interrupted items from your gallery.", "action": "Clear failed", "destructive": true})) return;
     const data = await apiJson<GalleryPayload>("/api/gallery/errors/clear", { method: "POST" }).catch(() => null);
     const items = payloadItems(data);
     if (data) setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));

@@ -98,7 +98,7 @@ export function EmptyStage({ known, offline, device, retrying, onRetry, onOpenCo
           ) : copy === 'empty' ? (
             <>
               <h2>No outputs yet</h2>
-              <p>Start with a prompt. Your first image develops right here.</p>
+              <p>Write a prompt to get started.</p>
             </>
           ) : null}
         </div>

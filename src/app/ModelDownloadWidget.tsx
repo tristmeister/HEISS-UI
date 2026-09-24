@@ -55,7 +55,7 @@ export function ModelDownloadWidget({ widget, hidden, onOpen }: { widget: Return
     : `${failed?.label || 'Download'} stopped`;
   const meta = mode === 'downloading'
     ? [`${formatBytes(received)} of ${formatBytes(total)}`, speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', speed > 0 ? formatEta((total - received) / speed) : '', queued ? `${queued} more after` : ''].filter(Boolean).join(' · ')
-    : mode === 'ready' ? 'The model picks it up on its own'
+    : mode === 'ready' ? 'Ready to use'
     : 'Click to resume where it left off';
   const show = mode && !hidden;
   return (

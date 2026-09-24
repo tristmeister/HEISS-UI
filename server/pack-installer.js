@@ -73,7 +73,7 @@ function run(state, command, args, cwd) {
 async function installLocally(state, pack) {
   const root = comfyRootDir();
   const python = comfyPython(root);
-  if (!root || !python) throw new Error("HEISS cannot see ComfyUI's folder and Python on this computer. Use the terminal steps instead.");
+  if (!root || !python) throw new Error("ComfyUI isn't on this computer. Use the terminal steps instead.");
   const customNodes = path.join(root, "custom_nodes");
   const target = path.join(customNodes, pack.folder);
   if (!fs.existsSync(target)) {

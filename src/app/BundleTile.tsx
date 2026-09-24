@@ -64,7 +64,7 @@ function BundleTileComponent({ expanded, height, item, onSetCover, onToggle, onU
                 <i><AnimatedNumber value={bundle.count} /></i>
               </span>
               <span className="bundle-open-actions">
-                <Tip content="Ungroup this run - the outputs stay, the stack goes" side="bottom">
+                <Tip content="Ungroup this run" side="bottom">
                   <button
                     type="button"
                     className="bundle-head-button"

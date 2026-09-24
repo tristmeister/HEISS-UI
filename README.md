@@ -40,13 +40,13 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Features
 
-- **Bring your own workflow.** Export any ComfyUI API workflow, map the inputs you care about, and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
+- **Bring your own workflow.** Import any ComfyUI workflow (API or visual JSON) and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
 - **Drop in a model and go.** HEISS reads each model file to tell what it is, uses the settings its makers recommend, and pairs it with a matching text encoder and VAE. If one is missing, it says which and can download it for you.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
 - **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works. Queue the next one, cancel any time.
 - **Image and video.** Separate galleries, plus start-image reuse wherever the workflow supports it.
 - **Private Vault.** An opt-in switch per generation that encrypts the output, prompt and settings behind a password.
-- **Upscale and compare.** Send an image through an upscale workflow, then drag a slider across it to see what changed.
+- **Upscale and compare.** Upscale any image in one click with SeedVR2, then drag a slider across it to see what changed.
 - **LoRA stacks.** Your LoRAs, grouped by folder, stackable per generation.
 - **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
 
@@ -120,7 +120,7 @@ For anything custom, this is the way to go.
    }
    ```
 
-4. Import it under **Settings → Workflows**, or drop it into the `workflows/` folder.
+4. Import it in the **Workflows** panel, or drop it into the `workflows/` folder.
 
 It shows up as soon as the nodes it needs are installed. Only the mapped inputs are touched. Everything else runs exactly as you exported it. The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
 
@@ -206,7 +206,7 @@ Start-Process "http://127.0.0.1:8787/"
 Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only files it ever adds are text encoders or VAEs you choose to download for a model, and those go into ComfyUI's own folders.
 
 **Which models work?**
-Out of the box: Krea 2, Anima, Z-Image, Flux.2 Dev and Klein, Pony V7, Chroma, Qwen-Image, HiDream, SD 3.5, Flux.1, SDXL (including NoobAI, Illustrious and Pony, plus DMD2, Hyper and Lightning merges) and SD 1.5 for images, and MiniMax H3, HunyuanVideo 1.5, Wan 2.2 and Wan 2.1 for video. Both all-in-one checkpoints and model-only files work; HEISS finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+Out of the box: Krea 2, Anima, Z-Image, Flux.2 Dev and Klein, Pony V7, Chroma, Qwen-Image, HiDream, SD 3.5, Flux.1, SDXL (including NoobAI, Illustrious and Pony, plus DMD2, Hyper and Lightning merges) and SD 1.5 for images, and MiniMax H3, HunyuanVideo 1.5, Wan 2.2 and Wan 2.1 for video. Both all-in-one checkpoints and model-only files work; HEISS UI finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
 
 **Where do my images go?**
 Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.

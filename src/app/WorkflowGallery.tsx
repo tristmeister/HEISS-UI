@@ -369,7 +369,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         busy={busy}
         className="wf-import"
         title={importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}
-        description={importStep === "choose" ? "API and visual ComfyUI JSON both work. Nothing is saved until you confirm." : "Check the name and kind. HEISS UI detected the controls; adjust them only if something looks off."}
+        description={importStep === "choose" ? "API and visual ComfyUI JSON both work." : "Check the name and kind. Adjust the controls only if something looks off."}
         footer={importStep === "choose" ? (
           <>
             <button className="btn" disabled={busy} onClick={closeImport}>Cancel</button>

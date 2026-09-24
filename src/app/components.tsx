@@ -351,7 +351,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
             <div className="model-menu-empty">
               <strong>No models to choose from</strong>
               <span>{emptyHint || "ComfyUI has no model HEISS UI can run yet."}</span>
-              {onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { setOpen(false); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"} ComfyUI can’t see` : "Look for my models"}</button> : null}
+              {onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { setOpen(false); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
             </div>
           )}
           {profiles.map((profile) => (
@@ -373,8 +373,8 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
           {onFindModels && profiles.length ? (
             // Always one tap from where people notice a model is missing.
             <button type="button" className={cn("model-menu-find", strayCount > 0 && "has-found")} onClick={() => { setOpen(false); onFindModels(); }}>
-              <span>{strayCount ? `${strayCount} model${strayCount === 1 ? "" : "s"} ComfyUI can’t see` : "Missing a model?"}</span>
-              <em>{strayCount ? "Add" : "Look for it"}</em>
+              <span>{strayCount ? `${strayCount} model${strayCount === 1 ? "" : "s"} found` : "Find more models"}</span>
+              <em>{strayCount ? "Add" : "Search"}</em>
             </button>
           ) : null}
         </div>

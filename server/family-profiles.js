@@ -129,8 +129,8 @@ export function familyProfiles(info, helpers) {
 
     if (!family || !family.sources.includes(source)) {
       fileEntry.reason = knownFamilies[info2.family] && info2.family !== "other"
-        ? `${knownFamilies[info2.family]} is not something HEISS can run yet.`
-        : "HEISS cannot tell what kind of model this is. Pick it below.";
+        ? `${knownFamilies[info2.family]} can’t run in HEISS UI yet.`
+        : "Model type not recognized. Pick it below.";
       continue;
     }
     if (incompatible(name)) {

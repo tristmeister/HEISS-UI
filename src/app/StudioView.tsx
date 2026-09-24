@@ -90,7 +90,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <Tip content={`Group ${pendingBundles.items} outputs from ${pendingBundles.runs} finished run${pendingBundles.runs === 1 ? "" : "s"} into stacks`} side="left">
                 <button type="button" className="dock-chip gallery-tidy" onClick={compactGallery} disabled={compactBusy}>
                   <BrushCleaning size={14} />
-                  <span>{compactBusy ? "Grouping" : "Tidy up"}</span>
+                  <span>{compactBusy ? "Grouping" : "Group runs"}</span>
                   <i className="dock-count"><AnimatedNumber value={pendingBundles.runs} /></i>
                 </button>
               </Tip>
@@ -98,10 +98,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           ) : null}
           {runningCount ? (
             <motion.div key="cancel" {...dockChip}>
-              <Tip content="Cancel all running and queued generations" side="left">
+              <Tip content="Stop all running and queued generations" side="left">
                 <button type="button" className="dock-chip is-cancel" onClick={cancelQueue}>
                   <CircleStop size={14} />
-                  <span>Cancel</span>
+                  <span>Stop</span>
                   <i className="dock-count"><AnimatedNumber value={runningCount} /></i>
                 </button>
               </Tip>
@@ -456,8 +456,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           busy={privacyBusy}
           hideClose
           icon={<LockKeyhole size={17} />}
-          title="Unlock HEISS UI"
-          description="Enter the privacy password to decrypt prompts and private items, or continue to the normal gallery."
+          title="Unlock Private Vault"
+          description="Enter your vault password to see prompts and private items."
           footer={
             <>
               <button className="btn" onClick={view.continueWithoutPrivacy} disabled={privacyBusy}>View normal gallery</button>
@@ -470,8 +470,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             type="password"
             autoComplete="current-password"
             value={privacyPassword}
-            placeholder="Privacy password"
-            aria-label="Privacy password"
+            placeholder="Vault password"
+            aria-label="Vault password"
             onChange={(event) => setPrivacyPassword(event.target.value)}
             onKeyDown={(event) => { if (event.key === "Enter") unlockPrivacy(); }}
             autoFocus
@@ -571,10 +571,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           </div>
                         </div>
                       ) : null}
-                      <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy All Settings</button></Tip>
+                      <Tip content="Copy this output's full settings into the generator"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Copy all settings</button></Tip>
                       <Tip content="Copy this output's LoRA stack into the generator"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Copy LoRAs</button></Tip>
                       {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? (
-                        <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as Reference</button></Tip>
+                        <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
                       ) : null}
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>

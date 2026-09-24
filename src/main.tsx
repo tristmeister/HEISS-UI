@@ -206,7 +206,7 @@ function App() {
     const offSync = subscribeLoraSync((sync: LoraSyncStatus) => {
       if (sync.failing && sync.pending > 0 && !loraSyncFailing.current) {
         showToast(sync.locked
-          ? "LoRA changes are saved on this device. Unlock HEISS UI to sync them."
+          ? "LoRA changes are saved on this device. Unlock Private Vault to sync them."
           : "Could not reach HEISS UI. LoRA changes are saved on this device and sync when it is back.", "error");
       } else if (!sync.failing && loraSyncFailing.current && !sync.pending) {
         showToast("LoRA changes synced", "success");
@@ -592,7 +592,7 @@ function App() {
         body: JSON.stringify({ outputDir })
       });
       setPaths(next);
-      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent gens are not in it" : "Output folder saved", next.report?.state === "mismatch" ? "default" : "success");
+      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent images aren’t in it" : "Output folder saved", next.report?.state === "mismatch" ? "default" : "success");
       loadGallery().catch(() => null);
       return next.report || null;
     } catch (error) {
@@ -635,9 +635,9 @@ function App() {
       setPrivacyPassword("");
       setPrivacyConfirmPassword("");
       await loadGallery();
-      showToast("Privacy password enabled", "success");
+      showToast("Private Vault is on", "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not enable privacy password", "error");
+      showToast(error instanceof Error ? error.message : "Could not turn on Private Vault", "error");
     } finally {
       setPrivacyBusy(false);
     }
@@ -645,7 +645,7 @@ function App() {
 
   async function unlockPrivacy() {
     if (!privacyPassword) {
-      showToast("Enter the privacy password", "error");
+      showToast("Enter your vault password", "error");
       return;
     }
     setPrivacyBusy(true);
@@ -659,7 +659,7 @@ function App() {
       setPrivacyGateDismissed(false);
       setPrivacyPassword("");
       await loadGallery();
-      showToast("Privacy unlocked", "success");
+      showToast("Vault unlocked", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Unlock failed", "error");
     } finally {
@@ -675,9 +675,9 @@ function App() {
       setPrivacyGateDismissed(false);
       setActive(null);
       await loadGallery();
-      showToast("Privacy locked", "success");
+      showToast("Vault locked", "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not lock privacy", "error");
+      showToast(error instanceof Error ? error.message : "Could not lock the vault", "error");
     } finally {
       setPrivacyBusy(false);
     }
@@ -702,8 +702,8 @@ function App() {
   async function installUpdate() {
     const release = Boolean(updateStatus?.release);
     if (!await confirmAction(release
-      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads it${updateStatus?.size ? ` (${formatUpdateBytes(updateStatus.size)})` : ""}, checks it against its published checksum and installs it when HEISS UI restarts. Your gallery, settings and models stay where they are, and the current version is kept in case the new one does not start.`, action: "Download update" }
-      : { title: "Update HEISS UI?", description: "This pulls the latest code, installs dependencies, and rebuilds this checkout.", action: "Install update" })) return;
+      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads${updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : " the update"} and installs it when HEISS UI restarts.`, action: "Download update" }
+      : { title: "Update HEISS UI?", description: "Pulls the latest code, installs packages and rebuilds.", action: "Install update" })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
@@ -715,7 +715,7 @@ function App() {
       if (data.updated) {
         try { localStorage.setItem(updateInstalledKey, JSON.stringify({ at: Date.now() })); } catch { /* the success toast just won't show */ }
       }
-      showToast(data.updated ? "Update installed. Restart the server to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
+      showToast(data.updated ? "Update installed. Restart HEISS UI to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Update failed", "error");
     } finally {
@@ -939,7 +939,7 @@ function App() {
   const generateDisabled = !currentProfile || modelSetupMissing || missingRequiredReference;
   const generateDisabledReason = missingRequiredReference ? `${missingReferenceInput?.label || "Reference image"} is required`
     : modelMissingParts.length ? `Needs ${modelMissingParts.map((item) => item.label).join(", ")}`
-    : modelSetupMissing ? "Model setup is missing required files"
+    : modelSetupMissing ? "This model needs files first"
     : !currentProfile ? "Choose a workflow" : undefined;
   const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
 
