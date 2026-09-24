@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-24
+
 ### Added
 - NVIDIA Sana runs built in. With the ComfyUI_ExtraModels custom nodes
   installed, SANA 1.5 (1.6B, 4.8B), SANA Sprint, the 2K/4K models and the
@@ -211,6 +213,7 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/tristmeister/HEISS-UI/releases/tag/v0.2.0
