@@ -10,6 +10,47 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **Works on a phone.** The viewer closes with a corner button, a swipe down,
+  a tap beside the picture or Back, and swipes sideways between images. The
+  workflow menu, composer settings and tile actions all fit and stay on
+  screen; the composer rides above the keyboard; controls clear notches and
+  are big enough for a finger; landscape phones get a layout of their own.
+- **The ComfyUI address is a setting.** Settings › Connection tests and saves
+  it (ComfyUI Desktop on port 8000 no longer needs `.env` edits), and the
+  offline screen shows where it is looking.
+- **Other devices, explained.** Settings shows whether the studio listens on
+  the network, every address to open, and how to turn it on. A phone that
+  connects before Hidden is set up is told to finish setup on the computer.
+- **Seeds are recorded,** so "Apply these settings" makes the same image
+  again. A fixed seed shows as a chip in the composer, one tap from random.
+- **Undo** for deletes (six seconds before the file goes), for moving to
+  Hidden and for "Apply these settings".
+- A **Models** section in Settings, a **keyboard shortcuts** list, arrow keys
+  through the gallery, a "(n)" in the tab title when runs finish in the
+  background, and a one-click install for the face detail pass's nodes.
+
+### Changed
+- **Deleting says what it does.** Deletes and "Delete all finished images"
+  (was "Clear gallery") state that files leave the disk; anything permanent
+  asks even with confirmations off; Backspace no longer deletes.
+- Setup explains itself: missing workflow files are named with the folder
+  they go in, downloads check free space and name full disks and gated files,
+  Manager 4 gets its own install steps, Restart ComfyUI asks when work would
+  stop, and Hidden can be set up while ComfyUI is offline.
+- Keyboard and screen readers: the viewer is a proper dialog, the closed
+  sidebar leaves the tab order, pickers, steppers and tabs follow the arrow
+  keys, and generation progress is announced.
+
+### Fixed
+- Clicking just beside a tile's Delete button opened the viewer instead.
+- Tiles no longer reshuffle between columns when a new result lands.
+- One dropped request no longer marks every running generation as failed.
+- A failed delete no longer vanishes from the screen; Stop only removes a
+  tile once ComfyUI confirmed it.
+- Model setup now notices a ComfyUI on another computer before a download
+  is tried.
+
 ## [0.5.3] - 2026-09-24
 
 ### Changed
