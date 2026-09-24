@@ -60,6 +60,8 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // "Set up anyway" while ComfyUI is offline: stay on the steps instead of bouncing back.
+  const [offlineOk, setOfflineOk] = useState(false);
   const passwordRef = useRef<HTMLInputElement>(null);
   const label = support?.label || "Touch ID";
 
@@ -67,6 +69,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
   useEffect(() => {
     if (!setupOpen) return;
     setStep(status?.enabled ? "biometric" : comfyOnline ? "intro" : "offline");
+    setOfflineOk(false);
     setPassword("");
     setConfirm("");
     setError("");
@@ -83,7 +86,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
   useEffect(() => {
     if (!setupOpen || status?.enabled) return;
     if (comfyOnline && step === "offline") { hidden.refresh(); setStep("intro"); }
-    if (!comfyOnline && (step === "intro" || step === "password")) setStep("offline");
+    if (!comfyOnline && !offlineOk && (step === "intro" || step === "password")) setStep("offline");
   }, [comfyOnline, setupOpen]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!setupOpen || step !== "offline") return;
@@ -144,7 +147,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     : "Open it from the lock in the dock. Anything you generate there stays hidden.";
 
   const copy: Record<Step, { title: string; description: string }> = {
-    offline: { title: "Waiting for ComfyUI", description: "Hidden needs ComfyUI’s output folder to remove its copies of what you hide. Start ComfyUI to continue." },
+    offline: { title: "Waiting for ComfyUI", description: "Hidden removes ComfyUI’s copies of what you hide, so it works best with ComfyUI running. You can create the password now and start ComfyUI later." },
     intro: { title: "Hidden", description: "Images you keep to yourself, encrypted on this computer." },
     password: { title: "Choose a password", description: "Works on any device, and whenever Touch ID or Windows Hello doesn’t." },
     biometric: { title: `Unlock with ${label}`, description: support?.available ? `Unlock without typing. Your password still works.` : support?.reason || "Checking this device…" },
@@ -159,8 +162,9 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     body = <Watcher lastChecked={lastChecked}>Waiting for ComfyUI{comfyUrl ? <> at <code>{comfyUrl.replace(/^https?:\/\//, "")}</code></> : null}</Watcher>;
     footer = (
       <>
-        <button className="btn is-ghost" onClick={close}>Later</button>
+        <button className="btn is-ghost" onClick={close}>Not now</button>
         <button className="btn" onClick={() => { onRecheck(); setLastChecked(Date.now()); }}>Check again</button>
+        <button className="btn is-primary" onClick={() => { setOfflineOk(true); setStep("intro"); }}>Set up anyway</button>
       </>
     );
   } else if (step === "intro") {

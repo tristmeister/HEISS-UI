@@ -27,6 +27,22 @@ export const nodePacks = {
     nodes: ["SanaCheckpointLoader", "GemmaLoader", "SanaTextEncode", "GemmaTextEncode", "ExtraVAELoader"],
     note: "Install it by Git URL: Manager's search finds the older city96 original."
   },
+  impactpack: {
+    name: "ComfyUI Impact Pack",
+    repository: "https://github.com/ltdrdata/ComfyUI-Impact-Pack.git",
+    folder: "ComfyUI-Impact-Pack",
+    search: "Impact Pack",
+    manager: "comfyui-impact-pack",
+    nodes: ["FaceDetailer", "SAMLoader"]
+  },
+  impactsubpack: {
+    name: "ComfyUI Impact Subpack",
+    repository: "https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git",
+    folder: "ComfyUI-Impact-Subpack",
+    search: "Impact Subpack",
+    manager: "comfyui-impact-subpack",
+    nodes: ["UltralyticsDetectorProvider"]
+  },
   comfyui_sana: {
     name: "ComfyUI-SANA",
     repository: "https://github.com/geoffitect/ComfyUI-SANA.git",

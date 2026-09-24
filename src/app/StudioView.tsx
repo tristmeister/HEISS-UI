@@ -140,6 +140,13 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     setSettings(true);
   }, [setSettings]);
   useHistoryDismiss(Boolean(settings), () => setSettings(false));
+  // Leaving Hidden setup to pick the output folder comes back to setup afterwards.
+  const resumeHiddenSetup = React.useRef(false);
+  React.useEffect(() => {
+    if (settings || !resumeHiddenSetup.current) return;
+    resumeHiddenSetup.current = false;
+    if (!hidden.enabled) hidden.setSetupOpen(true);
+  }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
@@ -601,8 +608,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         showToast={showToast}
       />
       <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
-      <ModelDownloadWidget widget={modelWidget} hidden={upscaleWidget.visible || workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
-      <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { hidden.setSetupOpen(false); openSettings("library"); }} />
+      <ModelDownloadWidget widget={modelWidget} hidden={workflowGalleryOpen} stacked={upscaleWidget.visible} onOpen={() => setWorkflowGalleryOpen(true)} />
+      <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { resumeHiddenSetup.current = true; hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
       {hidden.status?.remote && !hidden.status.enabled ? (
         // Another device, before Hidden exists: the server refuses everything,

@@ -266,7 +266,7 @@ export type UpscaleStatus = {
   substituting: boolean;
   fallbackFile?: string;
   ready: boolean;
-  faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
+  faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[]; setup?: Array<NodeInstallPlan & { manager: boolean; pack: NodePackInfo; autoInstall?: PackAutoInstall }> };
   install: UpscaleInstall;
   /** Only while the nodes are missing: whether Manager is on, and the terminal route otherwise. */
   nodeSetup?: NodeInstallPlan & { manager: boolean; pack?: NodePackInfo; autoInstall?: PackAutoInstall };

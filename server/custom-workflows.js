@@ -223,6 +223,15 @@ const loaderOptionKeys = {
   UpscaleModelLoader: ["model_name"]
 };
 
+/** What each loader reads, in words, and the models subfolder ComfyUI reads it from. */
+const loaderKinds = {
+  UNETLoader: ["diffusion model", "diffusion_models"],
+  CheckpointLoaderSimple: ["checkpoint", "checkpoints"],
+  CLIPLoader: ["text encoder", "text_encoders"],
+  VAELoader: ["VAE", "vae"],
+  UpscaleModelLoader: ["upscale model", "upscale_models"]
+};
+
 function schemaOptions(info, classType, input) {
   const definition = info?.[classType]?.input?.required?.[input];
   if (!Array.isArray(definition)) return [];
@@ -240,7 +249,10 @@ export function workflowOptionIssues(workflow, info = {}) {
       const selected = node.inputs?.[key];
       if (!selected) continue;
       const options = schemaOptions(info, node.class_type, key);
-      if (!options.includes(selected)) issues.push(`${node.class_type} ${id} cannot find ${selected}`);
+      if (options.includes(selected)) continue;
+      // Said as the file and where it goes; node ids mean nothing outside the graph editor.
+      const [kind, folder] = loaderKinds[node.class_type] || ["file", "models"];
+      issues.push(`Missing ${kind}: ${selected}. Put it in ComfyUI’s models/${folder} folder.`);
     }
   }
   return issues;

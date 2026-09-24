@@ -43,7 +43,8 @@ export function useModelDownloadWidget({ onDone, onError }: { onDone: (item: Mod
   };
 }
 
-export function ModelDownloadWidget({ widget, hidden, onOpen }: { widget: ReturnType<typeof useModelDownloadWidget>; hidden?: boolean; onOpen: () => void }) {
+/** `stacked`: the upscale download pill is showing too, so this one sits below it rather than hiding. */
+export function ModelDownloadWidget({ widget, hidden, stacked = false, onOpen }: { widget: ReturnType<typeof useModelDownloadWidget>; hidden?: boolean; stacked?: boolean; onOpen: () => void }) {
   const reduced = useReducedMotion();
   const { mode, active, queued, flash, failed } = widget;
   const received = active?.receivedBytes || 0;
@@ -64,7 +65,7 @@ export function ModelDownloadWidget({ widget, hidden, onOpen }: { widget: Return
       {show ? (
         <motion.div
           key="model-download-widget"
-          className={cn('udw', `is-${mode}`)}
+          className={cn('udw', `is-${mode}`, stacked && 'is-stacked')}
           role="status"
           aria-live="polite"
           initial={reduced ? { opacity: 0 } : { opacity: 0, y: -18, scale: 0.94 }}

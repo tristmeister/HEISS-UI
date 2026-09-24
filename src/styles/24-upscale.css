@@ -529,3 +529,5 @@
 .upscale-restart { margin-top: 10px; }
 .upscale-route-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; background: hsl(var(--muted-foreground) / .14); color: hsl(var(--muted-foreground)); }
 .wf-restart { margin-top: 2px; }
+/* Two downloads at once: the model pill sits under the upscale one. */
+.udw.is-stacked { top: calc(max(14px, env(safe-area-inset-top)) + 64px); }

@@ -92,7 +92,7 @@ export function EmptyStage({ known, offline, device, retrying, onRetry, onOpenCo
               <h2>ComfyUI is offline</h2>
               <p>Start ComfyUI to connect your studio.{comfyUrl ? <> Looking for it at <code className="stage-code">{comfyUrl.replace(/^https?:\/\//, '')}</code>.</> : null}</p>
               <div className="empty-actions">
-                <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? 'Checking…' : 'Retry connection'}</button>
+                <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? 'Checking…' : 'Check again'}</button>
                 <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} /> Change address</button>
               </div>
               <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">Don’t have ComfyUI yet? <ExternalLink size={11} /></a>

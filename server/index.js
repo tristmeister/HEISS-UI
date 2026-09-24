@@ -30,7 +30,8 @@ import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
-import { nodePack } from './node-packs.js';
+import { nodePack, nodePacks } from './node-packs.js';
+import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
@@ -207,10 +208,8 @@ function requireThisComputer(req, res) {
 app.post("/api/privacy/setup", async (req, res) => {
   if (!requireThisComputer(req, res)) return;
   try {
-    if (!demoMode && !(await comfy("/system_stats").then(() => true).catch(() => false))) {
-      res.status(503).json({ ok: false, offline: true, error: "Start ComfyUI first. Hidden needs its output folder." });
-      return;
-    }
+    // Creating the password does not need ComfyUI; hiding images later does, to
+    // remove its copies, and says so then.
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
     if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
     const key = setupPrivacy(req.body?.password || "");
@@ -1113,6 +1112,14 @@ app.get("/api/upscale/status", async (req, res) => {
   const status = upscaleStatus(info, req.query.quality);
   // Only worth the extra round trips while the nodes still need installing.
   if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack("seedvr2"), autoInstall: packInstallRoutes("seedvr2"), ...nodeInstallPlan() };
+  // The face pass has its own two packs; each missing one gets the same install panel.
+  if (!status.faceDetail.nodesInstalled) {
+    const missing = new Set(status.faceDetail.missingNodes);
+    const manager = await managerAvailable();
+    status.faceDetail.setup = ["impactpack", "impactsubpack"]
+      .filter((id) => nodePack(id).nodes.some((node) => missing.has(node)))
+      .map((id) => ({ manager, pack: nodePack(id), autoInstall: packInstallRoutes(id), ...packInstallPlan(nodePacks[id], comfyRootDir(), process.platform) }));
+  }
   res.json({ ok: true, ...status });
 });
 
@@ -1628,7 +1635,18 @@ app.listen(port, host, (error) => {
   const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
   // Under `npm run dev*` the page comes from Vite; this server only answers the API.
   const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
-  printBanner({ version: appVersion, url: `http://${shownHost}:${dev ? 5173 : port}`, comfyUrl });
+  const pagePort = dev ? 5173 : port;
+  Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
+    // Listening beyond this computer: say where a phone can open it.
+    if (host === "0.0.0.0" || host === "::") {
+      const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal);
+      for (const entry of addresses) console.log(`    ➜  Network   http://${entry.address}:${pagePort}`);
+      if (addresses.length) console.log("");
+    }
+    // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
+    const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
+    if (!answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
+  }).catch(() => {});
   // Tells scripts/start.mjs this version runs, so a fresh update is kept.
   process.send?.({ type: "ready", version: appVersion });
 });

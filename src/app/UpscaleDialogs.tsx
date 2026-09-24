@@ -123,7 +123,7 @@ export function UpscaleSetupDialog({
   const fallback = status?.substituting ? status.fallbackFile || "another installed SeedVR2 weight" : "";
   const { title, description } = copyFor(stage, quality, Boolean(pending), fallback);
   const close = setup.closeSetup;
-  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Hide" : "Later"}</button>;
+  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Keep going in the background" : "Not now"}</button>;
   const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} /> Check again</button>;
 
   const missingModels = (status?.models || []).filter((model) => !model.present);

@@ -1,5 +1,6 @@
 import React from 'react';
 import { ComfyRestart } from './ComfyRestart';
+import { NodeInstall } from './NodeInstall';
 import type { ConfirmAction } from './useConfirmation';
 import { Boxes, Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
@@ -164,7 +165,7 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
     return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale is unavailable right now.'}><button className="btn" onClick={onOpenSetup}>Open setup</button></Row>;
   }
   if (!status.nodesInstalled) {
-    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install in ComfyUI Manager."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install of its ComfyUI nodes; Set up offers one click where it can."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
   }
   if (install?.status === 'error' && !status.ready) {
     return <Row label={<Status tone="bad">Download stopped</Status>} description={install.error}><button className="btn is-primary" onClick={onOpenSetup}>Resume</button></Row>;
@@ -567,7 +568,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         {section === 'general' ? (
           <>
             <Group title="Layout">
-              <SwitchRow label="Zen mode" description="A prompt-first fullscreen layout. Press Escape to leave it." checked={prefs.zenMode} onChange={setZenMode} />
+              <SwitchRow label="Zen mode" description="A prompt-first fullscreen layout: one image at a time, the composer below. Leave it with the same switch, the dock’s expand button or Escape." checked={prefs.zenMode} onChange={setZenMode} />
               <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
@@ -620,7 +621,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <>
                 <Group title="Quality">
                   <Row label="Effort" description={effort.detail}>
-                    <Segmented label="Upscale effort" value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label }) => ({ value, label }))} />
+                    <Segmented label="Upscale effort" value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label, scale }) => ({ value, label: `${label} ${scale}` }))} />
                   </Row>
                   <SwitchRow
                     label="Face detail pass"
@@ -631,6 +632,11 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                     disabled={!faceDetailReady}
                     onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
                   />
+                  {!faceDetailReady && upscaleStatus?.faceDetail?.setup?.length ? upscaleStatus.faceDetail.setup.map((setup: NonNullable<NonNullable<typeof upscaleStatus.faceDetail.setup>>[number]) => (
+                    <div className="set-node-install" key={setup.pack.name}>
+                      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart="The face pass turns on here once ComfyUI loads it." />
+                    </div>
+                  )) : null}
                 </Group>
                 <Group title="Status">
                   <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} onDownload={() => upscaleSetup.openSetup(null, { download: true })} />

@@ -630,3 +630,4 @@ button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
   overscroll-behavior: contain;
 }
 .encoder-slot-builtin { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.model-setup-hint { text-transform: none; letter-spacing: 0; font-weight: 450; opacity: .75; }

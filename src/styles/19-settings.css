@@ -371,3 +371,4 @@
 .set-inline-form.is-password { flex-wrap: wrap; }
 .set-inline-form.is-password .modal-input { flex: 1 1 160px; }
 .set-inline-hint { flex-basis: 100%; margin: 0; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.set-node-install { padding: 4px 14px 14px; }

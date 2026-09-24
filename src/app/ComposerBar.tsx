@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, Dices, ChevronUp, CircleDotDashed, Images, Layers, LockKeyhole, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUp, Dices, EyeOff, ChevronUp, CircleDotDashed, Images, Layers, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
@@ -180,7 +180,8 @@ function HiddenChip({ density = "full" }: { density?: ControlDensity }) {
   return (
     <Tip content="New images go into Hidden">
       <span className={cn("hidden-chip", density !== "full" && `is-density-${density}`)} role="status" aria-label="Generating into Hidden">
-        <LockKeyhole size={12} strokeWidth={2.2} aria-hidden="true" />
+        {/* Eye-off, as on Hide: "this lands out of sight". The dock's lock is the place itself. */}
+        <EyeOff size={12} strokeWidth={2.2} aria-hidden="true" />
         {density === "full" ? <span>Hidden</span> : null}
       </span>
     </Tip>

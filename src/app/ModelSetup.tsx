@@ -22,6 +22,12 @@ const partVerb: Record<MissingPart['part'], string> = {
   comfy: 'ComfyUI'
 };
 
+/** One plain line for the parts people new to ComfyUI will not know by name. */
+const partHint: Partial<Record<MissingPart['part'], string>> = {
+  encoder: 'Reads your prompt for the model',
+  vae: 'Turns the model’s result into pixels'
+};
+
 type RowState = 'idle' | 'queued' | 'downloading' | 'paused' | 'error' | 'landed' | 'manual';
 
 /**
@@ -105,7 +111,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
                 {rowState === 'landed' ? <Check size={11} strokeWidth={3} /> : null}
               </span>
               <div className="model-setup-copy">
-                <small>{partVerb[item.part]}</small>
+                <small title={partHint[item.part]}>{partVerb[item.part]}{partHint[item.part] ? <span className="model-setup-hint"> · {partHint[item.part]}</span> : null}</small>
                 <strong>{item.label}</strong>
               </div>
               <div className="model-setup-actions">
@@ -159,6 +165,20 @@ function progressLine(current: ModelDownload, rowState: RowState) {
   return [`${pct}%`, `${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`, speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', eta].filter(Boolean).join(' · ');
 }
 
+/** Throwing away gigabytes takes a second tap: the first one asks, then it resets. */
+function DiscardButton({ file, receivedBytes, onDiscard }: { file: string; receivedBytes: number; onDiscard: () => void }) {
+  const [asking, setAsking] = React.useState(false);
+  React.useEffect(() => {
+    if (!asking) return;
+    const timer = window.setTimeout(() => setAsking(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [asking]);
+  if (asking) {
+    return <button type="button" className="btn is-danger-soft" onClick={() => { setAsking(false); onDiscard(); }}>Discard {formatBytes(receivedBytes) || 'it'}?</button>;
+  }
+  return <button type="button" className="btn is-ghost is-icon" aria-label={`Discard the partial ${file}`} title="Discard" onClick={() => setAsking(true)}><X size={14} /></button>;
+}
+
 function RowActions({ rowState, download, current, remote, run, start, pause, discard }: {
   rowState: RowState;
   download?: MissingPart['downloads'][number];
@@ -182,7 +202,7 @@ function RowActions({ rowState, download, current, remote, run, start, pause, di
     return (
       <>
         <button type="button" className="btn" onClick={() => run(() => start(download.id))}><Play size={13} /> Resume</button>
-        <button type="button" className="btn is-ghost is-icon" aria-label={`Discard the partial ${download.file}`} title="Discard" onClick={() => run(() => discard(download.id))}><X size={14} /></button>
+        <DiscardButton file={download.file} receivedBytes={current?.receivedBytes || 0} onDiscard={() => run(() => discard(download.id))} />
       </>
     );
   }

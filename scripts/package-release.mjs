@@ -68,7 +68,19 @@ const nodeVersion = await bundledNodeVersion();
 let commit = "";
 try { commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root }).toString().trim(); } catch { /* not a checkout */ }
 // Double-click launchers.
-fs.writeFileSync(path.join(target, "Start HEISS UI.command"), "#!/bin/sh\ncd \"$(dirname \"$0\")\" && npm start\n", { mode: 0o755 });
+// Without Node the Terminal window would only say "npm: command not found".
+fs.writeFileSync(path.join(target, "Start HEISS UI.command"), [
+  "#!/bin/sh",
+  "cd \"$(dirname \"$0\")\"",
+  "if ! command -v node >/dev/null 2>&1; then",
+  "  echo \"HEISS UI needs Node.js 20.9 or newer (22 LTS recommended): https://nodejs.org\"",
+  "  echo \"Install it, then open this file again.\"",
+  "  read -r _",
+  "  exit 1",
+  "fi",
+  "npm start",
+  ""
+].join("\n"), { mode: 0o755 });
 // The .bat skips npm: npm.cmd run without `call` never returns, so a `pause`
 // after it never ran and the window closed on any error. The last line is one
 // line on purpose: an update replaces this file while it runs, and cmd reads
@@ -84,7 +96,7 @@ fs.writeFileSync(path.join(target, "Start HEISS UI.bat"), [
   "if defined HEISS_RUNTIME if exist \"runtime\\%HEISS_RUNTIME%\\node.exe\" set \"HEISS_NODE=runtime\\%HEISS_RUNTIME%\\node.exe\"",
   "if not \"%HEISS_NODE%\"==\"node\" goto run",
   "where node >nul 2>nul && goto run",
-  "echo HEISS UI needs Node.js 22 LTS or newer: https://nodejs.org& pause & exit /b 1",
+  "echo HEISS UI needs Node.js 20.9 or newer (22 LTS recommended): https://nodejs.org& pause & exit /b 1",
   ":run",
   "(\"%HEISS_NODE%\" scripts\\start.mjs || pause) & exit /b",
   ""
