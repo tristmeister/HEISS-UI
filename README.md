@@ -56,9 +56,9 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Quick start
 
-You need **Node.js 20.9+** (22 LTS recommended) and a working **ComfyUI** install. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
+You need a working **ComfyUI** install, and on macOS, Linux or from source **Node.js 20.9+** (22 LTS or newer recommended). The Windows download brings its own Node.js. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
 
-**Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS), or run `npm start` in the folder. Everything it needs is inside; only Node.js has to be installed. The plain `heiss-ui-*.zip` is what in-app updates use; on its own, its first start installs three packages, about 30 MB.
+**Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS), or run `npm start` in the folder. Its packages are inside, and the Windows zip brings Node.js too, so on Windows there is nothing else to install; on macOS and Linux, install Node.js first. The plain `heiss-ui-*.zip` is what in-app updates use; on its own, its first start installs three packages, about 30 MB.
 
 On Windows, unpack with **Extract All** first; the launcher does not run from inside the zip. If Windows asks whether to run a downloaded file, right-click the zip › Properties › **Unblock** before unpacking. A plain folder such as `C:\HEISS-UI` works better than a Desktop or Documents folder synced by OneDrive, which can lock files during installs and updates.
 

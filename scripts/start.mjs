@@ -6,9 +6,11 @@
 // Keep this small and stable: an installed copy keeps running its own copy
 // of this file until the next start, while the rest of the app is replaced.
 import { execFileSync, execSync, fork } from "node:child_process";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PORT_IN_USE_CODE, RESTART_CODE, applyPending, confirmApplied, rollback } from "../server/release-swap.js";
+import { pruneRuntimes } from "../server/node-runtime.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const log = (message) => console.log(`\n  ${message}\n`);
@@ -25,12 +27,23 @@ if (process.platform === "win32" && oneDrive && root.toLowerCase().startsWith(on
   log("This copy is inside OneDrive, which can lock files during installs and updates. A folder like C:\\HEISS-UI works better.");
 }
 
+// npm's own script: the one `npm start` ran, else the npm that ships next to this
+// node (Node's Windows zip, which a Windows download brings, and most installs).
+function npmCli() {
+  const candidates = [
+    process.env.npm_execpath,
+    path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js"),
+    path.join(path.dirname(process.execPath), "..", "lib", "node_modules", "npm", "bin", "npm-cli.js")
+  ];
+  return candidates.find((file) => file && /npm-cli\.[cm]?js$/.test(file) && existsSync(file)) || "";
+}
+
 // npm is npm.cmd on Windows, which Node only runs through a shell. Under
 // `npm start` npm's own script is known; the .bat launcher goes through the shell.
 function runNpm(args) {
   const options = { cwd: root, stdio: "inherit" };
-  const cli = process.env.npm_execpath;
-  if (cli && /npm-cli\.[cm]?js$/.test(cli)) return execFileSync(process.execPath, [cli, ...args], options);
+  const cli = npmCli();
+  if (cli) return execFileSync(process.execPath, [cli, ...args], options);
   if (process.platform === "win32") return execSync(`npm ${args.join(" ")}`, options);
   return execFileSync("npm", args, options);
 }
@@ -61,6 +74,9 @@ function runServer(onReady) {
     child.on("exit", (code, signal) => { child = null; resolve({ code, signal, ready }); });
   });
 }
+
+// Node.js runtimes an earlier update left behind (a Windows download's own Node).
+try { pruneRuntimes(root, log); } catch { /* best effort */ }
 
 let trial = null;
 let reinstall = false;

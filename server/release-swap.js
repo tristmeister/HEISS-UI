@@ -17,6 +17,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { activateRuntime } from "./node-runtime.js";
 
 /** Exit code the server uses to ask the supervisor for a restart. */
 export const RESTART_CODE = 75;
@@ -28,7 +29,7 @@ export const RESTART_CODE = 75;
 export const PORT_IN_USE_CODE = 78;
 
 /** Never moved, whatever a release lists. */
-const KEEP = new Set(["data", ".env", "node_modules", ".update", ".git"]);
+const KEEP = new Set(["data", ".env", "node_modules", "runtime", ".update", ".git"]);
 
 /** What releases before the manifest shipped at their top level. */
 const LEGACY_ENTRIES = ["dist", "server", "workflows", "scripts", "package.json", "package-lock.json", "release.json", ".env.example", "README.md", "CHANGELOG.md", "LICENSE", "Start HEISS UI.command", "Start HEISS UI.bat"];
@@ -218,7 +219,7 @@ export function applyPending(root, log = () => {}) {
     throw error;
   }
 
-  const applied = { from, to: pending.version, moved, placed, lockChanged: lockPackages(path.join(root, "package-lock.json")) !== lockBefore };
+  const applied = { from, to: pending.version, node: pending.node || "", moved, placed, lockChanged: lockPackages(path.join(root, "package-lock.json")) !== lockBefore };
   writeJson(path.join(dir, "applied.json"), applied);
   clearStaging(root);
   log(`Updated HEISS UI ${from || "?"} → ${pending.version}`);
@@ -254,6 +255,8 @@ export function confirmApplied(root) {
   if (!applied) return;
   fs.rmSync(file, { force: true });
   removeTree(path.join(updateDir(root), "failed"));
+  // The new version runs: the launcher starts it on the Node it asked for from now on.
+  if (applied.node) activateRuntime(root, applied.node);
   writeResult(root, { ok: true, from: applied.from, to: applied.to });
 }
 

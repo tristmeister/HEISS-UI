@@ -9,12 +9,23 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = JSON.parse(readFileSync(path.join(projectRoot, "package.json"), "utf8"));
 const wantDev = process.argv.includes("--dev");
+// npm's own script: the one `npm start` ran, else the npm that ships next to this
+// node (Node's Windows zip, which a Windows download brings, and most installs).
+function npmCli() {
+  const candidates = [
+    process.env.npm_execpath,
+    path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js"),
+    path.join(path.dirname(process.execPath), "..", "lib", "node_modules", "npm", "bin", "npm-cli.js")
+  ];
+  return candidates.find((file) => file && /npm-cli\.[cm]?js$/.test(file) && existsSync(file)) || "";
+}
+
 // npm is npm.cmd on Windows, which Node (since the CVE-2024-27980 fix) only
 // runs through a shell. Under `npm start` npm's own script is known, so run
 // that with this Node; otherwise (the .bat launcher) go through the shell.
 function runNpm(args, options) {
-  const cli = process.env.npm_execpath;
-  if (cli && /npm-cli\.[cm]?js$/.test(cli)) return execFileSync(process.execPath, [cli, ...args], options);
+  const cli = npmCli();
+  if (cli) return execFileSync(process.execPath, [cli, ...args], options);
   if (process.platform === "win32") return execSync(`npm ${args.join(" ")}`, options);
   return execFileSync("npm", args, options);
 }

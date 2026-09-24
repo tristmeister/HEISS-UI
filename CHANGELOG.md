@@ -16,6 +16,12 @@ section into the next version and uses it as the GitHub release notes.
   already inside, so the first start no longer runs an npm install; only
   Node.js has to be installed. Unpacked on the wrong system, it fetches the
   one piece that differs. In-app updates keep using the small zip.
+- **The Windows download brings its own Node.js** (the current LTS, from
+  nodejs.org, checked against its published checksums), so a Windows PC
+  needs nothing installed besides ComfyUI. The launcher uses it and falls
+  back to a Node.js on PATH. When a release wants a newer Node.js, the
+  in-app update fetches it next to the old one and switches over once the
+  new version has started.
 - Updates no longer reinstall packages when only the version number in the
   lockfile changed.
 

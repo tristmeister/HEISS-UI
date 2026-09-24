@@ -15,6 +15,7 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
+import { fetchRuntime, needsRuntime } from "./node-runtime.js";
 import { RESTART_CODE, checkStaged, clearStaging, readPending, takeResult, updateDir, writePending } from "./release-swap.js";
 
 const execFileAsync = promisify(execFile);
@@ -153,7 +154,16 @@ async function download(root, asset, notesUrl) {
     const problem = checkStaged(unpacked, asset.version);
     if (problem) throw new Error(problem);
 
-    writePending(root, { version: asset.version, dir: unpacked, notesUrl, sha256, downloadedAt: Date.now() });
+    // A Windows download runs its own Node; a release that wants a newer one
+    // gets it fetched beside the current one, switched to once it has started.
+    let node = "";
+    const wantsNode = (() => { try { return JSON.parse(fs.readFileSync(path.join(unpacked, "release.json"), "utf8")).node || ""; } catch { return ""; } })();
+    if (needsRuntime(root, wantsNode)) {
+      state = { status: "downloading", version: asset.version, receivedBytes: 0, totalBytes: 0, part: "Node.js" };
+      node = await fetchRuntime(root, wantsNode, (bytes, total) => { state.receivedBytes += bytes; state.totalBytes = total; });
+    }
+
+    writePending(root, { version: asset.version, dir: unpacked, notesUrl, sha256, node, downloadedAt: Date.now() });
     state = { status: "ready", version: asset.version };
   } catch (error) {
     clearStaging(root);

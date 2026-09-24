@@ -20,7 +20,8 @@ jobs:
 
   # Most users run HEISS UI on Windows. Package a release, unpack the Windows
   # download into a path with spaces, & and parentheses, and start it through
-  # the .bat launcher the way a user would; it must not need an npm install.
+  # the .bat launcher the way a user would, with no Node.js on PATH; it must
+  # not need an npm install either.
   windows:
     runs-on: windows-latest
     steps:
@@ -42,6 +43,9 @@ jobs:
           & "$env:SystemRoot\System32\tar.exe" -xf $zip.FullName -C $dir
           $app = Get-ChildItem $dir -Directory | Select-Object -First 1
           $bat = Join-Path $app.FullName "Start HEISS UI.bat"
+          # Like a PC without Node.js: the download has to start on the Node it brings.
+          $env:Path = ($env:Path -split ';' | Where-Object { $_ -and -not (Test-Path (Join-Path $_ 'node.exe')) }) -join ';'
+          if (Get-Command node -ErrorAction SilentlyContinue) { throw "node is still on PATH" }
           $proc = Start-Process cmd.exe -ArgumentList "/c", "`"`"$bat`"`"" -WorkingDirectory $app.FullName -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP\heiss.log" -RedirectStandardError "$env:RUNNER_TEMP\heiss.err"
           $ok = $false
           for ($i = 0; $i -lt 90; $i++) {
