@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Toaster } from 'sonner';
-import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
@@ -126,7 +126,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     if (!hidden.unlocked && hidden.usablePasskey && hidden.support?.available) hidden.unlockBiometric();
   };
   // Phones get the simplified phone studio, unless someone chose the full one.
-  const phone = usePhone() && !prefs.fullStudioOnPhone;
+  const phoneDevice = usePhone();
+  const phone = phoneDevice && !prefs.fullStudioOnPhone;
   const [phoneCreate, setPhoneCreate] = React.useState(false);
   const [phoneActionsFor, setPhoneActionsFor] = React.useState<GalleryItem | null>(null);
   const openTileActions = React.useCallback((item: GalleryItem) => setPhoneActionsFor(item), []);
@@ -229,6 +230,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <i className="dock-count"><AnimatedNumber value={pendingBundles.runs} /></i>
                 </button>
               </Tip>
+            </motion.div>
+          ) : null}
+          {phoneDevice && prefs.fullStudioOnPhone ? (
+            // Chose the full studio on a phone: the way back stays in plain sight.
+            <motion.div key="simple" {...dockChip}>
+              <button type="button" className="dock-chip" onClick={() => setPrefs({ fullStudioOnPhone: false })}>
+                <Smartphone size={14} />
+                <span>Simple view</span>
+              </button>
             </motion.div>
           ) : null}
           {runningCount ? (

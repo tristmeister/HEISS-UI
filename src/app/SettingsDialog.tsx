@@ -575,7 +575,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Layout">
               <SwitchRow label="Zen mode" description="A prompt-first fullscreen layout: one image at a time, the composer below. Leave it with the same switch, the dock’s expand button or Escape." checked={prefs.zenMode} onChange={setZenMode} />
               <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
-              {phoneDevice ? <SwitchRow label="Simple phone studio" description="Just making, browsing and sharing, laid out for your thumb. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
+              {phoneDevice || prefs.fullStudioOnPhone ? <SwitchRow label="Simple phone studio" description="Just making, browsing and sharing, laid out for your thumb. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
