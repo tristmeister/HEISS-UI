@@ -20,6 +20,7 @@ import { FailurePanel } from './GenerationFailure';
 import { ModelDownloadWidget, useModelDownloadWidget } from './ModelDownloadWidget';
 import { WorkflowGallery } from './WorkflowGallery';
 import { Modal } from './Modal';
+import { OfflineMark } from './OfflineMark';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import type { GalleryItem } from './types';
 
@@ -336,7 +337,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             />
           ) : comfyOffline ? (
             <section className="gallery"><div className="empty is-offline">
-              <img src="/heiss-mark-black.svg" alt="HEISS UI" />
+              <OfflineMark className="offline-mark" />
               <h2>ComfyUI is offline</h2>
               <p>Start ComfyUI to connect your studio.</p>
               <div className="empty-actions">

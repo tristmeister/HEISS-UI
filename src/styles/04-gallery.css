@@ -428,7 +428,14 @@
   background: transparent;
   box-shadow: none;
 }
-.empty.is-offline img {
+.offline-mark {
+  position: relative;
+  width: min(520px, 92%);
+  margin-bottom: 6px;
+  pointer-events: none;
+}
+.offline-mark canvas { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.empty.is-offline .offline-mark-fallback {
   width: 72px;
   height: 72px;
   margin-bottom: 8px;

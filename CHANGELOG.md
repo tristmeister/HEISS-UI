@@ -10,6 +10,12 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Changed
+- The ComfyUI offline screen shows an animated pixel plug that keeps trying
+  to reach its socket, in the same cell style as the wordmark. It pauses when
+  hidden, holds still for reduced motion and falls back to the logo without
+  WebGL.
+
 ### Fixed
 - With ComfyUI offline, HEISS pretended to work: it listed fake "(Demo)"
   models and "generated" placeholder images. It now shows ComfyUI as offline

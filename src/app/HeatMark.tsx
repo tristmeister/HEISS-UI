@@ -29,7 +29,7 @@ const GRID_W = letterCols * SUB + MARGIN_X * 2;
 const GRID_H = ROWS * SUB + BELOW + ABOVE;
 export const heatMarkAspect = `${GRID_W} / ${GRID_H}`;
 
-const COMMON = `
+export const COMMON = `
   precision highp float;
   uniform vec2 uRes;
   uniform float uTime;
