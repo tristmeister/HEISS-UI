@@ -65,7 +65,6 @@ fs.writeFileSync(path.join(target, "release.json"), `${JSON.stringify({ version:
 const zip = path.join(outDir, `${name}.zip`);
 fs.rmSync(zip, { force: true });
 execFileSync("zip", ["-qry", zip, name], { cwd: outDir });
-// Published next to the zip; the in-app updater refuses a download that does not match it.
+// GitHub publishes this same digest for the release asset; the in-app updater checks against it.
 const sha256 = crypto.createHash("sha256").update(fs.readFileSync(zip)).digest("hex");
-fs.writeFileSync(`${zip}.sha256`, `${sha256}  ${name}.zip\n`);
 console.log(`Packaged ${path.relative(root, zip)} (sha256 ${sha256})`);
