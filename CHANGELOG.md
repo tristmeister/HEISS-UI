@@ -10,6 +10,15 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Fixed
+- **Images vanished after switching layout.** Going from the phone studio to
+  the full studio (or back, or into Hidden) left the gallery drawing no tiles
+  until something else redrew it, so fresh images looked missing. The gallery
+  now finds its scroll area from where it sits instead of a reference that
+  still pointed at the previous layout.
+- Demo mode reports ComfyUI as connected, so it can generate its placeholder
+  images again.
+
 ## [0.7.1] - 2026-09-24
 
 ### Added

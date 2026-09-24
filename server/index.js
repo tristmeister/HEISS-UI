@@ -482,6 +482,11 @@ app.get("/api/comfy/status", async (_req, res) => {
       device
     });
   } catch (error) {
+    // Demo mode makes placeholder images without ComfyUI, so to the app it is connected.
+    if (demoMode) {
+      res.json({ connected: true, isMock: true, url: comfyUrl, latencyMs: 0, device: "Demo mode" });
+      return;
+    }
     // A timeout counts here too: this poll is the app asking whether ComfyUI is there.
     noteComfyFetchError(error?.name === "AbortError" ? new Error("timed out") : error);
     const latencyMs = Math.round(performance.now() - startedAt);

@@ -40,6 +40,15 @@ function itemKey(item: GalleryItem) {
   return generationIdentity(item) || item.url || item.outputName || item.filename;
 }
 
+/** The nearest ancestor that scrolls vertically: the gallery's stage in every layout. */
+function scrollParent(node: HTMLElement | null) {
+  for (let current = node?.parentElement || null; current; current = current.parentElement) {
+    const overflow = getComputedStyle(current).overflowY;
+    if (overflow === "auto" || overflow === "scroll") return current;
+  }
+  return null;
+}
+
 function useElementWidth<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
   const [width, setWidth] = useState(0);
@@ -77,6 +86,16 @@ export function VirtualMasonryGallery({
   onDismissUpscaleNotice,
 }: VirtualMasonryGalleryProps) {
   const [containerRef, containerWidth] = useElementWidth<HTMLElement>();
+  // The element that scrolls, found from where the gallery actually sits. The
+  // scrollRef passed in is attached by an ancestor after this gallery's own
+  // layout effects run, so right after a layout switch (phone ↔ full studio) it
+  // still named the previous shell's detached <main>: the virtualizer measured
+  // that as 0px tall and drew no tiles until something re-rendered it.
+  const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
+  React.useLayoutEffect(() => {
+    const next = scrollParent(containerRef.current) || scrollRef.current;
+    setScrollElement((current) => (current === next ? current : next));
+  });
   const safeColumns = Math.max(1, columns);
   const spacing = containerWidth < 620 ? 4 : 7;
   const columnWidth = containerWidth ? Math.floor((containerWidth - spacing * (safeColumns - 1)) / safeColumns) : 240;
@@ -178,6 +197,7 @@ export function VirtualMasonryGallery({
           formatElapsed={formatElapsed}
           openItem={openItem}
           scrollRef={scrollRef}
+          scrollElement={scrollElement}
           setBundleCover={setBundleCover}
           settlingBundles={settlingBundles}
           smartUpscale={smartUpscale}
@@ -220,10 +240,11 @@ function VirtualMasonryColumn({
   upscaleNotices,
   onDismissUpscaleNotice,
   width,
-}: Omit<VirtualMasonryGalleryProps, "columns" | "items"> & { column: GalleryItem[]; spacing: number; width: number }) {
+  scrollElement,
+}: Omit<VirtualMasonryGalleryProps, "columns" | "items"> & { column: GalleryItem[]; spacing: number; width: number; scrollElement: HTMLElement | null }) {
   const virtualizer = useVirtualizer({
     count: column.length,
-    getScrollElement: () => scrollRef.current,
+    getScrollElement: () => (scrollElement?.isConnected ? scrollElement : scrollRef.current),
     estimateSize: (index: number) => estimatedHeight(column[index], width, expandedBundles) + spacing,
     overscan: 8,
     getItemKey: (index: number) => itemKey(column[index]) || index,
