@@ -324,7 +324,6 @@ test("Sana is recognised from its own and diffusers-style weights", () => {
 });
 
 test("Sana presets appear once the ExtraModels nodes are in, and runs need nothing else", () => {
-  assert.equal(inferModels(objectInfo()).profiles.some((profile) => profile.family === "sana"), false);
   const presets = ["Efficient-Large-Model/SANA1.5_1.6B_1024px", "Efficient-Large-Model/Sana_Sprint_1.6B_1024px", "Efficient-Large-Model/Sana_1600M_4Kpx_BF16", "Efficient-Large-Model/Sana_1600M_512px"];
   const info = objectInfo({ extra: sanaNodes(presets) });
   info.KSampler.input.required.sampler_name[0].push("scm");
@@ -357,5 +356,45 @@ test("a Sana file without the ExtraModels nodes says which pack to install", () 
   const sana = models.profiles.find((profile) => profile.family === "sana");
   assert.equal(sana.ready, false);
   assert.deepEqual(sana.missing.map((item) => item.label), ["ComfyUI_ExtraModels nodes"]);
-  assert.match(sana.missing[0].detail, /git clone https:\/\/github.com\/lawrence-cj\/ComfyUI_ExtraModels/);
+  assert.match(sana.missing[0].install.commands[0].command, /git clone https:\/\/github.com\/lawrence-cj\/ComfyUI_ExtraModels\.git/);
+  assert.equal(sana.missing[0].nodePack.id, "extramodels");
+  assert.equal(models.profiles.filter((profile) => profile.family === "sana").length, 1, "no extra placeholder next to a real Sana file");
+});
+
+test("with no Sana anywhere, one placeholder asks for the pack that fits the machine", () => {
+  const mac = inferModels(objectInfo(), { devices: [{ type: "mps" }] }).profiles.filter((profile) => profile.family === "sana");
+  assert.deepEqual(mac.map((profile) => [profile.source, profile.ready, profile.missing[0].nodePack.id]), [["sana_diffusers", false, "comfyui_sana"]]);
+  const cuda = inferModels(objectInfo(), { devices: [{ type: "cuda" }] }).profiles.filter((profile) => profile.family === "sana");
+  assert.deepEqual(cuda.map((profile) => [profile.displayName, profile.missing[0].nodePack.id]), [["SANA Sprint 0.6B", "extramodels"]]);
+  // ComfyUI-SANA in, but no model folder yet: the weights are what is missing.
+  const noWeights = inferModels(objectInfo({ extra: { SanaModelLoader: list({ model: [["(no diffusers models found)"]] }), SanaGenerate: node() } })).profiles.find((profile) => profile.family === "sana");
+  assert.deepEqual(noWeights.missing.map((item) => item.part), ["model"]);
+  assert.match(noWeights.missing[0].command.commands[0].command, /snapshot_download\('Efficient-Large-Model\/Sana_Sprint_0\.6B_1024px_diffusers'/);
+});
+
+test("ComfyUI-SANA diffusers folders run as one pipeline node", () => {
+  const info = objectInfo({ extra: {
+    SanaModelLoader: list({ model: [["Sana_Sprint_0.6B_1024px_diffusers", "flux-dev-diffusers"]] }),
+    SanaGenerate: list({ width: ["INT", { default: 1024, min: 256, max: 4096, step: 32 }], height: ["INT", { default: 1024, min: 256, max: 4096, step: 32 }], batch_size: ["INT", { default: 1, min: 1, max: 16 }] })
+  } });
+  const sana = inferModels(info).profiles.filter((profile) => profile.family === "sana");
+  assert.deepEqual(sana.map((profile) => [profile.displayName, profile.variant, profile.ready, profile.capabilities.sampler]), [["SANA Sprint 0.6B", "sprint", true, false]]);
+  const graph = familyGraph(sanitizeGenerateBody({ kind: "image", workflow: sana[0].workflow, profileId: sana[0].id, prompt: "a fox", count: 2 }, info));
+  assert.deepEqual(byType(graph, "SanaModelLoader")[0].inputs, { model: "Sana_Sprint_0.6B_1024px_diffusers", device: "auto", dtype: "bfloat16" });
+  const run = byType(graph, "SanaGenerate")[0].inputs;
+  assert.deepEqual([run.prompt, run.steps, run.guidance_scale, run.batch_size, run.width], ["a fox", 2, 4.5, 2, 1024]);
+  assert.equal(byType(graph, "KSampler").length, 0);
+});
+
+test("every node pack is one registry entry, and a missing one comes with both install routes", async () => {
+  const { nodePacks } = await import("./node-packs.js");
+  const { missingPackPart } = await import("./node-install.js");
+  for (const [id, pack] of Object.entries(nodePacks)) {
+    assert.match(pack.repository, /^https:\/\/github\.com\/.+\.git$/, id);
+    assert.ok(pack.folder && pack.nodes.length, id);
+  }
+  assert.equal(missingPackPart({ SanaModelLoader: {}, SanaGenerate: {} }, "comfyui_sana"), null);
+  const part = missingPackPart({}, "seedvr2");
+  assert.deepEqual([part.part, part.nodePack.repository, part.missingNodes.length], ["comfy", nodePacks.seedvr2.repository, 3]);
+  assert.ok(part.install.commands.length >= 1);
 });

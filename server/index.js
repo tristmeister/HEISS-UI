@@ -28,6 +28,7 @@ import { clearVault, compactVaultBundles, deleteVaultItem, dissolveVaultBundle, 
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
+import { nodePack } from './node-packs.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
@@ -839,7 +840,7 @@ app.get("/api/upscale/status", async (req, res) => {
   if (!info) return;
   const status = upscaleStatus(info, req.query.quality);
   // Only worth the extra round trips while the nodes still need installing.
-  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), ...nodeInstallPlan() };
+  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack("seedvr2"), ...nodeInstallPlan() };
   res.json({ ok: true, ...status });
 });
 

@@ -106,7 +106,20 @@ export type Profile = {
 };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number };
-export type MissingPart = { part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[] };
+/** A ComfyUI custom node pack (server/node-packs.js). */
+export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
+/** One command per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
+export type ShellPlan = { commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }> };
+export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: string; python: string; cloned: boolean; needsGit: boolean };
+/**
+ * Something a model still needs. A missing node pack carries `nodePack` and its
+ * terminal `install`; a part fetched outside HEISS carries a `command`.
+ */
+export type MissingPart = {
+  part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
+  nodePack?: NodePackInfo; install?: NodeInstallPlan; missingNodes?: string[];
+  command?: ShellPlan & { target?: string };
+};
 export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number };
 export type DownloadState = { active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
@@ -142,7 +155,7 @@ export type UpdateStatus = {
   release?: boolean; url?: string; size?: number; canInstall?: boolean; supervised?: boolean; download?: UpdateDownload; result?: UpdateResult;
 };
 export type AspectPreset = { label: string; value: string; w: number; h: number };
-export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[] };
+export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[] };
 export type WorkflowSummary = {
   id: string;
   profileId: string;
@@ -251,16 +264,7 @@ export type UpscaleStatus = {
   faceDetail: { nodesInstalled: boolean; missingNodes: string[]; detectors: string[]; samModels: string[] };
   install: UpscaleInstall;
   /** Only while the nodes are missing: whether Manager is on, and the terminal route otherwise. */
-  nodeSetup?: {
-    manager: boolean;
-    exact: boolean;
-    customNodesDir: string;
-    python: string;
-    cloned: boolean;
-    needsGit: boolean;
-    /** One per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
-    commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }>;
-  };
+  nodeSetup?: NodeInstallPlan & { manager: boolean; pack?: NodePackInfo };
 };
 export type UpscaleDownloadPreview = {
   quality: UpscaleQuality;

@@ -24,12 +24,16 @@ section into the next version and uses it as the GitHub release notes.
 ## [0.3.0] - 2026-09-24
 
 ### Added
-- NVIDIA Sana runs built in. With the ComfyUI_ExtraModels custom nodes
-  installed, SANA 1.5 (1.6B, 4.8B), SANA Sprint, the 2K/4K models and the
-  multilingual model show up as ready models; ComfyUI fetches the weights,
-  the Gemma 2 2B text encoder and the DC-AE VAE on first use. Sana files in
-  `checkpoints/` are recognised from their weights, and without the nodes
-  HEISS says which pack to install.
+- NVIDIA Sana runs built in, through either custom node pack. With
+  ComfyUI-SANA (diffusers, runs on Apple Silicon) its model folders in
+  `models/diffusers` show up as ready models. With ComfyUI_ExtraModels (CUDA),
+  SANA 1.5 (1.6B, 4.8B), SANA Sprint, the 2K/4K models and the multilingual
+  model show up, and ComfyUI fetches their weights on first use. Sana files in
+  `checkpoints/` are recognised from their weights.
+- Models that run on custom nodes say so where you pick them, in the sidebar
+  and the workflow library, with the same install steps as smart upscale:
+  through ComfyUI-Manager when it is on, otherwise one terminal command.
+- MODELS.md documents how a new model family gets added.
 
 ### Changed
 - The ComfyUI offline screen shows an animated pixel plug that keeps trying

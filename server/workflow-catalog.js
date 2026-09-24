@@ -171,9 +171,11 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       validation: {
         ok: profile.ready !== false,
         unverified: !online,
-        issues: (profile.missing || []).map((item) => item.detail || item.label),
+        // A missing node pack gets its install steps from the setup panel, not as an issue line.
+        issues: (profile.missing || []).filter((item) => !item.nodePack).map((item) => item.detail || item.label),
         warnings: [],
         missingNodes: [],
+        missingPacks: (profile.missing || []).filter((item) => item.nodePack).map((item) => item.nodePack.name),
         missingFiles: (profile.missing || []).filter((item) => item.part !== "comfy").map((item) => item.label)
       }
     };

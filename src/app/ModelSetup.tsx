@@ -1,7 +1,8 @@
 import React from 'react';
-import { Check, Download, ExternalLink, Pause, Play, RotateCw, X } from 'lucide-react';
+import { Check, Download, ExternalLink, Pause, Play, RefreshCw, RotateCw, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ComfyRestart } from './ComfyRestart';
+import { NodeInstall, ShellCommand } from './NodeInstall';
 import { CellBar } from './UpscaleDialogs';
 import { formatEta } from './UpscaleDownloadWidget';
 import { cn } from './format';
@@ -70,8 +71,14 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const stuck = rows.some((row) => row.rowState === 'landed');
   const fetchable = rows.filter((row) => row.download).length;
 
-  const title = moving ? 'Downloading' : fetchable === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet';
-  const subtitle = profile.encoderBuiltIn === false && profile.source === 'checkpoint'
+  // A missing node pack comes first: nothing else can be checked until ComfyUI has it.
+  const pack = missing.find((item) => item.nodePack)?.nodePack;
+  const manual = rows.some((row) => row.rowState === 'manual');
+  const title = moving ? 'Downloading'
+    : pack ? `Add ${pack.name} to ComfyUI`
+    : fetchable === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet';
+  const subtitle = pack ? `${profile.displayName} runs on custom nodes that ComfyUI does not ship. They install once.`
+    : profile.encoderBuiltIn === false && profile.source === 'checkpoint'
     ? 'This checkpoint ships without everything it needs.'
     : `${profile.displayName} runs once ${missing.length === 1 ? 'this is' : 'these are'} in place.`;
 
@@ -119,6 +126,11 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
             </AnimatePresence>
             {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'} It picks up where it left off.</p> : null}
             {rowState === 'idle' || rowState === 'manual' ? <p className="model-setup-detail">{item.detail}</p> : null}
+            {item.nodePack ? (
+              <NodeInstall pack={item.nodePack} plan={item.install} showToast={showToast} onRestarted={onInstalled} afterRestart={`${profile.displayName} is ready after that.`} />
+            ) : item.command ? (
+              <div className="model-setup-command"><ShellCommand plan={item.command} showToast={showToast} /></div>
+            ) : null}
           </li>
         ))}
       </ul>
@@ -127,6 +139,9 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
           <p>Downloaded and in place, but ComfyUI has not listed it yet. A restart makes it look again.</p>
           <ComfyRestart compact onBack={onInstalled} />
         </div>
+      ) : null}
+      {manual && !moving ? (
+        <button type="button" className="btn is-ghost model-setup-recheck" onClick={onInstalled}><RefreshCw size={13} /> Check again</button>
       ) : null}
       {remote ? <p className="model-setup-note">ComfyUI runs on another computer, so put these files into its models folders there, then rescan.</p> : null}
     </section>

@@ -1,5 +1,6 @@
 import { missingNodes, nodeRange, optionsFor } from './comfy.js';
-import { encoderDownloads, families, knownFamilies, sanaConf, sanaPresets, vaeDownloads } from './family-catalog.js';
+import { encoderDownloads, families, knownFamilies, sanaConf, sanaLabel, sanaPresets, sanaRunnerFor, sanaRunners, vaeDownloads } from './family-catalog.js';
+import { diffusersDownloadPlan, missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
 import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vaeKinds } from './model-components.js';
 
@@ -30,7 +31,6 @@ function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
   if (family.sampling !== "h3") nodes.add(family.latent);
   if (needsEncoderLoader) nodes.add(clipLoaderClass[family.slots.length]);
   if (needsVaeLoader || family.audioVae) nodes.add("VAELoader");
-  if (variant.id === "sprint" && family.sampling === "sana") nodes.add("ScmModelSampling");
   const sampling = variant.modelSampling || family.modelSampling;
   if (sampling) nodes.add(sampling.node);
   if (variant.rawShift) nodes.add("ModelSamplingFlux");
@@ -53,6 +53,27 @@ function legacyProfileId(familyId, source, name) {
   if (familyId === "krea2") return `image:${source === "checkpoint" ? "krea2-checkpoint" : "krea2"}:${name}`;
   if (familyId === "wan22_5b" && source === "unet") return `video:wan:${name}`;
   return "";
+}
+
+/**
+ * The Sana entries beyond checkpoints: ExtraModels presets (the loader lists
+ * them once the pack is in), ComfyUI-SANA's diffusers folders, or, with no Sana
+ * model anywhere, one placeholder on the pack that fits this machine
+ * (ExtraModels on CUDA, ComfyUI-SANA elsewhere) so the setup has a place to show.
+ */
+function sanaFiles(info, checkpoints, cuda) {
+  const presetNames = new Set(optionsFor(info, "SanaCheckpointLoader", "ckpt_name"));
+  const presets = sanaPresets.filter((preset) => !preset.hidden && presetNames.has(preset.name))
+    .map((preset) => ({ source: "sana", name: preset.name, preset }));
+  const folders = optionsFor(info, "SanaModelLoader", "model").filter((name) => /sana/i.test(name))
+    .map((name) => ({ source: "sana_diffusers", name }));
+  if (presets.length || folders.length) return [...presets, ...folders];
+  if (checkpoints.some((name) => classifyModel("checkpoint", name).family === "sana")) return [];
+  // ExtraModels in, but a build without the presets: its local checkpoints are all there is.
+  if (info.SanaCheckpointLoader && !info.SanaModelLoader) return [];
+  const source = info.SanaModelLoader || !cuda ? "sana_diffusers" : "sana";
+  const name = sanaRunners[source].placeholder;
+  return [{ source, name, preset: sanaPresets.find((item) => item.name === name), placeholder: true }];
 }
 
 /**
@@ -82,17 +103,18 @@ export function familyProfiles(info, helpers) {
 
   const profiles = [];
   const modelFiles = [];
-  // Sana presets are names the ExtraModels loader downloads itself, listed only once that pack is in.
-  const sanaNames = new Set(optionsFor(info, "SanaCheckpointLoader", "ckpt_name"));
+  // Sana runs on a custom node pack: presets the ExtraModels loader downloads
+  // itself, or diffusers folders ComfyUI-SANA lists. With neither in sight, one
+  // placeholder says which pack to add (see sanaFiles).
   const files = [
     ...unets.map((name) => ({ source: "unet", name })),
     ...checkpoints.map((name) => ({ source: "checkpoint", name })),
-    ...sanaPresets.filter((preset) => sanaNames.has(preset.name)).map((preset) => ({ source: "sana", name: preset.name, preset }))
+    ...sanaFiles(info, checkpoints, cuda)
   ];
   const lowNoisePartners = new Set();
 
-  for (const { source, name, preset } of files) {
-    const info2 = preset
+  for (const { source, name, preset, placeholder } of files) {
+    const info2 = source.startsWith("sana")
       ? { family: "sana", variant: families.sana.variants.find((item) => !item.match || item.match(name)), via: "preset", bundled: null, detail: null, header: null }
       : classifyModel(source, name);
     const family = families[info2.family];
@@ -103,7 +125,7 @@ export function familyProfiles(info, helpers) {
       choice: family ? (family.variants.length > 1 ? `${info2.family}/${info2.variant?.id}` : info2.family) : "",
       supported: false, reason: "", missing: []
     };
-    if (!preset) modelFiles.push(fileEntry);
+    if (!source.startsWith("sana")) modelFiles.push(fileEntry);
 
     if (!family || !family.sources.includes(source)) {
       fileEntry.reason = knownFamilies[info2.family] && info2.family !== "other"
@@ -130,6 +152,8 @@ export function familyProfiles(info, helpers) {
     }
 
     const variant = info2.variant || family.variants.at(-1);
+    const runner = family.sampling === "sana" ? sanaRunnerFor(source) : null;
+    const diffusersRunner = source === "sana_diffusers";
     // Families with their own loaders fetch encoder and VAE themselves; count them as carried.
     const bundled = family.ownLoaders ? { encoder: true, vae: true, known: true }
       : source === "checkpoint" ? info2.bundled : { encoder: false, vae: false, known: true };
@@ -170,16 +194,25 @@ export function familyProfiles(info, helpers) {
     if (family.pair && !pairModel) {
       missing.push({ part: "model", label: "Low-noise model", detail: `Wan 2.2 14B also needs the matching low-noise file next to ${base} in diffusion_models.`, downloads: [] });
     }
-    const nodes = missingNodes(info, nodesFor(family, variant, !encoderBuiltIn, !bundled.vae));
-    if (family.nodePack && nodes.length) {
-      const { name: pack, repository } = family.nodePack;
-      missing.push({ part: "comfy", label: `${pack} nodes`, detail: `${family.label} runs through the ${pack} custom nodes. Run \`git clone ${repository}\` in ComfyUI/custom_nodes, install its requirements.txt with ComfyUI's Python, then restart ComfyUI.`, downloads: [] });
-    } else if (nodes.length || !clipTypeAvailable(info, family)) {
+    const nodes = runner ? [] : missingNodes(info, nodesFor(family, variant, !encoderBuiltIn, !bundled.vae));
+    // A family that runs on a custom node pack names it (family.pack, or its runner's).
+    const needs = runner || family;
+    const packPart = needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note });
+    if (packPart) {
+      missing.push(packPart);
+    } else if (runner && placeholder && diffusersRunner) {
+      missing.push({
+        part: "model", label: "SANA Sprint 0.6B weights",
+        detail: "ComfyUI-SANA loads Sana from diffusers folders in ComfyUI/models/diffusers. This fetches NVIDIA's Sprint 0.6B (about 7.7 GB) with ComfyUI's own Python:",
+        downloads: [],
+        command: diffusersDownloadPlan(runner.repo)
+      });
+    } else if (!packPart && (nodes.length || !clipTypeAvailable(info, family))) {
       missing.push({ part: "comfy", label: "Newer ComfyUI", detail: `This ComfyUI cannot run ${family.label} yet${nodes.length ? ` (missing ${nodes.join(", ")})` : ""}. Update ComfyUI.`, downloads: [] });
     }
 
     const [width, height] = variant.size || family.size;
-    const latentNode = family.latent === "MiniMaxH3ImageToVideo" ? "MiniMaxH3ImageToVideo" : family.latent;
+    const latentNode = runner ? runner.sizeNode : family.latent;
     const step = family.sizeStep || 8;
     const widthRange = { ...nodeRange(info, latentNode, "width", { default: width, min: 64, max: 8192, step }), step: Math.max(step, 8) };
     const heightRange = { ...nodeRange(info, latentNode, "height", { default: height, min: 64, max: 8192, step }), step: Math.max(step, 8) };
@@ -200,15 +233,18 @@ export function familyProfiles(info, helpers) {
     const profile = buildProfile({
       id: legacyProfileId(info2.family, source, name) || `${family.kind}:${info2.family}:${source}:${name}`,
       kind: family.kind,
-      label: preset ? preset.label : `${prettyModelName(name)} · ${family.label}`,
-      displayName: preset ? preset.label : prettyModelName(name),
-      description: preset ? `NVIDIA ${preset.label}, downloaded by ComfyUI on first use` : `${family.label}${family.variants.length > 1 ? ` ${variant.label}` : ""}${source === "checkpoint" ? " checkpoint" : ""}`,
+      label: sanaLabel(name) && runner ? sanaLabel(name) : `${prettyModelName(name)} · ${family.label}`,
+      displayName: (runner && sanaLabel(name)) || prettyModelName(name),
+      description: preset ? `NVIDIA ${preset.label}, downloaded by ComfyUI on first use`
+        : diffusersRunner ? `${family.label}${variant.id === "sprint" ? " Sprint" : ""} through ComfyUI-SANA`
+        : `${family.label}${family.variants.length > 1 ? ` ${variant.label}` : ""}${source === "checkpoint" ? " checkpoint" : ""}`,
       model: name,
       workflow: `family:${info2.family}`,
       family: info2.family,
       defaults: {
         width, height,
-        steps: variant.defaults.steps, cfg: variant.defaults.cfg,
+        // The diffusers pipeline's flow DPM-solver needs fewer steps than KSampler's Euler.
+        steps: diffusersRunner && variant.id !== "sprint" ? 20 : variant.defaults.steps, cfg: variant.defaults.cfg,
         sampler: pick(samplers, variant.defaults.sampler, samplers.includes("euler") ? "euler" : ""),
         scheduler: pick(schedulers, variant.defaults.scheduler, schedulers.includes("simple") ? "simple" : ""),
         textEncoder: encoderSlots[0]?.default || "",
@@ -231,6 +267,8 @@ export function familyProfiles(info, helpers) {
         textEncoder: encoderSlots.length > 0,
         vae: !family.ownLoaders,
         weightDtype: source === "unet",
+        // ComfyUI-SANA runs the whole diffusers pipeline in one node, with its own scheduler.
+        ...(diffusersRunner ? { sampler: false, scheduler: false } : {}),
         // ComfyUI's LoRA loader cannot patch a model it did not build.
         lora: canUseLoras && !family.ownLoaders,
         startImage: Boolean(family.img2img || family.startImage),

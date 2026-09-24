@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Copy, ExternalLink, FolderOpen, RefreshCw } from 'lucide-react';
+import { Check, ExternalLink, FolderOpen, RefreshCw } from 'lucide-react';
 import { Modal } from './Modal';
-import { ComfyRestart, useComfyManager } from './ComfyRestart';
+import { NodeInstall } from './NodeInstall';
 import { UpscaleHero } from './UpscaleHero';
-import { copyText } from './api';
 import { cn } from './format';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
 import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
 
-const repositoryUrl = "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git";
+// Until the server reports the pack, the same entry as server/node-packs.js.
+const seedvr2Pack = { name: "SeedVR2", repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git", search: "SeedVR2" };
 
 const STEPS = [
   { label: "Nodes", stages: ["checking", "offline", "nodes"] },
@@ -58,126 +58,6 @@ function Watcher({ children, lastChecked }: React.PropsWithChildren<{ lastChecke
       <span>{children}</span>
       {ago !== null ? <em>{ago < 2 ? "just now" : `${ago}s ago`}</em> : null}
     </div>
-  );
-}
-
-function CopyRow({ text, label, block, showToast }: { text: string; label: string; block?: boolean; showToast: (message: string, tone?: "default" | "success" | "error") => void }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    if (!(await copyText(text))) {
-      showToast("Copy failed", "error");
-      return;
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  };
-  return (
-    <div className={cn("upscale-url", block && "is-block")}>
-      <code>{text}</code>
-      <button type="button" className={copied ? "is-copied" : ""} onClick={copy} aria-label={label}>
-        {copied ? <Check size={13} /> : <Copy size={13} />}
-        <span>{copied ? "Copied" : "Copy"}</span>
-      </button>
-    </div>
-  );
-}
-
-/**
- * Two ways in: ComfyUI Manager, or one terminal command. Manager 4 ships
- * switched off (ComfyUI needs --enable-manager), so when ComfyUI does not
- * answer as having it, the terminal route opens first.
- */
-function NodeInstall({ status, showToast, onRestarted }: { status: UpscaleStatus | null; showToast: (message: string, tone?: "default" | "success" | "error") => void; onRestarted: () => void }) {
-  const plan = status?.nodeSetup;
-  const { info: manager } = useComfyManager();
-  const hasManager = manager ? manager.available : plan?.manager !== false;
-  const [route, setRoute] = useState<"manager" | "terminal">(plan && !plan.manager ? "terminal" : "manager");
-  const [shellIndex, setShellIndex] = useState(0);
-  const commands = plan?.commands?.length ? plan.commands : [{ shell: "sh" as const, label: "Terminal", command: `cd ComfyUI/custom_nodes && git clone ${repositoryUrl}` }];
-  const shell = commands[Math.min(shellIndex, commands.length - 1)];
-  const seen = React.useRef(Boolean(plan));
-  // The first report decides the default; after that the choice is the user's.
-  useEffect(() => {
-    if (!plan || seen.current) return;
-    seen.current = true;
-    if (!plan.manager) setRoute("terminal");
-  }, [plan]);
-  // Manager can also turn out missing after the dialog opened; follow that once.
-  const managerSeen = React.useRef(false);
-  useEffect(() => {
-    if (!manager || managerSeen.current) return;
-    managerSeen.current = true;
-    if (!manager.available) setRoute("terminal");
-  }, [manager]);
-  return (
-    <>
-      <div className="upscale-routes" role="tablist" aria-label="How to install">
-        {(["manager", "terminal"] as const).map((value) => (
-          <button key={value} type="button" role="tab" aria-selected={route === value} className={cn(route === value && "is-active")} onClick={() => setRoute(value)}>
-            {value === "manager" ? "ComfyUI Manager" : "Terminal"}
-            {value === "manager" && !hasManager ? <span className="upscale-route-tag">Off</span> : null}
-          </button>
-        ))}
-      </div>
-      {route === "manager" ? (
-        <ol className="upscale-steps">
-          <li>
-            <span className="upscale-step-n">1</span>
-            <div>
-              In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>. Searching the node list for <strong>SeedVR2</strong> works too.
-              {!hasManager ? <p className="upscale-fine">ComfyUI is not answering as having Manager. Newer ComfyUI ships it switched off: start ComfyUI with <code>--enable-manager</code>, or use the terminal instead.</p> : null}
-            </div>
-          </li>
-          <li>
-            <span className="upscale-step-n">2</span>
-            <div>
-              Paste the SeedVR2 repository:
-              <CopyRow text={repositoryUrl} label="Copy the repository URL" showToast={showToast} />
-            </div>
-          </li>
-          <li>
-            <span className="upscale-step-n">3</span>
-            <div>
-              <strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.
-              <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
-            </div>
-          </li>
-        </ol>
-      ) : (
-        <ol className="upscale-steps">
-          <li>
-            <span className="upscale-step-n">1</span>
-            <div>
-              {plan?.cloned
-                ? <>The SeedVR2 folder is already in <code>custom_nodes</code>. If it still does not show up after a restart, its Python packages are missing; this installs them:</>
-                : <>Run this in {commands.length > 1 ? "a terminal" : "Terminal"}. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? " with ComfyUI's own Python" : ""}:</>}
-              {commands.length > 1 ? (
-                <div className="upscale-routes is-small" role="tablist" aria-label="Shell">
-                  {commands.map((item, index) => (
-                    <button key={item.shell} type="button" role="tab" aria-selected={item === shell} className={cn(item === shell && "is-active")} onClick={() => setShellIndex(index)}>{item.label}</button>
-                  ))}
-                </div>
-              ) : null}
-              <CopyRow text={shell.command} label={`Copy the ${shell.label} command`} block showToast={showToast} />
-              {plan?.needsGit ? <p className="upscale-fine">Needs <code>git</code>. Without it, the ComfyUI Manager route does the same.</p> : null}
-              {plan && !plan.exact ? (
-                <p className="upscale-fine">
-                  {plan.customNodesDir ? null : <>Run it from the folder that holds ComfyUI. </>}
-                  If ComfyUI runs from its own environment, swap <code>python</code> for that Python.
-                </p>
-              ) : null}
-            </div>
-          </li>
-          <li>
-            <span className="upscale-step-n">2</span>
-            <div>
-              <strong>Restart ComfyUI</strong> once it finishes. That is it: this dialog moves on by itself.
-              <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
-            </div>
-          </li>
-        </ol>
-      )}
-    </>
   );
 }
 
@@ -267,7 +147,14 @@ export function UpscaleSetupDialog({
   } else if (stage === "nodes") {
     body = (
       <>
-        <NodeInstall status={status} showToast={showToast} onRestarted={() => setup.recheck()} />
+        <NodeInstall
+          pack={status?.nodeSetup?.pack || seedvr2Pack}
+          plan={status?.nodeSetup}
+          managerHint={status?.nodeSetup?.manager}
+          showToast={showToast}
+          onRestarted={() => setup.recheck()}
+          afterRestart="That is it: this dialog moves on by itself."
+        />
         <Watcher lastChecked={setup.lastChecked}>Watching ComfyUI for the SeedVR2 nodes</Watcher>
         {status?.detectedNodes?.length ? (
           <p className="upscale-fine">

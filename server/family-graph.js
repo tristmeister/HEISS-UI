@@ -208,6 +208,16 @@ export function familyGraph(body) {
  * from Hugging Face the first time.
  */
 function sanaGraph({ add, graph, body, variant, seed, width, height, count }) {
+  // ComfyUI-SANA runs the whole diffusers pipeline (encoder, scheduler, VAE) in one node.
+  if (body.source === "sana_diffusers") {
+    const model = [add("SanaModelLoader", { model: body.model, device: "auto", dtype: "bfloat16" }), 0];
+    const images = [add("SanaGenerate", {
+      sana_model: model, prompt: body.prompt || "", negative_prompt: variant.negative === "none" ? "" : body.negative || "",
+      width, height, steps: Number(body.steps || 20), guidance_scale: Number(body.cfg || 4.5), seed, batch_size: count
+    }), 0];
+    add("SaveImage", { images, filename_prefix: "heiss-ui/image" });
+    return graph;
+  }
   const settings = { conf: sanaConf(body.model), dtype: variant.dtype || "BF16", gemmaDevice: "cpu", gemmaDtype: "default", ...body.sana };
   let model = [add("SanaCheckpointLoader", { ckpt_name: body.model, model: settings.conf, dtype: settings.dtype, enable_cfg_passthrough: true }), 0];
   const gemma = [add("GemmaLoader", { model_name: "Efficient-Large-Model/gemma-2-2b-it", device: settings.gemmaDevice, dtype: settings.gemmaDtype }), 0];

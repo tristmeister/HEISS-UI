@@ -603,6 +603,12 @@ button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .model-setup-error { color: rgb(255 140 120); }
 .model-setup-meta { font-size: 11.5px; color: hsl(var(--muted-foreground)); }
 .model-setup-note { margin: 0; font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); }
+/* A missing node pack or an outside download: the shared install steps, indented under their row. */
+.model-setup-item .node-install, .model-setup-command { display: grid; gap: 10px; margin: 10px 0 0 26px; min-width: 0; }
+.model-setup-item .upscale-steps { gap: 12px; font-size: 12px; }
+.model-setup-item .upscale-routes { width: 100%; margin: 0; }
+.model-setup-item .upscale-routes:not(.is-small) button { flex: 1; }
+.model-setup-recheck { justify-self: start; }
 .model-setup-restart { display: grid; gap: 8px; padding: 10px; border-radius: var(--r-item); background: rgb(0 0 0 / .2); }
 .model-setup-restart p { margin: 0; font-size: 11.5px; line-height: 1.45; color: hsl(var(--muted-foreground)); }
 .model-setup.is-gallery { margin-top: 4px; }
