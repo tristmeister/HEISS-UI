@@ -109,7 +109,7 @@ function modelFiles(dir, limit = 400) {
 /** A path shortened with ~ for home. Not on Windows, where people do not read `~\` as their user folder. */
 export function tildePath(dir, home = os.homedir(), platform = process.platform) {
   if (platform === "win32") return dir;
-  return dir === home || dir.startsWith(home + path.sep) ? `~${dir.slice(home.length)}` : dir;
+  return dir === home || dir.startsWith(`${home}/`) ? `~${dir.slice(home.length)}` : dir;
 }
 
 /* ------------------------------------------------------------ ComfyUI */
@@ -419,7 +419,8 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
   if (!report.local) throw new Error("ComfyUI runs on another computer, so HEISS UI can’t change its settings.");
   const chosen = [];
   for (const wanted of paths.map(String)) {
-    const folder = report.folders.find((item) => item.path === wanted);
+    // The same folder can come back spelled differently (case, 8.3 short names on Windows).
+    const folder = report.folders.find((item) => item.path === wanted || samePath(item.path, realpath(wanted)));
     if (folder) chosen.push(folder);
   }
   if (picked) {

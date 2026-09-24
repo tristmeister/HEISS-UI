@@ -405,11 +405,15 @@ test("one-click pack installs only take registry ids, and run locally with Comfy
   const root = path.join(scratch, "ComfyUI");
   assert.deepEqual(packInstallRoutes("seedvr2", root), { manager: true, local: false });
   // A ComfyUI of our own: its venv Python, and the pack already cloned so no git is needed.
-  fs.mkdirSync(path.join(root, ".venv", "bin"), { recursive: true });
-  fs.writeFileSync(path.join(root, ".venv", "bin", "python"), "#!/bin/sh\necho pip \"$@\"\n", { mode: 0o755 });
+  const windows = process.platform === "win32";
+  const python = windows ? path.join(root, ".venv", "Scripts", "python.exe") : path.join(root, ".venv", "bin", "python");
+  fs.mkdirSync(path.dirname(python), { recursive: true });
+  fs.writeFileSync(python, "#!/bin/sh\necho pip \"$@\"\n", { mode: 0o755 });
   fs.mkdirSync(path.join(root, "custom_nodes", "ComfyUI-SANA"), { recursive: true });
   fs.writeFileSync(path.join(root, "custom_nodes", "ComfyUI-SANA", "requirements.txt"), "diffusers\n");
   assert.deepEqual(packInstallRoutes("comfyui_sana", root), { manager: false, local: true });
+  // The stand-in Python is a shell script, which Windows cannot run.
+  if (windows) return;
   const started = await startPackInstall("comfyui_sana");
   assert.equal(started.route, "local");
   let state = started;
