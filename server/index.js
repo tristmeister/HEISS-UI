@@ -7,6 +7,7 @@ import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { printBanner } from './banner.js';
 import { allowLanActions, demoMode, comfy, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
@@ -1229,5 +1230,8 @@ if (fs.existsSync(dist)) {
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 
 app.listen(port, host, () => {
-  console.log(`HEISS UI listening on http://${host}:${port}`);
+  const shownHost = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
+  // Under `npm run dev*` the page comes from Vite; this server only answers the API.
+  const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
+  printBanner({ version: appVersion, url: `http://${shownHost}:${dev ? 5173 : port}`, comfyUrl });
 });

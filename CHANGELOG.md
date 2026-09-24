@@ -15,6 +15,9 @@ section into the next version and uses it as the GitHub release notes.
   to reach its socket, in the same cell style as the wordmark. It pauses when
   hidden, holds still for reduced motion and falls back to the logo without
   WebGL.
+- Starting HEISS UI in a terminal shows the wordmark as a dot mosaic with an
+  ember glow, plus the version and where to open it. It adapts to the
+  terminal: Braille dots or half blocks, true colour, 256 colours or none.
 
 ### Fixed
 - With ComfyUI offline, HEISS pretended to work: it listed fake "(Demo)"
