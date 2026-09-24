@@ -3,10 +3,10 @@ import { Download, Fingerprint, KeyRound, LockKeyhole, Trash2 } from 'lucide-rea
 import { cn } from './format';
 import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import { autoLockChoices, type HiddenState } from './useHidden';
+import type { ConfirmAction } from './useConfirmation';
 import { passwordStrength } from './HiddenSetup';
 
 type Toast = (message: string, tone?: "default" | "success" | "error") => void;
-type ConfirmAction = (options: { title: string; description: string; action: string; destructive?: boolean }) => Promise<boolean>;
 
 function when(value?: string) {
   if (!value) return "";
@@ -77,7 +77,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   };
 
   const erase = async () => {
-    if (!await confirmAction({ title: "Erase Hidden?", description: "Every Hidden image with its prompt and upscale, the password and all passkeys are erased from this computer. This can’t be undone.", action: "Erase Hidden", destructive: true })) return;
+    if (!await confirmAction({ title: "Erase Hidden?", description: "Every Hidden image with its prompt and upscale, the password and all passkeys are erased from this computer. This can’t be undone.", action: "Erase Hidden", destructive: true, irreversible: true })) return;
     try {
       await hidden.erase();
       showToast("Hidden erased", "success");

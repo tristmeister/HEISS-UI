@@ -1,5 +1,6 @@
 import React from 'react';
 import { ComfyRestart } from './ComfyRestart';
+import type { ConfirmAction } from './useConfirmation';
 import { Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
@@ -77,7 +78,7 @@ function SwitchRow({ label, description, checked, onChange, disabled }: { label:
 }
 
 /** Folders ComfyUI reads because HEISS added them, and the way to find more. */
-function ModelFolderSettings({ folders, confirmAction, onOpen }: { folders: ModelFolders; confirmAction: (options: { title: string; description: string; action: string; destructive?: boolean }) => Promise<boolean>; onOpen: () => void }) {
+function ModelFolderSettings({ folders, confirmAction, onOpen }: { folders: ModelFolders; confirmAction: ConfirmAction; onOpen: () => void }) {
   const report = folders.report;
   const stray = (report?.folders || []).reduce((sum, folder) => sum + folder.count, 0);
   const linked = report?.linked || [];
@@ -528,11 +529,11 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Safety">
-              <SwitchRow label="Confirm before removing things" description="Ask before deleting, canceling, resetting or clearing the cache." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
+              <SwitchRow label="Confirm before removing things" description="Ask before deleting or stopping things. Deletes can still be undone for a few seconds, and anything permanent always asks." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
             <Group title="Reset" tone="danger">
-              <Row label="Clear the gallery" description="Remove finished items from what HEISS UI shows.">
-                <button className="btn is-danger-soft" onClick={clearGallery}>Clear gallery</button>
+              <Row label="Delete all finished images" description="Deletes their files from ComfyUI’s output folder, not only from the gallery. Hidden isn’t affected.">
+                <button className="btn is-danger-soft" onClick={clearGallery}>Delete all</button>
               </Row>
               <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
                 <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>

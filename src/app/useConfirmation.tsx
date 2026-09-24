@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
 
-export type ConfirmationOptions = { title: string; description: string; action: string; destructive?: boolean };
+/** `irreversible` confirms even when the "Confirm before removing things" setting is off. */
+export type ConfirmationOptions = { title: string; description: string; action: string; destructive?: boolean; irreversible?: boolean };
 export type ConfirmAction = (options: ConfirmationOptions) => Promise<boolean>;
 export type PromptOptions = { title: string; description?: string; label?: string; initialValue?: string; action?: string; placeholder?: string };
 export type PromptText = (options: PromptOptions) => Promise<string | null>;
@@ -32,7 +33,7 @@ export function useConfirmation(enabled: boolean) {
   useEffect(() => () => { resolveRef.current?.(false); promptResolveRef.current?.(null); }, []);
 
   const confirmAction: ConfirmAction = useCallback((options) => {
-    if (!enabled) return Promise.resolve(true);
+    if (!enabled && !options.irreversible) return Promise.resolve(true);
     if (resolveRef.current) return Promise.resolve(false);
     return new Promise<boolean>((resolve) => {
       resolveRef.current = resolve;
