@@ -10,6 +10,24 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- Sana also runs through ComfyUI-SANA (diffusers, runs on Apple Silicon): its
+  model folders in `models/diffusers` show up as ready models, next to the
+  ComfyUI_ExtraModels route for CUDA.
+- Models that run on custom nodes say so where you pick them, in the sidebar
+  and the workflow library, with an Install button. HEISS asks
+  ComfyUI-Manager to install packs from its list, and installs the rest itself
+  (git clone plus pip with ComfyUI's own Python) when ComfyUI runs on this
+  computer. Smart upscale's SeedVR2 setup uses the same button. The manual
+  steps are still there for a ComfyUI on another machine.
+- MODELS.md documents how a new model family gets added.
+
+### Fixed
+- A finished image whose file would not load (moved, deleted, ComfyUI
+  unreachable) showed the browser's broken-image icon with "Untitled prompt"
+  over the tile. It now shows the tile's unavailable state, and every image
+  with a source that can go missing falls back the same way.
+
 ## [0.3.1] - 2026-09-24
 
 ### Added
@@ -21,28 +39,15 @@ section into the next version and uses it as the GitHub release notes.
   back by itself, with a note in Settings saying so. Copies from 0.3.0 and
   earlier need one manual download to get this.
 
-### Fixed
-- A finished image whose file would not load (moved, deleted, ComfyUI
-  unreachable) showed the browser's broken-image icon with "Untitled prompt"
-  over the tile. It now shows the tile's unavailable state, and every image
-  with a source that can go missing falls back the same way.
-
 ## [0.3.0] - 2026-09-24
 
 ### Added
-- NVIDIA Sana runs built in, through either custom node pack. With
-  ComfyUI-SANA (diffusers, runs on Apple Silicon) its model folders in
-  `models/diffusers` show up as ready models. With ComfyUI_ExtraModels (CUDA),
-  SANA 1.5 (1.6B, 4.8B), SANA Sprint, the 2K/4K models and the multilingual
-  model show up, and ComfyUI fetches their weights on first use. Sana files in
-  `checkpoints/` are recognised from their weights.
-- Models that run on custom nodes say so where you pick them, in the sidebar
-  and the workflow library, with an Install button. HEISS asks
-  ComfyUI-Manager to install packs from its list, and installs the rest itself
-  (git clone plus pip with ComfyUI's own Python) when ComfyUI runs on this
-  computer. Smart upscale's SeedVR2 setup uses the same button. The manual
-  steps are still there for a ComfyUI on another machine.
-- MODELS.md documents how a new model family gets added.
+- NVIDIA Sana runs built in. With the ComfyUI_ExtraModels custom nodes
+  installed, SANA 1.5 (1.6B, 4.8B), SANA Sprint, the 2K/4K models and the
+  multilingual model show up as ready models; ComfyUI fetches the weights,
+  the Gemma 2 2B text encoder and the DC-AE VAE on first use. Sana files in
+  `checkpoints/` are recognised from their weights, and without the nodes
+  HEISS says which pack to install.
 
 ### Changed
 - The ComfyUI offline screen shows an animated pixel plug that keeps trying
