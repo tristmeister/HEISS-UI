@@ -326,7 +326,7 @@ export function familyLabel(profile: Profile | null) {
   return profile.family;
 }
 
-export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full" }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity }) {
+export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "" }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = profiles.find((profile) => profile.id === value) || profiles[0] || null;
@@ -347,6 +347,12 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
         </button></Tip>
       {open ? (
         <div className="model-menu" data-open-surface>
+          {profiles.length ? null : (
+            <div className="model-menu-empty">
+              <strong>No models to choose from</strong>
+              <span>{emptyHint || "ComfyUI has no model HEISS UI can run yet."}</span>
+            </div>
+          )}
           {profiles.map((profile) => (
             <Tip key={profile.id} content={profile.displayName || profile.label}><button
                 type="button"

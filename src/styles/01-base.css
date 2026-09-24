@@ -275,6 +275,9 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   padding: 4px;
   animation: pop 180ms var(--spring);
 }
+.model-menu-empty { display: grid; gap: 3px; padding: 10px 12px 12px; text-align: left; }
+.model-menu-empty strong { font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
+.model-menu-empty span { font-size: 12px; line-height: 1.45; color: hsl(var(--muted-foreground)); }
 .model-option { min-height: 54px; border-color: transparent; background: transparent; }
 .model-option:hover { border-color: transparent; background: hsl(var(--accent)); }
 .model-option.active { background: hsl(var(--primary)); color: hsl(var(--primary-foreground)); }

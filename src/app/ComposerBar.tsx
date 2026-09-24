@@ -264,7 +264,7 @@ export function ComposerBar(props: ComposerBarProps) {
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
-    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} compact badges={profileBadges} density={density} />
+    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} compact badges={profileBadges} density={density} emptyHint={comfyOffline ? "ComfyUI isn't reachable. Start it and your models show up here." : "ComfyUI has no model HEISS UI can run yet. Add one to its models folder, then rescan in Settings."} />
     : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
   const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (
