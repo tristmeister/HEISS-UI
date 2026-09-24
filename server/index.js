@@ -182,6 +182,10 @@ function requireThisComputer(req, res) {
 app.post("/api/privacy/setup", async (req, res) => {
   if (!requireThisComputer(req, res)) return;
   try {
+    if (!demoMode && !(await comfy("/system_stats").then(() => true).catch(() => false))) {
+      res.status(503).json({ ok: false, offline: true, error: "Start ComfyUI first. Hidden sets itself up against it, to find where ComfyUI saves." });
+      return;
+    }
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
     if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
     const key = setupPrivacy(req.body?.password || "");

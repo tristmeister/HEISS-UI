@@ -45,7 +45,7 @@ export function CellBar({ value, tone = "ember" }: { value: number; tone?: "embe
 }
 
 /** "Checked 3s ago" that keeps counting while setup waits on ComfyUI. */
-function Watcher({ children, lastChecked }: React.PropsWithChildren<{ lastChecked?: number }>) {
+export function Watcher({ children, lastChecked }: React.PropsWithChildren<{ lastChecked?: number }>) {
   const [, tick] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => tick((n) => n + 1), 1000);

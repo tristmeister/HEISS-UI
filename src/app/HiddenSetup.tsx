@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, EyeOff, Fingerprint, FolderOpen, LockKeyhole, Sparkles } from 'lucide-react';
 import { Modal } from './Modal';
+import { Watcher } from './UpscaleDialogs';
 import { VaultHero, type VaultHeroStage } from './VaultHero';
 import { cn } from './format';
 import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import type { HiddenState } from './useHidden';
 
-type Step = "intro" | "password" | "biometric" | "scanning" | "ready";
+type Step = "offline" | "intro" | "password" | "biometric" | "scanning" | "ready";
 
 const STEPS: Array<{ label: string; steps: Step[] }> = [
-  { label: "Password", steps: ["intro", "password"] },
+  { label: "Password", steps: ["offline", "intro", "password"] },
   { label: "Unlock", steps: ["biometric", "scanning"] },
   { label: "Ready", steps: ["ready"] }
 ];
@@ -44,8 +45,12 @@ function strengthLabel(value: string) {
   return score > 0.85 ? "Strong" : score > 0.6 ? "Good" : "Fair: longer is stronger";
 }
 
-export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
+export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, onDone, onChooseFolder }: {
   hidden: HiddenState;
+  /** Setup waits for ComfyUI: it has to find where ComfyUI saves before Hidden can clear its copies. */
+  comfyOnline: boolean;
+  comfyUrl?: string;
+  onRecheck: () => void;
   onDone: () => void;
   onChooseFolder: () => void;
 }) {
@@ -61,7 +66,7 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
   // Every opening starts over, unless Hidden already exists and only an unlock method was missing.
   useEffect(() => {
     if (!setupOpen) return;
-    setStep(status?.enabled ? "biometric" : "intro");
+    setStep(status?.enabled ? "biometric" : comfyOnline ? "intro" : "offline");
     setPassword("");
     setConfirm("");
     setError("");
@@ -70,6 +75,22 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
   useEffect(() => {
     if (step === "password") window.setTimeout(() => passwordRef.current?.focus(), 60);
   }, [step]);
+
+  // ComfyUI coming back moves setup on by itself, with the output folder found fresh.
+  const [lastChecked, setLastChecked] = useState(0);
+  const recheck = useRef(onRecheck);
+  recheck.current = onRecheck;
+  useEffect(() => {
+    if (!setupOpen || status?.enabled) return;
+    if (comfyOnline && step === "offline") { hidden.refresh(); setStep("intro"); }
+    if (!comfyOnline && (step === "intro" || step === "password")) setStep("offline");
+  }, [comfyOnline, setupOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!setupOpen || step !== "offline") return;
+    setLastChecked(Date.now());
+    const timer = window.setInterval(() => { recheck.current(); setLastChecked(Date.now()); }, 3000);
+    return () => window.clearInterval(timer);
+  }, [setupOpen, step]);
 
   const close = () => {
     if (busy) return;
@@ -123,6 +144,7 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
     : "Open it from the lock in the dock. Anything you make there goes straight in.";
 
   const copy: Record<Step, { title: string; description: string }> = {
+    offline: { title: "Waiting for ComfyUI", description: "Hidden sets itself up against ComfyUI: it finds where ComfyUI saves, so it can clear ComfyUI's own copy of everything you hide. Setup carries on by itself as soon as ComfyUI is back." },
     intro: { title: "Hidden", description: "A place for the images you would rather keep to yourself: encrypted on this computer, and opened only by you." },
     password: { title: "Choose a password", description: "It opens Hidden on any device and is the way back in if you ever lose Touch ID or Windows Hello." },
     biometric: { title: `Unlock with ${label}`, description: support?.available ? `Open Hidden with ${label} instead of typing. The password keeps working too.` : support?.reason || "Checking what this device can do." },
@@ -133,7 +155,15 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
 
-  if (step === "intro") {
+  if (step === "offline") {
+    body = <Watcher lastChecked={lastChecked}>Waiting for ComfyUI{comfyUrl ? <> at <code>{comfyUrl.replace(/^https?:\/\//, "")}</code></> : null}</Watcher>;
+    footer = (
+      <>
+        <button className="btn is-ghost" onClick={close}>Later</button>
+        <button className="btn" onClick={() => { onRecheck(); setLastChecked(Date.now()); }}>Check now</button>
+      </>
+    );
+  } else if (step === "intro") {
     body = (
       <>
         <ul className="hidden-promises">
@@ -221,7 +251,7 @@ export function HiddenSetupDialog({ hidden, onDone, onChooseFolder }: {
       hero={
         <div className="upscale-hero-wrap hidden-hero-wrap">
           <VaultHero className="upscale-hero hidden-hero" stage={heroStage} progress={step === "password" ? passwordStrength(password) : 0} />
-          {step !== "intro" ? <Stepper step={step} biometricLabel={label} /> : null}
+          {step !== "intro" && step !== "offline" ? <Stepper step={step} biometricLabel={label} /> : null}
         </div>
       }
       title={copy[step].title}
