@@ -49,8 +49,10 @@ export function PhoneSlider({ label, value, min, max, step = 1, onChange, format
 }
 
 /**
- * Haptic feedback where the phone allows it. Android's browsers vibrate;
- * iPhones do not let web pages do so, and this quietly does nothing there.
+ * Haptic feedback where the phone allows it. Android's browsers vibrate.
+ * iPhones have no vibrate API, but Safari (iOS 18+) ticks when a switch
+ * checkbox is toggled, so there we click a hidden one: a single light tick
+ * whatever the kind, and only from inside a tap handler.
  */
 const patterns = {
   tap: 8,
@@ -59,7 +61,28 @@ const patterns = {
   warning: [28, 40, 28]
 } as const;
 
+let iosSwitch: HTMLLabelElement | null = null;
+
+function iosTick() {
+  if (!iosSwitch) {
+    const label = document.createElement('label');
+    label.setAttribute('aria-hidden', 'true');
+    label.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    input.tabIndex = -1;
+    label.appendChild(input);
+    document.body.appendChild(label);
+    iosSwitch = label;
+  }
+  iosSwitch.click();
+}
+
 export function haptic(kind: keyof typeof patterns) {
-  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
-  try { navigator.vibrate(patterns[kind] as number | number[]); } catch { /* not allowed right now */ }
+  if (typeof navigator === 'undefined') return;
+  try {
+    if (typeof navigator.vibrate === 'function') navigator.vibrate(patterns[kind] as number | number[]);
+    else if (typeof document !== 'undefined' && matchMedia('(pointer: coarse)').matches) iosTick();
+  } catch { /* not allowed right now */ }
 }

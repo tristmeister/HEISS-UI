@@ -10,6 +10,11 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **Haptics on iPhone too.** Safari on iOS 18 and later now gives a light
+  tick on the same taps that vibrate on Android (one kind of tick only; iOS
+  has no patterns for web pages).
+
 ## [0.7.2] - 2026-09-24
 
 ### Fixed
