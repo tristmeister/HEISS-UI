@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-09-25
+
 ### Added
 - **Haptics on iPhone too.** Safari on iOS 18 and later now gives a light
   tick on the same taps that vibrate on Android (one kind of tick only; iOS
@@ -566,7 +568,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.3...HEAD
+[0.7.3]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.6.0...v0.7.0
