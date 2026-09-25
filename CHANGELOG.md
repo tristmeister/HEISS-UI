@@ -11,6 +11,10 @@ section into the next version and uses it as the GitHub release notes.
 ## [Unreleased]
 
 ### Fixed
+- **iPhone haptics now actually tick.** iOS 26.5 stopped web pages from
+  ticking from script, so the tap itself now lands on a hidden system switch:
+  Generate, All/None, Select several, Compare, Delete and picking images
+  while selecting. Long press and "image ready" stay silent on iPhone.
 - **Update and restart from another PC again.** With LAN mode on, a trusted
   computer on your local network can once more install updates, restart
   ComfyUI and HEISS UI, and manage models, nodes, folders and workflows, as

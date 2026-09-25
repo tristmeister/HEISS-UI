@@ -834,3 +834,22 @@ body:has(.phone-shell) .hidden-unlock-primary { min-height: 48px; font-size: 16p
   translate: -50% 0;
 }
 .scrim .viewer-stage:has(.viewer-phone-bar) .viewer-side { top: calc(max(10px, env(safe-area-inset-top)) + var(--dock-h) + 8px); }
+
+/* iPhone haptics (HapticTarget): a see-through label over the whole button,
+   its switch hidden. Zero-specificity host rules, so a button that is already
+   positioned keeps its own position. */
+:where(:has(> .haptic-target)) { position: relative; isolation: isolate; }
+.haptic-target {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+.haptic-target input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  visibility: hidden;
+}

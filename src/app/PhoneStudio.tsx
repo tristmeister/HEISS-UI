@@ -8,7 +8,7 @@ import { downloadUrl } from './GalleryTile';
 import { canUpscaleItem } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { ReferenceSlots } from './ReferenceMediaPicker';
-import { haptic } from './phoneControls';
+import { haptic, HapticTarget } from './phoneControls';
 import { Media } from './components';
 import { useFocusTrap } from './useFocusTrap';
 import { useHistoryDismiss } from './useHistoryDismiss';
@@ -242,8 +242,8 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
               ? <button type="button" className="phone-row" onClick={() => run(() => actions.unhide(item))}><Eye size={20} /><span>Move to gallery</span></button>
               : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Hide</span></button>
           ) : null}
-          {onSelect && (item.status === 'done' || item.status === 'error') ? <button type="button" className="phone-row" onClick={() => run(() => onSelect(item))}><CheckCircle2 size={20} /><span>Select several<small>Then save, hide or delete them together</small></span></button> : null}
-          <button type="button" className="phone-row is-danger" onClick={() => run(() => { haptic('warning'); actions.remove(item); })}><Trash2 size={20} /><span>Delete</span></button>
+          {onSelect && (item.status === 'done' || item.status === 'error') ? <button type="button" className="phone-row" onClick={() => run(() => onSelect(item))}><CheckCircle2 size={20} /><span>Select several<small>Then save, hide or delete them together</small></span><HapticTarget /></button> : null}
+          <button type="button" className="phone-row is-danger" onClick={() => run(() => { haptic('warning'); actions.remove(item); })}><Trash2 size={20} /><span>Delete</span><HapticTarget /></button>
         </div>
       ) : null}
     </Sheet>
@@ -263,14 +263,14 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, co
           <span>{item.upscale?.status === 'running' ? 'Stop' : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale'}</span>
         </button>
       ) : null}
-      {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span></button> : null}
+      {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
       {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Again</span></button> : null}
       {done ? (
         item.privateVault
           ? <button type="button" onClick={() => actions.unhide(item)}><Eye size={21} /><span>Unhide</span></button>
           : <button type="button" onClick={() => actions.hide(item)}><EyeOff size={21} /><span>Hide</span></button>
       ) : null}
-      <button type="button" className="is-danger" onClick={() => { haptic('warning'); actions.remove(item); }}><Trash2 size={21} /><span>Delete</span></button>
+      <button type="button" className="is-danger" onClick={() => { haptic('warning'); actions.remove(item); }}><Trash2 size={21} /><span>Delete</span><HapticTarget /></button>
       {/* Info sits in the top corner, opposite Close, so the bar keeps room for actions. */}
       <button type="button" className={cn('viewer-phone-info', showDetails && 'is-on')} aria-pressed={showDetails} aria-label="Details" onClick={onToggleDetails}><Info size={20} /></button>
     </nav>
@@ -346,6 +346,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
           <div className="phone-title"><span>{selectedItems.length ? `${selectedItems.length} selected` : 'Select images'}</span></div>
           <button type="button" className="phone-pill" onClick={() => { haptic('tap'); setSelection(new Set(selectedItems.length === selectable.length ? [] : selectable.map((item) => item.id))); }}>
             {selectedItems.length === selectable.length && selectable.length ? 'None' : 'All'}
+            <HapticTarget />
           </button>
         </header>
       ) : null}
@@ -382,7 +383,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
           {hiddenSpace
             ? <button type="button" disabled={!selectedItems.length} onClick={() => { unhideItems(selectedItems.filter((item) => item.status === 'done')); endSelection(); }}><Eye size={21} /><span>Unhide</span></button>
             : <button type="button" disabled={!selectedItems.length} onClick={() => { hideItems(selectedItems.filter((item) => item.status === 'done')); endSelection(); }}><EyeOff size={21} /><span>Hide</span></button>}
-          <button type="button" className="is-danger" disabled={!selectedItems.length} onClick={async () => { haptic('warning'); await deleteItems(selectedItems); endSelection(); }}><Trash2 size={21} /><span>Delete</span></button>
+          <button type="button" className="is-danger" disabled={!selectedItems.length} onClick={async () => { haptic('warning'); await deleteItems(selectedItems); endSelection(); }}><Trash2 size={21} /><span>Delete</span><HapticTarget /></button>
         </nav>
       ) : null}
 
@@ -400,6 +401,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
             onClick={() => { haptic('tap'); if (quickGo) generate(); else setCreateOpen(true); }}
           >
             {restarting ? <RefreshCw size={20} className="spin" /> : <ArrowUp size={22} strokeWidth={2.4} />}
+            <HapticTarget />
           </button>
         </div>
       ) : null}
@@ -495,6 +497,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
             {restarting ? <><RefreshCw size={18} className="spin" /> Restarting…</>
               : comfyOffline ? <><RefreshCw size={18} className={cn(comfyRetrying && 'spin')} /> {comfyRetrying ? 'Checking…' : 'Check again'}</>
               : <><ArrowUp size={20} strokeWidth={2.4} /> {mode === 'image' && count > 1 ? `Generate ${count}` : 'Generate'}</>}
+            <HapticTarget />
           </button>
         </>
       }

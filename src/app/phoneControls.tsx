@@ -49,10 +49,12 @@ export function PhoneSlider({ label, value, min, max, step = 1, onChange, format
 }
 
 /**
- * Haptic feedback where the phone allows it. Android's browsers vibrate.
- * iPhones have no vibrate API, but Safari (iOS 18+) ticks when a switch
- * checkbox is toggled, so there we click a hidden one: a single light tick
- * whatever the kind, and only from inside a tap handler.
+ * Haptic feedback where the phone allows it. Android's browsers vibrate, so
+ * haptic() does it from the handler. iPhones have no vibrate API and, since
+ * iOS 26.5, no script-triggered tick either: only a real tap that toggles a
+ * switch checkbox ticks. So on iPhones, buttons that should tick carry a
+ * <HapticTarget />, one light tick whatever the kind; haptics without a tap
+ * behind them (long press, an image landing) stay silent there.
  */
 const patterns = {
   tap: 8,
@@ -61,25 +63,28 @@ const patterns = {
   warning: [28, 40, 28]
 } as const;
 
-// The same steps as the known-working ios-haptics trick: a fresh, hidden
-// switch in <head>, its label clicked, then removed.
-function iosTick() {
-  const label = document.createElement('label');
-  label.setAttribute('aria-hidden', 'true');
-  label.style.display = 'none';
-  const input = document.createElement('input');
-  input.type = 'checkbox';
-  input.setAttribute('switch', '');
-  label.appendChild(input);
-  document.head.appendChild(label);
-  label.click();
-  label.remove();
+export function haptic(kind: keyof typeof patterns) {
+  if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+  try { navigator.vibrate(patterns[kind] as number | number[]); } catch { /* not allowed right now */ }
 }
 
-export function haptic(kind: keyof typeof patterns) {
-  if (typeof navigator === 'undefined') return;
-  try {
-    if (typeof navigator.vibrate === 'function') navigator.vibrate(patterns[kind] as number | number[]);
-    else if (typeof document !== 'undefined' && matchMedia('(pointer: coarse)').matches) iosTick();
-  } catch { /* not allowed right now */ }
+const switchHaptics = typeof window !== 'undefined'
+  && typeof navigator.vibrate !== 'function'
+  && /iPhone|iPod/.test(navigator.userAgent)
+  && window.matchMedia('(pointer: coarse)').matches;
+
+/**
+ * A see-through label over its button (the button's last child) with a hidden
+ * switch inside. The tap lands on the label, which iOS turns into a trusted
+ * click on the switch: that ticks. The label's own click still reaches the
+ * button's onClick; the switch's forwarded one is stopped so it does not run
+ * twice. A label has no touch handling of its own, so scrolling still works.
+ */
+export function HapticTarget() {
+  if (!switchHaptics) return null;
+  return (
+    <label className="haptic-target" aria-hidden="true">
+      <input type="checkbox" tabIndex={-1} ref={(input) => { input?.setAttribute('switch', ''); }} onClick={(event) => event.stopPropagation()} />
+    </label>
+  );
 }

@@ -13,6 +13,7 @@ import { UpscaleNoticePopover } from './UpscaleNotice';
 import { useHiddenActions } from './hiddenContext';
 import type { UpscaleNotice } from './useUpscale';
 import { useDismiss } from './useDismiss';
+import { HapticTarget } from './phoneControls';
 
 /**
  * The phone studio's tiles: no corner buttons, a long press opens the tile's
@@ -198,6 +199,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
           <strong>{titleFromPrompt(item.prompt || item.filename)}</strong>
           <em>{item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.status === "error" ? "Failed" : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>
         </span>
+        {selecting && selectable ? <HapticTarget /> : null}
       </button>
       {/* Controls are siblings of the tile's button, never inside it: a button
           inside a button is invalid and unreachable by keyboard. */}
