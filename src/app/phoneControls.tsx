@@ -61,22 +61,19 @@ const patterns = {
   warning: [28, 40, 28]
 } as const;
 
-let iosSwitch: HTMLLabelElement | null = null;
-
+// The same steps as the known-working ios-haptics trick: a fresh, hidden
+// switch in <head>, its label clicked, then removed.
 function iosTick() {
-  if (!iosSwitch) {
-    const label = document.createElement('label');
-    label.setAttribute('aria-hidden', 'true');
-    label.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;';
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.setAttribute('switch', '');
-    input.tabIndex = -1;
-    label.appendChild(input);
-    document.body.appendChild(label);
-    iosSwitch = label;
-  }
-  iosSwitch.click();
+  const label = document.createElement('label');
+  label.setAttribute('aria-hidden', 'true');
+  label.style.display = 'none';
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.setAttribute('switch', '');
+  label.appendChild(input);
+  document.head.appendChild(label);
+  label.click();
+  label.remove();
 }
 
 export function haptic(kind: keyof typeof patterns) {
