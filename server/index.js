@@ -201,13 +201,18 @@ function sessionSeconds(req) {
 
 /**
  * Looking after the computer (model folders and downloads, node installs,
- * ComfyUI's address and restarts, the output folder, updates, workflow files,
- * the Hidden password) happens at that computer. Other devices on the network
- * are for making and looking at images; the app hides these there too.
+ * ComfyUI's address and restarts, the output folder, updates, workflow files)
+ * happens at that computer, or from a trusted local network when LAN mode is
+ * on (those requests have already passed the Hidden unlock). Anywhere else
+ * the server refuses them and the app hides them.
  */
+function canAdmin(req) {
+  return isTrustedClient(req.socket.remoteAddress || "");
+}
+
 function requireAdmin(req, res) {
-  if (isLocalClient(req.socket.remoteAddress || "")) return true;
-  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on." });
+  if (canAdmin(req)) return true;
+  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on, or from its local network with LAN mode on." });
   return false;
 }
 
@@ -453,9 +458,9 @@ const serverStartedAt = Date.now();
 app.get("/api/health", async (req, res) => {
   try {
     const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: isLocalClient(req.socket.remoteAddress || "") });
+    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req) });
   } catch (error) {
-    res.status(503).json({ ok: false, thisComputer: isLocalClient(req.socket.remoteAddress || ""), restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
+    res.status(503).json({ ok: false, thisComputer: canAdmin(req), restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
 });
 

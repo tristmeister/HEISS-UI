@@ -10,6 +10,13 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Fixed
+- **Update and restart from another PC again.** With LAN mode on, a trusted
+  computer on your local network can once more install updates, restart
+  ComfyUI and HEISS UI, and manage models, nodes, folders and workflows, as
+  before 0.7.1. Creating or erasing the Hidden password still happens on
+  the computer HEISS UI runs on.
+
 ## [0.7.3] - 2026-09-25
 
 ### Added

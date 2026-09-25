@@ -3,10 +3,11 @@ import { useEffect, useState } from 'react';
 /**
  * Two facts about the device in front of the studio, shared app-wide:
  *
- *   thisComputer  the page is open on the computer HEISS UI runs on. Only
- *                 there can it look after that computer (folders, downloads,
- *                 installs, restarts, updates); the server refuses those from
- *                 other devices, and the app hides them there.
+ *   thisComputer  the page may look after the computer HEISS UI runs on
+ *                 (folders, downloads, installs, restarts, updates): it is
+ *                 open on that computer, or on its trusted local network with
+ *                 LAN mode on. Elsewhere the server refuses those, and the
+ *                 app hides them.
  *   phone         a touch phone, which gets the simplified phone studio
  *                 unless someone chose the full one.
  */
