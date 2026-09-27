@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-09-27
+
 > Updates show up right away, and Hidden keeps clear of tiles
 
 ### Fixed
@@ -652,7 +654,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.5...v0.8.0
 [0.7.5]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.3...v0.7.4
