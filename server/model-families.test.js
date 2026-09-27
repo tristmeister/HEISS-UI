@@ -566,3 +566,24 @@ test("Qwen-Image 2.1 is read from its weights, and weights nothing knows yet let
   assert.deepEqual([classifyModel("unet", "qwenImage21_future_layout.safetensors").family, classifyModel("unet", "qwenImage21_future_layout.safetensors").via], ["qwen_image_21", "name"]);
   assert.equal(classifyModel("unet", "mystery_model.safetensors").family, "other");
 });
+
+test("Qwen-Image 2.1 edits: references go into its encoder, and its latent frames the result", async () => {
+  const { referenceSlots } = await import("./family-profiles.js");
+  const slots = referenceSlots(3);
+  assert.deepEqual(slots.map((slot) => [slot.id, slot.follows || ""]), [["reference", ""], ["reference_2", "reference"], ["reference_3", "reference_2"]]);
+
+  const base = { family: "qwen_image_21", variant: "standard", source: "unet", model: "qwen_image_2.1_int8_convrot.safetensors", encoders: ["qwen3vl_8b_int8_convrot.safetensors"], vae: "qwen_image_2.1_vae_bf16.safetensors", prompt: "make it night", width: 1024, height: 1024, steps: 25, cfg: 1, seed: 1 };
+  const edit = familyGraph({ ...base, count: 2, referenceImages: ["street.png", "moon.png"] });
+  const encoder = Object.values(edit).find((node) => node.class_type === "TextEncodeQwenImage21");
+  const loaded = (ref) => edit[ref[0]].inputs.image;
+  assert.deepEqual([loaded(encoder.inputs["images.image_1"]), loaded(encoder.inputs["images.image_2"])], ["street.png", "moon.png"]);
+  assert.equal(encoder.inputs.resolution, 1024);
+  const sampler = Object.values(edit).find((node) => node.class_type === "KSampler");
+  const repeat = edit[sampler.inputs.latent_image[0]];
+  assert.equal(repeat.class_type, "RepeatLatentBatch");
+  assert.equal(edit[repeat.inputs.samples[0]].class_type, "TextEncodeQwenImage21");
+
+  const plain = familyGraph(base);
+  assert.ok(!Object.values(plain).some((node) => node.class_type === "LoadImage"), "no references, no images");
+  assert.equal(plain[Object.values(plain).find((node) => node.class_type === "KSampler").inputs.latent_image[0]].class_type, "EmptyLatentImage");
+});

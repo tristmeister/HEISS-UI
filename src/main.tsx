@@ -1029,6 +1029,8 @@ function App() {
     ? [{ slot: referenceInput.id, asset: referenceAsset }, ...referenceAssets]
     : referenceAssets;
   const canUseStartImage = Boolean(referenceInput);
+  const visibleReferenceInputs = referenceInputs.filter((input) => !input.follows
+    || composerReferenceAssets.some((item) => item.slot === input.follows || item.slot === input.id));
   const widthMeta = currentProfile?.constraints?.width || {};
   const heightMeta = currentProfile?.constraints?.height || {};
   /* Workflows may declare that a reference image dictates the output framing
@@ -1283,7 +1285,7 @@ function App() {
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;
-  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs, referenceStrength };
+  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceStrength };
   return (
     <>
       <StudioView view={view} />

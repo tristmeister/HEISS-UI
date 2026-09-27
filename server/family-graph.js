@@ -172,10 +172,17 @@ export function familyGraph(body) {
   const negativeText = `${variant.negativePrefix || ""}${body.negative || ""}`;
   let positive;
   let negative = null;
+  // An edit: the latent the encoder made on the first reference's framing.
+  let editLatent = null;
   if (negativeMode === "qwen21") {
-    const encoded = add("TextEncodeQwenImage21", { clip, prompt: body.prompt || "", negative_prompt: body.negative || "", vae, resolution: 1024 });
+    const references = family.references ? (body.referenceImages || []).slice(0, family.references) : [];
+    // Its growable "images" input takes images.image_1, images.image_2, …; the picked size sets the pixel count.
+    const images = Object.fromEntries(references.map((name, index) => [`images.image_${index + 1}`, [add("LoadImage", { image: name }), 0]]));
+    const resolution = references.length ? Math.max(256, Math.round(Math.sqrt(width * height) / 32) * 32) : 1024;
+    const encoded = add("TextEncodeQwenImage21", { clip, prompt: body.prompt || "", negative_prompt: body.negative || "", vae, resolution, ...images });
     positive = [encoded, 0];
     negative = [encoded, 1];
+    if (references.length) editLatent = [encoded, 2];
   } else {
     positive = [add("CLIPTextEncode", { text: promptText, clip }), 0];
     if (variant.guidance) positive = [add("FluxGuidance", { conditioning: positive, guidance: variant.guidance }), 0];
@@ -186,8 +193,10 @@ export function familyGraph(body) {
   // ---- Latent (optionally from a start image)
   let latent;
   let denoise = 1;
-  const startImage = body.startImageComfy ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
-  if (family.latent === "Wan22ImageToVideoLatent") {
+  const startImage = body.startImageComfy && !editLatent && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
+  if (editLatent) {
+    latent = count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent;
+  } else if (family.latent === "Wan22ImageToVideoLatent") {
     const inputs = { vae, width, height, length: frames, batch_size: 1 };
     if (startImage) inputs.start_image = startImage;
     latent = [add("Wan22ImageToVideoLatent", inputs), 0];

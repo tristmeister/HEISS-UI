@@ -13,6 +13,8 @@ export type MediaInput = {
   control?: { node: string; input: string };
   /** "start": image-to-image, the model redraws this picture. "reference": a model that reads it as guidance. */
   role?: "reference" | "start";
+  /** Shown once this slot holds an image, so extra references don't crowd the prompt. */
+  follows?: string;
 };
 export type ReferenceAsset = {
   id: string;

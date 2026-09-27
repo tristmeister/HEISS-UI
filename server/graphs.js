@@ -48,9 +48,10 @@ export async function videoGraph(body) {
  * ComfyUI (already uploaded, by name), or a legacy start image uploaded now.
  */
 async function builtInGraph(body) {
-  const staged = (body.referenceAssets || []).find((item) => item?.comfyName)?.comfyName || "";
+  const referenceImages = (body.referenceAssets || []).map((item) => item?.comfyName).filter(Boolean);
+  const staged = referenceImages[0] || "";
   const startImageComfy = staged || ((body.startImage || body.startImageId) ? await uploadBodyStartImage(body) : "");
-  return familyGraph({ ...body, startImageComfy });
+  return familyGraph({ ...body, startImageComfy, referenceImages });
 }
 
 function cloneGraph(graph) {

@@ -88,7 +88,12 @@ function sanitizeFamilyBody(input, info, stats) {
   if (input.sampler) ensureOption(info, "KSampler", "sampler_name", input.sampler, "Sampler");
   if (input.scheduler) ensureOption(info, "KSampler", "scheduler", input.scheduler, "Scheduler");
   const c = profile.constraints || {};
-  const referenceAssets = Array.isArray(input.referenceAssets) ? input.referenceAssets.slice(0, 8) : [];
+  const supplied = Array.isArray(input.referenceAssets) ? input.referenceAssets.slice(0, 8) : [];
+  const slots = (profile.mediaInputs || []).map((item) => item.id);
+  // A model with reference slots takes an image per slot, in slot order; others keep the first as a start image.
+  const referenceAssets = slots.length
+    ? slots.map((slot) => supplied.find((item) => item?.slot === slot)).filter(Boolean)
+    : supplied;
   return {
     kind,
     workflow: profile.workflow,

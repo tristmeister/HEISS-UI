@@ -86,7 +86,11 @@ catalog, so a family that is described correctly needs no UI work.
 
 8. **Capabilities.** Turn off what the model cannot do: `ownLoaders` (encoder
    and VAE come with the pack, so no pickers and no LoRAs), `negative: "none"`,
-   no `img2img`. Profiles hide the matching controls.
+   no `img2img`. Profiles hide the matching controls. An edit model that reads
+   images as guidance sets `references: n`: the composer offers n reference
+   slots (each after the one before is filled), the first reference frames the
+   output, and `familyGraph` hands the staged images to the model's encoder
+   (today Qwen-Image 2.1's `TextEncodeQwenImage21`).
 
 9. **Tests** in `server/model-families.test.js`. Cover detection from a
    header, each variant's defaults, what a missing part or pack reports, and

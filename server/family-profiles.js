@@ -34,6 +34,24 @@ const downloadSources = {
 };
 
 /** Every catalog download HEISS will fetch, by id. The only files the download route accepts. */
+/**
+ * Reference slots for a family that reads images as guidance (an edit model).
+ * The first is "reference", like every other model's, so remix and drop-to-
+ * reference land in it; each further slot shows once the one before is filled.
+ */
+export function referenceSlots(count = 0) {
+  return Array.from({ length: Math.max(0, Number(count) || 0) }, (_, index) => ({
+    id: index ? `reference_${index + 1}` : "reference",
+    kind: "image",
+    required: false,
+    min: 0,
+    max: 1,
+    label: index ? `Reference ${index + 1}` : "Reference image",
+    role: "reference",
+    ...(index ? { follows: index > 1 ? `reference_${index}` : "reference" } : {})
+  }));
+}
+
 export function catalogDownload(id = "") {
   const [kind, key, index] = String(id).split(":");
   const [source, folder] = downloadSources[kind] || [];
@@ -270,6 +288,8 @@ export function familyProfiles(info, helpers) {
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
     const profile = buildProfile({
+      mediaInputs: referenceSlots(family.references),
+      aspectPolicy: family.references ? "reference" : "manual",
       id: legacyProfileId(info2.family, source, name) || `${family.kind}:${info2.family}:${source}:${name}`,
       kind: family.kind,
       label: sanaLabel(name) && runner ? sanaLabel(name) : `${prettyModelName(name)} · ${family.label}`,

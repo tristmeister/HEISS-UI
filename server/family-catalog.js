@@ -257,6 +257,8 @@ export const families = {
     slots: [{ slot: "encoder", label: "Qwen3-VL 8B", kinds: ["qwen3vl_8b"] }], clipType: "qwen_image",
     vae: ["qwen_image_21"], latent: "EmptyLatentImage", sizeStep: 32, negative: "qwen21", aspects: square,
     requiredNodes: ["TextEncodeQwenImage21"],
+    // Edits: its text encoder reads reference images (up to 16; the composer offers three).
+    references: 3,
     variants: [{ id: "standard", label: "Qwen-Image 2.1", defaults: { steps: 25, cfg: 1, sampler: "euler", scheduler: "simple" } }],
     size: [1024, 1024]
   },
