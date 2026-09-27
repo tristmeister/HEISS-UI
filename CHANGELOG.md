@@ -11,7 +11,23 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> Upscaled images are used upscaled, and tidier downloads
+> Qwen-Image 2.1 edits from references, and restarts up front
+
+### Added
+- **Qwen-Image 2.1 edits from reference images.** The composer offers its
+  reference slots one after another as you fill them; the first reference
+  frames the result.
+- **Restart ComfyUI or HEISS UI from the top of Settings › General.** Each
+  tile shows whether it's running, spins while restarting and lands on a
+  check when it's back.
+
+### Fixed
+- **Qwen-Image 2.1 files are recognized** from their weights instead of
+  showing as an unknown model. Any file whose weights match no known model
+  now falls back to its name before being called unknown.
+- **Face-detail upscales of images from imported workflows work.** They were
+  rejected every time. When an upscale fails after it started, the upscale
+  button now says why instead of failing silently.
 
 ### Changed
 - **An upscaled image is used upscaled.** Using it as a reference or start
@@ -23,6 +39,8 @@ version opens with a `> ` summary line, which the update pill shows.
   Windows, **.command** on macOS and a new **Start HEISS UI.sh** on Linux.
   Updating removes the ones for other systems. The release notes now say
   which zip is which.
+- **Downloads in the workflow picker** keep their buttons beside the name,
+  like the sidebar's, instead of always on a line of their own.
 
 ## [0.8.2] - 2026-09-27
 
