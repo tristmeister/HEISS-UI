@@ -1,9 +1,9 @@
 import React from 'react';
-import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
+import { ComfyManagerNote, ComfyRestart, useComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
 import { usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, Copy, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, Copy, Flame, RotateCw, Workflow, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
 import { NumberPicker, Skeleton, StudioSelect } from './components';
@@ -146,6 +146,79 @@ function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad
   return <span className={cn('set-status', tone && `is-${tone}`)}><i aria-hidden="true" />{children}</span>;
 }
 
+/* ------------------------------------------------------------ Restarts */
+
+type TileState = 'idle' | 'busy' | 'done' | 'off';
+
+/** One restart as a tile: what it restarts, how it is doing, and an arrow that turns. */
+function RestartTile({ name, icon: Icon, state, status, tone, onClick }: {
+  name: string;
+  icon: React.ComponentType<{ size?: number }>;
+  state: TileState;
+  status: React.ReactNode;
+  tone?: 'ok' | 'bad' | 'warn';
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className="set-restart" data-state={state} onClick={onClick} disabled={state !== 'idle'} aria-label={`Restart ${name}`} aria-live="polite">
+      <span className="set-restart-icon" aria-hidden="true"><Icon size={17} /></span>
+      <span className="set-restart-text">
+        <strong>{name}</strong>
+        <Status tone={tone}>{status}</Status>
+      </span>
+      <span className="set-restart-go" aria-hidden="true">{state === 'done' ? <Check size={15} /> : <RotateCw size={15} />}</span>
+      <span className="set-restart-sweep" aria-hidden="true" />
+    </button>
+  );
+}
+
+/**
+ * The two restarts people reach for most, at the top of General: ComfyUI
+ * (new nodes and files, freed memory) and HEISS UI itself.
+ */
+function RestartTiles({ confirmAction, onComfyBack, restartHeiss, heissRestarting, updateStatus }: {
+  confirmAction: ConfirmAction;
+  onComfyBack: () => void;
+  restartHeiss: () => Promise<boolean>;
+  heissRestarting: boolean;
+  updateStatus: UpdateStatus | null;
+}) {
+  const comfy = useComfyRestart({
+    onBack: onComfyBack,
+    confirm: () => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })
+  });
+  const comfyState: TileState = comfy.phase === 'back' ? 'done' : comfy.busy ? 'busy' : comfy.off || comfy.info === null ? 'off' : 'idle';
+  const comfyStatus = comfy.phase === 'back' ? 'Back online'
+    : comfy.busy ? 'Restarting…'
+    : comfy.phase === 'error' ? 'Not back yet'
+    : comfy.info === null ? 'Checking…'
+    : comfy.off ? (comfy.info.connected ? 'Needs ComfyUI-Manager' : 'Not answering')
+    : 'Running';
+  const comfyTone = comfy.phase === 'back' ? 'ok' : comfy.busy ? 'warn' : comfy.phase === 'error' || comfy.off ? 'bad' : comfy.info ? 'ok' : undefined;
+
+  // A release copy knows whether its launcher can bring it back; a checkout finds out on the first try.
+  const [heissFailed, setHeissFailed] = React.useState(false);
+  const unsupervised = Boolean(updateStatus?.release && updateStatus.supervised === false) || heissFailed;
+  const heissState: TileState = heissRestarting ? 'busy' : unsupervised ? 'off' : 'idle';
+  const version = updateStatus?.release && updateStatus.current ? ` · ${updateStatus.current}` : '';
+  const restartApp = async () => {
+    if (!await confirmAction({ title: 'Restart HEISS UI?', description: 'Running generations stop. This page reloads when it’s back, usually within a few seconds.', action: 'Restart HEISS UI', destructive: true })) return;
+    if (!await restartHeiss()) setHeissFailed(true);
+  };
+
+  return (
+    <section className="set-group">
+      <div className="set-restarts">
+        <RestartTile name="ComfyUI" icon={Workflow} state={comfyState} status={comfyStatus} tone={comfyTone} onClick={comfy.restart} />
+        <RestartTile name="HEISS UI" icon={Flame} state={heissState} status={heissRestarting ? 'Restarting…' : unsupervised ? 'Can’t restart itself' : `Running${version}`} tone={heissRestarting ? 'warn' : unsupervised ? 'bad' : 'ok'} onClick={restartApp} />
+      </div>
+      {comfy.off && comfy.info ? <ComfyManagerNote className="set-note" info={comfy.info} refresh={comfy.refresh} /> : null}
+      {comfy.phase === 'error' ? <p className="set-note is-error">{comfy.error}</p> : null}
+      {unsupervised ? <p className="set-note">HEISS UI wasn’t started with its launcher, so it can’t bring itself back. Stop it and start it again.</p> : null}
+    </section>
+  );
+}
+
 /* ------------------------------------------------------------ Upscale */
 
 /**
@@ -221,7 +294,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
   ) : null;
 
   if (restarting) {
-    return <Row label={<Status tone="warn">Restarting into {latest}</Status>} description="This page reloads when it’s done." />;
+    return <Row label={<Status tone="warn">{download?.status === 'ready' ? `Restarting into ${latest}` : 'Restarting'}</Status>} description="This page reloads when it’s done." />;
   }
   if (download?.status === 'downloading' || download?.status === 'verifying' || download?.status === 'unpacking') {
     const ratio = download.totalBytes ? Math.min(1, (download.receivedBytes || 0) / download.totalBytes) : 0;
@@ -459,7 +532,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
     hidden,
     health, refreshHealth, models, refreshModels, refreshWorkflows, modelFolders,
-    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, setUpdatePrefs, refreshUpdateStatus, workflows, modelProfiles
+    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restartHeiss, restarting, setUpdatePrefs, refreshUpdateStatus, workflows, modelProfiles
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
 
@@ -577,6 +650,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'general' ? (
           <>
+            {thisComputer ? <RestartTiles confirmAction={confirmAction} onComfyBack={() => { refreshModels(false); refreshWorkflows(); }} restartHeiss={restartHeiss} heissRestarting={Boolean(restarting)} updateStatus={updateStatus} /> : null}
             <Group title="Layout">
               <SwitchRow label="Zen mode" description="A prompt-first fullscreen layout: one image at a time, the composer below. Leave it with the same switch, the dock’s expand button or Escape." checked={prefs.zenMode} onChange={setZenMode} />
               <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />

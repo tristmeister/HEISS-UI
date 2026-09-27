@@ -83,15 +83,9 @@ type Phase = 'idle' | 'restarting' | 'back' | 'error';
 
 /**
  * Restarts ComfyUI through Manager and waits until it answers again, then
- * calls onBack so the caller can rescan. Without Manager it stays visible but
- * off, saying what would turn it on.
+ * calls onBack so the caller can rescan. Shared by every restart control.
  */
-export function ComfyRestart({ onBack, confirm, compact = false, className }: {
-  onBack?: () => void;
-  confirm?: () => Promise<boolean>;
-  compact?: boolean;
-  className?: string;
-}) {
+export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; confirm?: () => Promise<boolean> } = {}) {
   const { info, refresh } = useComfyManager();
   const [phase, setPhase] = React.useState<Phase>('idle');
   const [error, setError] = React.useState('');
@@ -139,6 +133,35 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
   const globalRestarting = useComfyRestarting();
   const busy = phase === 'restarting' || (globalRestarting && phase !== 'back');
   const off = !busy && info !== null && !info.available;
+  return { info, refresh, phase, error, busy, off, restart };
+}
+
+/** Why the restart button is off, with a way to check again. */
+export function ComfyManagerNote({ info, refresh, className }: { info: ManagerInfo | null; refresh: () => void; className?: string }) {
+  return (
+    <p className={cn('comfy-restart-note', className)}>
+      {info?.stale
+        ? <>HEISS UI is running older code. Restart it to use this.</>
+        : info?.connected
+        ? <>Needs ComfyUI-Manager. Start ComfyUI with <code>--enable-manager</code>, or restart it yourself.</>
+        : info?.error ? <>Could not check ComfyUI: {info.error}</>
+        : <>ComfyUI is not answering.</>}{' '}
+      <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
+    </p>
+  );
+}
+
+/**
+ * The restart button with its notes. Without Manager it stays visible but
+ * off, saying what would turn it on.
+ */
+export function ComfyRestart({ onBack, confirm, compact = false, className }: {
+  onBack?: () => void;
+  confirm?: () => Promise<boolean>;
+  compact?: boolean;
+  className?: string;
+}) {
+  const { info, refresh, phase, error, busy, off, restart } = useComfyRestart({ onBack, confirm });
   const thisComputer = useThisComputer();
   // Restarting is looked after at the computer; elsewhere only its progress shows.
   if (!thisComputer && !busy) return <p className={cn('comfy-restart-note', className)}>Restart ComfyUI from the computer running HEISS UI.</p>;
@@ -148,17 +171,7 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
         {phase === 'back' ? <Check size={14} /> : <RotateCw size={14} className={cn(busy && 'is-spinning')} />}
         {phase === 'back' ? 'Back online' : busy ? 'Restarting…' : 'Restart ComfyUI'}
       </button>
-      {off ? (
-        <p className="comfy-restart-note">
-          {info?.stale
-            ? <>HEISS UI is running older code. Restart it to use this.</>
-            : info?.connected
-            ? <>Needs ComfyUI-Manager. Start ComfyUI with <code>--enable-manager</code>, or restart it yourself.</>
-            : info?.error ? <>Could not check ComfyUI: {info.error}</>
-            : <>ComfyUI is not answering.</>}{' '}
-          <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
-        </p>
-      ) : null}
+      {off ? <ComfyManagerNote info={info} refresh={refresh} /> : null}
       {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting and reads new nodes and folders as it starts. Back in a few seconds.</p> : null}
       {phase === 'error' ? <p className="comfy-restart-note is-error">{error}</p> : null}
     </div>
