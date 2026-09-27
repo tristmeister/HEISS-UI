@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
 import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
+import { existingCopy } from './model-downloads.js';
 import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
 import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vaeKinds } from './model-components.js';
@@ -24,7 +25,12 @@ function partLabel(kind, key, file) {
 
 function downloadsFor(list = [], folder, prefix) {
   const [kind, key] = prefix.split(":");
-  return list.map((item, index) => ({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...item }));
+  return list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...item }));
+}
+
+/** `onDisk`: fetched already (even before a restart), ComfyUI just has not listed it yet. */
+function withDisk(entry) {
+  return existingCopy(entry) ? { ...entry, onDisk: true } : entry;
 }
 
 const downloadSources = {
@@ -79,7 +85,7 @@ export function catalogDownloadsForFile(file = "", folder = "") {
     if (sourceFolder !== folder) continue;
     for (const [key, list] of Object.entries(source)) {
       list.forEach((entry, index) => {
-        if (entry.file === file) found.push({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...entry });
+        if (entry.file === file) found.push(withDisk({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...entry }));
       });
     }
   }

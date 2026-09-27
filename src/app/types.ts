@@ -116,7 +116,7 @@ export type Profile = {
   ready?: boolean;
 };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
-export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number };
+export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean };
 /** A ComfyUI custom node pack (server/node-packs.js). */
 export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
 /** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */

@@ -96,8 +96,12 @@ function folderDirs(folder) {
   return modelFolders(folder, subfolders);
 }
 
-/** The file already sitting in any folder ComfyUI loads this kind from. */
-function existingCopy(spec) {
+/**
+ * The file already sitting in any folder ComfyUI loads this kind from. The disk
+ * is the record of what was downloaded: it survives restarts and never claims
+ * a file someone has since deleted.
+ */
+export function existingCopy(spec) {
   for (const dir of folderDirs(spec.folder)) {
     const file = path.join(dir, spec.file);
     if (fileSize(file) > 0) return file;

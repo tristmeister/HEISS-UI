@@ -104,7 +104,8 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
 
   const shownDone = allDone ? installed : ready;
   // A download that just landed waits for the rescan; only a file ComfyUI still does not list after that is stuck.
-  const landedWaiting = missing.some((item) => item.downloads[0] && landed.has(item.downloads[0].file) && !downloadFor(state, item.downloads[0].file));
+  // The server's onDisk covers files fetched before HEISS restarted, which `landed` has forgotten.
+  const landedWaiting = missing.some((item) => item.downloads[0] && (landed.has(item.downloads[0].file) || item.downloads[0].onDisk) && !downloadFor(state, item.downloads[0].file));
   const [stuckShown, setStuckShown] = React.useState(false);
   React.useEffect(() => {
     if (!landedWaiting) { setStuckShown(false); return; }
@@ -138,7 +139,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     else if (current?.status === 'downloading') rowState = 'downloading';
     else if (current?.status === 'paused') rowState = 'paused';
     else if (current?.status === 'error') rowState = 'error';
-    else if (download && landed.has(download.file)) rowState = 'landed';
+    else if (download && (landed.has(download.file) || download.onDisk)) rowState = 'landed';
     return { item, download, current, rowState };
   });
 
