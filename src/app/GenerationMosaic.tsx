@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { ImageGeneration, PRESETS, setMaxDpr, type ImageGenerationHandle } from 'img-fx';
-import { createRevealBitmap, GENERATION_PIXEL_SCALE } from './generationEffect';
+import { createRevealBitmap, GENERATION_PIXEL_SCALE, markMosaicRunning } from './generationEffect';
 
 // img-fx renders at up to 1.25x by default, then stretches without smoothing,
 // which doubles every fifth row and column at 150% Windows scaling.
@@ -35,6 +35,8 @@ export default function GenerationMosaic({ finalSource, hasPreview, onResolved }
   const complete = useRef(onResolved);
   const [revealSource, setRevealSource] = useState<string>();
   useEffect(() => { complete.current = onResolved; }, [onResolved]);
+  // A breadcrumb for the next page load, in case the GPU takes the browser down.
+  useEffect(markMosaicRunning, []);
   useEffect(() => {
     if (!finalSource) return;
     let canceled = false;

@@ -2,7 +2,7 @@ import React, { createContext, lazy, Suspense, useContext, useEffect, useRef, us
 import { useReducedMotion } from 'framer-motion';
 import { Media } from './components';
 import type { GalleryItem } from './types';
-import { generationGridCount } from './generationEffect';
+import { generationGridCount, webglMosaicAllowed } from './generationEffect';
 import { upscaleDisplayThumbnail, upscaleDisplayUrl } from './useUpscale';
 import { SafeImg } from './SafeImg';
 
@@ -61,6 +61,8 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
 export const GenerationPreviewMode = createContext<'advanced' | 'simple'>('advanced');
 const Mosaic = lazy(() => import('./GenerationMosaic'));
 
+const webglMosaic = webglMosaicAllowed();
+
 class EffectBoundary extends React.Component<React.PropsWithChildren, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -80,10 +82,7 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
   const [pixelFailed, setPixelFailed] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const advanced = mode === 'advanced' && !reducedMotion;
-  // The live mosaic looked blocky on Windows (fractional display scaling).
-  // Kept for every Windows browser, Edge and Firefox included, until the
-  // device-pixel fixes below are confirmed there.
-  const deferMosaicUntilFinal = typeof navigator !== 'undefined' && /Windows/i.test(navigator.userAgent);
+  const reveal2d = advanced && !webglMosaic && Boolean(finalSource);
   // Whole device pixels, so the frame and its cells never straddle a pixel.
   const dpr = window.devicePixelRatio || 1;
   const snap = (value: number) => Math.round(value * dpr) / dpr;
@@ -102,7 +101,7 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
 
   useEffect(() => {
     // Leave the last step frame untouched throughout the native shader reveal.
-    if (!advanced || !visible || !foreground || !preview || !frameWidth || !frameHeight) return;
+    if (!advanced || reveal2d || !visible || !foreground || !preview || !frameWidth || !frameHeight) return;
     let stale = false;
     const image = new Image();
     image.crossOrigin = 'anonymous';
@@ -126,7 +125,46 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
     image.onerror = () => { if (!stale) setPixelFailed(true); };
     image.src = preview;
     return () => { stale = true; image.onload = null; image.onerror = null; };
-  }, [advanced, preview, frameWidth, frameHeight, visible, foreground]);
+  }, [advanced, reveal2d, preview, frameWidth, frameHeight, visible, foreground]);
+
+  useEffect(() => {
+    // The WebGL-free reveal: the finished image sharpens out of the preview's
+    // cell grid by doubling the resolution each step, then hands over.
+    if (!reveal2d || !finalSource || !visible || !foreground || !frameWidth || !frameHeight) return;
+    let stale = false;
+    let timer = 0;
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      const target = canvas.current;
+      const context = target?.getContext('2d');
+      if (stale) return;
+      if (!target || !context) { complete.current?.(); return; }
+      const fullWidth = Math.max(1, Math.round(frameWidth * dpr));
+      const fullHeight = Math.max(1, Math.round(frameHeight * dpr));
+      const imageRatio = image.naturalWidth / image.naturalHeight;
+      const frameRatio = frameWidth / frameHeight;
+      const sw = imageRatio > frameRatio ? image.naturalHeight * frameRatio : image.naturalWidth;
+      const sh = imageRatio > frameRatio ? image.naturalHeight : image.naturalWidth / frameRatio;
+      let width = generationGridCount(frameWidth);
+      let height = generationGridCount(frameHeight);
+      const step = () => {
+        if (stale) return;
+        target.width = Math.min(width, fullWidth);
+        target.height = Math.min(height, fullHeight);
+        context.imageSmoothingQuality = 'high';
+        context.drawImage(image, (image.naturalWidth - sw) / 2, (image.naturalHeight - sh) / 2, sw, sh, 0, 0, target.width, target.height);
+        if (width >= fullWidth && height >= fullHeight) { timer = window.setTimeout(() => complete.current?.(), 260); return; }
+        width *= 2;
+        height *= 2;
+        timer = window.setTimeout(step, 190);
+      };
+      step();
+    };
+    image.onerror = () => { if (!stale) complete.current?.(); };
+    image.src = finalSource;
+    return () => { stale = true; clearTimeout(timer); image.onload = null; image.onerror = null; };
+  }, [reveal2d, finalSource, frameWidth, frameHeight, dpr, visible, foreground]);
 
   useEffect(() => {
     if (!finalSource || !visible || !foreground) return;
@@ -140,7 +178,7 @@ export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, fin
       <div className="generation-frame" style={{ width: frameWidth, height: frameHeight }}>
       {!advanced || pixelFailed ? <SafeImg className="generate-preview" src={preview} draggable={false} /> : null}
       {advanced ? <canvas ref={canvas} className="generation-pixels" /> : null}
-      {advanced && (!deferMosaicUntilFinal || finalSource) && visible && foreground ? (
+      {advanced && webglMosaic && visible && foreground ? (
         <EffectBoundary>
           <Suspense fallback={null}>
             <Mosaic finalSource={finalSource} hasPreview={!!preview} onResolved={() => complete.current?.()} />

@@ -20,6 +20,12 @@ section into the next version and uses it as the GitHub release notes.
   ComfyUI and HEISS UI, and manage models, nodes, folders and workflows, as
   before 0.7.1. Creating or erasing the Hidden password still happens on
   the computer HEISS UI runs on.
+- **Windows: finishing an image no longer crashes the browser.** With the
+  mosaic preview on, the WebGL effect that resolved a finished image took
+  the whole browser down. Windows now sharpens the image out of the mosaic
+  without WebGL. On other systems, if the browser ever goes down while the
+  WebGL mosaic runs, HEISS UI notices on the next load and switches that
+  browser to the same safe reveal.
 
 ## [0.7.3] - 2026-09-25
 
