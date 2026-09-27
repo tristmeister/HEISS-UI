@@ -11,6 +11,22 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Finished images stay put, and the grid reads newest first
+
+### Fixed
+- **Finished images no longer vanish.** Deleting your newest image while
+  another was generating let ComfyUI give the new one the deleted file's
+  name, and the new image disappeared the moment it finished. A new image
+  also went missing from any list built in the second after it was saved.
+- **New images show up in the reference picker right away**, not only
+  after a reload.
+- **The grid reads newest first, top left**, the same before and after a
+  reload, instead of new runs landing in scattered columns. While your
+  pointer is over the grid, new results wait to reflow so nothing slides
+  out from under it.
+- **Deleting reflows the grid**: the tiles after a deleted one move up to
+  fill the space, so columns stay even.
+
 ## [0.8.1] - 2026-09-27
 
 > Updates show up right away, and Hidden keeps clear of tiles

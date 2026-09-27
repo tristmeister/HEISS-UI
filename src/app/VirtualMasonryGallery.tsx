@@ -36,6 +36,9 @@ function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set
   return Math.max(120, Math.round(width / Math.max(0.2, ratio)));
 }
 
+/** Which column a tile sits in, kept by run and position so a finished image keeps its pending tile's place. */
+const placementKey = (item: GalleryItem) => item.jobId && Number.isInteger(item.index) ? `${item.jobId}:${item.index}` : item.id;
+
 function itemKey(item: GalleryItem) {
   return generationIdentity(item) || item.url || item.outputName || item.filename;
 }
@@ -99,76 +102,75 @@ export function VirtualMasonryGallery({
   const safeColumns = Math.max(1, columns);
   const spacing = containerWidth < 620 ? 4 : 7;
   const columnWidth = containerWidth ? Math.floor((containerWidth - spacing * (safeColumns - 1)) / safeColumns) : 240;
-  // Tiles keep the column they were first placed in. A greedy pass over the
-  // whole list reassigned nearly every tile whenever one landed at the top, so
-  // the grid reshuffled under a finger reaching for a tile. Only a new column
-  // count or width lays everything out afresh.
+  // The grid is newest first, each tile in the shortest column: the newest top
+  // left, the same layout a reload gives. That places every tile by the ones
+  // before it, so a tile that goes (deleted, hidden, stopped) only moves the
+  // tiles after it, but a result landing at the top moves them all. While the
+  // pointer is over the grid, landing tiles take the top of whichever column's
+  // top tile is oldest instead and nothing else moves, so no tile slides out
+  // from under the cursor; the grid settles once the pointer leaves.
+  const [holding, setHolding] = useState(false);
+  const releaseTimer = useRef(0);
+  const hold = () => { window.clearTimeout(releaseTimer.current); setHolding(true); };
+  const release = () => { window.clearTimeout(releaseTimer.current); releaseTimer.current = window.setTimeout(() => setHolding(false), 500); };
+  useEffect(() => () => window.clearTimeout(releaseTimer.current), []);
   const placement = useRef<{ signature: string; columns: Map<string, number> }>({ signature: "", columns: new Map() });
   const columnItems = useMemo(() => {
     const signature = `${safeColumns}:${columnWidth}`;
-    if (placement.current.signature !== signature) placement.current = { signature, columns: new Map() };
-    const assigned = placement.current.columns;
+    const previous = placement.current.signature === signature ? placement.current.columns : null;
+    const assigned = new Map<string, number>();
     const heights = Array.from({ length: safeColumns }, () => 0);
-    const keyOf = (item: GalleryItem) => item.jobId && Number.isInteger(item.index) ? `${item.jobId}:${item.index}` : item.id;
     const height = (item: GalleryItem) => estimatedHeight(item, columnWidth, expandedBundles) + spacing;
-    const present = new Set<string>();
-    for (const item of items) {
-      const key = keyOf(item);
-      present.add(key);
-      const column = assigned.get(key);
-      if (column !== undefined && column < safeColumns) heights[column] += height(item);
-    }
-    for (const key of Array.from(assigned.keys())) if (!present.has(key)) assigned.delete(key);
+    const place = (item: GalleryItem, column: number) => {
+      assigned.set(placementKey(item), column);
+      heights[column] += height(item);
+    };
     const shortest = () => {
       let target = 0;
       for (let column = 1; column < safeColumns; column += 1) if (heights[column] < heights[target]) target = column;
       return target;
     };
-    const place = (item: GalleryItem, column: number) => {
-      assigned.set(keyOf(item), column);
-      heights[column] += height(item);
-    };
-    const placed = (item: GalleryItem) => {
-      const column = assigned.get(keyOf(item));
+    const present = new Set(items.map(placementKey));
+    const removed = previous ? Array.from(previous.keys()).some((key) => !present.has(key)) : false;
+    const known = (item: GalleryItem) => {
+      const column = previous?.get(placementKey(item));
       return column !== undefined && column < safeColumns;
     };
-    if (!assigned.size) {
-      // A fresh layout: newest first, so the top row holds the latest outputs.
+    // Hold only for results landing on top of tiles that are all where they were.
+    const firstKnown = items.findIndex(known);
+    const holdable = holding && previous && !removed && firstKnown > 0 && items.slice(firstKnown).every(known);
+    if (!holdable) {
       for (const item of items) place(item, shortest());
     } else {
-      // Where each column's newest tile sits in the list (smaller is newer).
+      for (const item of items.slice(firstKnown)) place(item, previous!.get(placementKey(item))!);
       const top = Array.from({ length: safeColumns }, () => Infinity);
       items.forEach((item, index) => {
-        const column = assigned.get(keyOf(item));
-        if (column !== undefined && column < safeColumns && top[column] === Infinity) top[column] = index;
+        const column = assigned.get(placementKey(item));
+        if (column !== undefined && top[column] === Infinity) top[column] = index;
       });
-      const newestPlaced = Math.min(...top);
-      // Tiles that land above everything (fresh results), oldest of them first,
-      // go to the column whose top tile is the oldest: the latest stay spread
-      // across the top row and every other tile only slides down its column.
-      for (let index = Math.min(newestPlaced, items.length) - 1; index >= 0; index -= 1) {
-        const item = items[index];
-        if (placed(item)) continue;
+      // Oldest of the new ones first, each onto the column whose top tile is oldest.
+      for (let index = firstKnown - 1; index >= 0; index -= 1) {
         let target = 0;
         for (let column = 1; column < safeColumns; column += 1) {
           if (top[column] > top[target] || (top[column] === top[target] && heights[column] < heights[target])) target = column;
         }
-        place(item, target);
+        place(items[index], target);
         top[target] = index;
       }
-      // Anything else new (an older page loading in below): shortest column.
-      for (const item of items) if (!placed(item)) place(item, shortest());
     }
+    placement.current = { signature, columns: assigned };
     const next = Array.from({ length: safeColumns }, () => [] as GalleryItem[]);
-    for (const item of items) next[assigned.get(keyOf(item)) ?? 0].push(item);
+    for (const item of items) next[assigned.get(placementKey(item)) ?? 0].push(item);
     return next;
-  }, [columnWidth, expandedBundles, items, safeColumns, spacing]);
+  }, [columnWidth, expandedBundles, holding, items, safeColumns, spacing]);
 
   return (
     <section
       ref={containerRef}
       className="gallery virtual-gallery"
       aria-label="Gallery"
+      onPointerEnter={hold}
+      onPointerLeave={release}
       onKeyDown={(event) => {
         // Tab walks the masonry column by column; arrows follow time instead:
         // right or down for older, left or up for newer.

@@ -383,15 +383,31 @@ function outputPathsFor(item, base) {
   const paths = outputFileCandidates(item, base)
     .map((file) => path.resolve(file))
     .filter((file) => isInside(base, file, { orSame: true }))
-    .map((file) => ({ dir: path.dirname(file), name: listedName(path.basename(file)) }));
+    .map((file) => ({ file, dir: path.dirname(file), name: listedName(path.basename(file)) }));
   itemOutputPaths.set(item, { base, paths });
   return paths;
+}
+
+// Outputs this server just recorded as finished. A folder listing can lag
+// behind a new file (it is re-read at most once a second, and a network or
+// synced folder's own listing can trail by more), and a page or the reference
+// picker built in that window left the new image out. These are checked on
+// the file itself for a while instead.
+const freshOutputs = new Map();
+const freshOutputMs = 10 * 60 * 1000;
+function markFreshOutputs(items) {
+  const now = Date.now();
+  for (const item of items) { const key = galleryKey(item); if (key) freshOutputs.set(key, now); }
+  if (freshOutputs.size > 500) for (const [key, at] of freshOutputs) if (now - at > freshOutputMs) freshOutputs.delete(key);
 }
 
 export function hasExistingOutputFile(item) {
   if (!comfyOutputDir || !outputFolderTrusted()) return true;
   const base = path.resolve(comfyOutputDir);
-  return outputPathsFor(item, base).some(({ dir, name }) => Boolean(folderListing(dir)?.has(name)));
+  const paths = outputPathsFor(item, base);
+  if (paths.some(({ dir, name }) => Boolean(folderListing(dir)?.has(name)))) return true;
+  const freshAt = freshOutputs.get(galleryKey(item));
+  return Boolean(freshAt && Date.now() - freshAt < freshOutputMs && paths.some(({ file }) => fs.existsSync(file)));
 }
 
 export function saveGallery() {
@@ -684,6 +700,16 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
     if (completed[nextIndex]) replaced.push(completed[nextIndex++]);
   });
   while (completed[nextIndex]) replaced.unshift(completed[nextIndex++]);
+  // ComfyUI numbers a new file one past the highest existing one, so deleting
+  // the newest image hands its name to the next. A delete marker on that name
+  // is for the old picture: without this, a run started before the delete
+  // (so "created" earlier than it) vanished the moment it finished.
+  if (status === "done") {
+    markFreshOutputs(completed);
+    let cleared = false;
+    for (const item of completed) cleared = hiddenGalleryIds.delete(galleryKey(item)) || cleared;
+    if (cleared) saveHiddenGalleryIds();
+  }
   setGallery(dedupeGallery(replaced).slice(0, galleryLimit));
   return completed;
 }
