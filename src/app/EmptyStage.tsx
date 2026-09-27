@@ -5,6 +5,7 @@ import { EmptyMark } from './EmptyMark';
 import { CONNECT_MS, OfflineMark } from './OfflineMark';
 import { cn } from './format';
 import { useThisComputer } from './device';
+import { RestartEtaText } from './ComfyRestart';
 
 /**
  * What an empty gallery shows, and how it moves between states:
@@ -94,7 +95,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
           {copy === 'offline' && restarting ? (
             <>
               <h2>Restarting ComfyUI</h2>
-              <p>It reads new nodes and model folders as it starts, and the studio reconnects by itself. Usually a few seconds.</p>
+              <p>It reads new nodes and model folders as it starts, and the studio reconnects by itself. <RestartEtaText fallback="Usually a few seconds." /></p>
             </>
           ) : copy === 'offline' ? (
             <>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ComfyManagerNote, ComfyRestart, useComfyRestart, useComfyRestarting } from './ComfyRestart';
+import { ComfyManagerNote, ComfyRestart, restartResultLine, useComfyRestart, useComfyRestartEta, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
 import { usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
@@ -151,16 +151,19 @@ function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad
 type TileState = 'idle' | 'busy' | 'done' | 'off';
 
 /** One restart as a tile: what it restarts, how it is doing, and an arrow that turns. */
-function RestartTile({ name, icon: Icon, state, status, tone, onClick }: {
+function RestartTile({ name, icon: Icon, state, status, tone, progress = null, onClick }: {
   name: string;
   icon: React.ComponentType<{ size?: number }>;
   state: TileState;
   status: React.ReactNode;
   tone?: 'ok' | 'bad' | 'warn';
+  /** How far along a restart with a known usual time is; the line fills toward it instead of sweeping. */
+  progress?: number | null;
   onClick: () => void;
 }) {
+  const measured = state === 'busy' && progress !== null;
   return (
-    <button type="button" className="set-restart" data-state={state} onClick={onClick} disabled={state !== 'idle'} aria-label={`Restart ${name}`} aria-live="polite">
+    <button type="button" className="set-restart" data-state={state} data-measured={measured || undefined} style={measured ? { '--restart-progress': progress } as React.CSSProperties : undefined} onClick={onClick} disabled={state !== 'idle'} aria-label={`Restart ${name}`} aria-live="polite">
       <span className="set-restart-icon" aria-hidden="true"><Icon size={17} /></span>
       <span className="set-restart-text">
         <strong>{name}</strong>
@@ -188,13 +191,13 @@ function RestartTiles({ confirmAction, onComfyBack, restartHeiss, heissRestartin
     confirm: () => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })
   });
   const comfyState: TileState = comfy.phase === 'back' ? 'done' : comfy.busy ? 'busy' : comfy.off || comfy.info === null ? 'off' : 'idle';
-  const comfyStatus = comfy.phase === 'back' ? 'Back online'
-    : comfy.busy ? 'Restarting…'
+  const comfyStatus = comfy.phase === 'back' ? restartResultLine(comfy.result)
+    : comfy.busy ? (comfy.eta?.short || 'Restarting…')
     : comfy.phase === 'error' ? 'Not back yet'
     : comfy.info === null ? 'Checking…'
     : comfy.off ? (comfy.info.connected ? 'Needs ComfyUI-Manager' : 'Not answering')
     : 'Running';
-  const comfyTone = comfy.phase === 'back' ? 'ok' : comfy.busy ? 'warn' : comfy.phase === 'error' || comfy.off ? 'bad' : comfy.info ? 'ok' : undefined;
+  const comfyTone = comfy.phase === 'back' ? (comfy.result?.failedPacks?.length ? 'bad' : 'ok') : comfy.busy ? 'warn' : comfy.phase === 'error' || comfy.off ? 'bad' : comfy.info ? 'ok' : undefined;
 
   // A release copy knows whether its launcher can bring it back; a checkout finds out on the first try.
   const [heissFailed, setHeissFailed] = React.useState(false);
@@ -209,7 +212,7 @@ function RestartTiles({ confirmAction, onComfyBack, restartHeiss, heissRestartin
   return (
     <section className="set-group">
       <div className="set-restarts">
-        <RestartTile name="ComfyUI" icon={Workflow} state={comfyState} status={comfyStatus} tone={comfyTone} onClick={comfy.restart} />
+        <RestartTile name="ComfyUI" icon={Workflow} state={comfyState} status={comfyStatus} tone={comfyTone} progress={comfy.eta?.ratio ?? null} onClick={comfy.restart} />
         <RestartTile name="HEISS UI" icon={Flame} state={heissState} status={heissRestarting ? 'Restarting…' : unsupervised ? 'Can’t restart itself' : `Running${version}`} tone={heissRestarting ? 'warn' : unsupervised ? 'bad' : 'ok'} onClick={restartApp} />
       </div>
       {comfy.off && comfy.info ? <ComfyManagerNote className="set-note" info={comfy.info} refresh={comfy.refresh} /> : null}
@@ -610,6 +613,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
   const connected = Boolean(health?.ok);
   const comfyRestarting = useComfyRestarting();
+  const restartEta = useComfyRestartEta();
   // Folders, models, updates and wiping the gallery are looked after at the computer itself.
   const thisComputer = useThisComputer();
   const phoneDevice = usePhone();
@@ -799,7 +803,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="ComfyUI">
               <Row
                 label={comfyRestarting ? <Status tone="warn">Restarting</Status> : health ? <Status tone={connected ? 'ok' : 'bad'}>{connected ? 'Connected' : 'Not connected'}</Status> : <Skeleton className="skeleton-text short" />}
-                description={comfyRestarting ? 'ComfyUI is restarting and reconnects by itself, usually within a few seconds.' : health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
+                description={comfyRestarting ? `ComfyUI is restarting and reconnects by itself. ${restartEta?.text || 'Usually back in a few seconds.'}` : health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
               >
                 <button className="btn is-primary" onClick={refreshHealth} disabled={comfyRestarting}>{comfyRestarting ? 'Waiting…' : 'Check again'}</button>
               </Row>

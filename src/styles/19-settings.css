@@ -458,6 +458,19 @@
 }
 .set-restart[data-state="busy"] .set-restart-sweep { opacity: 1; animation: set-restart-sweep 1.4s var(--ease-out) infinite; }
 @keyframes set-restart-sweep { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+/* With a usual time learned, the line fills toward it instead: steady, easing, never quite full. */
+.set-restart-sweep::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ember);
+  transform-origin: left;
+  transform: scaleX(0);
+  opacity: 0;
+  transition: transform 600ms linear, opacity var(--dur-base);
+}
+.set-restart[data-measured] .set-restart-sweep { background-size: 30% 100%; }
+.set-restart[data-measured] .set-restart-sweep::before { opacity: .55; transform: scaleX(var(--restart-progress, 0)); }
 
 /* Back: a green check that lands with a small pop. */
 .set-restart[data-state="done"] .set-restart-go { background: rgb(127 212 154 / .14); color: #7fd49a; }

@@ -13,6 +13,7 @@ import { Media } from './components';
 import { useFocusTrap } from './useFocusTrap';
 import { useHistoryDismiss } from './useHistoryDismiss';
 import { progressLine, progressReading } from './GenerationProgress';
+import { RestartEtaText } from './ComfyRestart';
 import type { AspectPreset, GalleryItem, Profile } from './types';
 
 /* ---------------------------------------------------------------------------
@@ -468,7 +469,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const maxCount = Math.max(1, Math.min(4, Number(countMeta?.max || 4)));
   const { min: stepMin, max: stepMax, recommended: stepDefault } = practicalStepRange(currentProfile, stepsMeta, steps);
   const aspect = (aspectOptions as AspectPreset[] || []).find((option) => option.value === aspectPickerValue);
-  const reason = restarting ? 'ComfyUI is restarting. Back in a few seconds.' : comfyOffline ? 'ComfyUI is offline.' : !prompt.trim() ? '' : generateDisabled ? generateDisabledReason : '';
+  const reason = restarting ? <>ComfyUI is restarting. <RestartEtaText fallback="Back in a few seconds." /></> : comfyOffline ? 'ComfyUI is offline.' : !prompt.trim() ? '' : generateDisabled ? generateDisabledReason : '';
 
   const go = () => {
     haptic('tap');

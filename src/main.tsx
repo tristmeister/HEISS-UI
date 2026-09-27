@@ -25,7 +25,7 @@ import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
 import { setThisComputer, usePhone, useThisComputer } from './app/device';
 import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
-import { registerRestartConfirm, setComfyRestarting } from './app/ComfyRestart';
+import { listNames, registerRestartConfirm, setComfyRestartClock, setComfyRestartResult, setComfyRestarting } from './app/ComfyRestart';
 import { memoLatest } from './lib/memo-latest';
 
 // Rebuilt from scratch on every App render (each keystroke in the prompt); skips unless its data changed.
@@ -341,10 +341,25 @@ function App() {
   // up so ComfyUI's return shows at once, and a restart that never comes back
   // hands over to plain reconnecting with one clear message.
   const comfyRestarting = Boolean(comfyStatus.restarting);
-  useEffect(() => { setComfyRestarting(comfyRestarting); }, [comfyRestarting]);
+  // The restart this device watched, so its end is told here once, and only here.
+  const watchedRestart = useRef(0);
+  const lastRestart = comfyStatus.lastRestart;
   useEffect(() => {
-    if (comfyStatus.restartFailed) showToast("ComfyUI didn’t come back after the restart. Check its window for errors; HEISS UI keeps trying to connect.", "error");
-  }, [comfyStatus.restartFailed]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (comfyRestarting && comfyStatus.restartStartedAt) {
+      watchedRestart.current = comfyStatus.restartStartedAt;
+      setComfyRestartClock({ startedAt: comfyStatus.restartStartedAt, elapsedMs: comfyStatus.restartElapsedMs ?? 0, typicalMs: comfyStatus.restartTypicalMs });
+    } else {
+      setComfyRestartClock(null);
+    }
+    if (lastRestart && lastRestart.startedAt === watchedRestart.current) {
+      watchedRestart.current = 0;
+      setComfyRestartResult(lastRestart);
+      if (lastRestart.outcome === "failed") showToast("ComfyUI didn’t come back after the restart. Check its window for errors; HEISS UI keeps trying to connect.", "error");
+      else if (lastRestart.failedPacks?.length) showToast(`ComfyUI is back, but ${listNames(lastRestart.failedPacks)} didn’t load. Its window says why.`, "error");
+      else if (lastRestart.newPacks?.length) showToast(`ComfyUI is back with ${listNames(lastRestart.newPacks)}.`, "success");
+    }
+    setComfyRestarting(comfyRestarting);
+  }, [comfyRestarting, comfyStatus.restartStartedAt, comfyStatus.restartTypicalMs, lastRestart?.startedAt]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const onRestart = () => {
       refreshComfyStatus();

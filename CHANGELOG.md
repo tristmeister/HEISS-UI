@@ -11,6 +11,16 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Added
+- **Restarting ComfyUI tells you how long it usually takes.** After a few
+  restarts that agree, the restart line fills toward your machine's usual
+  time and counts down ("Back in about 12 s"). A restart well past it says
+  ComfyUI may be installing something rather than counting on.
+- **A restart says what it brought.** Once ComfyUI is back, a node pack
+  that is new says so ("ComfyUI is back with Impact Pack"), and one that
+  failed to load says that instead of turning up later as a missing node.
+  Restart timings stay in your data folder and are only used for this.
+
 ## [0.9.0] - 2026-09-27
 
 > Qwen-Image 2.1 edits from references, and restarts up front

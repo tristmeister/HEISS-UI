@@ -3,6 +3,7 @@ import { Check, RotateCw } from 'lucide-react';
 import { apiJson } from './api';
 import { cn } from './format';
 import { useThisComputer } from './device';
+import type { RestartResult } from './types';
 
 export type ManagerInfo = { connected: boolean; available: boolean; version: string | null; stale?: boolean; error?: string };
 
@@ -48,6 +49,121 @@ export function useComfyRestarting() {
   }, []);
   return value;
 }
+
+/**
+ * The restart under way, on this device's clock: the server says how long it
+ * has been running, so a phone with a clock off by a few seconds still counts
+ * right. typicalMs is how long restarts usually take here, once they agree.
+ */
+type RestartClock = { startedAt: number; localStart: number; typicalMs: number | null };
+let restartClock: RestartClock | null = null;
+let restartResult: RestartResult | null = null;
+const clockListeners = new Set<() => void>();
+const notifyClock = () => clockListeners.forEach((listener) => listener());
+
+export function setComfyRestartClock(next: { startedAt: number; elapsedMs: number; typicalMs?: number | null } | null) {
+  if (!next) {
+    if (!restartClock) return;
+    restartClock = null;
+  } else if (restartClock?.startedAt === next.startedAt) {
+    if (restartClock.typicalMs === (next.typicalMs ?? null)) return;
+    restartClock = { ...restartClock, typicalMs: next.typicalMs ?? null };
+  } else {
+    restartClock = { startedAt: next.startedAt, localStart: Date.now() - Math.max(0, next.elapsedMs), typicalMs: next.typicalMs ?? null };
+    restartResult = null;
+  }
+  notifyClock();
+}
+
+/** The restart this device watched just ended; every restart control can say how. */
+export function setComfyRestartResult(result: RestartResult | null) {
+  if (restartResult?.startedAt === result?.startedAt) return;
+  restartResult = result;
+  notifyClock();
+}
+
+export function useComfyRestartResult() {
+  const [, setVersion] = React.useState(0);
+  React.useEffect(() => {
+    const listener = () => setVersion((value) => value + 1);
+    clockListeners.add(listener);
+    return () => { clockListeners.delete(listener); };
+  }, []);
+  return restartResult;
+}
+
+export type RestartEta = {
+  /** A sentence for notes and empty states. */
+  text: string;
+  /** A few words for a status line. */
+  short: string;
+  /** How full a progress line should be (never quite 1), or null with nothing learned yet. */
+  ratio: number | null;
+  /** Well past the usual time: probably installing something. */
+  slow: boolean;
+};
+
+// Without anything learned, a restart past this long is worth a word.
+const SLOW_WITHOUT_ESTIMATE_MS = 45_000;
+
+/**
+ * What to say about a restart after `elapsed` ms. With a usual time it counts
+ * down, says "almost" near the end rather than promising a second, and past
+ * twice the usual time admits it is slow instead of counting on.
+ */
+export function restartEta(elapsed: number, typicalMs: number | null): RestartEta {
+  if (!typicalMs) {
+    if (elapsed > SLOW_WITHOUT_ESTIMATE_MS) return { text: 'Taking a while. ComfyUI may be installing something new.', short: 'Taking a while…', ratio: null, slow: true };
+    return { text: 'Usually back in a few seconds.', short: 'Restarting…', ratio: null, slow: false };
+  }
+  // Eases toward full: about 90% at the usual time, still moving if it runs late.
+  const ratio = Math.min(0.97, 1 - Math.exp(-2.3 * (elapsed / typicalMs)));
+  const remaining = typicalMs - elapsed;
+  if (elapsed > typicalMs * 2 && elapsed > 20_000) return { text: 'Taking longer than usual. ComfyUI may be installing something new.', short: 'Longer than usual…', ratio, slow: true };
+  if (remaining > 2500) {
+    const seconds = Math.ceil(remaining / 1000);
+    return { text: `Back in about ${seconds} s.`, short: `Back in about ${seconds} s`, ratio, slow: false };
+  }
+  return { text: 'Almost back.', short: 'Almost back…', ratio, slow: false };
+}
+
+/** The live estimate for the restart under way, or null when there is none. */
+export function useComfyRestartEta(): RestartEta | null {
+  const [, setVersion] = React.useState(0);
+  React.useEffect(() => {
+    const listener = () => setVersion((value) => value + 1);
+    clockListeners.add(listener);
+    return () => { clockListeners.delete(listener); };
+  }, []);
+  const running = Boolean(restartClock);
+  React.useEffect(() => {
+    if (!running) return;
+    const timer = window.setInterval(() => setVersion((value) => value + 1), 500);
+    return () => window.clearInterval(timer);
+  }, [running]);
+  if (!restartClock) return null;
+  return restartEta(Date.now() - restartClock.localStart, restartClock.typicalMs);
+}
+
+/** "A and B", or "A, B and 3 more" when there are many. */
+export function listNames(names: string[]) {
+  return names.length > 2 ? `${names.slice(0, 2).join(', ')} and ${names.length - 2} more` : names.join(' and ');
+}
+
+/** The restart estimate as text, ticking on its own so the surface around it does not re-render. */
+export function RestartEtaText({ fallback = 'Usually back in a few seconds.' }: { fallback?: string }) {
+  const eta = useComfyRestartEta();
+  return <>{eta?.text || fallback}</>;
+}
+
+/** "Back in 18 s", or what the restart brought: a new pack, or one that did not load. */
+export function restartResultLine(result: RestartResult | null) {
+  if (!result || result.outcome !== 'back') return 'Back online';
+  if (result.failedPacks?.length) return `Back · ${listNames(result.failedPacks)} didn’t load`;
+  if (result.newPacks?.length) return `Back · ${listNames(result.newPacks)} ${result.newPacks.length === 1 ? 'is' : 'are'} new`;
+  return result.durationMs ? `Back in ${Math.max(1, Math.round(result.durationMs / 1000))} s` : 'Back online';
+}
+
 /** Tells the app a restart just started, so it asks the server at once and polls faster. */
 export function announceComfyRestart() {
   setComfyRestarting(true);
@@ -117,9 +233,15 @@ export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; conf
       const next = await fetchManager(true);
       if (!next.connected) sawDown = true;
       if (next.connected && (sawDown || Date.now() - started > 15_000)) {
+        // The server looks at what the restart brought before calling it done; give it a moment.
+        const settle = Date.now() + 8000;
+        while (alive.current && restartingNow && Date.now() < settle) await new Promise((resolve) => window.setTimeout(resolve, 400));
+        if (!alive.current) return;
         setPhase('back');
         onBack?.();
-        window.setTimeout(() => { if (alive.current) setPhase('idle'); }, 2400);
+        // A new or broken pack is worth reading; a plain "back" only needs a glance.
+        const notable = Boolean(restartResult?.newPacks?.length || restartResult?.failedPacks?.length);
+        window.setTimeout(() => { if (alive.current) setPhase('idle'); }, notable ? 6000 : 2400);
         return;
       }
       await new Promise((resolve) => window.setTimeout(resolve, 1200));
@@ -133,7 +255,9 @@ export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; conf
   const globalRestarting = useComfyRestarting();
   const busy = phase === 'restarting' || (globalRestarting && phase !== 'back');
   const off = !busy && info !== null && !info.available;
-  return { info, refresh, phase, error, busy, off, restart };
+  const eta = useComfyRestartEta();
+  const result = useComfyRestartResult();
+  return { info, refresh, phase, error, busy, off, restart, eta, result };
 }
 
 /** Why the restart button is off, with a way to check again. */
@@ -161,7 +285,7 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
   compact?: boolean;
   className?: string;
 }) {
-  const { info, refresh, phase, error, busy, off, restart } = useComfyRestart({ onBack, confirm });
+  const { info, refresh, phase, error, busy, off, restart, eta, result } = useComfyRestart({ onBack, confirm });
   const thisComputer = useThisComputer();
   // Restarting is looked after at the computer; elsewhere only its progress shows.
   if (!thisComputer && !busy) return <p className={cn('comfy-restart-note', className)}>Restart ComfyUI from the computer running HEISS UI.</p>;
@@ -172,7 +296,8 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
         {phase === 'back' ? 'Back online' : busy ? 'Restarting…' : 'Restart ComfyUI'}
       </button>
       {off ? <ComfyManagerNote info={info} refresh={refresh} /> : null}
-      {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting and reads new nodes and folders as it starts. Back in a few seconds.</p> : null}
+      {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting and reads new nodes and folders as it starts. {eta?.text || 'Usually back in a few seconds.'}</p> : null}
+      {phase === 'back' && !compact && result && restartResultLine(result) !== 'Back online' ? <p className={cn('comfy-restart-note', Boolean(result.failedPacks?.length) && 'is-error')}>{restartResultLine(result)}</p> : null}
       {phase === 'error' ? <p className="comfy-restart-note is-error">{error}</p> : null}
     </div>
   );

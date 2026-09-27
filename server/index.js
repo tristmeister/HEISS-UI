@@ -31,7 +31,9 @@ import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { nodePack, nodePacks } from './node-packs.js';
-import { beginComfyRestart, comfyRestarting, noteComfyRestart } from './comfy-restart.js';
+import { beginComfyRestart, comfyRestartStartedAt, comfyRestarting, finishComfyRestart, lastComfyRestart, noteComfyRestart } from './comfy-restart.js';
+import { failedPacks, loadedPacks, logTextFromRaw, packLabel, restartChanges } from './restart-insights.js';
+import { comfyRestartEstimate, recordComfyRestart } from './timings.js';
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
@@ -475,13 +477,13 @@ app.get("/api/comfy/status", async (_req, res) => {
     noteComfyReachable();
     const latencyMs = Math.round(performance.now() - startedAt);
     if (!response.ok) {
-      res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(false), error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
+      res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(), error: `HTTP ${response.status}${demoMode ? " (Demo Mode Active)" : ""}` });
       return;
     }
     const stats = await response.json();
     const device = stats?.devices?.[0]?.name || "";
     res.json({
-      ...restartFields(true),
+      ...restartFields(),
       connected: true,
       url: comfyUrl,
       latencyMs,
@@ -498,16 +500,70 @@ app.get("/api/comfy/status", async (_req, res) => {
     noteComfyFetchError(error?.name === "AbortError" ? new Error("timed out") : error);
     const latencyMs = Math.round(performance.now() - startedAt);
     const message = error?.name === "AbortError" ? "Connection timed out" : error?.message || "Connection failed";
-    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(false), error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
+    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(), error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
   } finally {
     clearTimeout(timeout);
   }
 });
 
-/** A restart HEISS asked for, as the status poll reports it: restarting, and since when. */
-function restartFields(connected) {
-  const restart = noteComfyRestart(connected);
-  return restart?.phase === "restarting" ? { restarting: true, restartStartedAt: restart.startedAt } : restart?.phase === "failed" ? { restartFailed: true } : {};
+/**
+ * A restart HEISS asked for, as the status poll reports it: restarting, since
+ * when and how long it usually takes; and the one that just ended, so every
+ * device that watched it can say how it went. The server's own watcher moves
+ * the restart along; this only reads it.
+ */
+function restartFields() {
+  const fields = {};
+  const last = lastComfyRestart();
+  if (last) fields.lastRestart = last;
+  if (!comfyRestarting()) return fields;
+  const estimate = comfyRestartEstimate();
+  const startedAt = comfyRestartStartedAt();
+  return { ...fields, restarting: true, restartStartedAt: startedAt, restartElapsedMs: Date.now() - startedAt, ...(estimate ? { restartTypicalMs: estimate.typicalMs } : {}) };
+}
+
+/** The node packs ComfyUI has loaded right now, or null when it cannot say. */
+async function currentPacks(timeout = 8000) {
+  try {
+    return loadedPacks(await comfy("/object_info", { signal: AbortSignal.timeout(timeout) }));
+  } catch {
+    return comfyCache.info ? loadedPacks(comfyCache.info) : null;
+  }
+}
+
+/**
+ * Follows a restart until ComfyUI is back (or clearly is not), independent of
+ * any tab polling, so its time is measured to about a second. Once back, it
+ * compares the loaded packs with before and reads ComfyUI's startup log for
+ * packs that failed to load. Only a plain restart, one that changed nothing,
+ * counts toward the usual time.
+ */
+let restartWatch = null;
+function watchComfyRestart() {
+  if (restartWatch) return restartWatch;
+  restartWatch = (async () => {
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    for (;;) {
+      const up = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(1500) }).then((response) => response.ok, () => false);
+      const step = noteComfyRestart(up);
+      if (!step || step.phase === "failed") return;
+      if (step.phase === "back") {
+        const after = await currentPacks();
+        const log = await comfy("/internal/logs/raw", { signal: AbortSignal.timeout(4000) }).then(logTextFromRaw, () => "");
+        const changes = restartChanges(step.packs, after, failedPacks(log));
+        if (changes.plain && step.durationMs) recordComfyRestart(step.durationMs);
+        finishComfyRestart({
+          durationMs: step.durationMs,
+          newPacks: changes.newPacks.map(packLabel),
+          failedPacks: changes.failedPacks.map(packLabel)
+        });
+        refreshComfyContextSoon();
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+  })().catch((error) => console.warn(`[HEISS] Lost track of the ComfyUI restart: ${error.message}`)).finally(() => { restartWatch = null; });
+  return restartWatch;
 }
 
 /** What to say when ComfyUI does not answer: restarting on purpose, or simply not there. */
@@ -1469,6 +1525,12 @@ app.post("/api/comfy/restart", async (req, res) => {
     res.status(503).json({ ok: false, error: "ComfyUI isn’t running, so there’s nothing to restart. Start it, and the studio connects by itself." });
     return;
   }
+  // What ComfyUI has loaded now, so the restart can tell what it brought in.
+  const packs = await currentPacks(6000);
+  const begin = () => {
+    beginComfyRestart(Date.now(), { packs });
+    watchComfyRestart();
+  };
   let sawManager = false;
   // Manager 4 (built into ComfyUI) and the Manager custom node from 3.4x only
   // take a bodyless POST; older custom nodes took a GET. A 404/405 just means
@@ -1480,12 +1542,12 @@ app.post("/api/comfy/restart", async (req, res) => {
       response = await fetch(`${comfyUrl}${route}`, { method, signal: AbortSignal.timeout(5000) });
     } catch {
       // ComfyUI dropping the connection mid-answer means it is already going down.
-      beginComfyRestart();
+      begin();
       res.json({ ok: true });
       return;
     }
     if (response.ok) {
-      beginComfyRestart();
+      begin();
       res.json({ ok: true });
       return;
     }
