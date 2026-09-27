@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Notes as islands, a floating live run, gentler face detail
+
 ### Changed
 - **Toasts are islands now.** Notes float in under the download and update
   pills in the same frosted capsule, with a small cell glyph for each kind:
