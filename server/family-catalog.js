@@ -671,6 +671,9 @@ export function familyFromHeader(header) {
   if (has("blocks.0.mlp.layer1.weight")) {
     return has("llm_adapter.blocks.0.cross_attn.q_proj.weight") ? { family: "anima" } : { family: "cosmos" };
   }
+  // Qwen-Image 2.1 renamed Qwen-Image's text input (txt_in.text_norm, no txt_norm) and fused its MLP.
+  if (["txt_in.text_norm.weight", "modulation.1.weight", "transformer_blocks.0.attn.norm_q.weight", "img_in.weight", "proj_out.weight"].every(has)
+    && (has("transformer_blocks.0.img_mlp.gate_up.weight") || has("transformer_blocks.0.img_mlp.proj.weight"))) return { family: "qwen_image_21" };
   if (has("txt_norm.weight")) {
     if (has("transformer_blocks.0.attn.norm_added_q.weight") && has("transformer_blocks.0.img_mlp.w1.weight")) return { family: "other" };
     if (dim(keys, "txt_norm.weight", 0) === 2560 && dim(keys, "proj_out.weight", 0) === 128) return { family: "mage_flow" };
@@ -692,7 +695,8 @@ export function familyFromHeader(header) {
     if (context === 1280) return { family: "sdxl_refiner" };
     return { family: "other" };
   }
-  return { family: "other" };
+  // No signature we know: an architecture newer than this build, so its name gets a say.
+  return { family: "other", detail: { unrecognized: true } };
 }
 
 /** The variant of a family a file is, by name (and header where it can tell). */

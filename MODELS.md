@@ -59,7 +59,9 @@ catalog, so a family that is described correctly needs no UI work.
    the same position ComfyUI checks it, so no file is read two ways. Watch for
    keys another family also has (diffusers-format Sana carries LTX-Video's
    `adaln_single` keys). Add a filename pattern to `familyFromName` for remote
-   ComfyUIs where headers are out of reach.
+   ComfyUIs where headers are out of reach. The pattern also covers local files
+   whose weights match no signature yet: those fall back to their name rather
+   than showing as unknown.
 
 6. **Encoders and VAE.** Reuse an existing kind where the file is the same.
    Otherwise add the kind (header signature plus name fallback) and at least

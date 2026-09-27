@@ -273,6 +273,11 @@ export function classifyModel(source, name) {
   if (header) {
     const { family, detail } = familyFromHeader(header);
     if (family && family !== "other") return finish(family, "file", detail);
+    // Weights we cannot place yet (a newer architecture) let its metadata or name decide.
+    if (family === "other" && detail?.unrecognized) {
+      const named = familyFromMetadata(metadataCache.get(choiceKey(source, name)) || {}) || familyFromName(name, source);
+      if (families[named]?.sources.includes(source)) return finish(named, "name");
+    }
     // A checkpoint ComfyUI can load but we cannot place still runs as an SD-family file.
     if (family === "other") return source === "checkpoint" ? finish("sdxl", "default") : finish("other", "file");
   }

@@ -550,3 +550,19 @@ test("Lumina 2 and NetaYume read their system prompt first, with Gemma and the F
   const lumina = inferModels(objectInfo({ unets, clips, vaeFiles: [put("vae", "ae.safetensors", vaes.kl16)], clipTypes: newTypes })).profiles.find((profile) => profile.family === "lumina2");
   assert.deepEqual([lumina.variant, lumina.ready, lumina.defaults.sampler, lumina.encoderSlots[0].default], ["standard", true, "res_multistep", "gemma_2_2b_fp16.safetensors"]);
 });
+
+test("Qwen-Image 2.1 is read from its weights, and weights nothing knows yet let the name decide", () => {
+  const qwen21 = {
+    "txt_in.text_norm.weight": t([4096]), "modulation.1.weight": t([16384, 4096]), "img_in.weight": t([4096, 64]), "proj_out.weight": t([64, 4096]),
+    "transformer_blocks.0.attn.norm_q.weight": t([128]), "transformer_blocks.0.img_mlp.gate_up.weight": { dtype: "I8", shape: [24576, 4096], data_offsets: [0, 0] },
+    "transformer_blocks.0.img_mlp.gate_up.weight_scale": t([24576, 1]), "transformer_blocks.0.img_mlp.gate_up.comfy_quant": { dtype: "U8", shape: [72], data_offsets: [0, 0] }
+  };
+  assert.equal(familyFromHeader(qwen21).family, "qwen_image_21");
+  put("diffusion_models", "renamed_finetune_v3_int8.safetensors", qwen21);
+  assert.deepEqual([classifyModel("unet", "renamed_finetune_v3_int8.safetensors").family, classifyModel("unet", "renamed_finetune_v3_int8.safetensors").via], ["qwen_image_21", "file"]);
+  const unknown = { "brand_new_block.0.weight": t([1, 1]), "brand_new_block.1.weight": t([1, 1]) };
+  put("diffusion_models", "qwenImage21_future_layout.safetensors", unknown);
+  put("diffusion_models", "mystery_model.safetensors", unknown);
+  assert.deepEqual([classifyModel("unet", "qwenImage21_future_layout.safetensors").family, classifyModel("unet", "qwenImage21_future_layout.safetensors").via], ["qwen_image_21", "name"]);
+  assert.equal(classifyModel("unet", "mystery_model.safetensors").family, "other");
+});
