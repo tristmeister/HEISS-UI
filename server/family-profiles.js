@@ -39,6 +39,13 @@ const downloadSources = {
  * The first is "reference", like every other model's, so remix and drop-to-
  * reference land in it; each further slot shows once the one before is filled.
  */
+// ReferenceLatent edits scale, encode and chain each image; an encoder that reads images needs nothing more.
+const referenceLatentNodes = ["ImageScaleToTotalPixels", "VAEEncode", "ReferenceLatent", "GetImageSize"];
+function canReference(family, info) {
+  if (!family.references) return false;
+  return family.referenceVia === "encoder" || referenceLatentNodes.every((node) => hasNode(info, node));
+}
+
 export function referenceSlots(count = 0) {
   return Array.from({ length: Math.max(0, Number(count) || 0) }, (_, index) => ({
     id: index ? `reference_${index + 1}` : "reference",
@@ -287,9 +294,10 @@ export function familyProfiles(info, helpers) {
     if (missing.length) fileEntry.reason = `Needs ${missing.map((item) => item.label).join(", ")}.`;
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
+    const references = canReference(family, info) ? family.references : 0;
     const profile = buildProfile({
-      mediaInputs: referenceSlots(family.references),
-      aspectPolicy: family.references ? "reference" : "manual",
+      mediaInputs: referenceSlots(references),
+      aspectPolicy: references ? "reference" : "manual",
       id: legacyProfileId(info2.family, source, name) || `${family.kind}:${info2.family}:${source}:${name}`,
       kind: family.kind,
       label: sanaLabel(name) && runner ? sanaLabel(name) : `${prettyModelName(name)} · ${family.label}`,

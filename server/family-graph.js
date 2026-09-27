@@ -190,10 +190,28 @@ export function familyGraph(body) {
     else if (negativeMode === "zero") negative = [add("ConditioningZeroOut", { conditioning: positive }), 0];
   }
 
+  // ---- Reference images the ReferenceLatent way (Flux 2): each scaled to the
+  // picked pixel count, encoded, and chained onto both conditionings, as
+  // ComfyUI's Flux 2 edit templates do. The first one's size frames the output.
+  let editSize = null;
+  if (family.references && family.referenceVia !== "encoder") {
+    const references = (body.referenceImages || []).slice(0, family.references);
+    const megapixels = Math.max(0.01, Math.round(width * height / 10_000) / 100);
+    references.forEach((name, index) => {
+      const scaled = [add("ImageScaleToTotalPixels", { image: [add("LoadImage", { image: name }), 0], upscale_method: "lanczos", megapixels, resolution_steps: 1 }), 0];
+      if (index === 0) editSize = add("GetImageSize", { image: scaled });
+      const encoded = [add("VAEEncode", { pixels: scaled, vae }), 0];
+      positive = [add("ReferenceLatent", { conditioning: positive, latent: encoded }), 0];
+      if (negative) negative = [add("ReferenceLatent", { conditioning: negative, latent: encoded }), 0];
+    });
+  }
+  const latentWidth = editSize ? [editSize, 0] : width;
+  const latentHeight = editSize ? [editSize, 1] : height;
+
   // ---- Latent (optionally from a start image)
   let latent;
   let denoise = 1;
-  const startImage = body.startImageComfy && !editLatent && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
+  const startImage = body.startImageComfy && !editLatent && !editSize && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
   if (editLatent) {
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent;
   } else if (family.latent === "Wan22ImageToVideoLatent") {
@@ -206,14 +224,14 @@ export function familyGraph(body) {
     latent = [add("VAEEncode", { pixels: startImage, vae }), 0];
     denoise = Number(body.denoise ?? 0.65);
   } else {
-    latent = [add(family.latent, { width, height, batch_size: count }), 0];
+    latent = [add(family.latent, { width: latentWidth, height: latentHeight, batch_size: count }), 0];
   }
 
   // ---- Sample
   let samples;
   if (family.sampling === "custom") {
     const sigmas = family.scheduler === "flux2"
-      ? add("Flux2Scheduler", { steps: Number(body.steps || 20), width, height })
+      ? add("Flux2Scheduler", { steps: Number(body.steps || 20), width: latentWidth, height: latentHeight })
       : add("BasicScheduler", { model, scheduler: body.scheduler || "simple", steps: Number(body.steps || 20), denoise: 1 });
     const guider = negative
       ? add("CFGGuider", { model, positive, negative, cfg: Number(body.cfg || 1) })

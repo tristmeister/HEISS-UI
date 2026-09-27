@@ -587,3 +587,38 @@ test("Qwen-Image 2.1 edits: references go into its encoder, and its latent frame
   assert.ok(!Object.values(plain).some((node) => node.class_type === "LoadImage"), "no references, no images");
   assert.equal(plain[Object.values(plain).find((node) => node.class_type === "KSampler").inputs.latent_image[0]].class_type, "EmptyLatentImage");
 });
+
+test("Flux 2 edits chain each reference onto both conditionings, framed by the first", () => {
+  const base = { family: "flux2_klein_9b", variant: "distilled", source: "unet", model: "real-dream-klein9b-1-fp8.safetensors", encoders: ["qwen_3_8b_fp8mixed.safetensors"], vae: "flux2-vae.safetensors", prompt: "hold the bag", width: 1024, height: 1024, steps: 4, cfg: 1, seed: 1 };
+  const graph = familyGraph({ ...base, referenceImages: ["woman.png", "bag.png"] });
+  const nodes = Object.entries(graph);
+  const of = (type) => nodes.filter(([, node]) => node.class_type === type);
+  assert.equal(of("ReferenceLatent").length, 4, "two references on positive and on negative");
+  assert.deepEqual(of("ImageScaleToTotalPixels").map(([, node]) => node.inputs.megapixels), [1.05, 1.05]);
+  const guider = of("CFGGuider")[0][1];
+  assert.equal(graph[guider.inputs.positive[0]].class_type, "ReferenceLatent");
+  assert.equal(graph[guider.inputs.negative[0]].class_type, "ReferenceLatent");
+  const [sizeId] = of("GetImageSize")[0];
+  assert.deepEqual(of("EmptyFlux2LatentImage")[0][1].inputs.width, [sizeId, 0]);
+  assert.deepEqual(of("Flux2Scheduler")[0][1].inputs.height, [sizeId, 1]);
+
+  const dev = familyGraph({ ...base, family: "flux2_dev", variant: "dev", encoders: ["mistral_3_small_flux2_bf16.safetensors"], referenceImages: ["woman.png"] });
+  const devGuider = Object.values(dev).find((node) => node.class_type === "BasicGuider");
+  const ref = dev[devGuider.inputs.conditioning[0]];
+  assert.equal(ref.class_type, "ReferenceLatent");
+  assert.equal(dev[ref.inputs.conditioning[0]].class_type, "FluxGuidance", "the reference goes on after the guidance, as in ComfyUI's template");
+
+  const plain = familyGraph(base);
+  assert.ok(!Object.values(plain).some((node) => node.class_type === "ReferenceLatent"));
+  assert.equal(Object.values(plain).find((node) => node.class_type === "EmptyFlux2LatentImage").inputs.width, 1024);
+});
+
+test("reference slots show only where this ComfyUI has the nodes to wire them", () => {
+  put("diffusion_models", "klein_refs_4b.safetensors", headers.klein4b);
+  const setup = { unets: ["klein_refs_4b.safetensors"], clips: ["qwen_3_4b.safetensors"], vaeFiles: ["flux2-vae.safetensors"] };
+  const slotsWith = (extra) => inferModels(objectInfo({ ...setup, extra })).profiles.find((item) => item.model === "klein_refs_4b.safetensors");
+  assert.deepEqual(slotsWith({}).mediaInputs, [], "an older ComfyUI keeps text-to-image and offers no references");
+  const withNodes = slotsWith({ ImageScaleToTotalPixels: node(), ReferenceLatent: node(), GetImageSize: node() });
+  assert.deepEqual(withNodes.mediaInputs.map((input) => input.id), ["reference", "reference_2", "reference_3"]);
+  assert.equal(withNodes.aspectPolicy, "reference");
+});

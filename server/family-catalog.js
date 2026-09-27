@@ -185,6 +185,7 @@ export const families = {
     slots: [{ slot: "encoder", label: "Mistral 3 Small", kinds: ["mistral3_24b"] }], clipType: "flux2",
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, negative: "none", sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "BasicGuider", "FluxGuidance"],
+    references: 3,
     variants: [
       { id: "fast", label: "Fast", match: (name) => speedName.test(name), guidance: 4, defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "dev", label: "Dev", guidance: 4, defaults: { steps: 28, cfg: 1, sampler: "euler", scheduler: "simple" } }
@@ -196,6 +197,7 @@ export const families = {
     slots: [{ slot: "encoder", label: "Qwen3 4B", kinds: ["qwen3_4b"] }], clipType: "flux2",
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "CFGGuider"],
+    references: 3,
     variants: [
       { id: "base", label: "Base", match: (name) => /base/i.test(name) && !speedName.test(name), negative: "text", defaults: { steps: 20, cfg: 5, sampler: "euler", scheduler: "simple" } },
       { id: "distilled", label: "Distilled", negative: "zero", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } }
@@ -207,6 +209,7 @@ export const families = {
     slots: [{ slot: "encoder", label: "Qwen3 8B", kinds: ["qwen3_8b"] }], clipType: "flux2",
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "CFGGuider"],
+    references: 3,
     variants: [
       { id: "base", label: "Base", match: (name) => /base/i.test(name) && !speedName.test(name), negative: "text", defaults: { steps: 20, cfg: 5, sampler: "euler", scheduler: "simple" } },
       { id: "distilled", label: "Distilled", negative: "zero", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } }
@@ -258,7 +261,7 @@ export const families = {
     vae: ["qwen_image_21"], latent: "EmptyLatentImage", sizeStep: 32, negative: "qwen21", aspects: square,
     requiredNodes: ["TextEncodeQwenImage21"],
     // Edits: its text encoder reads reference images (up to 16; the composer offers three).
-    references: 3,
+    references: 3, referenceVia: "encoder",
     variants: [{ id: "standard", label: "Qwen-Image 2.1", defaults: { steps: 25, cfg: 1, sampler: "euler", scheduler: "simple" } }],
     size: [1024, 1024]
   },

@@ -89,8 +89,11 @@ catalog, so a family that is described correctly needs no UI work.
    no `img2img`. Profiles hide the matching controls. An edit model that reads
    images as guidance sets `references: n`: the composer offers n reference
    slots (each after the one before is filled), the first reference frames the
-   output, and `familyGraph` hands the staged images to the model's encoder
-   (today Qwen-Image 2.1's `TextEncodeQwenImage21`).
+   output. By default `familyGraph` wires them the `ReferenceLatent` way
+   (scale, VAE-encode, chain onto both conditionings, as ComfyUI's Flux 2 edit
+   templates do), and the slots only appear when ComfyUI has those core nodes;
+   `referenceVia: "encoder"` hands them to an encoder that reads images itself
+   (Qwen-Image 2.1's `TextEncodeQwenImage21`).
 
 9. **Tests** in `server/model-families.test.js`. Cover detection from a
    header, each variant's defaults, what a missing part or pack reports, and
