@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-27
+
 > Qwen-Image 2.1 edits from references, and restarts up front
 
 ### Added
@@ -703,7 +705,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.5...v0.8.0
