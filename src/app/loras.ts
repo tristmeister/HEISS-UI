@@ -20,6 +20,12 @@ export function normalizeLoras(value: unknown): LoraSelection[] {
   })).filter((item) => item.name && !seen.has(item.name) && seen.add(item.name)).slice(0, maxLoras);
 }
 
+/** Whether two workflows run the same weights file, so a LoRA stack still fits after switching. */
+export function sameBaseModel(a: Profile | null | undefined, b: Profile | null | undefined) {
+  const file = (profile: Profile | null | undefined) => String(profile?.baseModel || "").split(/[\\/]/).pop()!.toLowerCase();
+  return Boolean(a && b && a.kind === b.kind && file(a) && file(a) === file(b));
+}
+
 function tokensForProfile(profile: Profile | null) {
   const text = [
     profile?.family,

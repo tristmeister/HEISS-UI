@@ -9,7 +9,7 @@ import { fallbackAspectPresets } from './app/constants';
 import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromGallery } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
 import { useGalleryColumnCount } from './app/gallery';
-import { normalizeLoras } from './app/loras';
+import { normalizeLoras, sameBaseModel } from './app/loras';
 import { deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks, recordLoraRecents, rememberActiveLoras, rememberedLoraStrength, rememberLoraStrengths, renameLoraStack, saveLoraStack, startLoraSync, subscribeLoraLibrary, subscribeLoraSync, toggleLoraFavorite, updateLoraStack, type LoraSnapshot, type LoraSyncStatus } from './app/lora-storage';
 import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
@@ -297,12 +297,23 @@ function App() {
     return () => { stop(); offLibrary(); offSync(); };
   }, []);
 
+  // Switching workflow on the same weights keeps the stack. A different base
+  // model starts from its own last stack, or none: LoRAs don't carry across models.
+  const lorasModelRef = useRef("");
   useEffect(() => {
+    const previous = lorasModelRef.current;
+    lorasModelRef.current = model;
     if (!model) return;
     if (explicitLorasFor.current === model) {
       explicitLorasFor.current = "";
       return;
     }
+    const profileFor = (id: string) => models?.profiles.find((profile) => profile.id === id);
+    if (previous && sameBaseModel(profileFor(previous), profileFor(model))) {
+      setLorasWithMemory((current) => current);
+      return;
+    }
+    if (previous) setLoras([]);
     let current = true;
     apiJson<{ found: boolean; loras: LoraSelection[] }>(`/api/loras/${encodeURIComponent(model)}`)
       .then((data) => { if (current && data.found) setLoras(normalizeLoras(data.loras)); })

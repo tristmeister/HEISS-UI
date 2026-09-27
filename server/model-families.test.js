@@ -199,6 +199,7 @@ test("profiles fill missing parts from compatible files, abliterated first", () 
   const xl = models.profiles.find((profile) => profile.model === "juggernautXL.safetensors");
   assert.deepEqual([xl.encoderBuiltIn, xl.vaeBuiltIn, xl.encoderSlots.length, xl.defaults.vae], [true, true, 0, ""]);
   assert.equal(xl.id, "image:checkpoint:juggernautXL.safetensors", "existing ids survive for gallery history");
+  assert.equal(xl.baseModel, "juggernautXL.safetensors", "the weights file, so a workflow on the same file keeps its LoRAs");
 });
 
 test("missing parts are named, with downloads, and keep the model from running", () => {

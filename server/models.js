@@ -81,7 +81,7 @@ function customAspectSet(defaults, ratios = [], ranges = {}) {
   }).length ? aspectSet(defaults, ratios.map((item) => Array.isArray(item) ? item : [item.label || item.value || "Custom", Number(item.w || 1), Number(item.h || 1)]), ranges) : [];
 }
 
-export function buildProfile({ id, kind, label, displayName, description, model, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual", maxLoras = 8 }) {
+export function buildProfile({ id, kind, label, displayName, description, model, baseModel, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual", maxLoras = 8 }) {
   return {
     id,
     kind,
@@ -89,6 +89,8 @@ export function buildProfile({ id, kind, label, displayName, description, model,
     displayName: displayName || label,
     description: description || modelBasename(model),
     model,
+    // The weights file it runs, so switching workflows on the same file can keep its LoRAs.
+    baseModel: baseModel ?? modelBasename(model),
     workflow,
     family,
     defaults,
@@ -171,6 +173,7 @@ export function inferModels(info, stats = {}) {
       displayName: workflow.name,
       description: workflow.description,
       model: workflow.profileId,
+      baseModel: modelBasename(defaults.model || ""),
       workflow: workflow.profileId,
       family: workflow.family,
       defaults: {

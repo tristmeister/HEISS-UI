@@ -76,6 +76,8 @@ export type Profile = {
   displayName?: string;
   description?: string;
   model: string;
+  /** The weights file the workflow runs; empty when a custom workflow doesn't say. */
+  baseModel?: string;
   workflow: string;
   family: string;
   /** The family's name as people know it ("Flux.1"), for built-in families. */
