@@ -9,7 +9,7 @@
 
 <p align="center">
   A calm, local front end for ComfyUI.<br />
-  Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
+  26 model families work out of the box. Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
 </p>
 
 <p align="center">
@@ -17,9 +17,11 @@
   &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a>
   &nbsp;·&nbsp;
-  <a href="#paste-into-an-agent">Paste into an agent</a>
+  <a href="#supported-models">Models</a>
   &nbsp;·&nbsp;
   <a href="#bring-your-own-workflow">Your own workflows</a>
+  &nbsp;·&nbsp;
+  <a href="#on-your-phone">Phone</a>
   &nbsp;·&nbsp;
   <a href="#faq">FAQ</a>
 </p>
@@ -40,14 +42,16 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Features
 
+- **26 model families out of the box, and they look right.** 21 image and 5 video families, from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2, Wan 2.2 and MiniMax H3. HEISS reads each model file to tell what it is and runs it with the settings from its makers' own templates, Turbo, Lightning and base variants included. No workflow needed for good results. [The full list ↓](#supported-models)
 - **Bring your own workflow.** Import any ComfyUI workflow (API or visual JSON) and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
-- **Drop in a model and go.** HEISS reads each model file to tell what it is, uses the settings its makers recommend, and pairs it with a matching text encoder and VAE. If one is missing, it says which and can download it for you.
+- **Missing parts download themselves.** Pick a model and HEISS checks everything it needs: text encoders, VAE, companion files and custom nodes. Anything missing gets a Download or Install button, or one **Get all**. [What it takes care of ↓](#auto-downloads)
+- **Full reference image and start image support.** Edit models like Flux.2 and Qwen-Image 2.1 take reference images; every other image model takes a start image with a slider for how much it may change. [More ↓](#reference-and-start-images)
+- **A phone studio.** On a phone, HEISS UI becomes its own app for your thumb: prompt, browse, share and upscale from the couch while your computer renders. [Set it up ↓](#on-your-phone)
+- **LoRA stacks.** Your LoRAs, grouped by folder, stackable per generation, with stacks saved per model family.
+- **Hidden.** A locked place for the images you keep to yourself: generate into it or hide anything later, unlock with Touch ID, Windows Hello or a password, and upscale, compare and remix inside it. [More ↓](#hidden)
+- **Upscale and compare.** Upscale any image in one click with SeedVR2, with an optional face detail pass, then drag a slider across it to see what changed.
+- **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works, with a countdown to done. Queue the next one, cancel any time.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
-- **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works. Queue the next one, cancel any time.
-- **Image and video.** Separate galleries, plus start-image reuse wherever the workflow supports it.
-- **Hidden.** A locked place for the images you keep to yourself: generate into it or hide anything later, unlock with Touch ID, Windows Hello or a password, and upscale, compare and remix inside it. [More ↓](#configuration)
-- **Upscale and compare.** Upscale any image in one click with SeedVR2, then drag a slider across it to see what changed.
-- **LoRA stacks.** Your LoRAs, grouped by folder, stackable per generation.
 - **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
 
 <p align="center">
@@ -77,7 +81,7 @@ npm start
 
 ComfyUI on another port or machine? Copy `.env.example` to `.env` and set `COMFY_URL`.
 
-## Paste into an agent
+### Paste into an agent
 
 Rather have Claude Code, Codex or another coding agent do the setup? Paste this in. It checks your setup, installs everything and confirms the app can reach ComfyUI. Model downloads only happen if you ask for them.
 
@@ -101,9 +105,22 @@ Please do the full local setup for me:
 Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.
 ```
 
+## Supported models
+
+Drop a model file into ComfyUI and HEISS UI recognises it from its weights, not just its name. Each family runs with the sampler, scheduler, steps, CFG, shift and resolution from its official ComfyUI templates and model cards, so a fresh install makes good images before you touch a setting.
+
+| | Families |
+| --- | --- |
+| **Image** | Ideogram 4, Krea 2 (Turbo, Raw), MageFlow, ERNIE-Image, Anima, Z-Image (Turbo, Base), Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana (1.5, Sprint, 2K/4K), Flux.2 Dev, Flux.2 Klein 4B and 9B, Pony V7, Chroma, Qwen-Image (including 2512) and Qwen-Image 2.1, HiDream I1, SD 3.5, Flux.1 (Dev, Schnell, de-distilled), SDXL (NoobAI, Illustrious, Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), SD 2.x and SD 1.5 |
+| **Video** | MiniMax H3, HunyuanVideo 1.5, Wan 2.2 5B, Wan 2.2 14B (high and low-noise pair) and Wan 2.1 |
+
+Both all-in-one checkpoints and model-only files work. HEISS UI sees which parts a file carries and fills the rest from compatible files you already have, or offers to download them. A file it can't identify can be assigned by hand under **Use as** in Settings. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+
+Adding a family is mostly data, not code. [MODELS.md](./MODELS.md) walks through it.
+
 ## Bring your own workflow
 
-For anything custom, this is the way to go.
+The built-in models cover the everyday loop. For anything custom, bring your graph.
 
 1. Build and test the graph in ComfyUI.
 2. Export it in **API format**.
@@ -126,7 +143,58 @@ For anything custom, this is the way to go.
 
 4. Import it in the **Workflows** panel, or drop it into the `workflows/` folder.
 
-It shows up as soon as the nodes it needs are installed. Only the mapped inputs are touched. Everything else runs exactly as you exported it. The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
+It shows up as soon as the nodes it needs are installed. Only the mapped inputs are touched. Everything else runs exactly as you exported it. If the workflow uses a model file HEISS UI knows and you don't have, it offers the download; otherwise it says which folder the file belongs in. The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
+
+## Auto-downloads
+
+Getting a new model running in ComfyUI usually means hunting for the right text encoder, the right VAE and a custom node pack or two. HEISS UI does that part for you.
+
+- **It knows what each model needs.** Pick a model and HEISS lists exactly what's missing: a text encoder, a VAE, a companion file (like Wan 2.2's low-noise half), a custom node pack, or a newer ComfyUI. The model menu says what each model lacks, and a blocked Generate opens that model's setup.
+- **One click per part, or Get all.** Files come from Hugging Face straight into the folders ComfyUI actually reads from, including shared folders set up in `extra_model_paths.yaml`. **Get all** adds up the real sizes first. Where an abliterated text encoder exists, it's the one offered.
+- **Custom nodes install themselves too.** Packs listed in ComfyUI-Manager install through it; otherwise, with ComfyUI on this computer, HEISS clones the pack and installs its requirements with ComfyUI's own Python. The manual steps stay one tap away.
+- **Downloads you can trust.** They show progress, speed and time left, resume after a restart, retry a dropped connection by themselves, check free space first, and send gated files to their Hugging Face page instead of failing.
+- **It ends in "ready".** Each part is ticked off as it lands, and the last one turns the panel into "Krea 2 is ready". Restarting ComfyUI halfway keeps your progress.
+
+Nothing downloads until you press the button.
+
+## Reference and start images
+
+- **Reference images for edit models.** Flux.2 (Klein 4B, Klein 9B and Dev) and Qwen-Image 2.1 edit from reference images the way ComfyUI's own edit templates do. The composer offers one reference slot after another as you fill them; the first reference frames the result.
+- **Start images for everything else.** Every other built-in image model (Krea 2, SDXL, Flux, Z-Image and the rest) offers **Add start image**, with a Change slider for how far it may move from it.
+- **A reference library in the composer.** Pick from your uploads or your own generations, drop files in, or send any image from the viewer. An upscaled image is used upscaled.
+- **Your workflows too.** Imported workflows can take reference images and let one set the output size and aspect.
+
+## On your phone
+
+HEISS UI has a phone studio of its own, laid out for your thumb: the gallery edge to edge, one **Describe…** pill that opens the prompt, reference image, workflow, shape and number of images, and Advanced one link away. Long press a tile to Share, Upscale, Make another, Hide or Delete. Share hands the file to the phone's share sheet. Added to the home screen it opens full-screen, with haptics where the phone allows them. A ring around Generate shows progress while you browse.
+
+To use it, let HEISS UI listen on your network: set `HOST=0.0.0.0` in `.env`, allow the `PORT` (8787 by default) through your firewall and restart. **Settings** then lists every address to open from the phone. Only do this on a network you trust.
+
+Looking after the computer stays at the computer: model downloads, node installs, updates, restarts and deleting everything are refused from other devices, and the phone hides them. The share sheet needs HTTPS; without it, Share saves the file instead. "Use the full studio" in More switches to the complete layout, and `?phone=1` shows the phone studio on any screen.
+
+## Hidden
+
+Hidden is a place for the images you would rather keep to yourself. Open it from the lock in the dock; the first time, it walks you through a password and, where the browser supports it, Touch ID or Windows Hello.
+
+- **Generate straight into it.** Anything you make while Hidden is open renders there, with the same live previews, and never lands in the gallery.
+- **Hide anything, any time.** The eye on a tile (or in the viewer) moves an image into Hidden, or back out.
+- **Everything still works.** Upscale, compare, remix, reuse as a reference and video all work inside Hidden, and what you make from a Hidden image stays hidden.
+- **Locked means nothing shows.** Not a thumbnail, not a count. It locks itself after a while untouched (Settings › Hidden), or right away with **Lock**.
+
+<details>
+<summary><b>How Hidden keeps things private</b></summary>
+
+<br />
+
+Each image, its prompt, settings and upscale are encrypted with AES-256-GCM under a random key, in a hidden data folder. That key is wrapped by your password (scrypt) and by each passkey through the WebAuthn PRF extension, so Touch ID and Windows Hello really are keys, not a yes/no in front of one. The normal gallery is not affected by any of this, locked or not.
+
+Passkeys need the page at `localhost` (not `127.0.0.1`) or over HTTPS, and a browser with PRF support (current Chrome, Edge and Safari). Everywhere else, the password works.
+
+ComfyUI necessarily writes a working file while it renders. HEISS encrypts it and removes it when the run finishes, along with the run's entry in ComfyUI's history and any image it was handed. That needs ComfyUI's output folder, which HEISS finds by itself or asks for. It keeps things out of casual view, but it is not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
+
+There is no password reset. If the password and every passkey are lost, **Erase Hidden** in Settings is the only way to start over, and it takes everything in Hidden with it.
+
+</details>
 
 ## Updating
 
@@ -160,37 +228,6 @@ COMFY_OUTPUT_DIR=
 `COMFY_OUTPUT_DIR` is optional; HEISS UI usually finds the folder. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
 
 <details>
-<summary><b>Hidden</b></summary>
-
-<br />
-
-Hidden is a place for the images you would rather keep to yourself. Open it from the lock in the dock; the first time, it walks you through a password and, where the browser supports it, Touch ID or Windows Hello.
-
-- **Generate straight into it.** Anything you make while Hidden is open renders there, with the same live previews, and never lands in the gallery.
-- **Hide anything, any time.** The eye on a tile (or in the viewer) moves an image into Hidden, or back out.
-- **Everything still works.** Upscale, compare, remix, reuse as a reference and video all work inside Hidden, and what you make from a Hidden image stays hidden.
-- **Locked means nothing shows.** Not a thumbnail, not a count. It locks itself after a while untouched (Settings › Hidden), or right away with **Lock**.
-
-Each image, its prompt, settings and upscale are encrypted with AES-256-GCM under a random key, in a hidden data folder. That key is wrapped by your password (scrypt) and by each passkey through the WebAuthn PRF extension, so Touch ID and Windows Hello really are keys, not a yes/no in front of one. The normal gallery is not affected by any of this, locked or not.
-
-Passkeys need the page at `localhost` (not `127.0.0.1`) or over HTTPS, and a browser with PRF support (current Chrome, Edge and Safari). Everywhere else, the password works.
-
-ComfyUI necessarily writes a working file while it renders. HEISS encrypts it and removes it when the run finishes, along with the run's entry in ComfyUI's history and any image it was handed. That needs ComfyUI's output folder, which HEISS finds by itself or asks for. It keeps things out of casual view, but it is not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
-
-There is no password reset. If the password and every passkey are lost, **Erase Hidden** in Settings is the only way to start over, and it takes everything in Hidden with it.
-
-</details>
-
-<details>
-<summary><b>Phone and LAN access</b></summary>
-
-<br />
-
-Set `HOST=0.0.0.0`, allow the chosen `PORT` through your firewall and open your computer's IP from another device. Only do this on a network you trust.
-
-</details>
-
-<details>
 <summary><b>Windows shortcut</b></summary>
 
 <br />
@@ -218,10 +255,10 @@ Start-Process "http://localhost:8787/"
 ## FAQ
 
 **Do I still need ComfyUI?**
-Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only files it ever adds are text encoders or VAEs you choose to download for a model, and those go into ComfyUI's own folders.
+Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only things it ever adds are files and node packs you choose to download for a model, and those go into ComfyUI's own folders.
 
 **Which models work?**
-Out of the box: Ideogram 4, Krea 2, MageFlow, ERNIE-Image, Anima, Z-Image, Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana, Flux.2 Dev and Klein, Pony V7, Chroma, Qwen-Image, HiDream, SD 3.5, Flux.1, SDXL (including NoobAI, Illustrious and Pony, plus DMD2, Hyper and Lightning merges) and SD 1.5 for images, and MiniMax H3, HunyuanVideo 1.5, Wan 2.2 and Wan 2.1 for video. Both all-in-one checkpoints and model-only files work; HEISS UI finds or offers the text encoder and VAE a file doesn't carry. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
+26 families out of the box, 21 for images and 5 for video. See [Supported models](#supported-models). Anything else runs as [your own workflow](#bring-your-own-workflow).
 
 **Where do my images go?**
 Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.
