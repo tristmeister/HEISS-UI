@@ -15,6 +15,10 @@ version opens with a `> ` summary line, which the update pill shows.
 - **Images taken out of Hidden go back into the heiss-ui folder** with
   everything else HEISS UI saves, instead of loose in ComfyUI's output
   folder. Their upscales too.
+- **Images taken out of Hidden are real outputs again.** They are handed to
+  ComfyUI itself, so they land in the output folder ComfyUI actually uses,
+  even on another computer, and work as reference images. Before, they were
+  written to the folder HEISS UI had on record, which ComfyUI might never see.
 - **A Hidden upscale says when ComfyUI's copy stays behind.** Its plaintext
   copy is removed once it is sealed; when HEISS UI can't reach ComfyUI's
   output folder to do that, it now tells you instead of leaving it silently.

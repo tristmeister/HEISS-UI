@@ -102,7 +102,8 @@ test("hiding moves a file out of ComfyUI's folder and unhiding puts it back", as
   assert.match(item.upscale.url, /variant=upscale/);
   assert.deepEqual(vault.readVaultAssetWithKey(key, item.id, "upscale").buffer, png);
 
-  const restored = vault.unhideItems(key, [item.id]);
+  // Nothing answers at COMFY_URL here, so they are written into the output folder directly.
+  const restored = await vault.unhideItems(key, [item.id]);
   assert.equal(restored.length, 1);
   assert.equal(restored[0].prompt, "a quiet harbour");
   // Back where HEISS UI saves everything, not loose in ComfyUI's output folder.

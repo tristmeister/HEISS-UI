@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { comfy, comfyOutputDir } from "./comfy.js";
+import { comfy, comfyOutputDir, comfyRecentlyUnreachable } from "./comfy.js";
 import { dataDir, generationSettings, outputFileCandidates, promptTitle } from "./gallery-store.js";
 import { encryptionKeyFromRequest, passwordWrapForBackup } from "./privacy.js";
 import { renameWithRetry } from "./json-store.js";
@@ -450,8 +450,12 @@ export async function hideItems(key, items) {
   };
 }
 
+function safeOutputName(name) {
+  return path.basename(String(name || "")).replace(/[<>:"/\\|?*\x00-\x1f]/g, "_") || `heiss-${Date.now()}.png`;
+}
+
 function uniqueOutputPath(base, name) {
-  const safe = path.basename(String(name || "")).replace(/[<>:"/\\|?*\x00-\x1f]/g, "_") || `heiss-${Date.now()}.png`;
+  const safe = safeOutputName(name);
   const ext = path.extname(safe);
   const stem = path.basename(safe, ext);
   let candidate = path.join(base, safe);
@@ -466,37 +470,68 @@ function viewParams(file, base) {
 }
 
 /**
- * Puts Hidden items back in the gallery: decrypted into ComfyUI's output
- * folder as ordinary files, with their prompts and settings intact. Returns
- * the gallery records for the caller to add. They go where HEISS UI saves
- * everything, the heiss-ui folder, not loose in ComfyUI's own.
+ * Puts one decrypted file back among ComfyUI's outputs, in heiss-ui. ComfyUI
+ * takes it through its own upload, so it lands in the folder ComfyUI really
+ * saves to (on another computer, or when HEISS UI's idea of that folder is
+ * off) and ComfyUI can load it as a reference like any output. Only while
+ * ComfyUI is not answering is it written straight into the output folder.
+ * `written` is set only for a file this call created on disk.
  */
-export function unhideItems(key, ids) {
-  if (!key) throw new Error("Unlock Hidden first.");
-  if (!comfyOutputDir) throw new Error("HEISS UI needs to know ComfyUI's output folder to put images back. Set it under Library.");
+async function putBackInOutput(buffer, name, mime) {
+  const safe = safeOutputName(name);
+  let refused = "";
+  if (!comfyRecentlyUnreachable()) {
+    try {
+      const form = new FormData();
+      form.append("image", new Blob([buffer], { type: mime }), safe);
+      form.append("type", "output");
+      form.append("subfolder", "heiss-ui");
+      form.append("overwrite", "false");
+      // Same name and same bytes already there (a copy hiding left behind): ComfyUI names that file instead of a duplicate.
+      const uploaded = await comfy("/upload/image", { method: "POST", body: form });
+      const filename = String(uploaded?.name || safe);
+      const subfolder = String(uploaded?.subfolder ?? "heiss-ui");
+      return { params: new URLSearchParams({ filename, subfolder, type: "output" }), written: "" };
+    } catch (error) {
+      // fetch fails with a TypeError when nothing answers; anything else is ComfyUI saying no.
+      if (!(error instanceof TypeError)) refused = error.message;
+    }
+  }
+  if (!comfyOutputDir) throw new Error(refused ? `ComfyUI did not take the image back (${refused}).` : "ComfyUI is not answering, and HEISS UI does not know its output folder to put the image back in. Start ComfyUI, or set the folder under Library.");
   const base = path.resolve(comfyOutputDir);
   const folder = path.join(base, "heiss-ui");
+  fs.mkdirSync(folder, { recursive: true });
+  const file = uniqueOutputPath(folder, safe);
+  fs.writeFileSync(file, buffer);
+  return { params: viewParams(file, base), written: file };
+}
+
+/**
+ * Puts Hidden items back in the gallery as ordinary ComfyUI outputs in the
+ * heiss-ui folder, where HEISS UI saves everything, with their prompts and
+ * settings intact. Returns the gallery records for the caller to add.
+ */
+export async function unhideItems(key, ids) {
+  if (!key) throw new Error("Unlock Hidden first.");
   const manifest = readManifest(key);
   const wanted = new Set(ids);
   const restored = [];
   const written = [];
   const leaving = manifest.items.filter((item) => wanted.has(item.id));
   try {
-    if (leaving.length) fs.mkdirSync(folder, { recursive: true });
     for (const item of leaving) {
-      const file = uniqueOutputPath(folder, item.outputName || `${item.id}${item.type === "video" ? ".mp4" : ".png"}`);
-      fs.writeFileSync(file, openAsset(item));
-      written.push(file);
-      const params = viewParams(file, base);
+      const original = await putBackInOutput(openAsset(item), item.outputName || `${item.id}${item.type === "video" ? ".mp4" : ".png"}`, item.mime || mimeFor(item.outputName, item.type));
+      if (original.written) written.push(original.written);
+      const params = original.params;
       const url = `/comfy/view?${params}`;
       let upscale;
       if (item.upscale?.assetFile) {
-        const upscaleFile = uniqueOutputPath(folder, item.upscale.outputName || `${path.basename(file, path.extname(file))}-upscale.png`);
-        fs.writeFileSync(upscaleFile, openAsset(item.upscale));
-        written.push(upscaleFile);
-        const upscaleParams = viewParams(upscaleFile, base);
+        const stem = path.basename(params.get("filename"), path.extname(params.get("filename")));
+        const upscaleName = item.upscale.outputName || `${stem}-upscale.png`;
+        const back = await putBackInOutput(openAsset(item.upscale), upscaleName, item.upscale.mime || mimeFor(upscaleName, "image"));
+        if (back.written) written.push(back.written);
         const { assetFile, assetKey, mime, leftBehind: _left, ...state } = item.upscale;
-        upscale = { ...state, status: "done", url: `/comfy/view?${upscaleParams}`, thumbnailUrl: `/comfy/thumb?${upscaleParams}`, outputName: path.basename(upscaleFile) };
+        upscale = { ...state, status: "done", url: `/comfy/view?${back.params}`, thumbnailUrl: `/comfy/thumb?${back.params}`, outputName: back.params.get("filename") };
       }
       const { assetFile, assetKey, mime, hiddenAt, upscale: _, upscaleActive, ...meta } = item;
       restored.push({
@@ -504,7 +539,7 @@ export function unhideItems(key, ids) {
         id: url,
         url,
         thumbnailUrl: item.type === "video" ? undefined : `/comfy/thumb?${params}`,
-        outputName: path.basename(file),
+        outputName: params.get("filename"),
         status: "done",
         ...(upscale ? { upscale, upscaleActive: Boolean(upscaleActive) } : {})
       });
@@ -513,6 +548,7 @@ export function unhideItems(key, ids) {
     manifest.bundles = pruneBundles(manifest.bundles, new Set(manifest.items.map((item) => item.id))).bundles;
     writeManifest(manifest, key);
   } catch (error) {
+    // Files ComfyUI took stay: it may have answered with one that was already there.
     for (const file of written) { try { fs.unlinkSync(file); } catch {} }
     throw error;
   }

@@ -404,12 +404,12 @@ app.post("/api/hidden/hide", async (req, res) => {
   }
 });
 
-app.post("/api/hidden/unhide", (req, res) => {
+app.post("/api/hidden/unhide", async (req, res) => {
   if (!requireLocal(req, res)) return;
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
-    const restored = unhideItems(key, (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+    const restored = await unhideItems(key, (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
     addGalleryItems(restored);
     res.json({ ok: true, restored: restored.length, revision: galleryRevisionValue() });
   } catch (error) {

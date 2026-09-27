@@ -457,6 +457,8 @@ export function addGalleryItems(items) {
   let cleared = false;
   for (const item of items) cleared = hiddenGalleryIds.delete(galleryKey(item)) || cleared;
   if (cleared) saveHiddenGalleryIds();
+  // Just written, so a folder listing that has not caught up yet must not hide them.
+  markFreshOutputs(items);
   setGallery(dedupeGallery([...items, ...gallery]));
 }
 
