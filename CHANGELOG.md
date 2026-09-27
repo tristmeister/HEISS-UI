@@ -11,7 +11,7 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> The update pill shows up on its own, right after starting
+> Updates show up right away, and Hidden keeps clear of tiles
 
 ### Fixed
 - **The update pill no longer waits for ComfyUI.** While ComfyUI wasn't
