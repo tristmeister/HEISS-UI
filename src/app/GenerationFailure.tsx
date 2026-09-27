@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ChevronDown, Copy, RotateCcw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Copy, RotateCcw } from 'lucide-react';
 import { cn } from './format';
 import type { GalleryItem, GenerationFailure } from './types';
 
@@ -34,6 +34,8 @@ export function FailureTile({ item }: { item: GalleryItem }) {
         <div className="failure-icon" aria-hidden="true"><AlertTriangle size={17} strokeWidth={2} /></div>
         <strong>{failure.title}</strong>
         <p>{failure.summary}</p>
+        {/* The whole tile opens the viewer; say so, since the fix lives there. */}
+        <div className="failure-more">{failure.hint ? 'How to fix' : 'Show details'}<ChevronRight size={12} strokeWidth={2.25} /></div>
       </div>
     </div>
   );

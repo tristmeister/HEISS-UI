@@ -620,10 +620,28 @@
 }
 .failure-tile strong { font-size: 13px; font-weight: 600; line-height: 1.3; letter-spacing: -.01em; color: hsl(var(--foreground)); text-wrap: balance; }
 .failure-tile p { font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); text-wrap: pretty; }
-/* Small tiles keep what still reads: the title, then only the mark. */
-@container (max-height: 170px) { .failure-tile p { display: none; } }
-@container (max-width: 120px) or (max-height: 110px) {
-  .failure-tile strong { display: none; }
+.failure-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  padding: 3px 6px 3px 10px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .06);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.3;
+  color: hsl(var(--foreground) / .82);
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.failure-more svg { transition: transform 200ms var(--ease-out); }
+.tile:hover .failure-more,
+.tile:focus-visible .failure-more { background: rgb(255 255 255 / .11); color: hsl(var(--foreground)); }
+.tile:hover .failure-more svg { transform: translateX(1.5px); }
+/* Small tiles keep what still reads: the title and the way in, then only the mark. */
+@container (max-height: 190px) { .failure-tile p { display: none; } }
+@container (max-width: 120px) or (max-height: 120px) {
+  .failure-tile strong, .failure-more { display: none; }
   .failure-icon { margin: 0; }
 }
 
