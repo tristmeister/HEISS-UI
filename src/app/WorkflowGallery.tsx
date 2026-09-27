@@ -75,7 +75,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     refreshWorkflows: () => void;
     selectWorkflow: (id: string) => void;
     setWorkflowPreferences: (prefs: WorkflowPreferences) => void;
-    showToast: (message: string, tone?: "default" | "success" | "error") => void;
+    showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
     workflowPreferences: WorkflowPreferences;
     workflows: WorkflowSummary[];
     setWorkflows: (value: WorkflowSummary[] | ((current: WorkflowSummary[]) => WorkflowSummary[])) => void;
@@ -168,7 +168,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         const fallbackProfile = models?.profiles.find((profile) => profile.id !== workflow.profileId && profile.kind === mode);
         if (fallbackProfile) chooseModel(fallbackProfile.id);
       }
-      showToast("Workflow deleted", "success");
+      showToast("Workflow deleted", "removed");
       refreshModels(false);
       refreshWorkflows();
     } catch (error) {

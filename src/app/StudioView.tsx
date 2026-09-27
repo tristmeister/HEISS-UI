@@ -1,6 +1,4 @@
 import React from 'react';
-import { createPortal } from 'react-dom';
-import { Toaster } from 'sonner';
 import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
@@ -31,6 +29,7 @@ import { PhoneShell, PhoneViewerBar, type PhoneItemActions } from './PhoneStudio
 import { usePhone, useThisComputer } from './device';
 import { haptic } from './phoneControls';
 import { ConnectedCard } from './ConnectedCard';
+import { Toaster } from './Toaster';
 import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import { useHistoryDismiss } from './useHistoryDismiss';
@@ -221,11 +220,18 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     onRestart: view.restartForUpdate,
     onDoneUpdated: view.clearJustUpdated
   });
-  // The pills share the top edge, stacked in this order; the toaster moves below them.
-  const modelPillVisible = modelWidget.visible && !workflowGalleryOpen;
-  const updateSlot = Number(upscaleWidget.visible) + Number(modelPillVisible);
-  const pillCount = updateSlot + Number(updatePill.visible);
-  const downloadWidget = { visible: pillCount > 0 };
+  // The pills share the top edge in one column; the toasts start just under it.
+  const [islandsHeight, setIslandsHeight] = React.useState(0);
+  const islandsObserver = React.useRef<ResizeObserver | null>(null);
+  const islandsRef = React.useCallback((node: HTMLDivElement | null) => {
+    islandsObserver.current?.disconnect();
+    islandsObserver.current = null;
+    if (!node) return;
+    const measure = () => setIslandsHeight(node.offsetHeight);
+    measure();
+    islandsObserver.current = new ResizeObserver(measure);
+    islandsObserver.current.observe(node);
+  }, []);
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
@@ -678,19 +684,20 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         onOpenLibrary={() => { upscaleSetup.closeSetup(); openSettings("library"); }}
         showToast={showToast}
       />
-      <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
-      <ModelDownloadWidget widget={modelWidget} hidden={workflowGalleryOpen} stacked={upscaleWidget.visible} onOpen={() => setWorkflowGalleryOpen(true)} />
-      <UpdatePill
-        pill={updatePill}
-        status={view.updateStatus}
-        running={runningCount}
-        slot={updateSlot}
-        justUpdated={view.justUpdated}
-        onUpdate={() => view.installUpdate({ confirm: false })}
-        onRestart={view.restartForUpdate}
-        onLater={(version) => view.setUpdatePrefs({ dismissed: version })}
-        onDoneUpdated={view.clearJustUpdated}
-      />
+      <div className="islands" ref={islandsRef}>
+        <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
+        <ModelDownloadWidget widget={modelWidget} hidden={workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
+        <UpdatePill
+          pill={updatePill}
+          status={view.updateStatus}
+          running={runningCount}
+          justUpdated={view.justUpdated}
+          onUpdate={() => view.installUpdate({ confirm: false })}
+          onRestart={view.restartForUpdate}
+          onLater={(version) => view.setUpdatePrefs({ dismissed: version })}
+          onDoneUpdated={view.clearJustUpdated}
+        />
+      </div>
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { resumeHiddenSetup.current = true; hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
       {hidden.status?.remote && !hidden.status.enabled ? (
@@ -862,9 +869,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       {workflowGalleryOpen ? <WorkflowGallery view={{ ...view, onClose: () => setWorkflowGalleryOpen(false) }} /> : null}
       {/* Generation progress for screen readers: started, rendering, ready. */}
       <div className="sr-only" role="status" aria-live="polite">{view.status && view.status !== "Ready" && !/^Rendering|^Queued/.test(view.status) ? view.status : ""}</div>
-      {/* The shell is position: fixed, a stacking context of its own, so a toaster
-          inside it sits under every portaled dialog and its blurred scrim. */}
-      {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={pillCount ? { top: 24 + 64 * pillCount } : undefined} mobileOffset={pillCount ? { top: 16 + 64 * pillCount } : undefined} />, document.body)}
+      {/* Portaled to <body>: inside the fixed shell it would sit under every dialog's scrim. */}
+      <Toaster offset={islandsHeight ? islandsHeight + 8 : 0} />
     </div>
     </TileLongPressContext.Provider>
     </HiddenActionsContext.Provider>

@@ -10,7 +10,7 @@ import { formatBytes } from './useUpscale';
 import type { UpdateStatus } from './types';
 
 /**
- * A new release, offered once. The pill floats in with the other glass pills
+ * A new release, offered once. The pill floats in with the other islands
  * at the top: the upscale arrow in cells, with a warm pulse rising through it.
  * "Update" downloads in the background while the arrow fills with heat, then
  * "Restart" swaps it in and the page comes back with the arrow lit white.
@@ -46,7 +46,7 @@ function RisingArrow({ mode }: { mode: 'available' | 'updated' }) {
   );
 }
 
-/** Which pill to show, if any. StudioView reads `visible` to stack it and move the toasts. */
+/** Which pill to show, if any. */
 export function useUpdatePill({ status, thisComputer, restarting, justUpdated, running, hiddenSpace, settingsOpen, onRestart, onDoneUpdated }: {
   status: UpdateStatus | null;
   thisComputer: boolean;
@@ -105,12 +105,10 @@ export function useUpdatePill({ status, thisComputer, restarting, justUpdated, r
   };
 }
 
-export function UpdatePill({ pill, status, running, slot, onUpdate, onRestart, onLater, onDoneUpdated, justUpdated }: {
+export function UpdatePill({ pill, status, running, onUpdate, onRestart, onLater, onDoneUpdated, justUpdated }: {
   pill: ReturnType<typeof useUpdatePill>;
   status: UpdateStatus | null;
   running: number;
-  /** How many pills sit above this one. */
-  slot: number;
   onUpdate: () => void;
   onRestart: () => void;
   onLater: (version: string) => void;
@@ -187,8 +185,8 @@ export function UpdatePill({ pill, status, running, slot, onUpdate, onRestart, o
       {mode ? (
         <motion.div
           key="update-pill"
-          className={cn('udw', 'uup', `is-${mode}`)}
-          style={{ '--udw-slot': slot } as React.CSSProperties}
+          layout="position"
+          className={cn('island', 'udw', 'uup', `is-${mode}`)}
           role="status"
           aria-live="polite"
           // No filter on the glass itself: it would cut off its backdrop blur.
@@ -222,10 +220,10 @@ export function UpdatePill({ pill, status, running, slot, onUpdate, onRestart, o
                 </motion.span>
               </AnimatePresence>
             </span>
-            {action ? <button type="button" className="uup-action" onClick={action.run}>{action.label}</button> : null}
+            {action ? <button type="button" className="island-action" onClick={action.run}>{action.label}</button> : null}
           </div>
           {close ? (
-            <button type="button" className="udw-close" onClick={close} aria-label={mode === 'available' ? 'Later' : mode === 'waiting' ? 'Don’t restart' : 'Dismiss'} title={mode === 'available' ? 'Later' : undefined}><X size={13} /></button>
+            <button type="button" className="island-close" onClick={close} aria-label={mode === 'available' ? 'Later' : mode === 'waiting' ? 'Don’t restart' : 'Dismiss'} title={mode === 'available' ? 'Later' : undefined}><X size={13} /></button>
           ) : null}
         </motion.div>
       ) : null}

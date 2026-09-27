@@ -53,7 +53,7 @@ const READY_HOLD_MS = 6000;
  */
 export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar', alsoNeedsNodes = false }: {
   profile: SetupSubject;
-  showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
+  showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
   onInstalled: () => void;
   variant?: 'sidebar' | 'gallery';
   /** An imported workflow that lacks custom nodes as well; those are listed below the panel. */

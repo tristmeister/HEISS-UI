@@ -85,10 +85,7 @@ export function formatEta(seconds: number) {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min left`;
 }
 
-/**
- * Whether the widget shows and in which mode. The toaster shares the top
- * edge, so StudioView reads `visible` to move toasts out of the way.
- */
+/** Whether the widget shows and in which mode. */
 export function useUpscaleDownloadWidget(setup: UpscaleSetup, install: UpscaleInstall) {
   const { stage, open } = setup;
   const [readyFlash, setReadyFlash] = useState<string | null>(null);
@@ -161,7 +158,8 @@ export function UpscaleDownloadWidget({ widget, setup, install }: {
       {mode ? (
         <motion.div
           key="upscale-download-widget"
-          className={cn('udw', `is-${mode}`)}
+          layout="position"
+          className={cn('island', 'udw', `is-${mode}`)}
           role="status"
           aria-live="polite"
           initial={reduced ? { opacity: 0 } : { opacity: 0, y: -18, scale: 0.94 }}
@@ -186,7 +184,7 @@ export function UpscaleDownloadWidget({ widget, setup, install }: {
             ) : null}
           </button>
           {mode === 'error' || mode === 'ready' ? (
-            <button type="button" className="udw-close" onClick={widget.dismiss} aria-label="Dismiss"><X size={13} /></button>
+            <button type="button" className="island-close" onClick={widget.dismiss} aria-label="Dismiss"><X size={13} /></button>
           ) : null}
         </motion.div>
       ) : null}

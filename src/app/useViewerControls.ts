@@ -3,7 +3,7 @@ import { clampText, settingMax } from './format';
 import { touchCenter, touchDistance } from './gallery';
 import { normalizeLoras } from './loras';
 import type React from 'react';
-import { toast } from 'sonner';
+import { toast } from './toast';
 import { wheelPixels } from './wheel';
 import type { GalleryItem, Profile } from './types';
 

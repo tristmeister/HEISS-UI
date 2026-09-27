@@ -492,41 +492,13 @@
   to { transform: scale(1); opacity: 1; }
 }
 
-/* ComfyUI came back with images on screen: a small glass card, then gone. */
-.connected-card {
-  position: fixed;
-  top: max(16px, env(safe-area-inset-top));
-  left: 50%;
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px 10px 12px;
-  border: 1px solid var(--surface-border);
-  border-radius: 18px;
-  background-color: var(--surface-float);
-  background-image: var(--surface-grain);
-  -webkit-backdrop-filter: var(--surface-float-blur);
-  backdrop-filter: var(--surface-float-blur);
-  box-shadow: var(--shadow-float);
-  pointer-events: none;
-  animation: connected-card 2600ms var(--ease-out) both;
-}
-.connected-glyph { width: 66px; height: 27px; overflow: visible; }
+/* ComfyUI came back with images on screen: the plug in a connected toast. */
+.connected-glyph { width: 50px; height: 20px; overflow: visible; }
 .connected-glyph rect { fill: rgb(255 255 255 / .42); }
 .connected-plug { animation: connected-plug 520ms cubic-bezier(.3, .7, .2, 1) 160ms both; }
 .connected-socket { animation: connected-socket 520ms cubic-bezier(.3, .7, .2, 1) 160ms both; }
 .connected-plug rect, .connected-socket rect { animation: connected-warm 900ms ease-out 520ms both; }
 .connected-flash { fill: rgb(255 190 120); opacity: 0; transform-origin: 12px 4.5px; animation: connected-flash 520ms ease-out 560ms both; }
-.connected-copy { display: grid; gap: 1px; text-align: left; }
-.connected-copy strong { font-size: 13px; font-weight: 600; color: hsl(var(--foreground)); }
-.connected-copy span { font-size: 11.5px; color: hsl(var(--muted-foreground)); }
-@keyframes connected-card {
-  0% { opacity: 0; transform: translate(-50%, -10px) scale(0.94); filter: blur(6px); }
-  12% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
-  86% { opacity: 1; transform: translate(-50%, 0) scale(1); filter: blur(0); }
-  100% { opacity: 0; transform: translate(-50%, -6px) scale(0.97); filter: blur(4px); }
-}
 /* The prongs (x 7–8) meet the socket's holes (x 13–14): plug +4, socket −2. */
 @keyframes connected-plug { from { transform: translateX(0); } to { transform: translateX(4px); } }
 @keyframes connected-socket { from { transform: translateX(0); } to { transform: translateX(-2px); } }
@@ -545,8 +517,6 @@
   .connected-plug { transform: translateX(4px); }
   .connected-socket { transform: translateX(-2px); }
   .connected-plug rect, .connected-socket rect { animation: none; fill: rgb(255 150 80 / .85); }
-  .connected-card { animation-duration: 2600ms; animation-name: connected-card-still; }
-  @keyframes connected-card-still { 0%, 90% { opacity: 1; transform: translateX(-50%); } 100% { opacity: 0; transform: translateX(-50%); } }
 }
 .reconnect-btn {
   margin-top: 6px;

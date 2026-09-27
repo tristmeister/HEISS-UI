@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
-   Shared surfaces: Modal, buttons, the prompt field and toasts
+   Shared surfaces: Modal, buttons and the prompt field (toasts: 30-islands)
 
    Every dialog in the app is <Modal> (src/app/Modal.tsx). It owns the scrim,
    the sheet, the head/body/foot anatomy and the sizes; feature CSS only lays
@@ -210,32 +210,6 @@
   font-size: 13px;
 }
 .modal-input:focus-visible { border-color: rgb(255 255 255 / .16); }
-
-/* --------------------------------------------------------------- Toasts
-   Top center, on the floating glass. Sonner reads these variables, so no
-   overrides are needed and its success/error colours keep working. */
-
-[data-sonner-toaster][data-theme="dark"] {
-  --normal-bg: var(--surface-float);
-  --normal-border: var(--surface-border);
-  --normal-text: hsl(var(--foreground));
-  --success-bg: rgb(28 38 31 / .94);
-  --success-border: rgb(120 200 140 / .22);
-  --success-text: #a9e2b8;
-  --error-bg: rgb(44 26 23 / .94);
-  --error-border: var(--danger-ring);
-  --error-text: var(--danger-ink);
-  --border-radius: var(--r-item);
-}
-/* An open dialog turns off pointer events on <body>; toasts over it stay live. */
-[data-sonner-toaster] [data-sonner-toast]:not([data-visible="false"]) { pointer-events: auto; }
-[data-sonner-toaster] [data-sonner-toast].heiss-toast {
-  background-image: var(--surface-grain);
-  -webkit-backdrop-filter: var(--surface-float-blur);
-  backdrop-filter: var(--surface-float-blur);
-  box-shadow: var(--shadow-float-sm);
-  font-size: 13px;
-}
 
 /* ---------------------------------------------------------------- Phone */
 

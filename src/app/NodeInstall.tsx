@@ -5,7 +5,7 @@ import { apiJson, copyText } from './api';
 import { cn } from './format';
 import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
 
-type Toast = (message: string, tone?: 'default' | 'success' | 'error') => void;
+type Toast = (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
 
 export function CopyRow({ text, label, block, showToast }: { text: string; label: string; block?: boolean; showToast: Toast }) {
   const [copied, setCopied] = useState(false);

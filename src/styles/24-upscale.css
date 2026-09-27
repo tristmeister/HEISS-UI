@@ -349,26 +349,13 @@
 .upscale-pending span { font-size: 12.5px; color: hsl(var(--muted-foreground)); }
 
 /* ------------------------------------------------------ Download widget
-   A glass pill at the top while the weights download with setup closed. */
+   An island in the top column while the weights download with setup closed
+   (the glass, the capsule and the close button live in 30-islands.css). */
 
 .udw {
-  position: fixed;
-  top: max(14px, env(safe-area-inset-top));
-  left: 50%;
-  z-index: calc(var(--z-viewer) + 1);
   display: flex;
   align-items: center;
-  translate: -50% 0;
   width: min(380px, calc(100vw - 24px));
-  border: 1px solid var(--surface-border);
-  border-radius: var(--r-menu);
-  background-color: var(--surface-float);
-  background-image: var(--surface-grain);
-  -webkit-backdrop-filter: var(--surface-float-blur);
-  backdrop-filter: var(--surface-float-blur);
-  box-shadow: var(--shadow-float);
-  color: hsl(var(--foreground));
-  -webkit-font-smoothing: antialiased;
 }
 /* A faint heat under the glass while it fills; white when done, red when stopped. */
 .udw::before {
@@ -390,7 +377,7 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
-  padding: 9px 12px 9px 10px;
+  padding: 9px 12px 9px 12px;
   border: 0;
   border-radius: inherit;
   background: transparent;
@@ -408,22 +395,6 @@
 .udw .cell-bar { height: 5px; }
 .udw-thumb { flex: none; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; outline: 1px solid rgb(255 255 255 / .1); outline-offset: -1px; }
 .udw.is-downloading .udw-thumb { opacity: .75; filter: saturate(.7); }
-.udw-close {
-  position: relative;
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  margin-right: 8px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: hsl(var(--muted-foreground));
-  cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast);
-}
-.udw-close:hover { background: var(--control-hover); color: #fff; }
 
 /* The arrow's cells: ember twinkle below the fill line, sparks lifting off it,
    a bottom-to-top scan while checking, one pop when ready. */
@@ -529,5 +500,3 @@
 .upscale-restart { margin-top: 10px; }
 .upscale-route-tag { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; background: hsl(var(--muted-foreground) / .14); color: hsl(var(--muted-foreground)); }
 .wf-restart { margin-top: 2px; }
-/* Two downloads at once: the model pill sits under the upscale one. */
-.udw.is-stacked { top: calc(max(14px, env(safe-area-inset-top)) + 64px); }

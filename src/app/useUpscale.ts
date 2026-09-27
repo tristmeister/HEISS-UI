@@ -70,7 +70,7 @@ export type UpscaleSetupStage = "checking" | "offline" | "nodes" | "models" | "d
 type UpscaleOptions = {
   gallery: GalleryItem[];
   prefs: Preferences;
-  showToast: (message: string, tone?: "default" | "success" | "error") => void;
+  showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
   loadGalleryDelta: () => void;
   patchGalleryItems: (update: (item: GalleryItem) => GalleryItem) => void;
 };
@@ -106,7 +106,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       }
       // Sealed into Hidden, but ComfyUI's own copy is still readable where HEISS UI could not reach it.
       if (before === "running" && now === "done" && item.upscale?.leftBehind) {
-        showToast("Upscaled in Hidden, but ComfyUI’s own copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library so HEISS UI can remove such copies.", "default");
+        showToast("Upscaled in Hidden, but ComfyUI’s own copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library so HEISS UI can remove such copies.", "warning");
       }
       seen.set(item.id, now);
     }

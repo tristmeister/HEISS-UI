@@ -30,7 +30,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   /** ComfyUI lists no model HEISS can run: found folders then open the dialog by themselves, once. */
   emptyModels: boolean;
   onModelsChanged: () => void;
-  showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
+  showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
 }) {
   // Model folders belong to the computer running HEISS UI; other devices never scan or ask.
   const thisComputer = useThisComputer();
@@ -173,7 +173,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   const remove = useCallback(async (path: string) => {
     try {
       await apiJson('/api/model-folders', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
-      showToast('Removed. ComfyUI stops reading it after its next restart.', 'success');
+      showToast('Removed. ComfyUI stops reading it after its next restart.', 'removed');
       scan({ quiet: true });
     } catch (reason) {
       showToast(reason instanceof Error ? reason.message : 'Could not remove that folder', 'error');

@@ -116,7 +116,7 @@ export function UpscaleSetupDialog({
   comfyUrl?: string;
   onQualityChange: (quality: UpscaleQuality) => void;
   onOpenLibrary: () => void;
-  showToast: (message: string, tone?: "default" | "success" | "error") => void;
+  showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
 }) {
   const { stage, pending } = setup;
   const progress = install?.totalBytes ? (install.receivedBytes || 0) / install.totalBytes : 0;

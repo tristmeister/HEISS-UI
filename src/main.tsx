@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { toast } from "sonner";
+import { showToastTone, toast } from "./app/toast";
 import "./styles.css";
 
 import { useModelFolders } from './app/useModelFolders';
@@ -672,10 +672,8 @@ function App() {
     patchGalleryItems
   });
 
-  function showToast(message: string, tone: "default" | "success" | "error" = "default") {
-    if (tone === "success") toast.success(message);
-    else if (tone === "error") toast.error(message);
-    else toast(message);
+  function showToast(message: string, tone: "default" | "success" | "warning" | "error" | "removed" = "default") {
+    showToastTone(message, tone);
   }
 
   async function copyAndToast(text: string, message = "Copied") {
@@ -778,7 +776,7 @@ function App() {
         body: JSON.stringify({ outputDir })
       });
       setPaths(next);
-      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent images aren’t in it" : "Output folder saved", next.report?.state === "mismatch" ? "default" : "success");
+      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent images aren’t in it" : "Output folder saved", next.report?.state === "mismatch" ? "warning" : "success");
       loadGallery().catch(() => null);
       return next.report || null;
     } catch (error) {
@@ -802,7 +800,11 @@ function App() {
     const result = await hidden.hide(movable);
     if (!result || result.failed?.length) { loadGallery().catch(() => null); return; }
     const hiddenIds = result.hiddenIds || [];
-    toast.success(movable.length === 1 ? "Moved to Hidden" : `Moved ${movable.length} images to Hidden`, {
+    toast.success("Moved to Hidden", {
+      group: "hide",
+      count: movable.length,
+      plural: (count) => `Moved ${count} images to Hidden`,
+      glyph: "lock",
       action: hiddenIds.length ? {
         label: "Undo",
         onClick: async () => {
@@ -826,7 +828,7 @@ function App() {
     removeGalleryItems(movable.map((item) => item.id));
     const result = await hidden.unhide(movable);
     if (!result) loadGallery();
-    else showToast(movable.length === 1 ? "Moved to gallery" : `Moved ${movable.length} images to gallery`, "success");
+    else toast.success("Moved to gallery", { group: "unhide", count: movable.length, plural: (count) => `Moved ${count} images to gallery` });
   }
 
   // Whatever was asked for before Hidden was set up or unlocked happens now.
@@ -1101,7 +1103,7 @@ function App() {
     const slow = gallery.find((item) => item.status === "done" && item.timing?.slow && watchedRuns.current.has(item.jobId || item.id));
     if (!slow) return;
     slowHintShown.current = true;
-    showToast("That run’s steps were much slower than usual for this model. ComfyUI may be short on video memory: close other apps using the GPU, or try a smaller size.");
+    showToast("That run’s steps were much slower than usual for this model. ComfyUI may be short on video memory: close other apps using the GPU, or try a smaller size.", "warning");
   }, [gallery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // What Generate would take with these settings, the way generate() would send them.

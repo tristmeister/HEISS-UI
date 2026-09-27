@@ -43,8 +43,7 @@ export function useModelDownloadWidget({ onDone, onError }: { onDone: (item: Mod
   };
 }
 
-/** `stacked`: the upscale download pill is showing too, so this one sits below it rather than hiding. */
-export function ModelDownloadWidget({ widget, hidden, stacked = false, onOpen }: { widget: ReturnType<typeof useModelDownloadWidget>; hidden?: boolean; stacked?: boolean; onOpen: () => void }) {
+export function ModelDownloadWidget({ widget, hidden, onOpen }: { widget: ReturnType<typeof useModelDownloadWidget>; hidden?: boolean; onOpen: () => void }) {
   const reduced = useReducedMotion();
   const { mode, active, queued, flash, failed } = widget;
   const received = active?.receivedBytes || 0;
@@ -66,7 +65,8 @@ export function ModelDownloadWidget({ widget, hidden, stacked = false, onOpen }:
       {show ? (
         <motion.div
           key="model-download-widget"
-          className={cn('udw', `is-${mode}`, stacked && 'is-stacked')}
+          layout="position"
+          className={cn('island', 'udw', `is-${mode}`)}
           role="status"
           aria-live="polite"
           initial={reduced ? { opacity: 0 } : { opacity: 0, y: -18, scale: 0.94 }}
@@ -85,7 +85,7 @@ export function ModelDownloadWidget({ widget, hidden, stacked = false, onOpen }:
               <small>{meta}</small>
             </span>
           </button>
-          {mode !== 'downloading' ? <button type="button" className="udw-close" onClick={widget.dismiss} aria-label="Dismiss"><X size={13} /></button> : null}
+          {mode !== 'downloading' ? <button type="button" className="island-close" onClick={widget.dismiss} aria-label="Dismiss"><X size={13} /></button> : null}
         </motion.div>
       ) : null}
     </AnimatePresence>

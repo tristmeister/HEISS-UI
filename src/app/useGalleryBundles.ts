@@ -39,7 +39,7 @@ export function useGalleryBundles({
   domain: Domain;
   enabled: boolean;
   reloadGallery: () => Promise<unknown>;
-  showToast: (message: string, tone?: "default" | "success" | "error") => void;
+  showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
 }) {
   const [pending, setPending] = useState(emptyPending);
   const [busy, setBusy] = useState(false);

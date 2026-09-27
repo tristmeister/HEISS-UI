@@ -32,7 +32,7 @@ import type { AspectPreset, GalleryItem, Profile } from './types';
    and keeps the shared overlays (viewer, dialogs, toasts).
 --------------------------------------------------------------------------- */
 
-type Toast = (message: string, tone?: 'default' | 'success' | 'error') => void;
+type Toast = (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
 
 /* ------------------------------------------------------------------ Sheet */
 
@@ -162,7 +162,7 @@ export async function shareItem(item: GalleryItem, showToast: Toast) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  if (!canShareFiles) showToast('Saved to your downloads');
+  if (!canShareFiles) showToast('Saved to your downloads', 'success');
 }
 
 /** Several files: one share sheet where possible, otherwise one download after another. */
@@ -195,7 +195,7 @@ export async function shareItems(items: GalleryItem[], showToast: Toast) {
     // Browsers drop downloads fired in one burst.
     await new Promise((resolve) => setTimeout(resolve, 450));
   }
-  showToast(`Saved ${ready.length} images to your downloads`);
+  showToast(`Saved ${ready.length} images to your downloads`, 'success');
 }
 
 /* ------------------------------------------------------------ Item actions */

@@ -4,7 +4,7 @@ import { forgetDeviceSecret, hasDeviceSecret, keepDeviceSecret, passkeyCancelled
 import type { GalleryItem, PrivacyStatus } from './types';
 import type { GallerySpace } from './useGalleryStore';
 
-type Toast = (message: string, tone?: "default" | "success" | "error") => void;
+type Toast = (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
 
 /** How long Hidden stays open without anyone touching the page. 0: until the browser forgets. */
 export const autoLockChoices = [
@@ -220,7 +220,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     try {
       const result = await apiJson<{ moved: number; ids: string[]; hiddenIds?: string[]; failed: Array<{ id: string; error: string }>; leftBehind: number }>("/api/hidden/hide", json({ ids }));
       if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Could not hide the image", "error");
-      else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} could not be removed.`, "default");
+      else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} could not be removed.`, "warning");
       return result;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {

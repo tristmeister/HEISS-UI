@@ -37,6 +37,7 @@
   --r-item: 14px;    /* rows and options inside a menu or list */
   --r-media: 10px;   /* image tiles and thumbnails */
   --r-pill: 999px;
+  --r-island: 28px;  /* toasts and the top pills: a capsule on one line, soft when taller */
 
   /* Deck geometry: a 40px control plus 4px of surface on each side. */
   --dock-h: 48px;

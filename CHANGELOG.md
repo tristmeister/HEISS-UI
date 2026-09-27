@@ -11,6 +11,19 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Changed
+- **Toasts are islands now.** Notes float in under the download and update
+  pills in the same frosted capsule, with a small cell glyph for each kind:
+  done, heads-up, failed, removed and plain info. Hover fans the stack out and
+  holds every timer; flick one up to dismiss it.
+- **Deleting a run of images counts up in one toast** ("4 images deleted")
+  instead of stacking a toast per click, and its Undo brings all of them
+  back. A ring around the glyph shows how long Undo stays, and the files are
+  only removed once the toast is gone. Moving images into or out of Hidden,
+  and repeats of the same message, count up the same way.
+- **The download and update pills share one column** at the top, and slide
+  up when one above them leaves.
+
 ### Fixed
 - **Images taken out of Hidden go back into the heiss-ui folder** with
   everything else HEISS UI saves, instead of loose in ComfyUI's output

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
  * While `busy`, nothing dismisses it: not Escape, not the scrim, not the close button.
  */
 /** Toasts float above dialogs; touching one is not a click outside. */
-const isToast = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('[data-sonner-toaster]'));
+const isToast = (target: EventTarget | null) => target instanceof Element && Boolean(target.closest('[data-toaster]'));
 
 export type ModalSize = 'alert' | 'form' | 'wide' | 'sheet';
 

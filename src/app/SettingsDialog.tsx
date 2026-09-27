@@ -51,7 +51,7 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
 }
 
 /** Where HEISS UI looks for ComfyUI: test an address, then keep it. */
-function ComfyAddressRow({ current, showToast, onSaved }: { current: string; showToast: (message: string, tone?: 'default' | 'success' | 'error') => void; onSaved: () => void }) {
+function ComfyAddressRow({ current, showToast, onSaved }: { current: string; showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void; onSaved: () => void }) {
   const [value, setValue] = React.useState(current);
   const [busy, setBusy] = React.useState(false);
   const [note, setNote] = React.useState('');
@@ -389,7 +389,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
   onSave: (dir: string) => Promise<OutputFolderReport | null>;
   onOpen: () => void;
   onCopy: (dir: string) => void;
-  showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
+  showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
 }) {
   const [report, setReport] = React.useState<OutputFolderReport | null>(null);
   const [canBrowse, setCanBrowse] = React.useState(false);

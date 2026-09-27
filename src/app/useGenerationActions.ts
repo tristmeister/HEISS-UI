@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { toast } from 'sonner';
+import { toast } from './toast';
 import { apiJson, serverClockOffset } from './api';
 import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
@@ -76,7 +76,7 @@ export function useGenerationActions(view: any) {
   async function generate() {
     if (generatePostingRef.current) return;
     if (comfyRestarting) {
-      showToast("ComfyUI is restarting. Generate again once it’s back, in a few seconds.");
+      showToast("ComfyUI is restarting. Generate again once it’s back, in a few seconds.", "warning");
       return;
     }
     if (comfyOffline) {
@@ -299,7 +299,7 @@ export function useGenerationActions(view: any) {
     const items = payloadItems(data);
     setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
     const deleted = data.files?.deleted || 0;
-    showToast(deleted ? `Deleted ${deleted} file${deleted === 1 ? "" : "s"}` : "Gallery cleared", "success");
+    showToast(deleted ? `Deleted ${deleted} file${deleted === 1 ? "" : "s"}` : "Gallery cleared", "removed");
     setStatus("Ready");
   }
 
@@ -335,7 +335,7 @@ export function useGenerationActions(view: any) {
     const data = await fetch("/api/cache/clear", { method: "POST" }).then((res) => res.ok ? res.json() : null).catch(() => null);
     if (!data) { showToast("Couldn’t clear ComfyUI’s cache", "error"); return; }
     setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
-    showToast("Cache cleared", "success");
+    showToast("Cache cleared", "removed");
     setStatus("Ready");
   }
 
@@ -344,9 +344,10 @@ export function useGenerationActions(view: any) {
     if (!response?.ok) showToast("Could not open folder", "error");
   }
 
-  // Deletes wait out a short undo window before the file is actually removed.
+  // Deletes wait out the undo toast before the file is actually removed: they
+  // commit when it leaves without an Undo, so hovering it keeps the undo open.
   const UNDO_MS = 6000;
-  const pendingDeletes = useRef(new Map<string, { item: GalleryItem; timer: number }>());
+  const pendingDeletes = useRef(new Map<string, GalleryItem>());
 
   async function commitDelete(item: GalleryItem) {
     const response = await fetch(`/api/gallery/${encodeURIComponent(item.id)}`, { method: "DELETE", keepalive: true }).catch(() => null);
@@ -360,10 +361,7 @@ export function useGenerationActions(view: any) {
   // Leaving the page commits whatever is still waiting; keepalive lets the request finish.
   useEffect(() => {
     const flush = () => {
-      for (const { item, timer } of pendingDeletes.current.values()) {
-        window.clearTimeout(timer);
-        commitDelete(item);
-      }
+      for (const item of pendingDeletes.current.values()) commitDelete(item);
       pendingDeletes.current.clear();
     };
     window.addEventListener("pagehide", flush);
@@ -383,22 +381,31 @@ export function useGenerationActions(view: any) {
       setActive(next && next.id !== item.id ? next : null);
     }
     galleryRemove([item.id, item.url].filter(Boolean));
-    const timer = window.setTimeout(() => {
-      pendingDeletes.current.delete(item.id);
-      commitDelete(item);
-    }, UNDO_MS);
-    pendingDeletes.current.set(item.id, { item, timer });
-    toast(item.privateVault ? "Deleted from Hidden" : "Image deleted", {
+    offerUndo([item]);
+  }
+
+  /**
+   * One toast for a run of deletes: clicking through a batch counts up in it
+   * ("4 images deleted") instead of stacking toasts, and its Undo brings back
+   * all of them. Gallery and Hidden deletes count separately.
+   */
+  function offerUndo(targets: GalleryItem[]) {
+    targets.forEach((item) => pendingDeletes.current.set(item.id, item));
+    const hiddenOnes = targets.some((item) => item.privateVault);
+    toast.removed(hiddenOnes ? "Deleted from Hidden" : "Image deleted", {
+      group: hiddenOnes ? "delete-hidden" : "delete",
+      count: targets.length,
+      plural: (count) => hiddenOnes ? `${count} deleted from Hidden` : `${count} images deleted`,
       duration: UNDO_MS,
       action: {
         label: "Undo",
         onClick: () => {
-          const pending = pendingDeletes.current.get(item.id);
-          if (!pending) return;
-          window.clearTimeout(pending.timer);
-          pendingDeletes.current.delete(item.id);
-          galleryUpsert([item]);
+          const back = targets.filter((item) => pendingDeletes.current.delete(item.id));
+          if (back.length) galleryUpsert(back);
         }
+      },
+      onClose: () => {
+        targets.forEach((item) => { if (pendingDeletes.current.delete(item.id)) commitDelete(item); });
       }
     });
   }
@@ -417,25 +424,7 @@ export function useGenerationActions(view: any) {
     })) return;
     if (active && targets.some((item) => item.id === active.id)) setActive(null);
     galleryRemove(targets.flatMap((item) => [item.id, item.url]).filter(Boolean));
-    const timers = targets.map((item) => {
-      const timer = window.setTimeout(() => {
-        pendingDeletes.current.delete(item.id);
-        commitDelete(item);
-      }, UNDO_MS);
-      pendingDeletes.current.set(item.id, { item, timer });
-      return timer;
-    });
-    toast(`${targets.length} images deleted`, {
-      duration: UNDO_MS,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          timers.forEach((timer) => window.clearTimeout(timer));
-          targets.forEach((item) => pendingDeletes.current.delete(item.id));
-          galleryUpsert(targets);
-        }
-      }
-    });
+    offerUndo(targets);
   }
 
   return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems };
