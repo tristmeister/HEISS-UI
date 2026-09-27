@@ -19,6 +19,13 @@ section into the next version and uses it as the GitHub release notes.
   quiet when you're offline, never interrupts a generation or Hidden, and
   **Settings › About › Check automatically** turns it off completely.
 
+### Fixed
+- **Hidden images stay out of the reference picker's Generations.** They have
+  a **Hidden** shelf of their own next to Generations and Uploads, behind the
+  same lock as Hidden: locked, it offers **Unlock** (Touch ID where set up)
+  without leaving what you're doing. Anything made from a hidden image still
+  goes to Hidden.
+
 ## [0.7.4] - 2026-09-27
 
 ### Fixed

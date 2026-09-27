@@ -84,9 +84,9 @@ export class ApiError extends Error {
   }
 }
 
-export type ReferenceAssetPage = { items: ReferenceAsset[]; nextCursor?: string; hasMore?: boolean };
+export type ReferenceAssetPage = { items: ReferenceAsset[]; nextCursor?: string; hasMore?: boolean; locked?: boolean };
 
-export function listReferenceAssets(source: "upload" | "generation", cursor = "", limit = 30, signal?: AbortSignal) {
+export function listReferenceAssets(source: "upload" | "generation" | "hidden", cursor = "", limit = 30, signal?: AbortSignal) {
   const search = new URLSearchParams({ source, limit: String(limit) });
   if (cursor) search.set("cursor", cursor);
   return apiJson<ReferenceAssetPage>(`/api/reference-assets?${search}`, { signal });

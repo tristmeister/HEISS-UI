@@ -4,6 +4,7 @@ import path from "node:path";
 import Busboy from "busboy";
 import { comfy, comfyOutputDir } from "./comfy.js";
 import { dataDir, filterVisibleGallery, gallery, galleryKey, outputFileCandidates } from "./gallery-store.js";
+import { encryptionKeyFromRequest } from "./privacy.js";
 import { readVaultAsset, vaultGalleryItemsForRequest } from "./vault.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
@@ -100,18 +101,24 @@ function paginate(items, cursor = "", limit = 60) {
   return { items: page, nextCursor: next < items.length ? String(next) : "", hasMore: next < items.length };
 }
 
+const finishedImage = (item) => item.status === "done" && item.type === "image" && item.url;
+const newestFirst = (a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0);
+
+/**
+ * Generations and Hidden are separate shelves: an unlocked Hidden never spills
+ * into the gallery's list, and its own list answers "locked" until it is open.
+ */
 export function listReferenceAssets(req, { source = "upload", cursor = "", limit = 60 } = {}) {
   if (source === "generation") {
-    const publicItems = filterVisibleGallery(gallery).filter((item) => item.status === "done" && item.type === "image" && item.url);
-    const privateItems = vaultGalleryItemsForRequest(req, { bundles: false }).filter((item) => item.status === "done" && item.type === "image" && item.url);
-    const items = [...publicItems, ...privateItems]
-      .sort((a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0))
-      .map(galleryAsset);
-    return paginate(items, cursor, limit);
+    return paginate(filterVisibleGallery(gallery).filter(finishedImage).sort(newestFirst).map(galleryAsset), cursor, limit);
+  }
+  if (source === "hidden") {
+    if (!encryptionKeyFromRequest(req)) return { items: [], nextCursor: "", hasMore: false, locked: true };
+    return paginate(vaultGalleryItemsForRequest(req, { bundles: false }).filter(finishedImage).sort(newestFirst).map(galleryAsset), cursor, limit);
   }
   const items = loadManifest()
     .filter((item) => item.source === "upload")
-    .sort((a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.createdAt || 0))
+    .sort(newestFirst)
     .map(publicUploadAsset);
   return paginate(items, cursor, limit);
 }

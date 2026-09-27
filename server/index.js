@@ -942,7 +942,7 @@ app.post("/api/start-image", (req, res) => {
 app.get("/api/reference-assets", (req, res) => {
   try {
     res.json(listReferenceAssets(req, {
-      source: req.query.source === "generation" ? "generation" : "upload",
+      source: ["generation", "hidden"].includes(req.query.source) ? req.query.source : "upload",
       cursor: String(req.query.cursor || ""),
       limit: Number(req.query.limit || 60)
     }));

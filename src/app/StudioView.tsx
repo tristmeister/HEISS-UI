@@ -109,11 +109,21 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const unhideRef = React.useRef(unhideItems);
   hideRef.current = hideItems;
   unhideRef.current = unhideItems;
+  const hiddenRef = React.useRef(hidden);
+  hiddenRef.current = hidden;
   const hiddenActions = React.useMemo(() => ({
     space: hidden.space,
+    enabled: hidden.enabled,
+    unlocked: hidden.unlocked,
     hide: (items: GalleryItem[]) => hideRef.current(items),
-    unhide: (items: GalleryItem[]) => unhideRef.current(items)
-  }), [hidden.space]);
+    unhide: (items: GalleryItem[]) => unhideRef.current(items),
+    unlock: () => {
+      const current = hiddenRef.current;
+      // Straight from the click, so the system's Touch ID sheet is allowed to show.
+      if (current.usablePasskey && current.support?.available) current.unlockBiometric();
+      else current.requestUnlock(null);
+    }
+  }), [hidden.space, hidden.enabled, hidden.unlocked]);
   // Crossing between the gallery and Hidden (or unlocking) fades the stage in anew.
   // Two identical animations, alternated, so each crossing restarts it.
   const passageKey = `${hidden.space}|${hiddenLocked ? "shut" : "open"}`;

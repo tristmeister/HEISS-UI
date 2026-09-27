@@ -5,11 +5,12 @@ import { Check, Image as ImageIcon, Images, LoaderCircle, LockKeyhole, Plus, Tra
 import { cn } from "./format";
 import { Tip } from "./components";
 import { useDismiss } from "./useDismiss";
+import { useHiddenActions } from "./hiddenContext";
 import { deleteReferenceAsset, listReferenceAssets, referenceAssetFromGallery, uploadReferenceAsset } from "./api";
 import type { MediaInput, ReferenceAsset, SelectedReferenceAsset } from "./types";
 import { SafeImg } from './SafeImg';
 
-type PickerTab = "generation" | "upload";
+type PickerTab = "generation" | "hidden" | "upload";
 
 // Files dragged from Windows Explorer can arrive with an empty type (often
 // .webp and .avif): fall back to the extension. The server sniffs the bytes.
@@ -69,8 +70,13 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
   onError?: (message: string) => void;
   upload: { busy: boolean; progress: number; start: (file: File | undefined) => Promise<ReferenceAsset | null> };
 }) {
-  const [tab, setTab] = React.useState<PickerTab>("generation");
-  const [pages, setPages] = React.useState<Record<PickerTab, PageState>>({ generation: emptyPage(), upload: emptyPage() });
+  // Hidden images sit on their own shelf, behind the same lock as Hidden itself.
+  // It opens first when the picked image came from there, or when making in Hidden.
+  const hidden = useHiddenActions();
+  const hiddenShelf = Boolean(hidden?.enabled);
+  const hiddenOpen = Boolean(hidden?.unlocked);
+  const [tab, setTab] = React.useState<PickerTab>(() => hiddenShelf && (selected?.source === "vault" || (hidden?.space === "hidden" && hiddenOpen)) ? "hidden" : "generation");
+  const [pages, setPages] = React.useState<Record<PickerTab, PageState>>({ generation: emptyPage(), hidden: emptyPage(), upload: emptyPage() });
   const [selectingId, setSelectingId] = React.useState("");
   const uploadInput = React.useRef<HTMLInputElement>(null);
   const label = (input.label || "Reference image").toLowerCase();
@@ -121,10 +127,14 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
     }
   }, []);
 
+  // Locking empties the shelf; unlocking fills it afresh.
+  React.useEffect(() => { setPages((current) => ({ ...current, hidden: emptyPage() })); }, [hiddenOpen]);
+  React.useEffect(() => { if (tab === "hidden" && !hiddenShelf) setTab("generation"); }, [hiddenShelf, tab]);
+
   React.useEffect(() => {
-    if (pages[tab].loaded || pages[tab].loading) return;
+    if (pages[tab].loaded || pages[tab].loading || (tab === "hidden" && !hiddenOpen)) return;
     load(tab);
-  }, [load, pages, tab]);
+  }, [hiddenOpen, load, pages, tab]);
 
   const uploadAndUse = async (file: File | undefined) => {
     const asset = await upload.start(file);
@@ -182,6 +192,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       <header className="reference-popover-head">
         <div className="reference-tabs" role="tablist" aria-label="Reference image sources">
           <button role="tab" aria-selected={tab === "generation"} className={cn(tab === "generation" && "active")} onClick={() => setTab("generation")}><Images size={14} /> Generations</button>
+          {hiddenShelf ? <button role="tab" aria-selected={tab === "hidden"} className={cn(tab === "hidden" && "active")} onClick={() => setTab("hidden")}><LockKeyhole size={14} /> Hidden</button> : null}
           <button role="tab" aria-selected={tab === "upload"} className={cn(tab === "upload" && "active")} onClick={() => setTab("upload")}><ImageIcon size={14} /> Uploads</button>
         </div>
         <span className="reference-popover-hint">Drop or paste an image anywhere on the prompt</span>
@@ -194,7 +205,14 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       </header>
 
       <div className="reference-popover-body" role="tabpanel">
-        {page.loading && !page.items.length ? (
+        {tab === "hidden" && !hiddenOpen ? (
+          <div className="reference-empty">
+            <LockKeyhole size={22} />
+            <strong>Hidden is locked</strong>
+            <p>Unlock it to use one of your hidden images. It stays in Hidden.</p>
+            <button className="btn is-primary" onClick={() => hidden?.unlock()}><LockKeyhole size={14} /> Unlock</button>
+          </div>
+        ) : page.loading && !page.items.length ? (
           <div className="reference-grid is-loading" aria-label="Loading images">
             {Array.from({ length: 12 }, (_, index) => <div className="reference-skeleton" key={index} />)}
           </div>
@@ -203,12 +221,13 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
         ) : !page.items.length ? (
           <div className="reference-empty">
             <ImageIcon size={22} />
-            <strong>{tab === "generation" ? "No generations yet" : "No uploads yet"}</strong>
-            <p>{tab === "generation" ? "Finished images will show up here." : "Upload one, or drop it on the prompt."}</p>
+            <strong>{tab === "generation" ? "No generations yet" : tab === "hidden" ? "Nothing in Hidden yet" : "No uploads yet"}</strong>
+            <p>{tab === "generation" ? "Finished images will show up here." : tab === "hidden" ? "Images you hide will show up here." : "Upload one, or drop it on the prompt."}</p>
             {tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}><Upload size={14} /> Upload image</button> : null}
           </div>
         ) : (
           <>
+            {tab === "hidden" && hidden?.space !== "hidden" ? <p className="reference-shelf-note"><LockKeyhole size={12} /> What you make from a hidden image goes to Hidden too.</p> : null}
             <div className="reference-grid" data-reference-grid>
               {page.items.map((asset, index) => {
                 const isSelected = selected?.id === asset.id;

@@ -171,4 +171,23 @@ test("a device passkey unlocks only with its secret and a fresh signature from i
   privacy.erasePrivacy();
 });
 
+test("the reference picker keeps Hidden on its own shelf, shut while Hidden is locked", async () => {
+  const references = await import("./reference-assets.js");
+  const key = privacy.setupPrivacy("shelf test pw");
+  await vault.storeHiddenOutputs(key, [{ url: dataUrl, filename: "secret.png", type: "image" }], { prompt: "a private pier", kind: "image", width: 1, height: 1 });
+  const res = response();
+  privacy.setUnlockCookie(res, key, 120);
+  const unlocked = requestFrom(res);
+
+  // Unlocked or not, Generations never lists a Hidden image.
+  assert.ok(!references.listReferenceAssets(unlocked, { source: "generation" }).items.some((item) => item.source === "vault"));
+  const shelf = references.listReferenceAssets(unlocked, { source: "hidden" });
+  assert.equal(shelf.items.length, 1);
+  assert.equal(shelf.items[0].source, "vault");
+  assert.match(shelf.items[0].id, /^vault:/);
+  assert.deepEqual(references.listReferenceAssets({ headers: {} }, { source: "hidden" }), { items: [], nextCursor: "", hasMore: false, locked: true });
+  vault.eraseVault();
+  privacy.erasePrivacy();
+});
+
 test.after(() => fs.rmSync(temporary, { recursive: true, force: true }));
