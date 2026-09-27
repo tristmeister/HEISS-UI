@@ -562,6 +562,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onReferenceError={(message) => showToast(message, "error")}
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
+              generationEstimate={view.generationEstimate}
             />
           </section>
           {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
@@ -659,6 +660,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onReferenceError={(message) => showToast(message, "error")}
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
+              generationEstimate={view.generationEstimate}
             />
           </section>
         </>

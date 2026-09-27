@@ -6,6 +6,7 @@ import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDen
 import { AnimatedNumber } from './AnimatedNumber';
 import { ReferenceSlots, type ReferenceStrength } from './ReferenceMediaPicker';
 import type { AspectPreset, MediaInput, Profile, ReferenceAsset, SelectedReferenceAsset } from './types';
+import { estimatePhrase, type GenerationEstimate } from './useGenerationEstimate';
 
 /* ---------------------------------------------------------------------------
    The density ladder
@@ -242,6 +243,8 @@ export type ComposerBarProps = {
   onReferenceError: (message: string) => void;
   /** A fixed seed makes every run the same picture, so it is always on show. */
   pinnedSeed?: string;
+  /** What Generate would take here, once the server trusts its estimate for this model. */
+  generationEstimate?: GenerationEstimate | null;
   onRandomSeed?: () => void;
 };
 
@@ -255,7 +258,7 @@ export function ComposerBar(props: ComposerBarProps) {
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
     referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
-    pinnedSeed = "", onRandomSeed
+    pinnedSeed = "", onRandomSeed, generationEstimate = null
   } = props;
 
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
@@ -400,7 +403,7 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyRestarting ? "ComfyUI is restarting. Generate is back in a few seconds." : comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || (mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video")}>
+        <Tip content={comfyRestarting ? "ComfyUI is restarting. Generate is back in a few seconds." : comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}`}>
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && !comfyRestarting && "is-working", comfyRestarting ? "is-restarting" : comfyOffline && "is-offline")}
             onClick={comfyRestarting ? undefined : comfyOffline ? refreshComfyStatus : generate}

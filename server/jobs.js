@@ -7,6 +7,8 @@ import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGaller
 import { forgetComfyRun } from './hidden-traces.js';
 import { storeHiddenOutputs } from './vault.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
+import { remainingMs, RunTimer, slowSteps } from './generation-timing.js';
+import { generationEstimate, generationWarm, recordGeneration } from './timings.js';
 
 export const jobs = new Map();
 const previewSlots = new Map();
@@ -126,6 +128,65 @@ function applyExecutedOutputPreviews(id, output) {
   return true;
 }
 
+/**
+ * Each generation's clock: what ComfyUI has reported of it so far, and what
+ * it was expected to take. Progress then carries endsAt (server time) so every
+ * tile can count down, and jobs waiting behind it know when their turn comes.
+ */
+const runTimings = new Map();
+
+/** Progress with when the job should end, or without when there is nothing honest to say. */
+function withEta(id, progress, now = Date.now()) {
+  const timing = runTimings.get(id);
+  const { endsAt: _endsAt, runStartedAt: _runStartedAt, ...plain } = progress || {};
+  if (!timing?.timer) return plain;
+  const left = remainingMs(timing.timer, timing.estimate, now);
+  if (left === null) return plain;
+  return { ...plain, endsAt: Math.round(now + left), ...(timing.timer.runAt !== null ? { runStartedAt: timing.timer.runAt } : {}) };
+}
+
+/**
+ * When each job still waiting in ComfyUI's queue should be done: after the
+ * ones ahead of it. The chain stops at the first job whose length is unknown
+ * (an upscale, a model without a trusted estimate), since everything behind it
+ * would be a guess.
+ */
+function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
+  let cursor = now;
+  let known = true;
+  for (const [id, job] of jobs) {
+    if (!["queued", "running", "canceling"].includes(job.status)) continue;
+    const timing = runTimings.get(id);
+    if (!timing) {
+      known = false;
+      continue;
+    }
+    if (timing.timer && timing.timer.runAt !== null) {
+      const left = remainingMs(timing.timer, timing.estimate, now);
+      if (left === null) known = false;
+      else cursor = Math.max(cursor, now + left);
+      continue;
+    }
+    const estimate = timing.estimate?.trusted ? timing.estimate : null;
+    const endsAt = known && estimate ? Math.round(cursor + estimate.totalMs) : null;
+    if (endsAt) cursor = endsAt;
+    else known = false;
+    if (!apply) continue;
+    const previous = job.progress?.endsAt;
+    if (endsAt ? previous && Math.abs(previous - endsAt) < 2000 : previous === undefined) continue;
+    const { endsAt: _endsAt, ...rest } = job.progress || { value: 0, max: 0 };
+    const progress = endsAt ? { ...rest, endsAt } : rest;
+    jobs.set(id, { ...job, progress });
+    updateGalleryJob(id, { progress }, { persist: false });
+  }
+  return known ? cursor : null;
+}
+
+/** When HEISS's own queue should be clear (now, when empty), or null when a job in it has no known length. */
+export function queueClearsAt(now = Date.now()) {
+  return refreshQueueEstimates(now, { apply: false });
+}
+
 function openProgressSocket(id) {
   const wsUrl = comfyUrl.replace(/^http/i, "ws");
   let socket;
@@ -157,7 +218,12 @@ function sendSocketFeatureFlags(socket) {
   }
 }
 
-function watchProgress(id, promptId, socket = openProgressSocket(id), graph = {}) {
+/**
+ * Listens from before the prompt is queued: on an idle ComfyUI the run starts
+ * at once, and its start is what times the setup. The socket belongs to this
+ * job alone; `run.promptId`, once known, only guards against strays.
+ */
+function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
   if (!socket) return null;
   socket.addEventListener("message", async (event) => {
     try {
@@ -175,16 +241,31 @@ function watchProgress(id, promptId, socket = openProgressSocket(id), graph = {}
     try {
       const message = JSON.parse(event.data);
       const data = message.data || {};
-      if (data.prompt_id && data.prompt_id !== promptId) return;
+      if (data.prompt_id && run.promptId && data.prompt_id !== run.promptId) return;
+      const timing = runTimings.get(id);
+      if (timing?.timer) {
+        timing.timer.note(message);
+        // Leaving the queue: whether the model is loaded is now known, and so is the wait behind.
+        if (message.type === "execution_start") {
+          const body = jobBodies.get(id);
+          timing.warm = generationWarm(body);
+          timing.estimate = generationEstimate(body, { warm: timing.warm });
+        }
+      }
       const current = jobs.get(id) || {};
-      const progress = nextProgress(graph, message, current.progress);
-      if (progress) {
-        jobs.set(id, { ...current, status: "running", progress });
+      const next = nextProgress(graph, message, current.progress);
+      if (next) {
+        const progress = withEta(id, next);
+        // A cancel asked for meanwhile stands; progress must not turn it back into running.
+        jobs.set(id, { ...current, status: current.status === "canceling" || current.status === "canceled" ? current.status : "running", progress });
         updateGalleryJob(id, { status: "pending", progress }, { persist: false });
+        refreshQueueEstimates();
       }
       if (message.type === "executed" && data.output) {
         applyExecutedOutputPreviews(id, data.output);
       }
+      // Finished: look for the images now rather than at the next poll.
+      if (message.type === "execution_success" || (message.type === "executing" && (data.node === null || data.node === undefined))) run.wake?.();
       if (message.type === "execution_interrupted") {
         setTerminalJob(id, { status: "canceled" });
         updateGalleryJob(id, { status: "canceled" });
@@ -229,12 +310,18 @@ function learnFromFailure(body, message = "") {
 
 async function runJob(id, body) {
   jobBodies.set(id, body);
+  const timing = { timer: null, estimate: generationEstimate(body), warm: false };
+  runTimings.set(id, timing);
+  refreshQueueEstimates();
   let socket = null;
   try {
     const prompt = body.kind === "video" ? await videoGraph(body) : await imageGraph(body);
+    timing.timer = new RunTimer(prompt);
     socket = openProgressSocket(id);
     await waitForSocketOpen(socket);
     sendSocketFeatureFlags(socket);
+    const run = { promptId: null, wake: null };
+    watchProgress(id, run, socket, prompt);
     const queued = await comfy("/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -250,8 +337,8 @@ async function runJob(id, body) {
       setTerminalJob(id, { status: "canceled", promptId: queued.prompt_id });
       return;
     }
+    run.promptId = queued.prompt_id;
     jobs.set(id, { ...jobs.get(id), status: "running", promptId: queued.prompt_id });
-    watchProgress(id, queued.prompt_id, socket, prompt);
     while (true) {
       if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
         updateGalleryJob(id, { status: "canceled" });
@@ -274,6 +361,7 @@ async function runJob(id, body) {
         throw Object.assign(new Error(failed.exception_message || "ComfyUI execution failed"), { comfyFailure: failed });
       }
       if (entry) {
+        recordTiming(id, body, timing);
         const outputs = outputsFrom(history[queued.prompt_id]);
         // Replacing the placeholder with nothing would delete the tile; keep it as a failure that says why.
         if (!outputs.length) {
@@ -296,7 +384,11 @@ async function runJob(id, body) {
         socket?.close();
         return;
       }
-      await new Promise((resolve) => setTimeout(resolve, 1600));
+      await new Promise((resolve) => {
+        run.wake = resolve;
+        setTimeout(resolve, 1600);
+      });
+      run.wake = null;
     }
   } catch (error) {
     // The socket may already have recorded the richer failure for this job.
@@ -311,7 +403,23 @@ async function runJob(id, body) {
   } finally {
     // The progress socket can report an error a moment after this loop ends.
     setTimeout(() => jobBodies.delete(id), 60_000).unref?.();
+    runTimings.delete(id);
+    refreshQueueEstimates();
   }
+}
+
+/**
+ * A finished run's timing: learned from (never for a Hidden run), and kept on
+ * the job so its images say how long they took and whether steps were far
+ * slower than usual. A run whose end the socket missed is not learned from,
+ * since its tail would be off by a poll.
+ */
+function recordTiming(id, body, timing) {
+  const result = timing.timer?.result();
+  if (!result) return;
+  if (!body.privateVault) recordGeneration({ body, result, predicted: timing.estimate, warm: timing.warm });
+  const slow = slowSteps(result, timing.estimate);
+  jobs.set(id, { ...jobs.get(id), timing: { runMs: Math.round(result.runMs), ...(result.stepMs ? { stepMs: Math.round(result.stepMs) } : {}), ...(slow ? { slow: true } : {}) } });
 }
 
 function hashString(str = "") {

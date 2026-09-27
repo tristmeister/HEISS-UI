@@ -681,6 +681,8 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
     filename: title || item.filename,
     createdAt: existing[index]?.createdAt || new Date().toISOString(),
     durationMs,
+    // How long ComfyUI itself took, without waiting in its queue.
+    ...(job.timing ? { timing: job.timing } : {}),
     width: Number(body.width || 0),
     height: Number(body.height || 0),
     model: body.model || "",

@@ -20,6 +20,22 @@ version opens with a `> ` summary line, which the update pill shows.
   that is new says so ("ComfyUI is back with Impact Pack"), and one that
   failed to load says that instead of turning up later as a missing node.
   Restart timings stay in your data folder and are only used for this.
+- **Generations say how long is left.** A running image counts down ("12 s
+  left", "About 2 min left") and its bar follows the whole run, loading and
+  decoding included, instead of stalling once the steps are done. Queued
+  images say when their turn ends. The Generate button's tip says what a run
+  takes with your settings ("about 40 s"), and on the phone a run of 45 s or
+  more says so before you start. It learns per model from your own runs:
+  nothing shows until a model has run three times, and estimates that keep
+  missing go quiet.
+- **A hint when steps crawl.** If a run's steps are far slower than that
+  model's usual, HEISS UI says once that ComfyUI may be short on video memory.
+
+### Changed
+- **Finished images appear the moment ComfyUI is done**, instead of up to
+  1.6 s later.
+- **An image's time is how long it took to make**, not counting its wait in
+  the queue, on its tile and in the About page's totals.
 
 ## [0.9.0] - 2026-09-27
 

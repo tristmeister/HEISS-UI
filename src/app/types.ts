@@ -1,6 +1,8 @@
 export type Mode = "image" | "video";
 /** `steps` marks a sampler's count; other nodes report a `phase` ("Encoding image") instead. */
-export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean };
+export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean; /** When the run should be done, on the server's clock; only there when it can be said honestly. */ endsAt?: number; /** When ComfyUI started running it (not queued), on the server's clock. */ runStartedAt?: number };
+/** How long a finished run took in ComfyUI itself, without waiting in its queue; `slow` when its steps ran far slower than this model's usual. */
+export type RunTiming = { runMs: number; stepMs?: number; slow?: boolean };
 export type Output = { url: string; filename: string; type: "image" | "video"; prompt?: string; negative?: string; outputName?: string };
 export type LoraSelection = { name: string; enabled: boolean; strength: number };
 export type MediaInput = {
@@ -52,7 +54,7 @@ export type UpscaleState = {
 };
 /** Why a run failed: a headline, a plain hint, and the raw detail for bug reports. */
 export type GenerationFailure = { title: string; summary: string; hint?: string; nodeType?: string; nodeId?: string; file?: string; exceptionType?: string; detail?: string; traceback?: string; at?: number };
-export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle };
+export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle };
 export type GalleryBundle = {
   id: string;
   domain: "gallery" | "vault";

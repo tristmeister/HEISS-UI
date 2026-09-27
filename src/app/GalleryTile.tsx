@@ -167,7 +167,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
         <span className="tile-caption">
           <strong>{titleFromPrompt(item.prompt || item.filename)}</strong>
           {/* A failed tile already says so in its middle; "Failed" again is noise. */}
-          {item.status === "error" ? null : <em>{item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : item.durationMs ? formatElapsed(item.durationMs) : item.outputName || item.type}</em>}
+          {item.status === "error" ? null : <em>{item.status === "pending" ? <ElapsedTime startedAt={item.createdAt} format={formatElapsed} /> : (item.timing?.runMs || item.durationMs) ? formatElapsed(item.timing?.runMs || item.durationMs || 0) : item.outputName || item.type}</em>}
         </span>
         {selecting && selectable ? <HapticTarget /> : null}
       </button>

@@ -364,6 +364,8 @@
   transition: transform 320ms var(--ease-out);
   box-shadow: 0 0 8px hsl(216 30% 70% / 0.15);
 }
+/* A timed run moves on every second tick, so it glides the whole second. */
+.generate-bar.is-timed .generate-bar-fill { transition: transform 1000ms linear; }
 .generate-bar.is-indeterminate .generate-bar-fill {
   width: 28%;
   background: linear-gradient(90deg, transparent, hsl(var(--foreground) / 0.2), transparent);

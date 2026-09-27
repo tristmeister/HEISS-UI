@@ -20,7 +20,8 @@ export function galleryStats(items = [], now = new Date()) {
   let pixels = 0;
   let first = "";
   for (const item of done) {
-    renderMs += Number(item.durationMs || item.elapsedMs) || 0;
+    // A run's own time where it is known; older images only kept time since they were asked for.
+    renderMs += Number(item.timing?.runMs || item.durationMs || item.elapsedMs) || 0;
     pixels += (Number(item.width) || 0) * (Number(item.height) || 0);
     const key = dayKey(item.createdAt);
     if (key) days.set(key, (days.get(key) || 0) + 1);

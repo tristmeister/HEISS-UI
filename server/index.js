@@ -18,7 +18,7 @@ import { cancelDownload, discardDownload, downloadState, startDownload } from '.
 import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
-import { jobs, runJob, runMockJob, setTerminalJob } from './jobs.js';
+import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
@@ -33,7 +33,7 @@ import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readU
 import { nodePack, nodePacks } from './node-packs.js';
 import { beginComfyRestart, comfyRestartStartedAt, comfyRestarting, finishComfyRestart, lastComfyRestart, noteComfyRestart } from './comfy-restart.js';
 import { failedPacks, loadedPacks, logTextFromRaw, packLabel, restartChanges } from './restart-insights.js';
-import { comfyRestartEstimate, recordComfyRestart } from './timings.js';
+import { comfyRestartEstimate, generationEstimate, recordComfyRestart } from './timings.js';
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
@@ -450,6 +450,34 @@ async function commitsSinceRelease() {
   describeCache = { at: Date.now(), value };
   return value;
 }
+
+/**
+ * What a generation with these settings should take here, for the composer:
+ * `ms` once this model's estimates are trusted, and `queueMs` when HEISS's own
+ * queue has to finish first. Empty when there is nothing honest to say.
+ */
+app.get("/api/estimate", (req, res) => {
+  const query = req.query || {};
+  const body = {
+    kind: query.kind === "video" ? "video" : "image",
+    model: String(query.model || ""),
+    profileId: String(query.profileId || ""),
+    width: Number(query.width) || 0,
+    height: Number(query.height) || 0,
+    count: Number(query.count) || 1,
+    steps: Number(query.steps) || 0,
+    frames: Number(query.frames) || 0
+  };
+  const now = Date.now();
+  const estimate = generationEstimate(body, { now });
+  // Variations run one after another as separate runs: the first as things stand, the rest with the model loaded.
+  const runs = Math.max(1, Math.min(8, Number(query.runs) || 1));
+  const rest = runs > 1 ? generationEstimate(body, { now, warm: true }) : null;
+  const trusted = estimate?.trusted && (runs === 1 || rest?.trusted);
+  const clears = queueClearsAt(now);
+  const queueMs = clears === null ? null : Math.max(0, clears - now);
+  res.json({ ok: true, ...(trusted ? { ms: estimate.totalMs + (runs - 1) * (rest?.totalMs || 0) } : {}), ...(queueMs ? { queueMs } : {}) });
+});
 
 app.get("/api/stats", async (_req, res) => {
   const since = await commitsSinceRelease();
