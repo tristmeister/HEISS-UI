@@ -72,13 +72,14 @@ type UpscaleOptions = {
   prefs: Preferences;
   showToast: (message: string, tone?: "default" | "success" | "error") => void;
   loadGalleryDelta: () => void;
+  patchGalleryItems: (update: (item: GalleryItem) => GalleryItem) => void;
 };
 
 // Long enough to read the check as a step of its own, short enough to never feel like waiting.
 const VERIFY_BEAT_MS = 1500;
 const READY_BEAT_MS = 1400;
 
-export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: UpscaleOptions) {
+export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchGalleryItems }: UpscaleOptions) {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [install, setInstall] = useState<UpscaleInstall>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
@@ -275,10 +276,19 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: Upsc
     }
   }, []);
 
+  // Images whose upscale was clicked but has no job yet: they already show as
+  // running, and there is nothing to stop until the server answers.
+  const startingIds = useRef<Set<string>>(new Set());
+
+  /** Shows the upscale running from the click on; if the server says no, it steps back and says why. */
   const runUpscale = useCallback(async (item: GalleryItem) => {
     const quality = prefs.upscaleQuality || "balanced";
-    markBusy(item.id, true);
+    const before = item.upscale;
+    startingIds.current.add(item.id);
     setNotice(item.id, null);
+    patchGalleryItems((current) => current.id === item.id
+      ? { ...current, upscale: { ...before, status: "running", jobId: undefined, quality, faceDetail: Boolean(prefs.upscaleFaceDetail), progress: null, error: undefined } }
+      : current);
     try {
       await apiJson("/api/upscale", {
         method: "POST",
@@ -287,11 +297,16 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: Upsc
       });
       loadGalleryDelta();
     } catch (error) {
+      // Going back to an earlier failure is not a new one; the watcher above must not announce it.
+      lastUpscaleStatus.current.set(item.id, before?.status || "");
+      patchGalleryItems((current) => current.id === item.id && current.upscale?.status === "running" && !current.upscale.jobId
+        ? { ...current, upscale: before }
+        : current);
       setNotice(item.id, upscaleNoticeFrom(error));
     } finally {
-      markBusy(item.id, false);
+      startingIds.current.delete(item.id);
     }
-  }, [loadGalleryDelta, markBusy, prefs.upscaleFaceDetail, prefs.upscaleQuality, setNotice]);
+  }, [loadGalleryDelta, patchGalleryItems, prefs.upscaleFaceDetail, prefs.upscaleQuality, setNotice]);
 
   // Setup finished for an image that was waiting: hold the ready moment for a
   // beat, then close and do what the click asked for in the first place.
@@ -311,6 +326,11 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: Upsc
 
   const upscaleItem = useCallback(async (item: GalleryItem) => {
     if (!canUpscaleItem(item) || item.upscale?.status === "running") return;
+    // Known ready: start at once. The server still checks, and a no comes back as a notice.
+    if (status?.ready) {
+      await runUpscale(item);
+      return;
+    }
     markBusy(item.id, true);
     const current = await refreshStatus(prefs.upscaleQuality || "balanced");
     markBusy(item.id, false);
@@ -319,7 +339,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: Upsc
       return;
     }
     openSetup(item);
-  }, [markBusy, openSetup, prefs.upscaleQuality, refreshStatus, runUpscale, setNotice]);
+  }, [markBusy, openSetup, prefs.upscaleQuality, refreshStatus, runUpscale, status?.ready]);
 
   const toggleUpscale = useCallback(async (item: GalleryItem, active?: boolean) => {
     if (!item.upscale?.url) return;
@@ -339,6 +359,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: Upsc
   }, [loadGalleryDelta, markBusy, setNotice]);
 
   const cancelUpscale = useCallback(async (item: GalleryItem) => {
+    if (startingIds.current.has(item.id)) return;
     markBusy(item.id, true);
     try {
       await apiJson("/api/upscale/cancel", {

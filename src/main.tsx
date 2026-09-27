@@ -667,7 +667,8 @@ function App() {
     gallery,
     prefs,
     showToast,
-    loadGalleryDelta
+    loadGalleryDelta,
+    patchGalleryItems
   });
 
   function showToast(message: string, tone: "default" | "success" | "error" = "default") {
