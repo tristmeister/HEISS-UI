@@ -107,6 +107,18 @@
 /* The zen gallery strip owns the top centre; the bar keeps to its corner. */
 .zen-shell .hidden-bar { top: 14px; left: 14px; }
 
+/* The bar floats over the gallery like a toolbar: the first row starts below
+   it (42px of bar plus the usual gap), so it never sits on a tile's quick
+   actions; scrolled rows pass under its glass. The zen strip stays centred
+   but keeps clear of the bar on both sides. */
+.app-shell.is-hidden-space .stage-gallery {
+  padding-top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 12px);
+  scroll-padding-top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 12px);
+}
+@media (min-width: 761px) {
+  .zen-shell.is-hidden-space .zen-gallery-wrap { max-width: min(900px, calc(100vw - 2 * 256px)); }
+}
+
 /* ---------------------------------------------------------- Composer chip */
 
 .hidden-chip {

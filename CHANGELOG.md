@@ -22,6 +22,9 @@ version opens with a `> ` summary line, which the update pill shows.
   shape a moment after it opens.
 - **The update pill sums up the release** in a line written for it, instead
   of quoting whichever change happened to come first.
+- **The Hidden bar no longer covers the first row.** In Hidden, the gallery
+  starts below the bar, so a tile's quick actions are never under it, and
+  the zen strip keeps clear of it.
 
 ## [0.8.0] - 2026-09-27
 
