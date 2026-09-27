@@ -8,7 +8,7 @@ import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { printBanner } from './banner.js';
-import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate } from './updater.js';
+import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE } from './release-swap.js';
 import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
@@ -1681,6 +1681,7 @@ if (fs.existsSync(dist)) {
 }
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
+warmReleaseCheck(root, dataDir);
 
 app.listen(port, host, (error) => {
   // Express 5 hands a failed listen to this callback instead of throwing.

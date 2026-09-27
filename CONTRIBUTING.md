@@ -52,7 +52,18 @@ Before every release, on a real ComfyUI with GPU:
 
 ### Cutting a release
 
-To cut a release, from an up-to-date `main` with the notes written under **Unreleased**:
+To cut a release, from an up-to-date `main` with the notes written under **Unreleased**, opened by a one-line summary:
+
+```markdown
+## [Unreleased]
+
+> Smoother model setup, clearer progress, calmer errors
+
+### Added
+- ...
+```
+
+The summary is what installed copies show in their update pill, under "HEISS UI x.y.z is here", so it has to make sense on its own. Name what the release is about in a few words, at most 60 characters. With one big change, name it; with several, name the theme ("Smoother model setup and calmer errors"); with only small ones, say so ("Smaller fixes across the studio"). Don't lead with a minor fix just because it was written first. The release script refuses a release without a summary or with one too long, and `--dry-run` shows how the pill will read.
 
 ```bash
 npm run release -- minor --dry-run   # checks everything, changes nothing

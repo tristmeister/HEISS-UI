@@ -459,7 +459,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
     hidden,
     health, refreshHealth, models, refreshModels, refreshWorkflows, modelFolders,
-    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, setUpdatePrefs, workflows, modelProfiles
+    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, setUpdatePrefs, refreshUpdateStatus, workflows, modelProfiles
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
 
@@ -508,6 +508,11 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
       || (modelProfiles || []).find((item: { id: string; displayName?: string; label?: string }) => item.id === stats.topWorkflow)?.displayName
       || stats.topWorkflow.replace(/^custom:/, '')
     : '';
+  // Opened before the automatic check answered: ask now (quietly, from the
+  // server's cache when it has one), so the row doesn't change shape later.
+  React.useEffect(() => {
+    if (open && section === 'about' && !updateStatus) refreshUpdateStatus?.();
+  }, [open, section]); // eslint-disable-line react-hooks/exhaustive-deps
   const runUpdateCheck = async () => {
     const started = performance.now();
     setChecking(true);

@@ -23,6 +23,18 @@ export function section(text, name) {
 }
 
 /**
+ * The release's one-line summary: a `> ` line opening its notes. It is what the
+ * update pill shows under "HEISS UI x.y.z is here", so it names the theme of
+ * the release ("Smoother model setup, clearer progress, calmer errors") rather
+ * than one feature, and fits the pill's two short lines.
+ */
+export const SUMMARY_MAX = 60;
+export function summaryOf(notes) {
+  const first = String(notes || "").split(/\r?\n/).find((line) => line.trim());
+  return first && /^> /.test(first) ? first.slice(2).trim() : "";
+}
+
+/**
  * Turns Unreleased into `## [version] - date`, opens a fresh Unreleased above
  * it and keeps the compare links at the bottom current.
  */

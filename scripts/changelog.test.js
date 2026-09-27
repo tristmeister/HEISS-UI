@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cutRelease, section } from "./changelog.mjs";
+import { cutRelease, section, SUMMARY_MAX, summaryOf } from "./changelog.mjs";
 
 const base = `# Changelog
 
@@ -38,4 +38,10 @@ test("later releases compare against the previous tag", () => {
 test("no notes, no release", () => {
   const empty = base.replace("### Added\n- A thing.\n", "");
   assert.throws(() => cutRelease(empty, "0.2.0", "2026-09-23"), /nothing under Unreleased/);
+});
+
+test("the summary is the notes' opening > line, and only that", () => {
+  assert.equal(summaryOf("> Smoother setup, calmer errors\n\n### Added\n- **A thing.**"), "Smoother setup, calmer errors");
+  assert.equal(summaryOf("### Added\n- **A thing.**\n> not a summary"), "");
+  assert.ok(SUMMARY_MAX >= 40 && SUMMARY_MAX <= 72);
 });

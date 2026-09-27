@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { changelogPath, cutRelease, section } from "./changelog.mjs";
+import { changelogPath, cutRelease, section, SUMMARY_MAX, summaryOf } from "./changelog.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -62,6 +62,10 @@ if (git("rev-list", "--count", "HEAD..origin/main") !== "0") fail("origin/main h
 const changelog = fs.readFileSync(changelogPath, "utf8");
 const notes = section(changelog, "Unreleased");
 if (!notes) fail("CHANGELOG.md has nothing under Unreleased. Write the release notes first.");
+// The update pill shows this line: a few words for the whole release, not its first bullet.
+const summary = summaryOf(notes);
+if (!summary) fail(`Start the Unreleased notes with a one-line summary for the update pill, like\n\n  > Smoother model setup, clearer progress, calmer errors\n\nName what the release is about in a few words (up to ${SUMMARY_MAX} characters). With several changes, sum them up ("Faster uploads and smaller fixes") instead of picking one.`);
+if (summary.length > SUMMARY_MAX) fail(`The summary is ${summary.length} characters; the update pill fits ${SUMMARY_MAX}. Shorten:\n\n  > ${summary}`);
 const today = new Date().toISOString().slice(0, 10);
 const nextChangelog = cutRelease(changelog, version, today);
 
@@ -70,6 +74,7 @@ run(npm, ["test"], { stdio: "inherit" });
 run(npm, ["run", "build"], { stdio: "inherit" });
 
 if (dryRun) {
+  console.log(`\nThe update pill will read:\n\n  HEISS UI ${version} is here\n  ${summary}\n`);
   console.log(`\nWould release ${tag} with these notes:\n\n${notes}\n`);
   process.exit(0);
 }

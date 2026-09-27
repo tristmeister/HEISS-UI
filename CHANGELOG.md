@@ -6,9 +6,22 @@ Every release of HEISS UI, newest first. The format follows
 [CONTRIBUTING.md](CONTRIBUTING.md#versions-and-releases).
 
 Add notes under **Unreleased** as changes land; `npm run release` turns that
-section into the next version and uses it as the GitHub release notes.
+section into the next version and uses it as the GitHub release notes. Each
+version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
+
+> The update pill shows up on its own, right after starting
+
+### Fixed
+- **The update pill no longer waits for ComfyUI.** While ComfyUI wasn't
+  answering (HEISS UI started first, or ComfyUI was restarting), a new
+  version stayed unannounced until ComfyUI connected or Settings was opened.
+  HEISS UI now asks for the latest version as it starts, so the pill is
+  there within a couple of seconds, and Settings › About no longer changes
+  shape a moment after it opens.
+- **The update pill sums up the release** in a line written for it, instead
+  of quoting whichever change happened to come first.
 
 ## [0.8.0] - 2026-09-27
 

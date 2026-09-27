@@ -23,7 +23,7 @@ import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
-import { setThisComputer, usePhone } from './app/device';
+import { setThisComputer, usePhone, useThisComputer } from './app/device';
 import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
 import { registerRestartConfirm, setComfyRestarting } from './app/ComfyRestart';
 import { memoLatest } from './lib/memo-latest';
@@ -239,20 +239,26 @@ function App() {
   // shortly after opening, then every six hours while the page is open (the
   // server keeps GitHub's answer, so every device and tab share one ask). It
   // stays silent when offline or switched off in Settings › About.
-  const canManage = Boolean(health?.thisComputer);
+  // Not tied to ComfyUI: the address says "this computer" before /api/health
+  // does, and the server refuses anyone else anyway.
+  const canManage = useThisComputer();
+  const lastUpdateCheck = useRef(0);
+  const refreshUpdateStatus = () => {
+    lastUpdateCheck.current = Date.now();
+    fetch("/api/update/status?auto=1", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() as Promise<UpdateStatus> : null)
+      // Only a release copy has an answer here; a checkout keeps what About found.
+      .then((data) => { if (data?.ok && data.release) setUpdateStatus(data); })
+      .catch(() => null);
+  };
   useEffect(() => {
     if (!canManage) return;
-    let last = 0;
     const check = () => {
-      if (document.hidden || Date.now() - last < 6 * 60 * 60 * 1000) return;
-      last = Date.now();
-      fetch("/api/update/status?auto=1", { cache: "no-store" })
-        .then((response) => response.ok ? response.json() as Promise<UpdateStatus> : null)
-        // Only a release copy has an answer here; a checkout keeps what About found.
-        .then((data) => { if (data?.ok && data.release) setUpdateStatus(data); })
-        .catch(() => null);
+      if (document.hidden || Date.now() - lastUpdateCheck.current < 6 * 60 * 60 * 1000) return;
+      refreshUpdateStatus();
     };
-    const first = window.setTimeout(check, 4000);
+    // The server asked GitHub when it started, so this is usually instant.
+    const first = window.setTimeout(check, 1500);
     const timer = window.setInterval(check, 30 * 60 * 1000);
     document.addEventListener("visibilitychange", check);
     return () => { window.clearTimeout(first); window.clearInterval(timer); document.removeEventListener("visibilitychange", check); };
@@ -690,9 +696,16 @@ function App() {
   }
 
   function refreshHealth() {
-    apiJson<Health>("/api/health")
-      .then((data) => { setHealth(data); if (typeof data.thisComputer === "boolean") setThisComputer(data.thisComputer); })
-      .catch((error) => setHealth({ ok: false, error: error instanceof Error ? error.message : "Connection failed" }));
+    // 503 only means ComfyUI isn't answering: its body still says whether
+    // this is the computer that looks after HEISS UI, so read it either way.
+    fetch("/api/health", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json().catch(() => null) as Health | null;
+        if (!data) throw new Error(response.statusText || "Connection failed");
+        setHealth(data);
+        if (typeof data.thisComputer === "boolean") setThisComputer(data.thisComputer);
+      })
+      .catch((error) => setHealth({ ok: false, error: error instanceof Error && !/fetch|load failed/i.test(error.message) ? error.message : "Can’t reach HEISS UI. Check that it’s still running." }));
   }
 
   /** The status poll mostly returns the same answer; a new object would re-render the whole app every five seconds. */
@@ -1257,7 +1270,7 @@ function App() {
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;
 
-  const baseView = { seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
+  const baseView = { seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;

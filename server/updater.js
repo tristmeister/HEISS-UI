@@ -82,8 +82,21 @@ async function quietRelease(allowed) {
   return cachedRelease.response || { release: null };
 }
 
-/** The first line of the release notes ("**Headline.** more text") and how many more there are. */
+/** On startup, ask once in the background, so the page's first check is already answered. */
+export function warmReleaseCheck(root, dataDir) {
+  if (!fs.existsSync(path.join(root, "release.json")) || fs.existsSync(path.join(root, ".git"))) return;
+  if (!updatePrefs(dataDir).autoCheck) return;
+  setTimeout(() => { quietRelease(true).catch(() => null); }, 2000).unref?.();
+}
+
+/**
+ * What the update pill says about a release: its summary line ("> Smoother
+ * model setup, clearer progress"), or for releases without one, the first
+ * bullet's headline and how many more there are.
+ */
 export function releaseHighlight(body) {
+  const opening = String(body || "").split(/\r?\n/).find((line) => line.trim()) || "";
+  if (/^> /.test(opening)) return { highlight: opening.slice(2).trim(), more: 0 };
   const items = String(body || "").split(/\r?\n/).filter((line) => /^[-*] /.test(line));
   const first = /^[-*] \*\*(.+?)\*\*/.exec(items[0] || "")?.[1] || items[0]?.slice(2) || "";
   return { highlight: first.trim().replace(/[.:]$/, ""), more: Math.max(0, items.length - 1) };

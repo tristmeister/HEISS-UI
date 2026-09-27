@@ -34,6 +34,7 @@ test("the release notes' first bold line is the headline", () => {
   assert.deepEqual(releaseHighlight("### Fixed\n- **Haptics tick.** On iPhone.\n- **LAN.** Works.\n\n### Added\n- Plain item"), { highlight: "Haptics tick", more: 2 });
   assert.deepEqual(releaseHighlight("- Plain first line"), { highlight: "Plain first line", more: 0 });
   assert.deepEqual(releaseHighlight(""), { highlight: "", more: 0 });
+  assert.deepEqual(releaseHighlight("> Smoother model setup, clearer progress\n\n### Added\n- **A.** x\n- **B.** y"), { highlight: "Smoother model setup, clearer progress", more: 0 });
 });
 
 test("update prefs default to checking and remember a dismissed version", () => {
