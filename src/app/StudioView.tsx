@@ -20,6 +20,7 @@ import { UpscaleNoticePopover } from './UpscaleNotice';
 import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
 import { FailurePanel } from './GenerationFailure';
 import { ModelDownloadWidget, useModelDownloadWidget } from './ModelDownloadWidget';
+import { UpdatePill, useUpdatePill } from './UpdatePill';
 import { WorkflowGallery } from './WorkflowGallery';
 import { HiddenLockScreen, HiddenUnlockSheet } from './HiddenLock';
 import { HiddenSetupDialog } from './HiddenSetup';
@@ -27,7 +28,7 @@ import { HiddenActionsContext } from './hiddenContext';
 import { LockMark } from './LockMark';
 import { downloadUrl, TileLongPressContext } from './GalleryTile';
 import { PhoneShell, PhoneViewerBar, type PhoneItemActions } from './PhoneStudio';
-import { usePhone } from './device';
+import { usePhone, useThisComputer } from './device';
 import { haptic } from './phoneControls';
 import { ConnectedCard } from './ConnectedCard';
 import { EmptyStage } from './EmptyStage';
@@ -198,8 +199,23 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     onDone: () => { refreshModels(false); refreshWorkflows(); },
     onError: (item) => showToast(item.error || `${item.label} failed to download`, "error")
   });
-  // Two pills share the top edge; the upscale one wins, the toaster moves for either.
-  const downloadWidget = { visible: upscaleWidget.visible || (modelWidget.visible && !workflowGalleryOpen) };
+  const thisComputer = useThisComputer();
+  const updatePill = useUpdatePill({
+    status: view.updateStatus,
+    thisComputer,
+    restarting: Boolean(view.restarting),
+    justUpdated: view.justUpdated,
+    running: runningCount,
+    hiddenSpace,
+    settingsOpen: Boolean(settings),
+    onRestart: view.restartForUpdate,
+    onDoneUpdated: view.clearJustUpdated
+  });
+  // The pills share the top edge, stacked in this order; the toaster moves below them.
+  const modelPillVisible = modelWidget.visible && !workflowGalleryOpen;
+  const updateSlot = Number(upscaleWidget.visible) + Number(modelPillVisible);
+  const pillCount = updateSlot + Number(updatePill.visible);
+  const downloadWidget = { visible: pillCount > 0 };
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
@@ -687,6 +703,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       />
       <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
       <ModelDownloadWidget widget={modelWidget} hidden={workflowGalleryOpen} stacked={upscaleWidget.visible} onOpen={() => setWorkflowGalleryOpen(true)} />
+      <UpdatePill
+        pill={updatePill}
+        status={view.updateStatus}
+        running={runningCount}
+        slot={updateSlot}
+        justUpdated={view.justUpdated}
+        onUpdate={() => view.installUpdate({ confirm: false })}
+        onRestart={view.restartForUpdate}
+        onLater={(version) => view.setUpdatePrefs({ dismissed: version })}
+        onDoneUpdated={view.clearJustUpdated}
+      />
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { resumeHiddenSetup.current = true; hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
       {hidden.status?.remote && !hidden.status.enabled ? (
@@ -892,7 +919,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       <div className="sr-only" role="status" aria-live="polite">{view.status && view.status !== "Ready" && !/^Rendering|^Queued/.test(view.status) ? view.status : ""}</div>
       {/* The shell is position: fixed, a stacking context of its own, so a toaster
           inside it sits under every portaled dialog and its blurred scrim. */}
-      {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={downloadWidget.visible ? { top: 88 } : undefined} mobileOffset={downloadWidget.visible ? { top: 80 } : undefined} />, document.body)}
+      {createPortal(<Toaster theme="dark" position="top-center" richColors closeButton toastOptions={{ className: "heiss-toast" }} offset={pillCount ? { top: 24 + 64 * pillCount } : undefined} mobileOffset={pillCount ? { top: 16 + 64 * pillCount } : undefined} />, document.body)}
     </div>
     </TileLongPressContext.Provider>
     </HiddenActionsContext.Provider>

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import "./styles.css";
 
 import { useModelFolders } from './app/useModelFolders';
-import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
+import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, Profile, ReferenceAsset, SelectedReferenceAsset, TouchGesture, UpdatePrefs, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
 import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromGallery } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
@@ -76,6 +76,8 @@ function App() {
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  // The version this page just came back on after an update, for the "Updated" pill.
+  const [justUpdated, setJustUpdated] = useState("");
   const [prefs, setPrefsState] = useState<Preferences>(() => loadPrefs());
   const hidden = useHidden({ autoLockMinutes: prefs.hiddenAutoLockMinutes ?? 15, showToast });
   const hiddenSpace = hidden.space === "hidden";
@@ -216,7 +218,8 @@ function App() {
       if (status) setUpdateStatus(status);
       const result = status?.result;
       if (result && !result.ok) showToast(result.rolledBack ? `HEISS UI ${result.to} would not start, so it went back to ${result.from}${result.error ? ` (${result.error})` : ""}.` : result.error || "The update did not install", "error");
-      else showToast(result?.to ? `Updated to HEISS UI ${result.to}` : "HEISS UI is updated and running the new version", "success");
+      else if (status?.release) setJustUpdated(result?.to || status.current || "");
+      else showToast("HEISS UI is updated and running the new version", "success");
     }).catch(() => null);
   }, []);
 
@@ -225,14 +228,47 @@ function App() {
   useEffect(() => {
     if (downloadStage !== "downloading" && downloadStage !== "verifying" && downloadStage !== "unpacking") return;
     const timer = window.setInterval(() => {
-      apiJson<UpdateStatus>("/api/update/status").then((data) => {
-        setUpdateStatus(data);
-        if (data.download?.status === "ready") showToast(`HEISS UI ${data.latest} is ready. Restart to finish.`, "success");
-        if (data.download?.status === "error") showToast(data.download.error || "The update download failed", "error");
-      }).catch(() => null);
+      // The update pill (or Settings › About) shows how it ends.
+      apiJson<UpdateStatus>("/api/update/status").then(setUpdateStatus).catch(() => null);
     }, 800);
     return () => window.clearInterval(timer);
   }, [downloadStage]);
+
+  // Looks for a new release on its own, on the computer that can install it:
+  // shortly after opening, then every six hours while the page is open (the
+  // server keeps GitHub's answer, so every device and tab share one ask). It
+  // stays silent when offline or switched off in Settings › About.
+  const canManage = Boolean(health?.thisComputer);
+  useEffect(() => {
+    if (!canManage) return;
+    let last = 0;
+    const check = () => {
+      if (document.hidden || Date.now() - last < 6 * 60 * 60 * 1000) return;
+      last = Date.now();
+      fetch("/api/update/status?auto=1", { cache: "no-store" })
+        .then((response) => response.ok ? response.json() as Promise<UpdateStatus> : null)
+        // Only a release copy has an answer here; a checkout keeps what About found.
+        .then((data) => { if (data?.ok && data.release) setUpdateStatus(data); })
+        .catch(() => null);
+    };
+    const first = window.setTimeout(check, 4000);
+    const timer = window.setInterval(check, 30 * 60 * 1000);
+    document.addEventListener("visibilitychange", check);
+    return () => { window.clearTimeout(first); window.clearInterval(timer); document.removeEventListener("visibilitychange", check); };
+  }, [canManage]);
+
+  /** "Later" on the update pill, or the automatic-check switch: shared by every device. */
+  async function setUpdatePrefs(next: Partial<UpdatePrefs>) {
+    setUpdateStatus((current) => current?.prefs ? { ...current, prefs: { ...current.prefs, ...next } } : current);
+    try {
+      const data = await apiJson<{ prefs: UpdatePrefs }>("/api/update/prefs", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(next) });
+      setUpdateStatus((current) => current ? { ...current, prefs: data.prefs } : current);
+      // Switched back on: look now rather than in six hours.
+      if (next.autoCheck) apiJson<UpdateStatus>("/api/update/status?auto=1").then((status) => { if (status.ok && status.release) setUpdateStatus(status); }).catch(() => null);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Could not save that", "error");
+    }
+  }
 
   // The LoRA library lives on the server and syncs edit by edit. Speak up only
   // when edits are actually stuck (a server restart with nothing to sync is not
@@ -769,9 +805,9 @@ function App() {
     }
   }
 
-  async function installUpdate() {
+  async function installUpdate({ confirm = true }: { confirm?: boolean } = {}) {
     const release = Boolean(updateStatus?.release);
-    if (!await confirmAction(release
+    if (confirm && !await confirmAction(release
       ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads${updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : " the update"} and installs it when HEISS UI restarts.`, action: "Download update" }
       : { title: "Update HEISS UI?", description: "Pulls the latest code, installs packages and rebuilds.", action: "Install update" })) return;
     try {
@@ -1213,7 +1249,7 @@ function App() {
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;
 
-  const baseView = { seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
+  const baseView = { seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;

@@ -16,6 +16,7 @@ import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import { fetchRuntime, needsRuntime } from "./node-runtime.js";
+import { readJsonFile, writeJsonFile } from "./json-store.js";
 import { RESTART_CODE, checkStaged, clearStaging, readPending, takeResult, updateDir, writePending } from "./release-swap.js";
 
 const execFileAsync = promisify(execFile);
@@ -49,30 +50,74 @@ let running = null;
 let lastResult = null;
 
 // GitHub allows 60 unauthenticated requests an hour: ask at most every ten
-// minutes unless someone presses Check for updates.
+// minutes unless someone presses Check for updates. The automatic check is
+// happy with an answer up to six hours old, and after a failed ask (offline,
+// GitHub down) waits half an hour before trying again.
+const MINUTE = 60 * 1000;
 let cachedRelease = { at: 0, response: null };
-async function latestRelease(fresh = false) {
-  if (!fresh && cachedRelease.response && Date.now() - cachedRelease.at < 10 * 60 * 1000) return cachedRelease.response;
-  const response = await fetch(latestApi, { headers: { accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(15000) });
-  // No release published yet counts as up to date, not as a failure.
-  if (response.status === 404) return (cachedRelease = { at: Date.now(), response: { release: null } }).response;
-  if (!response.ok) throw new Error(`GitHub answered ${response.status} when checking for a new release.`);
-  return (cachedRelease = { at: Date.now(), response: { release: await response.json() } }).response;
+let failedAt = 0;
+async function latestRelease(fresh = false, maxAge = 10 * MINUTE) {
+  if (!fresh && cachedRelease.response && Date.now() - cachedRelease.at < maxAge) return cachedRelease.response;
+  try {
+    const response = await fetch(latestApi, { headers: { accept: "application/vnd.github+json" }, signal: AbortSignal.timeout(15000) });
+    // No release published yet counts as up to date, not as a failure.
+    if (response.status === 404) return (cachedRelease = { at: Date.now(), response: { release: null } }).response;
+    if (!response.ok) throw new Error(`GitHub answered ${response.status} when checking for a new release.`);
+    return (cachedRelease = { at: Date.now(), response: { release: await response.json() } }).response;
+  } catch (error) {
+    failedAt = Date.now();
+    throw error;
+  }
+}
+
+/**
+ * The automatic check: never an error, never a request while switched off or
+ * soon after one failed. Whatever it cannot ask, it answers from what it
+ * already knows (a cached release, or nothing).
+ */
+async function quietRelease(allowed) {
+  if (allowed && Date.now() - failedAt > 30 * MINUTE) {
+    try { return await latestRelease(false, 6 * 60 * MINUTE); } catch { /* offline is not news */ }
+  }
+  return cachedRelease.response || { release: null };
+}
+
+/** The first line of the release notes ("**Headline.** more text") and how many more there are. */
+export function releaseHighlight(body) {
+  const items = String(body || "").split(/\r?\n/).filter((line) => /^[-*] /.test(line));
+  const first = /^[-*] \*\*(.+?)\*\*/.exec(items[0] || "")?.[1] || items[0]?.slice(2) || "";
+  return { highlight: first.trim().replace(/[.:]$/, ""), more: Math.max(0, items.length - 1) };
+}
+
+/** Whether to check on its own, and which version "Later" put away. Shared by every device. */
+const prefsFile = (dataDir) => path.join(dataDir, "updates.json");
+export function updatePrefs(dataDir) {
+  let saved = {};
+  try { saved = readJsonFile(prefsFile(dataDir)) || {}; } catch { /* nothing saved yet */ }
+  return { autoCheck: saved.autoCheck !== false, dismissed: typeof saved.dismissed === "string" ? saved.dismissed : "" };
+}
+export function saveUpdatePrefs(dataDir, next) {
+  const prefs = { ...updatePrefs(dataDir) };
+  if (typeof next.autoCheck === "boolean") prefs.autoCheck = next.autoCheck;
+  if (typeof next.dismissed === "string") prefs.dismissed = next.dismissed.slice(0, 40);
+  writeJsonFile(prefsFile(dataDir), prefs);
+  return prefs;
 }
 
 const readVersion = (root) => { try { return JSON.parse(fs.readFileSync(path.join(root, "release.json"), "utf8")).version || ""; } catch { return ""; } };
 
 /** What Settings shows for a release copy. */
-export async function releaseStatus(root, { fresh = false } = {}) {
+export async function releaseStatus(root, { fresh = false, auto = false, dataDir = "" } = {}) {
   const current = readVersion(root);
   const supervised = typeof process.send === "function";
   const result = lastResult ?? (lastResult = takeResult(root) || false);
-  const base = { ok: true, release: true, current, branch: "release", supervised, result: result || undefined };
+  const prefs = dataDir ? updatePrefs(dataDir) : undefined;
+  const base = { ok: true, release: true, current, branch: "release", supervised, result: result || undefined, prefs };
   const pending = readPending(root);
   if (pending && isNewer(pending.version, current)) {
     return { ...base, available: true, latest: pending.version, url: pending.notesUrl || releasesUrl, download: { status: "ready", version: pending.version } };
   }
-  const { release } = await latestRelease(fresh && state.status === "idle");
+  const { release } = auto ? await quietRelease(prefs?.autoCheck !== false) : await latestRelease(fresh && state.status === "idle");
   if (!release) return { ...base, available: false, latest: current, url: releasesUrl };
   const asset = pickAsset(release);
   const latest = asset?.version || String(release.tag_name || "").replace(/^v/, "");
@@ -84,6 +129,7 @@ export async function releaseStatus(root, { fresh = false } = {}) {
     url: release.html_url || releasesUrl,
     size: asset?.size || 0,
     canInstall: Boolean(available && asset && (asset.sha256 || asset.sumUrl)),
+    ...(available ? releaseHighlight(release.body) : {}),
     download: state.status === "idle" ? undefined : { ...state }
   };
 }

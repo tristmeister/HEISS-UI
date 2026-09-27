@@ -156,7 +156,12 @@ export type UpdateStatus = {
   ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string;
   /** A copy unpacked from a GitHub release rather than a Git checkout. */
   release?: boolean; url?: string; size?: number; canInstall?: boolean; supervised?: boolean; download?: UpdateDownload; result?: UpdateResult;
+  /** The first headline of the new release's notes, and how many more changes it has. */
+  highlight?: string; more?: number;
+  prefs?: UpdatePrefs;
 };
+/** Kept on the server, so every device shares them. */
+export type UpdatePrefs = { autoCheck: boolean; dismissed: string };
 export type AspectPreset = { label: string; value: string; w: number; h: number };
 export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[] };
 export type WorkflowSummary = {

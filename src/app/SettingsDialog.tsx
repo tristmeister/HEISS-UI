@@ -459,7 +459,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
     hidden,
     health, refreshHealth, models, refreshModels, refreshWorkflows, modelFolders,
-    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, workflows, modelProfiles
+    updateStatus, updateBusy, checkForUpdates, installUpdate, restartForUpdate, restarting, setUpdatePrefs, workflows, modelProfiles
   } = view;
   const current = SETTINGS_SECTIONS.find((item) => item.id === section) || SETTINGS_SECTIONS[0];
 
@@ -838,6 +838,14 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   </div>
                 </Row>
               )}
+              {updateStatus?.release && updateStatus.prefs ? (
+                <SwitchRow
+                  label="Check automatically"
+                  description="Every few hours, HEISS UI asks GitHub which version is the latest and offers a new one once. Offline, it stays quiet. Off, it never asks."
+                  checked={updateStatus.prefs.autoCheck}
+                  onChange={(autoCheck) => setUpdatePrefs({ autoCheck })}
+                />
+              ) : null}
             </Group> : null}
 
             <Group title="Links">

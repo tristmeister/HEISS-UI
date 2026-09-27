@@ -10,6 +10,15 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **A new version offers itself, once.** A small pill slides in at the top
+  with what's new and an **Update** button. It downloads while you keep
+  working, then **Restart** switches over in a few seconds; while something
+  is generating it can wait and restart when that's done. "Later" puts that
+  version away on every device. It only asks GitHub every few hours, stays
+  quiet when you're offline, never interrupts a generation or Hidden, and
+  **Settings › About › Check automatically** turns it off completely.
+
 ## [0.7.4] - 2026-09-27
 
 ### Fixed
