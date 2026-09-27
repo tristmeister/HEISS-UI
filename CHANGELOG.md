@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-27
+
 ### Added
 - **A model's setup ends with a ready moment.** Parts that land stay in the
   list, ticked "In place", and the last one turns the panel into "<model> is
@@ -634,7 +636,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.5...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.5...v0.8.0
 [0.7.5]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.2...v0.7.3
