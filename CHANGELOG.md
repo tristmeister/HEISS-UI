@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-09-27
+
 ### Added
 - **A new version offers itself, once.** A small pill slides in at the top
   with what's new and an **Update** button. It downloads while you keep
@@ -596,7 +598,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.5...HEAD
+[0.7.5]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.4...v0.7.5
 [0.7.4]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.1...v0.7.2
