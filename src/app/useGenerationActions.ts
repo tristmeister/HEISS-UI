@@ -218,8 +218,10 @@ export function useGenerationActions(view: any) {
               };
             });
           }
-          if (job.progress?.max) {
+          if (job.progress?.steps !== false && job.progress?.max) {
             setStatus(`Rendering ${job.progress.value}/${job.progress.max}`);
+          } else if (job.progress?.phase) {
+            setStatus(job.progress.phase);
           } else {
             setStatus(job.status === "queued" ? "Queued" : "Started");
           }

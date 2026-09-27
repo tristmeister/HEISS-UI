@@ -1,5 +1,6 @@
 export type Mode = "image" | "video";
-export type Progress = { value: number; max: number; node?: string };
+/** `steps` marks a sampler's count; other nodes report a `phase` ("Encoding image") instead. */
+export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean };
 export type Output = { url: string; filename: string; type: "image" | "video"; prompt?: string; negative?: string; outputName?: string };
 export type LoraSelection = { name: string; enabled: boolean; strength: number };
 export type MediaInput = {

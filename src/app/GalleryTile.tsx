@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Check, Copy, Download, Eye, EyeOff, Loader2, MoreHorizontal, Square, Trash2 } from 'lucide-react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
 import { GenerationMedia } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
+import { GenerationProgress } from './GenerationProgress';
 import { FailureTile } from './GenerationFailure';
 import type { GalleryItem } from './types';
 import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
@@ -88,12 +89,6 @@ function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }:
   );
 }
 
-const numberVariants = {
-  initial: { opacity: 0, y: 3 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] as const } },
-  exit: { opacity: 0, y: -3, transition: { duration: 0.1 } },
-};
-
 const tileEnterTransition = {
   type: "spring" as const,
   stiffness: 380,
@@ -102,8 +97,6 @@ const tileEnterTransition = {
 };
 
 function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, onCancelUpscale = () => {}, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
-  const ratio = item.progress?.max ? Math.min(1, Math.max(0, item.progress.value / item.progress.max)) : 0;
-  const indeterminate = !item.progress?.max;
   const mountedRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
   const isEntering = !mountedRef.current && (Date.now() - Date.parse(item.createdAt || "")) < 2000;
@@ -168,31 +161,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
       >
         {item.status === "pending" || item.status === "done" ? (
           <GenerationMedia item={item} muted>
-          <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
-            <div className="generate-overlay">
-              <span className="generate-step">
-                {item.progress?.max ? (
-                  <>
-                    <span className="generate-step-label">Step</span>
-                    <span className="generate-step-count">
-                      <AnimatePresence mode="wait">
-                        <motion.span key={item.progress.value} variants={numberVariants} initial="initial" animate="animate" exit="exit">
-                          {item.progress.value}
-                        </motion.span>
-                      </AnimatePresence>
-                      <i>/</i>{item.progress.max}
-                    </span>
-                  </>
-                ) : (
-                  <span className="generate-step-label is-queued">Queued</span>
-                )}
-              </span>
-              <span className="generate-elapsed"><ElapsedTime startedAt={item.createdAt} format={formatElapsed} /></span>
-            </div>
-            <div className={cn("generate-bar", indeterminate && "is-indeterminate")}>
-              <div className="generate-bar-fill" />
-            </div>
-          </div>
+          <GenerationProgress item={item} formatElapsed={formatElapsed} />
           </GenerationMedia>
         ) : item.status === "error" ? <FailureTile item={item} /> : <div className="generating stopped"><span>{titleFromPrompt(item.filename || "Failed")}</span></div>}
         <span className="tile-caption">

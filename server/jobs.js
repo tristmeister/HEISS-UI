@@ -1,5 +1,6 @@
 import { comfy, comfyUrl, normalizeComfyError } from './comfy.js';
 import { describeFailure } from './failures.js';
+import { nextProgress } from './progress-phase.js';
 import { rememberMissingParts } from './model-families.js';
 import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
@@ -156,7 +157,7 @@ function sendSocketFeatureFlags(socket) {
   }
 }
 
-function watchProgress(id, promptId, socket = openProgressSocket(id)) {
+function watchProgress(id, promptId, socket = openProgressSocket(id), graph = {}) {
   if (!socket) return null;
   socket.addEventListener("message", async (event) => {
     try {
@@ -176,8 +177,8 @@ function watchProgress(id, promptId, socket = openProgressSocket(id)) {
       const data = message.data || {};
       if (data.prompt_id && data.prompt_id !== promptId) return;
       const current = jobs.get(id) || {};
-      if (message.type === "progress") {
-        const progress = { value: Number(data.value || 0), max: Number(data.max || 0), node: data.node || "" };
+      const progress = nextProgress(graph, message, current.progress);
+      if (progress) {
         jobs.set(id, { ...current, status: "running", progress });
         updateGalleryJob(id, { status: "pending", progress }, { persist: false });
       }
@@ -250,7 +251,7 @@ async function runJob(id, body) {
       return;
     }
     jobs.set(id, { ...jobs.get(id), status: "running", promptId: queued.prompt_id });
-    watchProgress(id, queued.prompt_id, socket);
+    watchProgress(id, queued.prompt_id, socket, prompt);
     while (true) {
       if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
         updateGalleryJob(id, { status: "canceled" });

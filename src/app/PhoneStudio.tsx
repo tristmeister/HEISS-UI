@@ -12,6 +12,7 @@ import { haptic, HapticTarget } from './phoneControls';
 import { Media } from './components';
 import { useFocusTrap } from './useFocusTrap';
 import { useHistoryDismiss } from './useHistoryDismiss';
+import { progressLine, progressReading } from './GenerationProgress';
 import type { AspectPreset, GalleryItem, Profile } from './types';
 
 /* ---------------------------------------------------------------------------
@@ -311,9 +312,10 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
 
   // Progress of what is running, for the ring on the pill and its second line.
   const pending = gallery.filter((item) => item.status === 'pending');
-  const withSteps = pending.filter((item) => item.progress?.max);
-  const progress = withSteps.length ? withSteps.reduce((sum, item) => sum + Math.min(1, (item.progress!.value || 0) / item.progress!.max), 0) / withSteps.length : 0;
-  const stepLine = withSteps.length === 1 ? `Step ${withSteps[0].progress!.value} of ${withSteps[0].progress!.max}` : pending.length ? `${Math.round(progress * 100)}%` : '';
+  const readings = pending.map((item) => progressReading(item.progress));
+  const withSteps = readings.flatMap((reading) => reading.kind === 'steps' ? [reading.ratio] : []);
+  const progress = withSteps.length ? withSteps.reduce((sum, ratio) => sum + ratio, 0) / withSteps.length : 0;
+  const stepLine = pending.length === 1 ? progressLine(pending[0].progress) : withSteps.length ? `${Math.round(progress * 100)}%` : '';
 
   // A finished run shows itself: a small card slides up, tap to open.
   const [peek, setPeek] = React.useState<GalleryItem | null>(null);

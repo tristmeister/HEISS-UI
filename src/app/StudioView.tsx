@@ -8,7 +8,7 @@ import { GallerySkeleton, Media, Skeleton, Tip } from './components';
 import { useHorizontalWheel, useWheelRef } from './wheel';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
-import { ElapsedTime } from './ElapsedTime';
+import { GenerationProgress } from './GenerationProgress';
 import { ComposerBar } from './ComposerBar';
 import { VirtualMasonryGallery } from './VirtualMasonryGallery';
 import { UpscaleArrow } from './UpscaleArrow';
@@ -444,42 +444,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                 style={{ "--tile-ratio": `${zenDisplayItem.width || 1} / ${zenDisplayItem.height || 1}`, "--zoom": viewerZoom, "--pan-x": `${viewerPan.x}px`, "--pan-y": `${viewerPan.y}px` } as React.CSSProperties}
               >
                 <GenerationMedia item={zenDisplayItem} muted fit="contain">
-                {zenDisplayItem.status === "pending" ? (() => {
-                  const ratio = zenDisplayItem.progress?.max ? Math.min(1, Math.max(0, zenDisplayItem.progress.value / zenDisplayItem.progress.max)) : 0;
-                  const indeterminate = !zenDisplayItem.progress?.max;
-                  return (
-                    <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
-                      <div className="generate-overlay">
-                        <span className="generate-step">
-                          {zenDisplayItem.progress?.max ? (
-                            <>
-                              <span className="generate-step-label">Step</span>
-                              <span className="generate-step-count">
-                                <AnimatePresence mode="wait">
-                                  <motion.span
-                                    key={zenDisplayItem.progress.value}
-                                    initial={{ opacity: 0, y: 3 }}
-                                    animate={{ opacity: 1, y: 0, transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] as const } }}
-                                    exit={{ opacity: 0, y: -3, transition: { duration: 0.1 } }}
-                                  >
-                                    {zenDisplayItem.progress.value}
-                                  </motion.span>
-                                </AnimatePresence>
-                                <i>/</i>{zenDisplayItem.progress.max}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="generate-step-label is-queued">Queued</span>
-                          )}
-                        </span>
-                        <span className="generate-elapsed"><ElapsedTime startedAt={zenDisplayItem.createdAt} format={formatElapsed} /></span>
-                      </div>
-                      <div className={cn("generate-bar", indeterminate && "is-indeterminate")}>
-                        <div className="generate-bar-fill" />
-                      </div>
-                    </div>
-                  );
-                })() : null}
+                {zenDisplayItem.status === "pending" ? <GenerationProgress item={zenDisplayItem} formatElapsed={formatElapsed} /> : null}
                 </GenerationMedia>
               </button>
             ) : galleryCrossing ? null : !galleryLoaded ? (
@@ -771,39 +736,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                 >
                   {active.status === "error" ? <FailurePanel item={active} onCopy={copyAndToast} onReuse={() => { applyAllSettings(active); setActive(null); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
                   <GenerationMedia item={active} fit="contain">
-                  {active.status === "pending" ? (() => {
-                    const ratio = active.progress?.max ? Math.min(1, Math.max(0, active.progress.value / active.progress.max)) : 0;
-                    return (
-                      <div className="generation-progress" style={{ "--progress-ratio": ratio } as React.CSSProperties}>
-                      <div className="generate-overlay">
-                          <span className="generate-step">
-                            {active.progress?.max ? (
-                              <>
-                                <span className="generate-step-label">Step</span>
-                                <span className="generate-step-count">
-                                  <AnimatePresence mode="wait">
-                                    <motion.span
-                                      key={active.progress.value}
-                                      initial={{ opacity: 0, y: 3 }}
-                                      animate={{ opacity: 1, y: 0, transition: { duration: 0.18, ease: [0.16, 1, 0.3, 1] as const } }}
-                                      exit={{ opacity: 0, y: -3, transition: { duration: 0.1 } }}
-                                    >
-                                      {active.progress.value}
-                                    </motion.span>
-                                  </AnimatePresence>
-                                  <i>/</i>{active.progress.max}
-                                </span>
-                              </>
-                            ) : (
-                              <span className="generate-step-label is-queued">Queued</span>
-                            )}
-                          </span>
-                          <span className="generate-elapsed"><ElapsedTime startedAt={active.createdAt} format={formatElapsed} /></span>
-                        </div>
-                        <div className={cn("generate-bar", !active.progress?.max && "is-indeterminate")}><div className="generate-bar-fill" /></div>
-                      </div>
-                    );
-                  })() : null}
+                  {active.status === "pending" ? <GenerationProgress item={active} formatElapsed={formatElapsed} /> : null}
                   </GenerationMedia>
                   )}
                 </div>
