@@ -7,7 +7,8 @@ import test from "node:test";
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-seedvr2-"));
 process.env.HEISS_SEEDVR2_MODEL_DIR = dir;
-const { installState, modelFiles, startModelInstall, upscaleGraph, upscaleStatus } = await import("./upscale.js");
+test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+const { faceDetailSource, installState, modelFiles, startModelInstall, upscaleGraph, upscaleStatus } = await import("./upscale.js");
 
 // Shaped like the real /object_info: V3 combos, and offload_device is an optional input.
 const combo = (values) => ["COMBO", { options: values }];
@@ -129,7 +130,6 @@ test("a download that fails its checksum is thrown away, not installed", async (
   t.after(() => {
     globalThis.fetch = realFetch;
     Object.assign(modelFiles["ema_vae_fp16.safetensors"], original);
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   startModelInstall("fast", infoWith(registryListing));
@@ -178,4 +178,22 @@ test("the portable build's embedded Python ignores per-user packages", async () 
   assert.deepEqual(pipArgs("/opt/comfy/.venv/bin/python"), ["-m", "pip"]);
   assert.equal(pythonEnv(embedded, {}).PYTHONNOUSERSITE, "1");
   assert.equal(pythonEnv("python", {}).PYTHONNOUSERSITE, undefined);
+});
+
+test("face detail on an imported workflow's image loads the workflow's model file, not its id", () => {
+  const item = { model: "custom:flux2-real-dream-image-edit", settings: { textEncoder: "qwen_3_8b_fp8mixed.safetensors", vae: "flux2-vae.safetensors", clipType: "wan" } };
+  const workflow = { defaults: { model: "real-dream-klein9b-1-fp8.safetensors", clipType: "flux2" } };
+  const { sourceModel, sourceSettings } = faceDetailSource(item, workflow);
+  assert.equal(sourceModel, "real-dream-klein9b-1-fp8.safetensors");
+  assert.equal(sourceSettings.clipType, "flux2", "the graph's clip type, not the recorded wan stand-in");
+  assert.equal(faceDetailSource({ ...item, settings: { ...item.settings, modelName: "other.safetensors" } }, workflow).sourceModel, "other.safetensors", "what the run recorded wins");
+  assert.deepEqual(faceDetailSource({ model: "z_image_turbo.safetensors", settings: { clipType: "lumina2" } }), { sourceModel: "z_image_turbo.safetensors", sourceSettings: { clipType: "lumina2" } });
+
+  clearDir();
+  placeModel("seedvr2_ema_3b_fp8_e4m3fn.safetensors");
+  placeModel("ema_vae_fp16.safetensors");
+  const info = { ...infoWith(registryListing), UNETLoader: { input: { required: { unet_name: combo(["real-dream-klein9b-1-fp8.safetensors"]) } } }, UltralyticsDetectorProvider: { input: { required: { model_name: combo(["bbox/face_yolov8m.pt"]) } } } };
+  const body = { width: 1024, height: 1024, quality: "fast", faceDetail: true, prompt: "a face", sourceModel, sourceSettings };
+  assert.equal(upscaleGraph(body, info).graph["10"].inputs.unet_name, "real-dream-klein9b-1-fp8.safetensors");
+  assert.throws(() => upscaleGraph({ ...body, sourceModel: "custom:flux2-real-dream-image-edit" }, info), /no diffusion model named custom:flux2-real-dream-image-edit/);
 });

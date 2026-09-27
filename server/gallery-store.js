@@ -636,6 +636,8 @@ export function generationSettings(body) {
     scheduler: body.scheduler || "",
     seed: body.seed || "Random",
     ...(body.seedRandom ? { seedRandom: true } : {}),
+    // An imported workflow's model is the workflow; this is the file it loaded.
+    ...(body.modelName && String(body.model || "").startsWith("custom:") ? { modelName: String(body.modelName) } : {}),
     textEncoder: body.textEncoder || "",
     ...(Array.isArray(body.encoders) && body.encoders.length > 1 ? { textEncoders: body.encoders.map(String) } : {}),
     vae: body.vae || "",

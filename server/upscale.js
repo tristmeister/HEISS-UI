@@ -4,6 +4,8 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
+import { families } from "./family-catalog.js";
+import { classifyModel } from "./model-families.js";
 import { comfyPython, comfyRootDir, packInstallPlan } from "./node-install.js";
 import { nodePacks } from "./node-packs.js";
 import { renameWithRetry } from "./json-store.js";
@@ -505,6 +507,31 @@ export function upscalePlan({ width, height, quality = "balanced" }) {
 
 /* -------------------------------------------------------------------- graph */
 
+/**
+ * The model file and loader settings a face-detail pass re-runs. An image from
+ * an imported workflow records the workflow ("custom:…") as its model, so the
+ * file and the text encoder's type come from what the workflow actually loads.
+ */
+export function faceDetailSource(item, workflow = null) {
+  const settings = { ...(item?.settings || {}) };
+  const model = String(item?.model || "");
+  if (!model.startsWith("custom:")) return { sourceModel: model, sourceSettings: settings };
+  const defaults = workflow?.defaults || {};
+  const file = String(settings.modelName || defaults.model || "");
+  const family = file ? families[classifyModel("unet", file).family] : null;
+  return {
+    sourceModel: file,
+    sourceSettings: {
+      ...settings,
+      textEncoder: settings.textEncoder || defaults.textEncoder || "",
+      vae: settings.vae || defaults.vae || "",
+      // What it recorded may be the "wan" stand-in for an unset type; the graph and the file know better.
+      clipType: defaults.clipType || family?.clipType || settings.clipType || "",
+      weightDtype: settings.weightDtype || defaults.weightDtype || ""
+    }
+  };
+}
+
 function faceDetailStack(graph, body, imageSource, info) {
   const settings = body.sourceSettings || {};
   const model = String(body.sourceModel || "");
@@ -512,6 +539,10 @@ function faceDetailStack(graph, body, imageSource, info) {
   const vae = String(settings.vae || "");
   if (!model || !textEncoder || !vae) {
     throw new Error("Face detail needs the original model, text encoder, and VAE, which this image did not record.");
+  }
+  const unets = optionsFor(info, "UNETLoader", "unet_name").map(String);
+  if (unets.length && !unets.includes(model)) {
+    throw new Error(`Face detail re-runs the image's own model, and ComfyUI has no diffusion model named ${model}. Turn face detail off to upscale this image.`);
   }
   const detector = optionsFor(info, "UltralyticsDetectorProvider", "model_name").find((name) => /face/i.test(String(name)));
   if (!detector) throw new Error("No Ultralytics face detector model is installed for the Impact Pack.");

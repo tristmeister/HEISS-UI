@@ -638,6 +638,7 @@ function App() {
   const { confirmAction, confirmationDialog } = useConfirmation(prefs.confirmActions);
 
   const { upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, toggleUpscale, cancelUpscale } = useUpscale({
+    gallery,
     prefs,
     showToast,
     loadGalleryDelta

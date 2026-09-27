@@ -49,7 +49,8 @@ const noticeTitles: Record<string, string> = {
   unfinished: "Still rendering",
   source: "Could not read the original",
   switch: "Could not switch versions",
-  cancel: "Could not stop the upscale"
+  cancel: "Could not stop the upscale",
+  failed: "The upscale failed"
 };
 
 export function upscaleNoticeFrom(error: unknown, fallbackReason = ""): UpscaleNotice {
@@ -67,6 +68,7 @@ export function upscaleNoticeFrom(error: unknown, fallbackReason = ""): UpscaleN
 export type UpscaleSetupStage = "checking" | "offline" | "nodes" | "models" | "downloading" | "verifying" | "ready" | "error";
 
 type UpscaleOptions = {
+  gallery: GalleryItem[];
   prefs: Preferences;
   showToast: (message: string, tone?: "default" | "success" | "error") => void;
   loadGalleryDelta: () => void;
@@ -76,7 +78,7 @@ type UpscaleOptions = {
 const VERIFY_BEAT_MS = 1500;
 const READY_BEAT_MS = 1400;
 
-export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOptions) {
+export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta }: UpscaleOptions) {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [install, setInstall] = useState<UpscaleInstall>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
@@ -89,6 +91,21 @@ export function useUpscale({ prefs, showToast, loadGalleryDelta }: UpscaleOption
       return next;
     });
   }, []);
+  // An upscale that started and then failed in ComfyUI says why on its image,
+  // the way one that could not start does. Only failures seen happening count,
+  // so old ones don't pop up again on every load.
+  const lastUpscaleStatus = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    const seen = lastUpscaleStatus.current;
+    for (const item of gallery) {
+      const now = item.upscale?.status || "";
+      const before = seen.get(item.id);
+      if (before === "running" && now === "error") {
+        setNotice(item.id, { reason: "failed", title: noticeTitles.failed, message: item.upscale?.error || "ComfyUI stopped the upscale without saying why. Its window has the details." });
+      }
+      seen.set(item.id, now);
+    }
+  }, [gallery, setNotice]);
   const [reason, setReason] = useState("");
   const [offline, setOffline] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
