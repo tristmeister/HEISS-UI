@@ -164,9 +164,9 @@
 /* --------------------------------------------------------------- 4. Fields
    Every value you type or pick sits in the same 40px well as the composer's. */
 
-.zen-controls input:not(.is-bare):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.zen-controls input:not(.is-bare, .is-framed):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .zen-controls .number-picker,
-.settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.settings-modal input:not(.is-framed):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
 .settings-modal .number-picker {
   height: var(--control-h);
   min-height: var(--control-h);
@@ -175,10 +175,10 @@
   background: var(--well);
   font-size: 13px;
 }
-.zen-controls input:not(.is-bare):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
-.settings-modal input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { padding: 0 16px; }
-.zen-controls input:not(.is-bare):focus-visible,
-.settings-modal input:focus-visible,
+.zen-controls input:not(.is-bare, .is-framed):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+.settings-modal input:not(.is-framed):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) { padding: 0 16px; }
+.zen-controls input:not(.is-bare, .is-framed):focus-visible,
+.settings-modal input:not(.is-framed):focus-visible,
 .fluid-select-trigger:focus-visible {
   border-color: rgb(255 255 255 / .22);
   box-shadow: 0 0 0 3px rgb(255 255 255 / .06);

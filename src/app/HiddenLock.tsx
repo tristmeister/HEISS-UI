@@ -54,6 +54,7 @@ function UnlockControls({ hidden, autoFocus = false, compact = false }: { hidden
           <KeyRound size={14} aria-hidden="true" />
           <input
             ref={inputRef}
+            className="is-framed"
             type="password"
             autoComplete="current-password"
             aria-label="Hidden password"

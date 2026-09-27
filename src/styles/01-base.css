@@ -191,6 +191,22 @@ textarea.short { min-height: 70px; }
 input:hover, textarea:hover, select:hover { border-color: hsl(var(--border-strong)); }
 input:focus, textarea:focus, select:focus { border-color: hsl(var(--ring)); box-shadow: 0 0 0 3px hsl(var(--ring) / 0.18); }
 input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) / 0.6); }
+/* A field set inside its own frame (search pills, inline name and password
+   fields): the frame draws the edge and shows focus with :focus-within, so the
+   input draws nothing, or a second ring appears inside the first. */
+input.is-framed,
+input.is-framed:hover,
+input.is-framed:focus,
+input.is-framed:focus-visible {
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+}
 
 .select {
   display: grid; grid-template-columns: 1fr auto;

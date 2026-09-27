@@ -621,7 +621,7 @@ function WorkflowSheet({ view, open, onClose }: { view: Record<string, any>; ope
       {profiles.length > 8 ? (
         <label className="phone-search">
           <Search size={17} aria-hidden="true" />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} workflows`} aria-label="Search workflows" spellCheck={false} autoComplete="off" />
+          <input className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} workflows`} aria-label="Search workflows" spellCheck={false} autoComplete="off" />
         </label>
       ) : null}
       {!profiles.length ? <p className="phone-empty">{(view.comfyStatus?.connected) ? 'No workflows yet. Add models on the computer running HEISS UI.' : 'ComfyUI isn’t answering, so its workflows can’t be listed right now.'}</p> : null}

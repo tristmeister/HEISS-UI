@@ -389,9 +389,6 @@
 .phone-search input {
   flex: 1;
   min-width: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
   color: hsl(var(--foreground));
   font-size: 16px;
   outline: none;
@@ -787,10 +784,8 @@ body:has(.phone-shell) .modal-foot { gap: 8px; }
 body:has(.phone-shell) .modal-foot .btn { flex: 1; min-height: 52px; font-size: 16px; }
 body:has(.phone-shell) .modal.has-hero .modal-hero { max-height: 180px; }
 
-/* The Hidden password field: one frame, not a ring inside a ring. */
+/* The Hidden password field, sized for a thumb. */
 body:has(.phone-shell) .hidden-unlock-field { min-height: 56px; }
-.hidden-unlock-field input:focus,
-.hidden-unlock-field input:focus-visible { border: 0; outline: none; box-shadow: none; }
 body:has(.phone-shell) .hidden-unlock-field button,
 body:has(.phone-shell) .hidden-unlock-primary { min-height: 48px; font-size: 16px; }
 

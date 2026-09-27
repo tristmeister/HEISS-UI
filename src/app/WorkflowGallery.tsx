@@ -288,7 +288,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         <div className="wf-toolbar">
           <label className="wf-search">
             <Search size={14} />
-            <input aria-label="Search workflows" value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
+            <input className="is-framed" aria-label="Search workflows" value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
             {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X size={13} /></button> : null}
           </label>
           <Segmented label="Kind" value={kind} onChange={(next) => { setKind(next); setFilter("all"); }} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} />

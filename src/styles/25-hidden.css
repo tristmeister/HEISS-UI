@@ -222,9 +222,6 @@
 .hidden-unlock-field input {
   flex: 1;
   min-width: 0;
-  border: 0;
-  outline: 0;
-  background: transparent;
   color: hsl(var(--foreground));
   font-size: 14px;
   letter-spacing: .04em;

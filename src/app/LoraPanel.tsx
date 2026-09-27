@@ -209,7 +209,7 @@ function LoraPicker({ options, profile, current, favorites, recents, remaining, 
         <Search size={14} />
         <input
           ref={inputRef}
-          className="is-bare"
+          className="is-framed"
           value={query}
           placeholder={`Search ${options.length} LoRAs`}
           aria-label="Search LoRAs"
@@ -316,7 +316,7 @@ function NameField({ initial, action, onSave, onCancel }: { initial: string; act
     <form className="lora-name-field" onSubmit={(event) => { event.preventDefault(); save(); }}>
       <input
         autoFocus
-        className="is-bare"
+        className="is-framed"
         aria-label="Stack name"
         value={value}
         onChange={(event) => setValue(event.target.value)}

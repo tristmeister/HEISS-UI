@@ -24,7 +24,7 @@
   background: var(--well);
   color: hsl(var(--muted-foreground));
 }
-.wf-search input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; color: hsl(var(--foreground)); font-size: 13px; outline: none; }
+.wf-search input { flex: 1; min-width: 0; height: 100%; color: hsl(var(--foreground)); font-size: 13px; }
 .wf-search button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--r-pill); background: transparent; color: inherit; cursor: pointer; }
 .wf-search button:hover { background: var(--control-hover); color: #fff; }
 .wf-search:focus-within { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .16); }
