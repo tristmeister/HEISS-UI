@@ -22,6 +22,12 @@ import { nodePack } from "./node-packs.js";
  */
 
 const installs = new Map();
+
+// Replaces git, pip and Manager for the setup demo (scripts/setup-demo.mjs); null in real use.
+let transport = null;
+export function setPackInstallTransport(fn) {
+  transport = fn;
+}
 const tailLimit = 4000;
 const stepTimeoutMs = 15 * 60 * 1000;
 
@@ -175,7 +181,9 @@ export async function startPackInstall(id) {
   installs.set(id, state);
   (async () => {
     try {
-      if (viaManager) {
+      if (transport) {
+        await transport(state, pack);
+      } else if (viaManager) {
         try {
           await (generation === 4 ? installWithManager(state, pack) : installWithManager3(state, pack));
         } catch (error) {

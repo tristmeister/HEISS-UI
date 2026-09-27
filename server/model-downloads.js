@@ -21,6 +21,12 @@ const allowedHosts = new Set(["huggingface.co"]);
 let queue = [];
 let active = null;
 
+// Replaces the network for the setup demo (scripts/setup-demo.mjs); null in real use.
+let transport = null;
+export function setDownloadTransport(fn) {
+  transport = fn;
+}
+
 function snapshot(entry) {
   if (!entry) return null;
   const { controller, ...rest } = entry;
@@ -167,7 +173,7 @@ async function pump() {
   active.status = "downloading";
   active.startedAt = Date.now();
   try {
-    await fetchInto(active, active.controller.signal);
+    await (transport ? transport(active, active.controller.signal, { targetFor, finishDownload, finalError, fileSize }) : fetchInto(active, active.controller.signal));
     active.status = "done";
   } catch (error) {
     const canceled = active.controller.signal.aborted;
