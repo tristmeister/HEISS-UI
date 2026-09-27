@@ -11,6 +11,19 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Upscaled images are used upscaled, and tidier downloads
+
+### Changed
+- **An upscaled image is used upscaled.** Using it as a reference or start
+  image (from the viewer, the reference picker or a drop) now hands the
+  workflow its upscaled pixels, scaled back to the original's size so a run
+  takes no longer than before. Switch the upscale off in the viewer and the
+  next run uses the original again.
+- **Each download has only its own launcher:** **Start HEISS UI.bat** on
+  Windows, **.command** on macOS and a new **Start HEISS UI.sh** on Linux.
+  Updating removes the ones for other systems. The release notes now say
+  which zip is which.
+
 ## [0.8.2] - 2026-09-27
 
 > Finished images stay put, and the grid reads newest first

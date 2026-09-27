@@ -125,3 +125,16 @@ test("a lockfile that only changed the app's version does not reinstall packages
   assert.notEqual(lockPackages(file), before);
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+test("a copy keeps only its own system's launcher", async () => {
+  const { foreignLauncher, removeForeignLaunchers, LAUNCHERS } = await import("./release-swap.js");
+  assert.equal(foreignLauncher(LAUNCHERS.darwin, "win32"), true);
+  assert.equal(foreignLauncher(LAUNCHERS.win32, "win32"), false);
+  assert.equal(foreignLauncher(LAUNCHERS.linux, "freebsd"), false);
+  assert.equal(foreignLauncher("README.md", "win32"), false);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-launchers-"));
+  write(path.join(root, "release.json"), "{}");
+  for (const name of Object.values(LAUNCHERS)) write(path.join(root, name), "x");
+  removeForeignLaunchers(root, "darwin");
+  assert.deepEqual(Object.values(LAUNCHERS).filter((name) => fs.existsSync(path.join(root, name))), [LAUNCHERS.darwin]);
+});

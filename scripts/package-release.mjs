@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { downloadVerified, publishedSha256, runtimeFolder } from "../server/node-runtime.js";
+import { foreignLauncher, LAUNCHERS } from "../server/release-swap.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
@@ -67,9 +68,11 @@ const nodeVersion = await bundledNodeVersion();
 
 let commit = "";
 try { commit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { cwd: root }).toString().trim(); } catch { /* not a checkout */ }
-// Double-click launchers.
+// Double-click launchers, one per system. This folder (the update zip) keeps
+// all three; each download below keeps only its own, and an update skips the
+// others (see LAUNCHERS in server/release-swap.js).
 // Without Node the Terminal window would only say "npm: command not found".
-fs.writeFileSync(path.join(target, "Start HEISS UI.command"), [
+const shellLauncher = [
   "#!/bin/sh",
   "cd \"$(dirname \"$0\")\"",
   "if ! command -v node >/dev/null 2>&1; then",
@@ -80,12 +83,14 @@ fs.writeFileSync(path.join(target, "Start HEISS UI.command"), [
   "fi",
   "npm start",
   ""
-].join("\n"), { mode: 0o755 });
+].join("\n");
+fs.writeFileSync(path.join(target, LAUNCHERS.darwin), shellLauncher, { mode: 0o755 });
+fs.writeFileSync(path.join(target, LAUNCHERS.linux), shellLauncher, { mode: 0o755 });
 // The .bat skips npm: npm.cmd run without `call` never returns, so a `pause`
 // after it never ran and the window closed on any error. The last line is one
 // line on purpose: an update replaces this file while it runs, and cmd reads
 // the next line from the new file at the old offset.
-fs.writeFileSync(path.join(target, "Start HEISS UI.bat"), [
+fs.writeFileSync(path.join(target, LAUNCHERS.win32), [
   "@echo off",
   "cd /d \"%~dp0\"",
   "if not exist \"scripts\\start.mjs\" (echo Unpack the whole zip first, then start this file from the unpacked folder.& pause & exit /b 1)",
@@ -166,6 +171,7 @@ for (const bundle of bundles) {
   const stage = path.join(outDir, `.bundle-${bundle.id}`);
   fs.rmSync(stage, { recursive: true, force: true });
   fs.cpSync(target, path.join(stage, name), { recursive: true });
+  for (const launcher of Object.values(LAUNCHERS)) if (foreignLauncher(launcher, bundle.os)) fs.rmSync(path.join(stage, name, launcher));
   runNpm(["ci", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts", `--os=${bundle.os}`, `--cpu=${bundle.cpu}`, ...(bundle.libc ? [`--libc=${bundle.libc}`] : [])], path.join(stage, name));
   if (bundle.node) await windowsNode(path.join(stage, name));
   const bundleZip = path.join(outDir, `${name}-${bundle.id}.zip`);

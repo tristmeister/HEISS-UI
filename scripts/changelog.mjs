@@ -66,5 +66,11 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`CHANGELOG.md has no section for ${tag}.`);
     process.exit(1);
   }
-  process.stdout.write(`${notes}\n`);
+  // Which zip is which, below the notes (the pill reads only their top).
+  const version = tag.replace(/^v/, "");
+  process.stdout.write(`${notes}\n\n### Downloads\n\n`
+    + `- **Windows:** \`heiss-ui-${version}-windows-x64.zip\` (Node.js included), then **Start HEISS UI.bat**\n`
+    + `- **macOS (Apple silicon):** \`heiss-ui-${version}-macos-arm64.zip\`, then **Start HEISS UI.command**\n`
+    + `- **Linux:** \`heiss-ui-${version}-linux-x64.zip\`, then **Start HEISS UI.sh** or \`npm start\`\n`
+    + `- \`heiss-ui-${version}.zip\` is what installed copies download to update themselves. You don't need it.\n`);
 }

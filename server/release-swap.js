@@ -32,7 +32,24 @@ export const PORT_IN_USE_CODE = 78;
 const KEEP = new Set(["data", ".env", "node_modules", "runtime", ".update", ".git"]);
 
 /** What releases before the manifest shipped at their top level. */
-const LEGACY_ENTRIES = ["dist", "server", "workflows", "scripts", "package.json", "package-lock.json", "release.json", ".env.example", "README.md", "CHANGELOG.md", "LICENSE", "Start HEISS UI.command", "Start HEISS UI.bat"];
+const LEGACY_ENTRIES = ["dist", "server", "workflows", "scripts", "package.json", "package-lock.json", "release.json", ".env.example", "README.md", "CHANGELOG.md", "LICENSE", "Start HEISS UI.command", "Start HEISS UI.bat", "Start HEISS UI.sh"];
+
+/**
+ * Each system's double-click launcher. The update zip is the same for every
+ * system and carries all of them; a copy keeps only its own, so a Windows
+ * folder never grows a Mac .command (or the other way round).
+ */
+export const LAUNCHERS = { win32: "Start HEISS UI.bat", darwin: "Start HEISS UI.command", linux: "Start HEISS UI.sh" };
+export function foreignLauncher(name, platform = process.platform) {
+  return Object.values(LAUNCHERS).includes(name) && name !== (LAUNCHERS[platform] || LAUNCHERS.linux);
+}
+/** Clears launchers an update from an older copy put in anyway (its swap did not know to skip them). */
+export function removeForeignLaunchers(root, platform = process.platform) {
+  if (!fs.existsSync(path.join(root, "release.json")) || fs.existsSync(path.join(root, ".git"))) return;
+  for (const name of Object.values(LAUNCHERS)) {
+    if (foreignLauncher(name, platform)) fs.rmSync(path.join(root, name), { force: true });
+  }
+}
 
 export const updateDir = (root) => path.join(root, ".update");
 const readJson = (file) => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch { return null; } };
@@ -198,7 +215,7 @@ export function applyPending(root, log = () => {}) {
       moved.push(name);
     }
     for (const name of incoming) {
-      if (!fs.existsSync(path.join(pending.dir, name))) continue;
+      if (!fs.existsSync(path.join(pending.dir, name)) || foreignLauncher(name)) continue;
       moveSync(path.join(pending.dir, name), path.join(root, name));
       placed.push(name);
     }

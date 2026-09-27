@@ -58,7 +58,7 @@ The node graph is great for building workflows and less great for the everyday l
 
 You need a working **ComfyUI** install, and on macOS, Linux or from source **Node.js 20.9+** (22 LTS or newer recommended). The Windows download brings its own Node.js. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
 
-**Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS), or run `npm start` in the folder. Its packages are inside, and the Windows zip brings Node.js too, so on Windows there is nothing else to install; on macOS and Linux, install Node.js first. The plain `heiss-ui-*.zip` is what in-app updates use; on its own, its first start installs three packages, about 30 MB.
+**Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS, `.sh` on Linux), or run `npm start` in the folder. Its packages are inside, and the Windows zip brings Node.js too, so on Windows there is nothing else to install; on macOS and Linux, install Node.js first. The plain `heiss-ui-*.zip` (no system in its name) is what installed copies download to update themselves; you don't need it.
 
 On macOS, the first time you open `Start HEISS UI.command` macOS may say it can’t check the file: right-click it › **Open**, then **Open** again (or allow it under System Settings › Privacy & Security). It needs Node.js 20.9 or newer.
 
