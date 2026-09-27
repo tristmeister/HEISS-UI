@@ -79,11 +79,15 @@ function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }:
         aria-label={upscaleTooltip(item)}
         aria-pressed={state?.url ? active : undefined}
         aria-disabled={busy}
-        style={{ "--upscale-ratio": ratio } as React.CSSProperties}
         onClick={() => { if (!busy) (running ? onCancelUpscale(item) : onUpscale(item)); }}
       >
         {busy ? <Loader2 size={14} className="spin" /> : running ? <Square size={10} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={15} />}
-        {running ? <span className="tile-upscale-ring" /> : null}
+        {running ? (
+          // A stroked circle, not a masked gradient: hard gradient stops are not anti-aliased and read as jagged.
+          <svg className="tile-upscale-ring" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
+            <circle cx="15" cy="15" r="14" pathLength={100} strokeDasharray={ratio ? `${ratio * 100} 100` : "25 75"} />
+          </svg>
+        ) : null}
       </button>
     </Tip>
   );
