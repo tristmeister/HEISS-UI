@@ -10,6 +10,8 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-09-27
+
 ### Fixed
 - **iPhone haptics now actually tick.** iOS 26.5 stopped web pages from
   ticking from script, so the tap itself now lands on a hidden system switch:
@@ -585,7 +587,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.7.0...v0.7.1
