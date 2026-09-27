@@ -1,0 +1,67 @@
+/* ------------------------------------------------------------ Update pill
+   A new release, offered once, in the same glass as the download pills and
+   stacked under them (--udw-slot is how many sit above). */
+
+.udw.uup {
+  top: calc(max(14px, env(safe-area-inset-top)) + 64px * var(--udw-slot, 0));
+  transition: top var(--dur-base) var(--ease-out);
+}
+.udw.uup.is-updated::before { background: radial-gradient(120px 60px at 34px 50%, rgb(255 240 222 / .14), transparent 70%); }
+.uup-main { cursor: default; }
+.uup-copy { display: grid; gap: 5px; min-width: 0; }
+/* The release's headline gets two lines rather than an ellipsis. */
+.udw.uup.is-available { width: min(420px, calc(100vw - 24px)); }
+.uup.is-available .udw-text small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.4; white-space: normal; }
+.uup-more { color: hsl(var(--muted-foreground) / .7); }
+.uup-link { color: hsl(var(--foreground) / .82); text-decoration: none; transition: color var(--dur-fast); }
+.uup-link:hover { color: hsl(var(--foreground)); text-decoration: underline; text-underline-offset: 2px; }
+.uup-link:focus-visible { outline: none; border-radius: 4px; box-shadow: var(--focus-ring); }
+
+/* One quiet capsule, the only bright thing in the pill. */
+.uup-action {
+  flex: none;
+  height: 28px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: #f2f2f2;
+  color: #0c0c0c;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+}
+.uup-action:hover { background: #fff; }
+.uup-action:active { transform: scale(.96); }
+.uup-action:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.uup:not(:has(.udw-close)) .uup-action { margin-right: 4px; }
+
+/* The arrow's cells: dim at rest with a pulse of heat rising through it now
+   and then; lit ember to white, bottom to top, once it's updated. */
+.uup-arrow rect { --base: rgb(255 255 255 / .1); fill: var(--base); }
+.uup-arrow rect.is-edge { --base: rgb(255 255 255 / .32); }
+.uup-arrow.is-available rect { animation: uup-rise 4.6s var(--ease-out) infinite; }
+@keyframes uup-rise {
+  0%, 34%, 100% { fill: var(--base); }
+  6% { fill: #ffe2c2; }
+  14% { fill: rgb(255 154 82 / .7); }
+}
+.uup-arrow.is-updated { transform-origin: 50% 60%; animation: udw-pop 620ms 380ms var(--ease-out) backwards; filter: drop-shadow(0 0 4px rgb(255 240 222 / .45)); }
+.uup-arrow.is-updated rect { animation: uup-ignite 760ms var(--ease-out) backwards; fill: #f4f4f4; }
+@keyframes uup-ignite {
+  0% { fill: rgb(255 154 82 / .18); }
+  40% { fill: #ff9a52; }
+  70% { fill: #ffe9d2; }
+  100% { fill: #f4f4f4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .udw.uup { transition: none; }
+  .uup-arrow.is-available rect,
+  .uup-arrow.is-updated,
+  .uup-arrow.is-updated rect { animation: none; }
+}

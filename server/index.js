@@ -8,7 +8,7 @@ import { pipeline } from "node:stream/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { printBanner } from './banner.js';
-import { releaseStatus, requestRestart, startReleaseUpdate } from './updater.js';
+import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate } from './updater.js';
 import { PORT_IN_USE_CODE } from './release-swap.js';
 import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
@@ -136,11 +136,13 @@ async function runRepoCommand(command, args) {
   return `${stdout}${stderr}`.trim();
 }
 
-async function updateStatus({ fresh = false } = {}) {
+async function updateStatus({ fresh = false, auto = false } = {}) {
   if (!fs.existsSync(path.join(root, ".git"))) {
-    if (fs.existsSync(path.join(root, "release.json"))) return releaseStatus(root, { fresh });
+    if (fs.existsSync(path.join(root, "release.json"))) return releaseStatus(root, { fresh, auto, dataDir });
     return { ok: false, available: false, current: "", latest: "", branch: "", error: "This copy is not a Git checkout." };
   }
+  // A checkout updates by hand with git: the automatic check leaves it alone.
+  if (auto) return { ok: true, available: false, release: false };
   const branch = (await runRepoCommand("git", ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
   const current = (await runRepoCommand("git", ["rev-parse", "--short", "HEAD"])).trim();
   await runRepoCommand("git", ["fetch", "--quiet", "origin"]);
@@ -1531,10 +1533,22 @@ app.post("/api/open-output-folder", (req, res) => {
 
 app.get("/api/update/status", async (req, res) => {
   if (!requireLocal(req, res)) return;
+  const auto = req.query.auto === "1";
   try {
-    res.json(await updateStatus({ fresh: req.query.fresh === "1" }));
+    res.json(await updateStatus({ fresh: req.query.fresh === "1", auto }));
   } catch (error) {
-    res.status(500).json({ ok: false, available: false, error: error.message });
+    // The automatic check never reports a failure: offline is a choice, not news.
+    if (auto) res.json({ ok: false, available: false, quiet: true });
+    else res.status(500).json({ ok: false, available: false, error: error.message });
+  }
+});
+
+app.post("/api/update/prefs", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json({ ok: true, prefs: saveUpdatePrefs(dataDir, req.body || {}) });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
   }
 });
 
