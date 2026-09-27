@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-27
+
 > Countdowns for runs and restarts, and Flux 2 edits
 
 ### Added
@@ -742,7 +744,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.2...v0.9.0
 [0.8.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.8.0...v0.8.1
