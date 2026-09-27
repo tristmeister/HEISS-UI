@@ -93,7 +93,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
         ))}
       </div>
 
-      {currentProfile?.missing?.length ? <ModelSetup profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : null}
+      {currentProfile ? <ModelSetup key={currentProfile.id} profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : null}
 
       <h3 className="phone-section">Sampling</h3>
       <div className="phone-group">
@@ -190,8 +190,9 @@ export function SidebarControls({ view }: { view: any }) {
 
       {modelFolders ? <ModelFoldersNotice folders={modelFolders} /> : null}
 
-      {currentProfile?.missing?.length ? (
-        <ModelSetup profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
+      {/* Always mounted: it shows what is missing, and a moment of "ready" when the last part lands. */}
+      {currentProfile ? (
+        <ModelSetup key={currentProfile.id} profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
       ) : null}
 
       <div className="sidebar-subtabs" role="tablist" aria-label="Sidebar sections">

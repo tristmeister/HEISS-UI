@@ -240,22 +240,26 @@ function schemaOptions(info, classType, input) {
   return [];
 }
 
-export function workflowOptionIssues(workflow, info = {}) {
-  const issues = [];
-  for (const [id, node] of Object.entries(workflow?.graph || {})) {
+/** Every model file the graph's loaders name that ComfyUI does not list: { file, kind, folder, classType }, once each. */
+export function workflowMissingFiles(workflow, info = {}) {
+  const found = new Map();
+  for (const node of Object.values(workflow?.graph || {})) {
     const keys = loaderOptionKeys[node?.class_type] || [];
     if (!keys.length || !info?.[node.class_type]) continue;
     for (const key of keys) {
       const selected = node.inputs?.[key];
-      if (!selected) continue;
-      const options = schemaOptions(info, node.class_type, key);
-      if (options.includes(selected)) continue;
-      // Said as the file and where it goes; node ids mean nothing outside the graph editor.
+      if (!selected || typeof selected !== "string") continue;
+      if (schemaOptions(info, node.class_type, key).includes(selected)) continue;
       const [kind, folder] = loaderKinds[node.class_type] || ["file", "models"];
-      issues.push(`Missing ${kind}: ${selected}. Put it in ComfyUI’s models/${folder} folder.`);
+      found.set(`${folder}/${selected}`, { file: selected, kind, folder, classType: node.class_type });
     }
   }
-  return issues;
+  return [...found.values()];
+}
+
+export function workflowOptionIssues(workflow, info = {}) {
+  // Said as the file and where it goes; node ids mean nothing outside the graph editor.
+  return workflowMissingFiles(workflow, info).map(({ file, kind, folder }) => `Missing ${kind}: ${file}. Put it in ComfyUI’s models/${folder} folder.`);
 }
 
 export function allCustomWorkflowRecords({ dedupe = true } = {}) {

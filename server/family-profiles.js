@@ -42,6 +42,25 @@ export function catalogDownload(id = "") {
   return { id, folder, label: partLabel(kind, key, entry.file), ...entry };
 }
 
+/**
+ * Catalog downloads for one exact file name in one models folder, so a file an
+ * imported workflow names gets the same Download button as a family's parts.
+ * Only an exact match: a file under a subfolder, or any other build, is not the
+ * file the workflow asks for.
+ */
+export function catalogDownloadsForFile(file = "", folder = "") {
+  const found = [];
+  for (const [kind, [source, sourceFolder]] of Object.entries(downloadSources)) {
+    if (sourceFolder !== folder) continue;
+    for (const [key, list] of Object.entries(source)) {
+      list.forEach((entry, index) => {
+        if (entry.file === file) found.push({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...entry });
+      });
+    }
+  }
+  return found;
+}
+
 function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
   const nodes = new Set(family.requiredNodes || []);
   if (family.sampling !== "h3") nodes.add(family.latent);

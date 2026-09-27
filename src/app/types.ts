@@ -166,7 +166,7 @@ export type UpdateStatus = {
 /** Kept on the server, so every device shares them. */
 export type UpdatePrefs = { autoCheck: boolean; dismissed: string };
 export type AspectPreset = { label: string; value: string; w: number; h: number };
-export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[]; /** ComfyUI itself is too old for this model. */ outdatedComfy?: boolean };
+export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[]; /** ComfyUI itself is too old for this model. */ outdatedComfy?: boolean; /** An imported workflow's missing files, with downloads where HEISS's catalog has them. */ missingParts?: MissingPart[] };
 export type WorkflowSummary = {
   id: string;
   profileId: string;

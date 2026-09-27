@@ -29,7 +29,21 @@ const partHint: Partial<Record<MissingPart['part'], string>> = {
   vae: 'Turns the model’s result into pixels'
 };
 
-type RowState = 'idle' | 'queued' | 'downloading' | 'paused' | 'error' | 'landed' | 'manual';
+type RowState = 'idle' | 'queued' | 'downloading' | 'paused' | 'error' | 'landed' | 'manual' | 'installed';
+
+/** What a setup panel is for: a built-in model's profile, or an imported workflow. */
+export type SetupSubject = Pick<Profile, 'id' | 'missing'> & Partial<Pick<Profile, 'displayName' | 'label' | 'encoderBuiltIn' | 'source'>>;
+
+const partKey = (item: MissingPart) => `${item.part}:${item.slot || item.kind || item.label}`;
+
+/**
+ * The parts each model was missing while its panel was on screen, so a part
+ * that lands keeps its row (ticked) instead of vanishing, and the last one
+ * closes the set with a "ready" moment. Module-wide, so a ComfyUI restart
+ * that remounts the panel does not forget; cleared once "ready" has shown.
+ */
+const setupMemory = new Map<string, Map<string, MissingPart>>();
+const READY_HOLD_MS = 6000;
 
 /**
  * What the selected model still needs before it can run: every part as one
@@ -37,11 +51,13 @@ type RowState = 'idle' | 'queued' | 'downloading' | 'paused' | 'error' | 'landed
  * downloads that pause and resume where they stopped. The same panel sits in
  * the sidebar and in the workflow gallery.
  */
-export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar' }: {
-  profile: Profile;
+export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar', alsoNeedsNodes = false }: {
+  profile: SetupSubject;
   showToast: (message: string, tone?: 'default' | 'success' | 'error') => void;
   onInstalled: () => void;
   variant?: 'sidebar' | 'gallery';
+  /** An imported workflow that lacks custom nodes as well; those are listed below the panel. */
+  alsoNeedsNodes?: boolean;
 }) {
   const reduced = useReducedMotion();
   const { state, landed, start, pause, discard } = useModelDownloads();
@@ -51,6 +67,30 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   // Downloads land on the computer running HEISS UI; from another device they are its job.
   const remote = remoteAnswer || state?.local === false || !thisComputer;
   const missing = profile.missing || [];
+  const name = profile.displayName || profile.label || 'This workflow';
+
+  // Remember every part seen missing here; the ones no longer missing are in place.
+  let memory = setupMemory.get(profile.id);
+  if (missing.length) {
+    if (!memory) setupMemory.set(profile.id, memory = new Map());
+    for (const item of missing) memory.set(partKey(item), item);
+  }
+  const missingKeys = new Set(missing.map(partKey));
+  const installed = [...(memory?.values() || [])].filter((item) => !missingKeys.has(partKey(item)));
+  const allDone = !missing.length && installed.length > 0;
+  // The ready moment keeps its own copy: the memory is let go as soon as it shows.
+  const [ready, setReady] = React.useState<MissingPart[] | null>(null);
+  React.useEffect(() => {
+    if (!allDone) return;
+    setReady(installed);
+    setupMemory.delete(profile.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allDone, profile.id]);
+  React.useEffect(() => {
+    if (!ready) return;
+    const timer = window.setTimeout(() => setReady(null), READY_HOLD_MS);
+    return () => window.clearTimeout(timer);
+  }, [ready]);
 
   const run = async (action: () => Promise<unknown>) => {
     try {
@@ -62,6 +102,32 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     }
   };
 
+  const shownDone = allDone ? installed : ready;
+  // A download that just landed waits for the rescan; only a file ComfyUI still does not list after that is stuck.
+  const landedWaiting = missing.some((item) => item.downloads[0] && landed.has(item.downloads[0].file) && !downloadFor(state, item.downloads[0].file));
+  const [stuckShown, setStuckShown] = React.useState(false);
+  React.useEffect(() => {
+    if (!landedWaiting) { setStuckShown(false); return; }
+    const timer = window.setTimeout(() => setStuckShown(true), 3000);
+    return () => window.clearTimeout(timer);
+  }, [landedWaiting]);
+
+  if (!missing.length && shownDone?.length) {
+    return (
+      <section className={cn('model-setup', `is-${variant}`, 'is-ready')} aria-label={alsoNeedsNodes ? 'Files in place' : `${name} is ready`} role="status">
+        <header className="model-setup-head">
+          <div>
+            {/* Files alone do not make an imported workflow ready while its custom nodes are missing. */}
+            <strong>{alsoNeedsNodes ? `${shownDone.length === 1 ? 'Its file is' : 'Its files are'} in place` : `${name} is ready`}</strong>
+            <span>{alsoNeedsNodes ? 'Only the custom nodes below are left.' : shownDone.length === 1 ? 'What it was missing is in place.' : shownDone.length === 2 ? 'Both missing parts are in place.' : `All ${shownDone.length} missing parts are in place.`}</span>
+          </div>
+        </header>
+        <ul className="model-setup-list">
+          {shownDone.map((item) => <SetupRowShell key={partKey(item)} item={item} rowState="installed" />)}
+        </ul>
+      </section>
+    );
+  }
   if (!missing.length) return null;
 
   const rows = missing.map((item) => {
@@ -81,7 +147,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const remainingBytes = startable.reduce((sum, row) => sum + Math.max(0, (row.current?.totalBytes || row.download?.bytes || 0) - (row.current?.receivedBytes || 0)), 0);
   const sizeUnknown = startable.some((row) => !(row.current?.totalBytes || row.download?.bytes));
   const moving = rows.some((row) => row.rowState === 'downloading' || row.rowState === 'queued');
-  const stuck = rows.some((row) => row.rowState === 'landed');
+  const stuck = stuckShown && rows.some((row) => row.rowState === 'landed');
   const fetchable = rows.filter((row) => row.download).length;
 
   // A missing node pack comes first: nothing else can be checked until ComfyUI has it.
@@ -93,11 +159,15 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     : outdated ? 'Update ComfyUI first'
     : pack ? `Add ${pack.name} to ComfyUI`
     : fetchable === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet';
-  const subtitle = outdated ? `This ComfyUI is too old for ${profile.displayName}. Update it before downloading the rest.`
-    : pack ? `${profile.displayName} runs on custom nodes that ComfyUI does not ship. They install once.`
+  const subtitle = outdated ? `This ComfyUI is too old for ${name}. Update it before downloading the rest.`
+    : pack ? `${name} runs on custom nodes that ComfyUI does not ship. They install once.`
+    : alsoNeedsNodes ? `${name} needs ${missing.length === 1 ? 'this file' : 'these files'} and the custom nodes listed below.`
     : profile.encoderBuiltIn === false && profile.source === 'checkpoint'
     ? 'This checkpoint ships without everything it needs.'
-    : `${profile.displayName} runs once ${missing.length === 1 ? 'this is' : 'these are'} in place.`;
+    : `${name} runs once ${missing.length === 1 ? 'this is' : 'these are'} in place.`;
+  // Parts already in place keep their place in the list, ticked, until the set is done.
+  const order = [...(memory?.keys() || [])];
+  const rowFor = new Map(rows.map((row) => [partKey(row.item), row]));
 
   return (
     <section className={cn('model-setup', `is-${variant}`)} aria-label="Files this model needs">
@@ -113,20 +183,15 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
         ) : null}
       </header>
       <ul className="model-setup-list">
-        {rows.map(({ item, download, current, rowState }) => (
-          <li key={`${item.part}:${item.slot || item.kind || item.label}`} className={cn('model-setup-item', `is-${rowState}`)}>
-            <div className="model-setup-row">
-              <span className={cn('model-setup-dot', `is-${rowState}`)} aria-hidden="true">
-                {rowState === 'landed' ? <Check size={11} strokeWidth={3} /> : null}
-              </span>
-              <div className="model-setup-copy">
-                <small title={partHint[item.part]}>{partVerb[item.part]}{partHint[item.part] ? <span className="model-setup-hint"> · {partHint[item.part]}</span> : null}</small>
-                <strong>{item.label}</strong>
-              </div>
-              <div className="model-setup-actions">
-                <RowActions rowState={rowState} download={download} current={current} remote={remote} run={run} start={start} pause={pause} discard={discard} />
-              </div>
-            </div>
+        {order.map((key) => {
+          const row = rowFor.get(key);
+          if (!row) return <SetupRowShell key={key} item={memory!.get(key)!} rowState="installed" />;
+          const { item, download, current, rowState } = row;
+          return (
+          <li key={key} className={cn('model-setup-item', `is-${rowState}`)}>
+            <SetupRowHead item={item} rowState={rowState}>
+              <RowActions rowState={rowState} download={download} current={current} remote={remote} run={run} start={start} pause={pause} discard={discard} />
+            </SetupRowHead>
             <AnimatePresence initial={false}>
               {current && (rowState === 'downloading' || rowState === 'queued' || rowState === 'paused') ? (
                 <motion.div
@@ -145,12 +210,13 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
             {/* A row with its own download says enough; the where-to-put-it line is for the rest. */}
             {rowState === 'manual' || (rowState === 'idle' && remote) ? <p className="model-setup-detail">{item.detail}</p> : null}
             {item.nodePack ? (
-              <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={`${profile.displayName} is ready after that.`} />
+              <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={`${name} is ready after that.`} />
             ) : item.command ? (
               <div className="model-setup-command"><ShellCommand plan={item.command} showToast={showToast} /></div>
             ) : null}
           </li>
-        ))}
+          );
+        })}
       </ul>
       {stuck && !moving && !remote ? (
         <div className="model-setup-restart">
@@ -166,6 +232,36 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   );
 }
 
+/** A file name may wrap after its separators, not mid-word. */
+function breakable(text: string) {
+  return text.split(/(?<=[_.-])/).flatMap((piece, index) => (index ? [<wbr key={index} />, piece] : [piece]));
+}
+
+/** The part's dot, name and whatever sits on the right; shared by live and finished rows. */
+function SetupRowHead({ item, rowState, children }: { item: MissingPart; rowState: RowState; children?: React.ReactNode }) {
+  const ticked = rowState === 'landed' || rowState === 'installed';
+  return (
+    <div className="model-setup-row">
+      <span className={cn('model-setup-dot', `is-${ticked ? 'landed' : rowState}`)} aria-hidden="true">
+        {ticked ? <Check size={11} strokeWidth={3} /> : null}
+      </span>
+      <div className="model-setup-copy">
+        <small title={partHint[item.part]}>{partVerb[item.part]}{partHint[item.part] ? <span className="model-setup-hint"> · {partHint[item.part]}</span> : null}</small>
+        <strong>{breakable(item.label)}</strong>
+      </div>
+      <div className="model-setup-actions">{children}</div>
+    </div>
+  );
+}
+
+function SetupRowShell({ item, rowState }: { item: MissingPart; rowState: RowState }) {
+  return (
+    <li className={cn('model-setup-item', `is-${rowState}`)}>
+      <SetupRowHead item={item} rowState={rowState}><span className="model-setup-meta">In place</span></SetupRowHead>
+    </li>
+  );
+}
+
 function progressLine(current: ModelDownload, rowState: RowState) {
   const pct = current.totalBytes ? Math.floor((current.receivedBytes / current.totalBytes) * 100) : 0;
   if (rowState === 'queued') return current.receivedBytes ? `Waiting · resumes at ${pct}%` : 'Waiting for the file before it';
@@ -173,7 +269,7 @@ function progressLine(current: ModelDownload, rowState: RowState) {
   if (current.reconnecting) return `Connection dropped at ${pct}% · reconnecting (try ${current.reconnecting} of 3)…`;
   const speed = current.bytesPerSecond || 0;
   const eta = speed > 0 && current.totalBytes ? formatEta((current.totalBytes - current.receivedBytes) / speed) : '';
-  return [`${pct}%`, `${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`, speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', eta].filter(Boolean).join(' · ');
+  return [`${pct}%`, current.receivedBytes ? `${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}` : formatBytes(current.totalBytes), speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', eta].filter(Boolean).join(' · ');
 }
 
 /** Throwing away gigabytes takes a second tap: the first one asks, then it resets. */

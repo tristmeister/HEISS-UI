@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataDir, gallery } from './gallery-store.js';
-import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph, workflowOptionIssues } from './custom-workflows.js';
+import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph, workflowMissingFiles, workflowOptionIssues } from './custom-workflows.js';
+import { catalogDownloadsForFile } from './family-profiles.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 
 const preferencesPath = path.join(dataDir, "workflow-preferences.json");
@@ -115,8 +116,21 @@ function validateWorkflow(workflow, info = {}, profile = null) {
     unverified: !online,
     issues,
     warnings,
-    missingNodes: issues.filter((issue) => issue.startsWith("Missing node class:")).map((issue) => issue.replace("Missing node class:", "").trim())
+    missingNodes: issues.filter((issue) => issue.startsWith("Missing node class:")).map((issue) => issue.replace("Missing node class:", "").trim()),
+    missingParts: missingFileParts(workflow, info)
   };
+}
+
+const loaderParts = { CLIPLoader: "encoder", VAELoader: "vae" };
+
+/** The files an imported workflow lacks, shaped like a family's missing parts, with a download where HEISS's catalog has that exact file. */
+function missingFileParts(workflow, info) {
+  return workflowMissingFiles(workflow, info).map(({ file, folder, classType }) => ({
+    part: loaderParts[classType] || "model",
+    label: file,
+    detail: `Put ${file} in ComfyUI’s models/${folder} folder.`,
+    downloads: catalogDownloadsForFile(file, folder)
+  }));
 }
 
 function latestThumbnailFor(profileId, workflowId, prefs) {

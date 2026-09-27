@@ -225,6 +225,15 @@ test("setup lists what ComfyUI lacks first, names downloads by part, and knows e
   }
 });
 
+test("an imported workflow's missing file gets a download only for that exact catalog file", async () => {
+  const { catalogDownloadsForFile } = await import("./family-profiles.js");
+  const [vae] = catalogDownloadsForFile("flux2-vae.safetensors", "vae");
+  assert.deepEqual([vae.id, vae.label, vae.folder], ["vae:flux2:0", "Flux.2 VAE", "vae"]);
+  assert.equal(catalogDownloadsForFile("qwen_3_8b_fp8mixed.safetensors", "text_encoders")[0].id, "encoder:qwen3_8b:1");
+  assert.deepEqual(catalogDownloadsForFile("flux2-vae.safetensors", "text_encoders"), [], "right name, wrong folder");
+  assert.deepEqual(catalogDownloadsForFile("flux/flux2-vae.safetensors", "vae"), [], "a subfolder path is not where a download lands");
+});
+
 test("a lone Wan 2.2 high-noise file is offered its matching low-noise half", () => {
   const wan = inferModels(objectInfo({ unets: ["wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"] })).profiles.find((profile) => profile.family === "wan22_14b");
   const partner = wan.missing.find((item) => item.part === "model");

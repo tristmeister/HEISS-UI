@@ -16,6 +16,9 @@ import { useThisComputer } from './device';
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
 type Filter = "all" | "favorites" | "attention";
 
+/** The file lines the setup panel already shows as rows (see custom-workflows.js workflowOptionIssues). */
+const missingFileIssue = /^Missing (diffusion model|checkpoint|text encoder|VAE|upscale model|file):/;
+
 const controlLabels: Record<string, string> = {
   prompt: "Prompt",
   negative: "Negative",
@@ -111,6 +114,9 @@ export function WorkflowGallery({ view }: { view: any }) {
   const selectedStatus = selected ? workflowState(selected.validation, comfyRestarting) : null;
   // The same setup panel as the sidebar, for the model this workflow runs.
   const selectedProfile = selected ? models?.profiles.find((profile) => profile.id === selected.profileId) : undefined;
+  // What the setup panel is about: the model's profile, or an imported workflow and the files its loaders name.
+  const setupSubject = selectedProfile || (selected ? { id: selected.id, displayName: selected.name, missing: selected.validation.missingParts || [] } : undefined);
+  const settingUp = Boolean(setupSubject?.missing?.length);
 
   const openImport = () => { setImportStep(imports.length ? "review" : "choose"); setImportOpen(true); };
   const closeImport = () => { setImportOpen(false); setImports([]); setImportStep("choose"); setPasteJson(""); };
@@ -336,9 +342,9 @@ export function WorkflowGallery({ view }: { view: any }) {
             <div className={cn("wf-health", `is-${selectedStatus.state}`)}>
               <StatusBadge validation={selected.validation} />
               {/* With the setup panel below, its rows say it; the summary and issue lines would repeat them. */}
-              {selectedProfile?.missing?.length ? null : <p>{selectedStatus.detail}</p>}
-              {selectedProfile?.missing?.length ? (
-                <ModelSetup variant="gallery" profile={selectedProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
+              {settingUp ? null : <p>{selectedStatus.detail}</p>}
+              {setupSubject ? (
+                <ModelSetup key={setupSubject.id} variant="gallery" profile={setupSubject} alsoNeedsNodes={Boolean(!selectedProfile && selected.validation.missingNodes?.length)} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
               ) : null}
               {selected.validation.missingNodes?.length ? (
                 <div className="wf-missing">
@@ -346,9 +352,9 @@ export function WorkflowGallery({ view }: { view: any }) {
                   <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><Copy size={13} /> Copy names</button>
                 </div>
               ) : null}
-              {[...(selectedProfile?.missing?.length ? [] : selected.validation.missingNodes?.length ? selected.validation.issues.filter((issue) => !issue.startsWith("Missing node class:")) : selected.validation.issues), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
+              {[...(selectedProfile?.missing?.length ? [] : selected.validation.issues.filter((issue) => !(selected.validation.missingNodes?.length && issue.startsWith("Missing node class:")) && !(settingUp && missingFileIssue.test(issue)))), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
               {selected.validation.missingNodes?.length ? <ComfyRestart compact className="wf-restart" onBack={checkAgain} /> : null}
-              {selectedStatus.state !== "ready" && !selectedProfile?.missing?.length ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
+              {selectedStatus.state !== "ready" && !settingUp ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
             </div>
 
             <div className="wf-detail-actions">

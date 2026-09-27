@@ -570,7 +570,15 @@ button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
   background: rgb(0 0 0 / .26);
   transition: background var(--dur-base);
 }
-.model-setup-item.is-landed { background: rgb(0 0 0 / .14); }
+.model-setup-item.is-landed, .model-setup-item.is-installed { background: rgb(0 0 0 / .14); }
+.model-setup-item.is-installed .model-setup-copy strong { color: hsl(var(--muted-foreground)); }
+/* The set is complete: the same card, cooled from ember to the tick's green, for a moment. */
+.model-setup.is-ready { background: rgb(169 226 184 / .07); box-shadow: inset 0 0 0 1px rgb(169 226 184 / .22); animation: model-setup-ready 420ms var(--ease-out, ease-out); }
+.model-setup.is-ready::before { background: radial-gradient(220px 90px at 0% 0%, rgb(169 226 184 / .12), transparent 70%); }
+.model-setup.is-ready .model-setup-head strong { color: #a9e2b8; }
+.model-setup.is-ready .model-setup-dot.is-landed { background: #a9e2b8; }
+@keyframes model-setup-ready { from { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .model-setup.is-ready { animation: none; } }
 .model-setup-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .model-setup-dot {
   flex: none;
@@ -621,10 +629,18 @@ button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .model-setup-restart p { margin: 0; font-size: 11.5px; line-height: 1.45; color: hsl(var(--muted-foreground)); }
 /* In the gallery the health box already frames it: no second card, and the
    narrow column wraps a part's name instead of cutting it off. */
-.model-setup.is-gallery { width: 100%; margin-top: 4px; padding: 0; background: none; box-shadow: none; }
+.model-setup.is-gallery { width: 100%; margin-top: 4px; padding: 0; overflow: visible; background: none; box-shadow: none; }
 .model-setup.is-gallery::before { display: none; }
-.model-setup.is-gallery .model-setup-copy strong { white-space: normal; overflow-wrap: anywhere; }
 .model-setup.is-gallery .model-setup-hint { display: none; }
+/* The column is narrow: title above "Get all", and each part's actions under its
+   full-width name, so a file name wraps at its dots and dashes, not mid-word. */
+.model-setup.is-gallery .model-setup-head { flex-direction: column; align-items: stretch; }
+.model-setup.is-gallery .model-setup-head .btn { align-self: flex-start; }
+.model-setup.is-gallery .model-setup-row { flex-wrap: wrap; row-gap: 8px; }
+.model-setup.is-gallery .model-setup-copy { flex-basis: calc(100% - 26px); }
+.model-setup.is-gallery .model-setup-copy strong { white-space: normal; overflow-wrap: break-word; }
+.model-setup.is-gallery .model-setup-actions { margin-left: 26px; }
+.model-setup.is-gallery .model-setup-actions:empty { display: none; }
 /* In the sidebar the card sits above the scrolling settings. With a node
    install open it is taller than the room left, so it scrolls itself instead of
    being cut off, and never takes more than about half the sidebar. */
