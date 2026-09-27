@@ -577,73 +577,99 @@
 .failure-tile {
   position: absolute;
   inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px 16px 28px;
+  container-type: size;
+  background:
+    radial-gradient(140px 100px at 50% 40%, rgb(255 120 100 / .07), transparent 70%),
+    linear-gradient(rgb(255 255 255 / .035), rgb(255 255 255 / .012));
+}
+.failure-tile-body {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-  padding: 16px;
-  background: radial-gradient(160px 120px at 50% 20%, rgb(255 110 90 / .08), transparent 70%), rgb(255 255 255 / .02);
-  text-align: left;
+  align-items: center;
+  gap: 5px;
+  max-width: 220px;
+  text-align: center;
 }
-.failure-icon { display: grid; place-items: center; width: 28px; height: 28px; border-radius: var(--r-pill); background: rgb(255 110 90 / .12); color: rgb(255 150 130); }
-.failure-icon.is-large { width: 40px; height: 40px; margin: 0 auto 4px; }
-.failure-tile strong { font-size: 13px; font-weight: 600; letter-spacing: -.01em; color: hsl(var(--foreground)); }
+.failure-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 5px;
+  border-radius: var(--r-pill);
+  background: var(--danger-fill);
+  box-shadow: inset 0 0 0 .5px var(--danger-ring);
+  color: var(--danger-ink);
+}
+/* The triangle's weight sits low; lift it to look centred in the disc. */
+.failure-icon svg { margin-top: -1.5px; }
+.failure-icon.is-large { width: 52px; height: 52px; margin: 0 auto 16px; }
+.failure-icon.is-large svg { margin-top: -2px; }
+.failure-tile strong,
 .failure-tile p {
   display: -webkit-box;
   margin: 0;
   overflow: hidden;
-  font-size: 11.5px;
-  line-height: 1.45;
-  color: hsl(var(--muted-foreground));
-  overflow-wrap: anywhere;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
 }
-.failure-node, .failure-facts code {
-  align-self: flex-start;
-  max-width: 100%;
-  overflow: hidden;
-  padding: 2px 7px;
-  border-radius: 6px;
-  background: rgb(255 255 255 / .06);
-  font: 500 10.5px var(--font-mono);
-  color: hsl(var(--muted-foreground));
-  white-space: nowrap;
-  text-overflow: ellipsis;
+.failure-tile strong { font-size: 13px; font-weight: 600; line-height: 1.3; letter-spacing: -.01em; color: hsl(var(--foreground)); text-wrap: balance; }
+.failure-tile p { font-size: 11.5px; line-height: 1.4; color: hsl(var(--muted-foreground)); text-wrap: pretty; }
+/* Small tiles keep what still reads: the title, then only the mark. */
+@container (max-height: 170px) { .failure-tile p { display: none; } }
+@container (max-width: 120px) or (max-height: 110px) {
+  .failure-tile strong { display: none; }
+  .failure-icon { margin: 0; }
 }
 
 .failure-panel {
-  display: grid;
-  gap: 10px;
-  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-direction: column;
+  width: min(440px, calc(100% - 32px));
   max-height: calc(100% - 32px);
   margin: auto;
-  padding: 24px;
+  padding: 32px 28px 22px;
   overflow: auto;
   border: 1px solid var(--surface-border);
   border-radius: var(--r-menu);
   background-color: var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
   box-shadow: var(--shadow-float);
   text-align: center;
   cursor: auto;
   user-select: text;
+  animation: failurePanelIn 320ms var(--ease-out) both;
 }
-.failure-panel h3 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: -.015em; }
-.failure-summary { margin: 0; font-size: 13px; line-height: 1.5; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
-.failure-hint { margin: 2px 0 0; padding: 10px 12px; border-radius: var(--r-item); background: rgb(255 154 82 / .08); font-size: 12.5px; line-height: 1.5; text-align: left; }
-.failure-facts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-size: 12px; color: hsl(var(--muted-foreground)); }
-.failure-facts em { font-style: normal; opacity: .7; }
-.failure-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
-.failure-actions .btn { gap: 6px; }
-.failure-detail { display: grid; gap: 8px; text-align: left; }
-.failure-toggle { justify-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 0; border-radius: var(--r-pill); background: none; font: inherit; font-size: 12px; color: hsl(var(--muted-foreground)); cursor: pointer; }
-.failure-toggle:hover { color: hsl(var(--foreground)); }
+@keyframes failurePanelIn { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+@media (prefers-reduced-motion: reduce) { .failure-panel { animation: none; } }
+.failure-panel h3 { margin: 0 0 6px; font-size: 18px; font-weight: 600; line-height: 1.25; letter-spacing: -.02em; text-wrap: balance; }
+.failure-summary { margin: 0; font-size: 13.5px; line-height: 1.45; color: hsl(var(--foreground) / .82); overflow-wrap: anywhere; text-wrap: pretty; }
+.failure-hint { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: hsl(var(--muted-foreground)); text-wrap: pretty; }
+.failure-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.failure-actions .btn { flex: 1 1 140px; gap: 6px; }
+.failure-detail { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
+.failure-toggle { justify-self: center; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 0; border-radius: var(--r-pill); background: none; font: inherit; font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast); }
+.failure-toggle:hover { color: hsl(var(--foreground)); background: var(--control-hover); }
+.failure-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .failure-toggle svg { transition: transform var(--dur-fast); }
 .failure-detail.is-open .failure-toggle svg { transform: rotate(180deg); }
+.failure-detail-body { display: grid; gap: 10px; animation: failureDetailIn 220ms var(--ease-out) both; }
+@keyframes failureDetailIn { from { opacity: 0; transform: translateY(-3px); } }
+.failure-facts { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 6px 14px; margin: 0; padding: 12px 14px; border-radius: var(--r-item); background: rgb(255 255 255 / .04); font-size: 12px; }
+.failure-facts dt { color: hsl(var(--muted-foreground)); }
+.failure-facts dd { min-width: 0; margin: 0; overflow: hidden; color: hsl(var(--foreground)); white-space: nowrap; text-overflow: ellipsis; }
+.failure-facts code { font: 500 11.5px var(--font-mono); }
+.failure-facts em { font-style: normal; color: hsl(var(--muted-foreground)); }
 .failure-detail pre {
-  max-height: 280px;
+  max-height: 260px;
   margin: 0;
-  padding: 12px;
+  padding: 12px 14px;
   overflow: auto;
   border-radius: var(--r-item);
   background: rgb(0 0 0 / .35);

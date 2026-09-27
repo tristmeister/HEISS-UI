@@ -8,7 +8,7 @@ const hints = [
   {
     test: /header is too large|incomplete metadata|MetadataIncompleteBuffer|invalid header|Error while deserializing header/i,
     title: "A model file is damaged or incomplete",
-    hint: "ComfyUI could not read a .safetensors file. It is usually a download that stopped early, or a web page saved under a model's name. Delete that file and download it again."
+    hint: "This usually means a download stopped early, or a web page was saved under a model's name. Delete the file and download it again."
   },
   {
     test: /out of memory|CUDA error: out of memory|OutOfMemoryError|MPS backend out of memory|Allocation on device/i,
@@ -42,6 +42,27 @@ const hints = [
   }
 ];
 
+/** Which part a loader node reads, so a broken file can be named by what it is. */
+const parts = [
+  [/^VAELoader/i, "VAE"],
+  [/^(CLIPLoader|DualCLIPLoader|TripleCLIPLoader|QuadrupleCLIPLoader|CLIPVisionLoader)/i, "text encoder"],
+  [/^Lora/i, "LoRA"],
+  [/^(UNETLoader|UnetLoaderGGUF|DiffusionModelLoader)/i, "model"],
+  [/^(CheckpointLoader|ImageOnlyCheckpointLoader)/i, "checkpoint"],
+  [/^UpscaleModelLoader/i, "upscale model"],
+  [/^ControlNetLoader/i, "ControlNet"]
+];
+
+function partOf(nodeType) {
+  return parts.find(([test]) => test.test(nodeType))?.[1] || "";
+}
+
+/** The model file an error names, as just its file name. */
+function fileIn(text) {
+  const match = String(text || "").match(/([^\\/\s"'`:]+\.(?:safetensors|sft|ckpt|pt|pth|bin|gguf))\b/i);
+  return match ? match[1] : "";
+}
+
 /** The first line that says something, without Python's "Exception:" noise. */
 function headline(text) {
   const line = String(text || "").split(/\r?\n/).map((item) => item.trim()).find(Boolean) || "";
@@ -60,12 +81,16 @@ export function describeFailure({ message = "", nodeType = "", nodeId = "", exce
   }
   const match = hints.find((item) => item.test.test(`${exceptionType} ${raw}`));
   const trace = (Array.isArray(traceback) ? traceback.join("") : String(traceback || "")).split(/\r?\n/).filter(Boolean).slice(-40).join("\n");
+  const damaged = !learned && match === hints[0];
+  const part = partOf(nodeType);
+  const file = fileIn(`${raw}\n${trace}`);
   return {
-    title: learned ? "Needs a separate part" : match?.title || "Generation failed",
-    summary: learned || headline(raw) || "ComfyUI execution failed",
+    title: learned ? "Needs a separate part" : damaged && part ? `The ${part} file is damaged` : match?.title || "Generation failed",
+    summary: learned || (damaged ? `${file || "A model file"} could not be read. It may not have finished downloading.` : headline(raw)) || "ComfyUI execution failed",
     hint: learned ? "" : match?.hint || "",
     nodeType: String(nodeType || ""),
     nodeId: String(nodeId || ""),
+    file,
     exceptionType: String(exceptionType || ""),
     detail: raw.slice(0, 4000),
     traceback: trace.slice(0, 8000),

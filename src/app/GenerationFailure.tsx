@@ -14,6 +14,7 @@ function reportFor(item: GalleryItem, failure: GenerationFailure) {
   return [
     `HEISS UI generation failed: ${failure.title}`,
     failure.summary,
+    failure.file ? `File: ${failure.file}` : '',
     failure.nodeType ? `Node: ${failure.nodeType}${failure.nodeId ? ` (#${failure.nodeId})` : ''}` : '',
     failure.exceptionType ? `Exception: ${failure.exceptionType}` : '',
     item.model ? `Model: ${item.model}` : '',
@@ -29,41 +30,48 @@ export function FailureTile({ item }: { item: GalleryItem }) {
   const failure = failureOf(item);
   return (
     <div className="failure-tile">
-      <span className="failure-icon" aria-hidden="true"><AlertTriangle size={15} /></span>
-      <strong>{failure.title}</strong>
-      <p>{failure.summary}</p>
-      {failure.nodeType ? <code className="failure-node">{failure.nodeType}</code> : null}
+      <div className="failure-tile-body">
+        <div className="failure-icon" aria-hidden="true"><AlertTriangle size={17} strokeWidth={2} /></div>
+        <strong>{failure.title}</strong>
+        <p>{failure.summary}</p>
+      </div>
     </div>
   );
 }
 
-/** The viewer's side of a failure: the hint, the node, and the whole error one click away. */
+/** The viewer's side of a failure: what went wrong, what to do, and the whole error one click away. */
 export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onCopy: (text: string, message?: string) => void; onReuse?: () => void }) {
   const failure = failureOf(item);
-  const hasDetail = Boolean(failure.traceback || (failure.detail && failure.detail !== failure.summary));
+  const raw = [failure.detail !== failure.summary ? failure.detail : '', failure.traceback].filter(Boolean).join('\n\n');
+  const hasDetail = Boolean(raw || failure.nodeType || failure.exceptionType);
   const [open, setOpen] = React.useState(false);
   return (
     <div className="failure-panel" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
-      <span className="failure-icon is-large" aria-hidden="true"><AlertTriangle size={20} /></span>
+      <div className="failure-icon is-large" aria-hidden="true"><AlertTriangle size={22} strokeWidth={2} /></div>
       <h3>{failure.title}</h3>
       <p className="failure-summary">{failure.summary}</p>
       {failure.hint ? <p className="failure-hint">{failure.hint}</p> : null}
-      {failure.nodeType || failure.exceptionType ? (
-        <div className="failure-facts">
-          {failure.nodeType ? <span>In <code>{failure.nodeType}</code>{failure.nodeId ? <em> #{failure.nodeId}</em> : null}</span> : null}
-          {failure.exceptionType ? <span><code>{failure.exceptionType}</code></span> : null}
-        </div>
-      ) : null}
       <div className="failure-actions">
-        {onReuse ? <button type="button" className="btn" onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
-        <button type="button" className="btn is-ghost" onClick={() => onCopy(reportFor(item, failure), 'Error report copied')}><Copy size={14} /> Copy report</button>
+        {onReuse ? <button type="button" className="btn is-primary" onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
+        <button type="button" className="btn" onClick={() => onCopy(reportFor(item, failure), 'Error report copied')}><Copy size={14} /> Copy report</button>
       </div>
       {hasDetail ? (
         <div className={cn('failure-detail', open && 'is-open')}>
           <button type="button" className="failure-toggle" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-            <ChevronDown size={14} /> {open ? 'Hide' : 'Show'} the full error
+            {open ? 'Hide details' : 'Show details'} <ChevronDown size={13} />
           </button>
-          {open ? <pre>{[failure.detail, failure.traceback].filter(Boolean).join('\n\n')}</pre> : null}
+          {open ? (
+            <div className="failure-detail-body">
+              {failure.nodeType || failure.exceptionType || failure.file ? (
+                <dl className="failure-facts">
+                  {failure.file ? <><dt>File</dt><dd><code>{failure.file}</code></dd></> : null}
+                  {failure.nodeType ? <><dt>Node</dt><dd><code>{failure.nodeType}</code>{failure.nodeId ? <em> #{failure.nodeId}</em> : null}</dd></> : null}
+                  {failure.exceptionType ? <><dt>Error</dt><dd><code>{failure.exceptionType}</code></dd></> : null}
+                </dl>
+              ) : null}
+              {raw ? <pre>{raw}</pre> : null}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>
