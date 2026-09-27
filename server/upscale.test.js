@@ -194,6 +194,11 @@ test("face detail on an imported workflow's image loads the workflow's model fil
   placeModel("ema_vae_fp16.safetensors");
   const info = { ...infoWith(registryListing), UNETLoader: { input: { required: { unet_name: combo(["real-dream-klein9b-1-fp8.safetensors"]) } } }, UltralyticsDetectorProvider: { input: { required: { model_name: combo(["bbox/face_yolov8m.pt"]) } } } };
   const body = { width: 1024, height: 1024, quality: "fast", faceDetail: true, prompt: "a face", sourceModel, sourceSettings };
-  assert.equal(upscaleGraph(body, info).graph["10"].inputs.unet_name, "real-dream-klein9b-1-fp8.safetensors");
+  const { graph } = upscaleGraph(body, info);
+  assert.equal(graph["10"].inputs.unet_name, "real-dream-klein9b-1-fp8.safetensors");
+  assert.deepEqual(graph["17"].inputs.image, ["1", 0], "faces are redrawn on the source, at the model's own size");
+  assert.deepEqual(graph["2"].inputs.image, ["17", 0], "SeedVR2 upscales the redrawn image");
+  assert.deepEqual(graph["9"].inputs.images, ["5", 0]);
+  assert.equal(graph["17"].inputs.force_inpaint, false, "a face already past guide_size is left alone, not sampled at full size");
   assert.throws(() => upscaleGraph({ ...body, sourceModel: "custom:flux2-real-dream-image-edit" }, info), /no diffusion model named custom:flux2-real-dream-image-edit/);
 });

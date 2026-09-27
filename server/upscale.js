@@ -532,6 +532,14 @@ export function faceDetailSource(item, workflow = null) {
   };
 }
 
+/**
+ * Faces are redrawn on the source image, before SeedVR2, and only when they
+ * are small. After the upscale a face is already past guide_size, and with
+ * force_inpaint Impact resets the crop's scale to 1 after clamping it to
+ * max_size, so the model sampled a crop several thousand pixels wide, far
+ * beyond what it was trained on, and baked in heavy pores, freckles and
+ * wrinkles. A close-up already drawn at the model's own size is skipped.
+ */
 function faceDetailStack(graph, body, imageSource, info) {
   const settings = body.sourceSettings || {};
   const model = String(body.sourceModel || "");
@@ -573,10 +581,10 @@ function faceDetailStack(graph, body, imageSource, info) {
       cfg: Number(settings.cfg || 1),
       sampler_name: String(settings.sampler || "er_sde"),
       scheduler: String(settings.scheduler || "simple"),
-      denoise: 0.2,
+      denoise: 0.3,
       feather: 5,
       noise_mask: true,
-      force_inpaint: true,
+      force_inpaint: false,
       bbox_threshold: 0.5,
       bbox_dilation: 10,
       bbox_crop_factor: 3,
@@ -634,9 +642,11 @@ export function upscaleGraph(body, info = {}) {
   const ditDevices = devicesFor(info, "SeedVR2LoadDiTModel");
   const vaeDevices = devicesFor(info, "SeedVR2LoadVAEModel");
   const swap = ditDevices.offload !== "none";
-  const graph = {
-    "1": { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } },
-    "2": { class_type: "ImageScaleBy", inputs: { image: ["1", 0], upscale_method: "bicubic", scale_by: plan.preScale } },
+  const graph = {};
+  graph["1"] = { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } };
+  const source = body.faceDetail ? faceDetailStack(graph, body, ["1", 0], info) : ["1", 0];
+  Object.assign(graph, {
+    "2": { class_type: "ImageScaleBy", inputs: { image: source, upscale_method: "bicubic", scale_by: plan.preScale } },
     "3": {
       class_type: "SeedVR2LoadDiTModel",
       inputs: {
@@ -685,10 +695,8 @@ export function upscaleGraph(body, info = {}) {
         enable_debug: false
       }
     }
-  };
-  let output = ["5", 0];
-  if (body.faceDetail) output = faceDetailStack(graph, body, output, info);
-  graph["9"] = { class_type: "SaveImage", inputs: { images: output, filename_prefix: "heiss-ui/upscale" } };
+  });
+  graph["9"] = { class_type: "SaveImage", inputs: { images: ["5", 0], filename_prefix: "heiss-ui/upscale" } };
   return { graph, plan };
 }
 

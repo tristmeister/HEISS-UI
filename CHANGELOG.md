@@ -41,6 +41,10 @@ version opens with a `> ` summary line, which the update pill shows.
   View.
 
 ### Fixed
+- **The face detail pass no longer ages faces.** It ran on the upscaled image,
+  where the model redrew each face at several thousand pixels and baked in
+  heavy freckles, pores and wrinkles. It now redraws small faces before the
+  upscale, at the model's own size, and leaves close-ups alone.
 - **A failed model download is reported once**, in its own island, instead
   of there and in a toast.
 - **Images taken out of Hidden go back into the heiss-ui folder** with

@@ -737,8 +737,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   <SwitchRow
                     label="Face detail pass"
                     description={faceDetailReady
-                      ? 'Sharpens faces after the upscale.'
-                      : 'Sharpens faces after the upscale. Needs the Impact Pack and Impact Subpack nodes.'}
+                      ? 'Redraws small faces before the upscale. Close-ups are left as they are.'
+                      : 'Redraws small faces before the upscale. Needs the Impact Pack and Impact Subpack nodes.'}
                     checked={Boolean(prefs.upscaleFaceDetail) && faceDetailReady}
                     disabled={!faceDetailReady}
                     onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
