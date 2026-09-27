@@ -47,3 +47,29 @@ test("a finished image is listed at once, before the folder listing catches up",
   assert.equal(listReferenceAssets({ headers: {} }, { source: "generation" }).items.length, 2);
   assert.ok(pageGallery({}).items.some((item) => item.url === url("fresh.png")));
 });
+
+test("an image shown upscaled is used upscaled, at the original's size", async () => {
+  const { loadSharp } = await import("./sharp-loader.js");
+  const sharp = await loadSharp();
+  if (!sharp) return;
+  const { bytesForReference } = await import("./reference-assets.js");
+  const png = (width, height, r) => sharp({ create: { width, height, channels: 3, background: { r, g: 0, b: 0 } } }).png().toBuffer();
+  fs.writeFileSync(path.join(outputDir, "ref.png"), await png(64, 48, 10));
+  fs.writeFileSync(path.join(outputDir, "ref-up.png"), await png(256, 192, 250));
+  const item = {
+    id: url("ref.png"), url: url("ref.png"), outputName: "ref.png", status: "done", type: "image", createdAt: new Date().toISOString(),
+    upscaleActive: true, upscale: { status: "done", url: url("ref-up.png"), outputName: "ref-up.png" }
+  };
+  setGallery([item]);
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  const id = `gallery:${Buffer.from(item.url).toString("base64url")}`;
+  const used = await bytesForReference({ headers: {} }, id);
+  const meta = await sharp(used.buffer).metadata();
+  const { data } = await sharp(used.buffer).raw().toBuffer({ resolveWithObject: true });
+  assert.deepEqual([meta.width, meta.height, data[0] > 200], [64, 48, true]);
+
+  setGallery([{ ...item, upscaleActive: false }]);
+  const original = await bytesForReference({ headers: {} }, id);
+  const { data: originalData } = await sharp(original.buffer).raw().toBuffer({ resolveWithObject: true });
+  assert.ok(originalData[0] < 50);
+});

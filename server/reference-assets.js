@@ -86,7 +86,8 @@ function galleryAsset(item) {
     height: Number(item.height || 0),
     size: Number(item.size || 0),
     createdAt: item.createdAt || "",
-    thumbnailUrl: item.thumbnailUrl || item.url || "",
+    // The version on show: the upscale when it is switched on, as a run will use.
+    thumbnailUrl: (item.upscaleActive && item.upscale?.url ? item.upscale.thumbnailUrl || item.upscale.url : item.thumbnailUrl) || item.url || "",
     url: item.url || "",
     privacyDomain: vault ? "vault" : "gallery",
     galleryItemId: item.id
@@ -286,11 +287,40 @@ export function referenceAssetFromGallery(req, galleryItemId) {
   throw new Error("Generated reference image was not found or is not accessible.");
 }
 
-async function bytesForReference(req, id) {
+/**
+ * An image shown upscaled is used upscaled: its sharper pixels, scaled back to
+ * the original's size, since an image-to-image start image is encoded at its
+ * own size and a 4x one would make a 4x render (slow, and often out of GPU
+ * memory). Decided when a run is staged, so switching the upscale off in the
+ * viewer goes back to the original for the next run. Without sharp, or when
+ * anything about the upscale is off, the original is used.
+ */
+async function preferUpscale(original, readUpscale) {
+  try {
+    const upscaled = await readUpscale();
+    const sharp = upscaled && await loadSharp();
+    if (!sharp) return original;
+    const { width, height } = await sharp(original.buffer, { limitInputPixels: maxPixels }).metadata();
+    if (!width || !height) return original;
+    const buffer = await sharp(upscaled.buffer, { limitInputPixels: maxPixels })
+      .resize({ width, height, fit: "fill", kernel: "lanczos3" })
+      .png()
+      .toBuffer();
+    return { buffer, mime: "image/png", name: String(original.name || "reference").replace(/\.[a-z0-9]+$/i, "") + ".png" };
+  } catch {
+    return original;
+  }
+}
+
+/** The bytes a run gets for a reference (exported for tests). */
+export async function bytesForReference(req, id) {
   if (String(id).startsWith("vault:")) {
-    const vault = readVaultAsset(req, String(id).slice(6));
+    const vaultId = String(id).slice(6);
+    const vault = readVaultAsset(req, vaultId);
     if (!vault || vault.item?.type !== "image") throw new Error("This Hidden image is locked or gone.");
-    return { buffer: vault.buffer, mime: vault.item.mime || mimeFromName(vault.item.outputName), name: vault.item.outputName || "private-reference.png" };
+    const original = { buffer: vault.buffer, mime: vault.item.mime || mimeFromName(vault.item.outputName), name: vault.item.outputName || "private-reference.png" };
+    if (!vault.item.upscaleActive) return original;
+    return preferUpscale(original, async () => readVaultAsset(req, vaultId, "upscale"));
   }
   const upload = loadManifest().find((item) => item.id === id && item.source === "upload");
   if (upload) {
@@ -300,7 +330,10 @@ async function bytesForReference(req, id) {
   }
   const item = findGalleryItem(id);
   if (!item || item.type !== "image" || item.status !== "done") throw new Error("Generated reference image is unavailable.");
-  return publicGalleryBuffer(item);
+  const original = await publicGalleryBuffer(item);
+  if (!item.upscaleActive || item.upscale?.status !== "done" || !item.upscale.url) return original;
+  const { url, outputName } = item.upscale;
+  return preferUpscale(original, () => publicGalleryBuffer({ id: url, url, outputName, type: "image" }));
 }
 
 async function uploadBufferToComfy({ buffer, mime, name }, { unique = false } = {}) {
