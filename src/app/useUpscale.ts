@@ -104,9 +104,13 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       if (before === "running" && now === "error") {
         setNotice(item.id, { reason: "failed", title: noticeTitles.failed, message: item.upscale?.error || "ComfyUI stopped the upscale without saying why. Its window has the details." });
       }
+      // Sealed into Hidden, but ComfyUI's own copy is still readable where HEISS UI could not reach it.
+      if (before === "running" && now === "done" && item.upscale?.leftBehind) {
+        showToast("Upscaled in Hidden, but ComfyUI’s own copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library so HEISS UI can remove such copies.", "default");
+      }
       seen.set(item.id, now);
     }
-  }, [gallery, setNotice]);
+  }, [gallery, setNotice, showToast]);
   const [reason, setReason] = useState("");
   const [offline, setOffline] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);

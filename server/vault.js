@@ -338,11 +338,14 @@ export async function attachVaultUpscale(key, itemId, output, state) {
   }
   const sealed = sealAsset(source.buffer);
   const previous = item.upscale?.assetFile;
-  item.upscale = { ...state, ...sealed, mime: source.mime, outputName: output.filename || "", status: "done" };
+  // ComfyUI's plaintext copy goes now; one HEISS UI cannot reach (ComfyUI on
+  // another computer, or its output folder unknown) is marked, so the app can say so.
+  const leftBehind = String(output.url || "").startsWith("data:") ? 0 : removeSourceFiles([source.sourcePath]);
+  item.upscale = { ...state, ...sealed, mime: source.mime, outputName: output.filename || "", status: "done", ...(leftBehind ? { leftBehind: true } : {}) };
   item.upscaleActive = true;
   writeManifest(manifest, key);
   if (previous) { try { fs.unlinkSync(path.join(assetsDir, previous)); } catch {} }
-  return { item: viewItem(item), leftBehind: removeSourceFiles([source.sourcePath]) };
+  return { item: viewItem(item), leftBehind };
 }
 
 function readAsset(key, id, variant = "original") {
@@ -465,31 +468,34 @@ function viewParams(file, base) {
 /**
  * Puts Hidden items back in the gallery: decrypted into ComfyUI's output
  * folder as ordinary files, with their prompts and settings intact. Returns
- * the gallery records for the caller to add.
+ * the gallery records for the caller to add. They go where HEISS UI saves
+ * everything, the heiss-ui folder, not loose in ComfyUI's own.
  */
 export function unhideItems(key, ids) {
   if (!key) throw new Error("Unlock Hidden first.");
   if (!comfyOutputDir) throw new Error("HEISS UI needs to know ComfyUI's output folder to put images back. Set it under Library.");
   const base = path.resolve(comfyOutputDir);
+  const folder = path.join(base, "heiss-ui");
   const manifest = readManifest(key);
   const wanted = new Set(ids);
   const restored = [];
   const written = [];
   const leaving = manifest.items.filter((item) => wanted.has(item.id));
   try {
+    if (leaving.length) fs.mkdirSync(folder, { recursive: true });
     for (const item of leaving) {
-      const file = uniqueOutputPath(base, item.outputName || `${item.id}${item.type === "video" ? ".mp4" : ".png"}`);
+      const file = uniqueOutputPath(folder, item.outputName || `${item.id}${item.type === "video" ? ".mp4" : ".png"}`);
       fs.writeFileSync(file, openAsset(item));
       written.push(file);
       const params = viewParams(file, base);
       const url = `/comfy/view?${params}`;
       let upscale;
       if (item.upscale?.assetFile) {
-        const upscaleFile = uniqueOutputPath(base, item.upscale.outputName || `${path.basename(file, path.extname(file))}-upscale.png`);
+        const upscaleFile = uniqueOutputPath(folder, item.upscale.outputName || `${path.basename(file, path.extname(file))}-upscale.png`);
         fs.writeFileSync(upscaleFile, openAsset(item.upscale));
         written.push(upscaleFile);
         const upscaleParams = viewParams(upscaleFile, base);
-        const { assetFile, assetKey, mime, ...state } = item.upscale;
+        const { assetFile, assetKey, mime, leftBehind: _left, ...state } = item.upscale;
         upscale = { ...state, status: "done", url: `/comfy/view?${upscaleParams}`, thumbnailUrl: `/comfy/thumb?${upscaleParams}`, outputName: path.basename(upscaleFile) };
       }
       const { assetFile, assetKey, mime, hiddenAt, upscale: _, upscaleActive, ...meta } = item;

@@ -51,6 +51,8 @@ export type UpscaleState = {
   error?: string;
   startedAt?: string;
   completedAt?: string;
+  /** A Hidden item's upscale whose plaintext copy HEISS UI could not remove from ComfyUI's output folder. */
+  leftBehind?: boolean;
 };
 /** Why a run failed: a headline, a plain hint, and the raw detail for bug reports. */
 export type GenerationFailure = { title: string; summary: string; hint?: string; nodeType?: string; nodeId?: string; file?: string; exceptionType?: string; detail?: string; traceback?: string; at?: number };

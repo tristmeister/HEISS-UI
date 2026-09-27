@@ -11,6 +11,14 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Fixed
+- **Images taken out of Hidden go back into the heiss-ui folder** with
+  everything else HEISS UI saves, instead of loose in ComfyUI's output
+  folder. Their upscales too.
+- **A Hidden upscale says when ComfyUI's copy stays behind.** Its plaintext
+  copy is removed once it is sealed; when HEISS UI can't reach ComfyUI's
+  output folder to do that, it now tells you instead of leaving it silently.
+
 ## [0.10.0] - 2026-09-27
 
 > Countdowns for runs and restarts, and Flux 2 edits

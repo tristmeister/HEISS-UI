@@ -105,9 +105,30 @@ test("hiding moves a file out of ComfyUI's folder and unhiding puts it back", as
   const restored = vault.unhideItems(key, [item.id]);
   assert.equal(restored.length, 1);
   assert.equal(restored[0].prompt, "a quiet harbour");
-  assert.ok(fs.existsSync(path.join(outputDir, restored[0].outputName)));
-  assert.ok(fs.existsSync(path.join(outputDir, restored[0].upscale.outputName)));
+  // Back where HEISS UI saves everything, not loose in ComfyUI's output folder.
+  assert.ok(fs.existsSync(path.join(outputDir, "heiss-ui", restored[0].outputName)));
+  assert.ok(fs.existsSync(path.join(outputDir, "heiss-ui", restored[0].upscale.outputName)));
+  assert.match(restored[0].url, /subfolder=heiss-ui/);
+  assert.match(restored[0].upscale.url, /subfolder=heiss-ui/);
+  assert.ok(!fs.existsSync(path.join(outputDir, restored[0].outputName)));
   assert.equal(vault.vaultItems(key).length, 0);
+});
+
+test("a Hidden item's upscale is sealed and ComfyUI's plaintext copy removed", async () => {
+  const key = privacy.unlockWithPassword("battery staple");
+  await vault.storeHiddenOutputs(key, [{ url: dataUrl, filename: "out.png", type: "image" }], { prompt: "a hidden pier", kind: "image", width: 1, height: 1 });
+  const [item] = vault.vaultItems(key, { bundles: false });
+  fs.mkdirSync(path.join(outputDir, "heiss-ui"), { recursive: true });
+  const saved = path.join(outputDir, "heiss-ui", "upscale_00001_.png");
+  fs.writeFileSync(saved, png);
+  const output = { url: "/comfy/view?filename=upscale_00001_.png&subfolder=heiss-ui&type=output", filename: "upscale_00001_.png", type: "image" };
+  const { leftBehind } = await vault.attachVaultUpscale(key, item.id, output, { scale: 2 });
+  assert.equal(leftBehind, 0);
+  assert.ok(!fs.existsSync(saved), "the plaintext upscale is gone from ComfyUI's folder");
+  const [sealed] = vault.vaultItems(key, { bundles: false });
+  assert.equal(sealed.upscale.leftBehind, undefined);
+  assert.deepEqual(vault.readVaultAssetWithKey(key, item.id, "upscale").buffer, png);
+  vault.deleteVaultItems(key, [item.id]);
 });
 
 test("a version 1 install migrates on its first unlock and keeps its data readable", () => {
