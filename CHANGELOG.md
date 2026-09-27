@@ -11,7 +11,12 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Countdowns for runs and restarts, and Flux 2 edits
+
 ### Added
+- **Flux 2 (Klein 4B, Klein 9B and Dev) edits from reference images**, the
+  way ComfyUI's own Flux 2 edit templates do; the first reference frames
+  the result. The reference slots show once your ComfyUI has the nodes.
 - **Restarting ComfyUI tells you how long it usually takes.** After a few
   restarts that agree, the restart line fills toward your machine's usual
   time and counts down ("Back in about 12 s"). A restart well past it says
@@ -32,6 +37,12 @@ version opens with a `> ` summary line, which the update pill shows.
   model's usual, HEISS UI says once that ComfyUI may be short on video memory.
 
 ### Changed
+- **LoRAs stay when you switch workflows on the same model**, and a
+  different model starts from its own last stack (or none) instead of
+  carrying LoRAs that don't fit it.
+- **Upscale starts from the click.** The ring shows at once; if the upscale
+  can't start, the button steps back and says why.
+- **The upscale ring is crisp** instead of jagged at its edges.
 - **Finished images appear the moment ComfyUI is done**, instead of up to
   1.6 s later.
 - **An image's time is how long it took to make**, not counting its wait in
