@@ -366,7 +366,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   // The gallery, its empty and offline stages and the lock: the same in every layout.
   const galleryBody = (
     <>
-          {hiddenLocked || galleryCrossing ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
+          {hiddenLocked || galleryCrossing ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery virtual-gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
             <StableGallery
               cancelJob={cancelJob}
               expandedBundles={expandedBundles}
