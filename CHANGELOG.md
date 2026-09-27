@@ -10,7 +10,36 @@ section into the next version and uses it as the GitHub release notes.
 
 ## [Unreleased]
 
+### Added
+- **A model's setup ends with a ready moment.** Parts that land stay in the
+  list, ticked "In place", and the last one turns the panel into "<model> is
+  ready". A ComfyUI restart halfway through keeps your progress.
+- **Imported workflows offer their missing files.** A file HEISS UI knows
+  gets a Download button; the rest say which folder they belong in.
+- **Setup demo for contributors:** `npm run dev:setup-demo` runs against a
+  pretend ComfyUI that lacks encoders, VAEs, a partner model and a node pack,
+  with simulated downloads, so every missing-parts flow can be tried on any
+  machine.
+
+### Changed
+- **Progress says what's happening.** Only sampler steps count as steps
+  ("Step 1/2"); everything else is named: "Loading model", "Encoding image
+  68%", "Upscaling". A tiled encode no longer shows as "Step 241/357".
+- **Failed generations read calmly.** The tile shows a centred mark, a title
+  and one line, with a **How to fix** pill that opens the full explanation.
+  A damaged model file says which part and file it is ("The VAE file is
+  damaged"); node, exception and raw error sit behind **Show details**.
+- **An unready model leads to its setup.** A blocked Generate opens that
+  model's setup, and the model menu and phone list say what each one lacks.
+
 ### Fixed
+- **Downloads tell the truth.** A dropped connection retries by itself three
+  times, then says so plainly. A gated file links to its Hugging Face page
+  instead of offering a Retry that can't work. "Get all" adds up real sizes,
+  and an outdated ComfyUI is listed first and blocks it. Wan 2.2's low-noise
+  half can be downloaded.
+- **Workflow cards keep up with finished downloads** instead of lagging a
+  scan behind.
 - **Hidden images stay out of the reference picker's Generations.** They have
   a **Hidden** shelf of their own next to Generations and Uploads, behind the
   same lock as Hidden: locked, it offers **Unlock** (Touch ID where set up)
