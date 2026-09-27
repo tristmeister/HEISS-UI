@@ -631,15 +631,15 @@ button.lora-pill:focus-visible { outline: none; box-shadow: var(--focus-ring); }
    narrow column wraps a part's name instead of cutting it off. */
 .model-setup.is-gallery { width: 100%; margin-top: 4px; padding: 0; overflow: visible; background: none; box-shadow: none; }
 .model-setup.is-gallery::before { display: none; }
-.model-setup.is-gallery .model-setup-hint { display: none; }
-/* The column is narrow: title above "Get all", and each part's actions under its
-   full-width name, so a file name wraps at its dots and dashes, not mid-word. */
+/* The column is narrow: title above "Get all". Each part keeps the sidebar's
+   row (dot, name, actions), and its actions drop under the name only when a
+   wide button leaves the name too little room; its name wraps at dots and dashes. */
 .model-setup.is-gallery .model-setup-head { flex-direction: column; align-items: stretch; }
 .model-setup.is-gallery .model-setup-head .btn { align-self: flex-start; }
 .model-setup.is-gallery .model-setup-row { flex-wrap: wrap; row-gap: 8px; }
-.model-setup.is-gallery .model-setup-copy { flex-basis: calc(100% - 26px); }
+.model-setup.is-gallery .model-setup-copy { flex: 1 1 140px; }
 .model-setup.is-gallery .model-setup-copy strong { white-space: normal; overflow-wrap: break-word; }
-.model-setup.is-gallery .model-setup-actions { margin-left: 26px; }
+.model-setup.is-gallery .model-setup-actions { margin-left: auto; }
 .model-setup.is-gallery .model-setup-actions:empty { display: none; }
 /* In the sidebar the card sits above the scrolling settings. With a node
    install open it is taller than the room left, so it scrolls itself instead of
