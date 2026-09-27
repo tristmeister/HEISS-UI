@@ -4,11 +4,12 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ComfyRestart } from './ComfyRestart';
 import { NodeInstall, ShellCommand } from './NodeInstall';
 import { CellBar } from './UpscaleDialogs';
-import { formatEta } from './UpscaleDownloadWidget';
+import { formatEta } from './UpscaleDownloadActivity';
 import { cn } from './format';
 import { downloadFor, useModelDownloads } from './useModelDownloads';
 import type { MissingPart, ModelDownload, Profile } from './types';
 import { useThisComputer } from './device';
+import type { ShowToast } from './toast';
 
 function formatBytes(bytes = 0) {
   if (!bytes) return '';
@@ -53,7 +54,7 @@ const READY_HOLD_MS = 6000;
  */
 export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar', alsoNeedsNodes = false }: {
   profile: SetupSubject;
-  showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
+  showToast: ShowToast;
   onInstalled: () => void;
   variant?: 'sidebar' | 'gallery';
   /** An imported workflow that lacks custom nodes as well; those are listed below the panel. */

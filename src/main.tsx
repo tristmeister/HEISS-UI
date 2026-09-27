@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { showToastTone, toast } from "./app/toast";
+import { showToastTone as showToast, toast } from "./app/toast";
 import "./styles.css";
 
 import { useModelFolders } from './app/useModelFolders';
@@ -672,22 +672,28 @@ function App() {
     patchGalleryItems
   });
 
-  function showToast(message: string, tone: "default" | "success" | "warning" | "error" | "removed" = "default") {
-    showToastTone(message, tone);
-  }
 
-  async function copyAndToast(text: string, message = "Copied") {
+  /**
+   * Copies for a button that shows its own check (useCopyFeedback), so only a
+   * failure is a toast. `announce` says it in a toast instead, for the few
+   * buttons that are gone once clicked (a tile's menu).
+   */
+  async function copyToClipboard(text: string, announce = ""): Promise<boolean> {
     if (!text) {
       showToast("Nothing to copy", "error");
-      return;
+      return false;
     }
     const copied = await copyText(text);
-    showToast(copied ? message : "Copy failed", copied ? "success" : "error");
+    if (!copied) showToast("Copy failed", "error");
+    else if (announce) showToast(announce, "success");
+    return copied;
   }
 
-  async function copyImageAndToast(item: GalleryItem) {
+  /** The viewer's copy button: the image itself, its link, or its details. */
+  async function copyItemToClipboard(item: GalleryItem): Promise<boolean> {
     const copied = await copyImage(item);
-    showToast(copied ? (!item.url ? "Generation details copied" : item.type === "image" ? "Image copied" : "Output link copied") : "Copy failed", copied ? "success" : "error");
+    if (!copied) showToast("Copy failed", "error");
+    return copied;
   }
 
   function refreshModels(notify = true) {
@@ -703,7 +709,7 @@ function App() {
       })
       .catch((error) => {
         setStatus(error.message);
-        if (notify) showToast("Model refresh failed", "error");
+        if (notify) showToast("Model refresh failed", "error", { action: { label: "Try again", onClick: () => refreshModels(true) } });
       });
     modelsRefreshRef.current = request;
     return request;
@@ -776,7 +782,8 @@ function App() {
         body: JSON.stringify({ outputDir })
       });
       setPaths(next);
-      showToast(next.report?.state === "mismatch" ? "Folder saved, but your recent images aren’t in it" : "Output folder saved", next.report?.state === "mismatch" ? "warning" : "success");
+      // The row shows the saved folder; only a folder that doesn't hold your images is worth a word.
+      if (next.report?.state === "mismatch") showToast("Folder saved, but your recent images aren’t in it", "warning");
       loadGallery().catch(() => null);
       return next.report || null;
     } catch (error) {
@@ -874,7 +881,7 @@ function App() {
       }
       showToast(data.updated ? "Update installed. Restart HEISS UI to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Update failed", "error");
+      showToast(error instanceof Error ? error.message : "Update failed", "error", { action: { label: "Try again", onClick: () => installUpdate({ confirm: false }) } });
     } finally {
       setUpdateBusy(false);
     }
@@ -889,7 +896,7 @@ function App() {
     try {
       await apiJson("/api/update/restart", { method: "POST" });
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not restart HEISS UI", "error");
+      showToast(error instanceof Error ? error.message : "Could not restart HEISS UI", "error", { action: { label: "Try again", onClick: () => restartHeiss({ update }) } });
       return false;
     }
     // A downloaded update goes in with any restart, so say so when the page comes back.
@@ -904,7 +911,7 @@ function App() {
       if (data?.startedAt && data.startedAt >= at) { window.location.reload(); return; }
       if (Date.now() > deadline) {
         setRestarting(false);
-        showToast("HEISS UI did not come back. Start it again with its launcher.", "error");
+        showToast("HEISS UI did not come back. Start it again with its launcher.", "error", { duration: Infinity, action: { label: "Reload", onClick: () => window.location.reload() } });
         return;
       }
       window.setTimeout(poll, 1000);
@@ -1161,9 +1168,9 @@ function App() {
   function pickModel(profileId: string) {
     const next = models?.profiles.find((item) => item.id === profileId);
     if (next && profileId !== model) {
-      // A switch loads the workflow's own defaults; say so, and name what did not carry over.
-      const droppedReference = referenceAssets.length > 0 && !imageInputsForProfile(next).length;
-      showToast(`${next.label || "Workflow"}: its default size, steps and sampler are loaded${droppedReference ? ". It takes no reference image, so that was removed" : ""}.`);
+      // A switch loads the workflow's own defaults, which the composer shows; only
+      // a reference image it had to drop is news.
+      if (referenceAssets.length > 0 && !imageInputsForProfile(next).length) showToast(`${next.label || "This workflow"} takes no reference image, so it was removed.`, "warning");
     }
     chooseModel(profileId);
     const lastUsed = { [profileId]: new Date().toISOString() };
@@ -1257,7 +1264,6 @@ function App() {
       setMode("image");
       selectReferenceAsset(referenceInput!.id, data.asset);
       setActive(null);
-      showToast("Reference image set", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not use this image", "error");
     }
@@ -1292,7 +1298,8 @@ function App() {
 
   const generationActions = useGenerationActions({
     active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
-    openModelSetup: () => setWorkflowGalleryOpen(true)
+    openModelSetup: () => setWorkflowGalleryOpen(true),
+    retryComfyStatus
   });
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems } = generationActions;
 
@@ -1331,7 +1338,7 @@ function App() {
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;
 
-  const baseView = { seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restartHeiss, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, generationEstimate, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
+  const baseView = { seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restartHeiss, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, generationEstimate, openLoras: () => { setSidebarTab('loras'); setZenControls(true); } };
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;

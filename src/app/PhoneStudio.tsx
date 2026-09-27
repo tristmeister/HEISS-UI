@@ -16,6 +16,7 @@ import { progressLine, progressReading, RunLeft } from './GenerationProgress';
 import { RestartEtaText } from './ComfyRestart';
 import { estimatePhrase } from './useGenerationEstimate';
 import type { AspectPreset, GalleryItem, Profile } from './types';
+import type { ShowToast } from './toast';
 
 /* ---------------------------------------------------------------------------
    The phone studio
@@ -32,7 +33,6 @@ import type { AspectPreset, GalleryItem, Profile } from './types';
    and keeps the shared overlays (viewer, dialogs, toasts).
 --------------------------------------------------------------------------- */
 
-type Toast = (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
 
 /* ------------------------------------------------------------------ Sheet */
 
@@ -141,7 +141,7 @@ function fileNameFor(item: GalleryItem, type = '') {
 }
 
 /** Share where the phone can (Photos, Messages, AirDrop…), otherwise save the file. */
-export async function shareItem(item: GalleryItem, showToast: Toast) {
+export async function shareItem(item: GalleryItem, showToast: ShowToast) {
   const url = downloadUrl(item);
   if (canShareFiles) {
     try {
@@ -166,7 +166,7 @@ export async function shareItem(item: GalleryItem, showToast: Toast) {
 }
 
 /** Several files: one share sheet where possible, otherwise one download after another. */
-export async function shareItems(items: GalleryItem[], showToast: Toast) {
+export async function shareItems(items: GalleryItem[], showToast: ShowToast) {
   const ready = items.filter((item) => item.status === 'done' && item.url);
   if (!ready.length) return;
   if (ready.length === 1) return shareItem(ready[0], showToast);
@@ -201,7 +201,7 @@ export async function shareItems(items: GalleryItem[], showToast: Toast) {
 /* ------------------------------------------------------------ Item actions */
 
 export type PhoneItemActions = {
-  showToast: Toast;
+  showToast: ShowToast;
   smartUpscale: boolean;
   upscaleBusy: (item: GalleryItem) => boolean;
   upscale: (item: GalleryItem) => void;

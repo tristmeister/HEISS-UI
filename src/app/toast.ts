@@ -9,6 +9,18 @@ import type { ReactNode } from 'react';
  * bump, and its timer starts over. An Undo on a grouped toast undoes all of
  * them (newest first), and `onClose` runs for each one once the toast leaves
  * without it.
+ *
+ * The front of the stack goes by weight, not age: an error, then anything
+ * with an action or a warning, then the rest, newest first within each. A
+ * "Saved" that lands after an error slides in behind it.
+ *
+ * When to toast, the way most apps settle it:
+ * - Something happened out of sight (a download landed, ComfyUI came back),
+ *   or it can be undone, or it failed and the place you acted can't say so.
+ * - Not when the result is right there: a copied prompt shows a check on its
+ *   button, a new cover is the new cover, a saved setting reads as saved.
+ * - An error says what to do next, and offers it as the action when the app
+ *   can do it (Try again, Set up, See why).
  */
 
 export type ToastTone = 'neutral' | 'success' | 'warning' | 'error' | 'removed';
@@ -48,6 +60,8 @@ export type ToastRecord = {
   /** Bumped on every merge: restarts the timer and plays the bump. */
   version: number;
   createdAt: number;
+  /** The last time it arrived or took another one in; orders it within its weight. */
+  updatedAt: number;
 };
 
 type Callbacks = { actions: Array<() => void>; closers: Array<() => void> };
@@ -59,6 +73,16 @@ let toasts: ToastRecord[] = [];
 const callbacks = new Map<string, Callbacks>();
 const listeners = new Set<() => void>();
 let nextId = 0;
+
+/** How far forward a toast belongs: errors, then actions and warnings, then the rest. */
+function weight(toast: ToastRecord) {
+  if (toast.tone === 'error') return 3;
+  return toast.tone === 'warning' || toast.actionLabel ? 2 : 1;
+}
+
+function arrange(list: ToastRecord[]) {
+  return [...list].sort((a, b) => weight(b) - weight(a) || b.updatedAt - a.updatedAt);
+}
 
 function emit() {
   listeners.forEach((listener) => listener());
@@ -114,14 +138,15 @@ function show(tone: ToastTone, title: string, options: ToastOptions = {}) {
       duration,
       glyph: options.glyph ?? (merging ? live.glyph : undefined),
       actionLabel: options.action?.label ?? (merging ? live.actionLabel : undefined),
-      version: live.version + 1
+      version: live.version + 1,
+      updatedAt: Date.now()
     };
     callbacks.set(live.id, {
       actions: [...(merging ? hooks.actions : []), ...(options.action ? [options.action.onClick] : [])],
       closers: [...(merging ? hooks.closers : []), ...(options.onClose ? [options.onClose] : [])]
     });
-    // Whatever just happened comes to the front.
-    toasts = [next, ...toasts.filter((toast) => toast.id !== live.id)];
+    // Whatever just happened comes forward, as far as its weight allows.
+    toasts = arrange([next, ...toasts.filter((toast) => toast.id !== live.id)]);
     emit();
     return live.id;
   }
@@ -139,12 +164,13 @@ function show(tone: ToastTone, title: string, options: ToastOptions = {}) {
     glyph: options.glyph,
     actionLabel: options.action?.label,
     version: 0,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    updatedAt: Date.now()
   };
   callbacks.set(id, { actions: options.action ? [options.action.onClick] : [], closers: options.onClose ? [options.onClose] : [] });
-  toasts = [record, ...toasts];
+  toasts = arrange([record, ...toasts]);
   emit();
-  // The oldest leave once too many are waiting; they close as if their time ran out.
+  // The lightest and oldest leave once too many are waiting, as if their time ran out.
   toasts.slice(MAX_TOASTS).forEach((old) => close(old.id, 'close'));
   return id;
 }
@@ -171,8 +197,9 @@ export const toast = Object.assign(
   }
 );
 
-/** The app-wide `showToast(message, tone)`; "default" is the neutral tone. */
+/** The app-wide `showToast(message, tone, options)`; "default" is the neutral tone. */
 export type ShowToastTone = 'default' | 'success' | 'warning' | 'error' | 'removed';
-export function showToastTone(message: string, tone: ShowToastTone = 'default') {
-  return show(tone === 'default' ? 'neutral' : tone, message);
-}
+export type ShowToast = (message: string, tone?: ShowToastTone, options?: ToastOptions) => void;
+export const showToastTone: ShowToast = (message, tone = 'default', options) => {
+  show(tone === 'default' ? 'neutral' : tone, message, options);
+};

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Copy, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
@@ -15,10 +15,13 @@ import { canUpscaleItem } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { ModelFoldersDialog } from './ModelFoldersDialog';
 import { UpscaleNoticePopover } from './UpscaleNotice';
-import { UpscaleDownloadWidget, useUpscaleDownloadWidget } from './UpscaleDownloadWidget';
+import { useUpscaleDownloadActivity } from './UpscaleDownloadActivity';
 import { FailurePanel } from './GenerationFailure';
-import { ModelDownloadWidget, useModelDownloadWidget } from './ModelDownloadWidget';
-import { UpdatePill, useUpdatePill } from './UpdatePill';
+import { useModelDownloadActivity } from './ModelDownloadActivity';
+import { useUpdateActivity } from './UpdateActivity';
+import { useGenerationActivity, useTilesOnScreen } from './GenerationActivity';
+import { ActivityColumn } from './Activities';
+import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { WorkflowGallery } from './WorkflowGallery';
 import { HiddenLockScreen, HiddenUnlockSheet } from './HiddenLock';
 import { HiddenSetupDialog } from './HiddenSetup';
@@ -96,7 +99,7 @@ function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retryi
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyAndToast, copyImageAndToast, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
   const strayModelCount = (modelFolders?.report?.folders || []).reduce((sum: number, folder: { count: number }) => sum + folder.count, 0);
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs, referenceStrength, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
@@ -202,14 +205,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   // Expansion is a view concern: a run stays grouped once created, it just
   // opens and closes in place.
   const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
-  const upscaleWidget = useUpscaleDownloadWidget(upscaleSetup, upscaleInstall);
+  // Long-running work floats at the top as activities, in this order; the toasts start under them.
+  const upscaleActivity = useUpscaleDownloadActivity(upscaleSetup, upscaleInstall);
   // A text encoder or VAE landing rescans models, so every panel catches up at once.
-  const modelWidget = useModelDownloadWidget({
+  const modelActivity = useModelDownloadActivity({
     onDone: () => { refreshModels(false); refreshWorkflows(); },
-    onError: (item) => showToast(item.error || `${item.label} failed to download`, "error")
+    hidden: Boolean(workflowGalleryOpen),
+    onOpen: () => setWorkflowGalleryOpen(true)
   });
   const thisComputer = useThisComputer();
-  const updatePill = useUpdatePill({
+  const updateActivity = useUpdateActivity({
     status: view.updateStatus,
     thisComputer,
     restarting: Boolean(view.restarting),
@@ -217,21 +222,34 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     running: runningCount,
     hiddenSpace,
     settingsOpen: Boolean(settings),
+    onUpdate: () => view.installUpdate({ confirm: false }),
     onRestart: view.restartForUpdate,
+    onLater: (version) => view.setUpdatePrefs({ dismissed: version }),
     onDoneUpdated: view.clearJustUpdated
   });
-  // The pills share the top edge in one column; the toasts start just under it.
+  // A generation stands in for itself only where its tile can't be seen: the
+  // viewer on another image, zen on an older one, the gallery scrolled away.
+  const pendingIds = React.useMemo(() => ((visibleGallery || []) as GalleryItem[]).filter((item) => item.status === "pending").map((item) => item.id), [visibleGallery]);
+  const pendingTileOnScreen = useTilesOnScreen(galleryStageRef, !phone && !prefs.zenMode && !active ? pendingIds : []);
+  const watchingGeneration = active ? active.status === "pending" : prefs.zenMode ? zenDisplayItem?.status === "pending" : pendingTileOnScreen;
+  const generationActivity = useGenerationActivity({
+    items: visibleGallery || [],
+    enabled: !phone && !hiddenLocked,
+    watching: watchingGeneration,
+    reveal: (item) => !item.privateVault || hiddenSpace,
+    onJump: (item) => {
+      if (active) setActive(null);
+      if (prefs.zenMode) { selectZenItem(item.id); return; }
+      window.requestAnimationFrame(() => {
+        const tile = document.querySelector(`[data-tile-id="${CSS.escape(item.id)}"]`);
+        if (tile) tile.scrollIntoView({ block: "center", behavior: "smooth" });
+        else galleryStageRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    },
+    onView: (item) => openItem(item)
+  });
   const [islandsHeight, setIslandsHeight] = React.useState(0);
-  const islandsObserver = React.useRef<ResizeObserver | null>(null);
-  const islandsRef = React.useCallback((node: HTMLDivElement | null) => {
-    islandsObserver.current?.disconnect();
-    islandsObserver.current = null;
-    if (!node) return;
-    const measure = () => setIslandsHeight(node.offsetHeight);
-    measure();
-    islandsObserver.current = new ResizeObserver(measure);
-    islandsObserver.current.observe(node);
-  }, []);
+  const viewerCopy = useCopyFeedback();
   const [compareOpen, setCompareOpen] = React.useState(false);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
@@ -358,7 +376,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               toggleBundle={toggleBundle}
               ungroupBundle={ungroupBundle}
               columns={galleryColumnCount}
-              copyPromptAndToast={(item) => copyAndToast(item.prompt || item.filename || "", "Prompt copied")}
+              copyPromptAndToast={(item) => copyToClipboard(item.prompt || item.filename || "", "Prompt copied")}
               deleteItem={deleteItem}
               formatElapsed={formatElapsed}
               items={renderedGallery}
@@ -684,20 +702,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         onOpenLibrary={() => { upscaleSetup.closeSetup(); openSettings("library"); }}
         showToast={showToast}
       />
-      <div className="islands" ref={islandsRef}>
-        <UpscaleDownloadWidget widget={upscaleWidget} setup={upscaleSetup} install={upscaleInstall} />
-        <ModelDownloadWidget widget={modelWidget} hidden={workflowGalleryOpen} onOpen={() => setWorkflowGalleryOpen(true)} />
-        <UpdatePill
-          pill={updatePill}
-          status={view.updateStatus}
-          running={runningCount}
-          justUpdated={view.justUpdated}
-          onUpdate={() => view.installUpdate({ confirm: false })}
-          onRestart={view.restartForUpdate}
-          onLater={(version) => view.setUpdatePrefs({ dismissed: version })}
-          onDoneUpdated={view.clearJustUpdated}
-        />
-      </div>
+      <ActivityColumn activities={[upscaleActivity, modelActivity, updateActivity, generationActivity]} onHeight={setIslandsHeight} />
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { resumeHiddenSetup.current = true; hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
       {hidden.status?.remote && !hidden.status.enabled ? (
@@ -743,7 +748,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   onClick={clickViewer}
                   onDoubleClick={(event) => { event.stopPropagation(); zoomViewer(viewerZoom > 1 ? 1 : 2.5); }}
                 >
-                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyAndToast} onReuse={() => { applyAllSettings(active); setActive(null); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
+                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
                   <GenerationMedia item={active} fit="contain">
                   {active.status === "pending" ? <GenerationProgress item={active} formatElapsed={formatElapsed} /> : null}
                   </GenerationMedia>
@@ -765,7 +770,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         <span>Prompt</span>
                         <div className="readout-box">
                           <p>{active.prompt || "No prompt recorded"}</p>
-                          <Tip content="Copy prompt"><button className="readout-copy" aria-label="Copy prompt" onClick={() => copyAndToast(active.prompt || "", "Prompt copied")}><Copy size={13} /></button></Tip>
+                          <Tip content="Copy prompt"><button className="readout-copy" aria-label="Copy prompt" onClick={() => viewerCopy.copyWith(() => copyToClipboard(active.prompt || ""), "prompt")}><CopyIcon copied={viewerCopy.copied === "prompt"} size={13} /></button></Tip>
                         </div>
                       </div>
                       {active.negative ? (
@@ -773,7 +778,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           <span>Negative</span>
                           <div className="readout-box">
                             <p>{active.negative}</p>
-                            <Tip content="Copy negative prompt"><button className="readout-copy" aria-label="Copy negative prompt" onClick={() => copyAndToast(active.negative || "", "Negative prompt copied")}><Copy size={13} /></button></Tip>
+                            <Tip content="Copy negative prompt"><button className="readout-copy" aria-label="Copy negative prompt" onClick={() => viewerCopy.copyWith(() => copyToClipboard(active.negative || ""), "negative")}><CopyIcon copied={viewerCopy.copied === "negative"} size={13} /></button></Tip>
                           </div>
                         </div>
                       ) : null}
@@ -817,7 +822,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <Tip content="Reset zoom (0)"><button className="text-button viewer-zoom is-zoom-control" onClick={resetViewer}>{viewerZoom > 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
                   <Tip content="Zoom in (+)"><button className="icon-button is-zoom-control" aria-label="Zoom in" onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
                   <span className="viewer-divider is-zoom-control" />
-                  <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => copyImageAndToast(active)}><Copy size={15} /></button></Tip>
+                  <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => viewerCopy.copyWith(() => copyItemToClipboard(active), "item")}><CopyIcon copied={viewerCopy.copied === "item"} size={15} /></button></Tip>
                   {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">

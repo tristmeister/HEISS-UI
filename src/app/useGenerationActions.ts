@@ -18,7 +18,7 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup
+    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -80,7 +80,7 @@ export function useGenerationActions(view: any) {
       return;
     }
     if (comfyOffline) {
-      showToast("ComfyUI isn’t reachable, so nothing was sent. Start it, then try again.", "error");
+      showToast("ComfyUI isn’t reachable, so nothing was sent. Start it, then try again.", "error", retryComfyStatus ? { action: { label: "Check again", onClick: retryComfyStatus } } : undefined);
       return;
     }
     if (!prompt.trim()) {
@@ -88,7 +88,7 @@ export function useGenerationActions(view: any) {
       return;
     }
     if (!currentProfile) {
-      showToast(generateDisabledReason || "Choose a workflow first", "error");
+      showToast(generateDisabledReason || "Choose a workflow first", "error", openModelSetup ? { action: { label: "Workflows", onClick: openModelSetup } } : undefined);
       return;
     }
     if (missingRequiredReference) {
@@ -146,6 +146,8 @@ export function useGenerationActions(view: any) {
         privateVault: Boolean(hiddenSpace)
       };
       const queuedJobs: string[] = [];
+      // One tile per job, so a failure can open straight onto its report.
+      const firstItemOf = new Map<string, GalleryItem>();
       for (let index = 0; index < imageRuns; index += 1) {
         const clientJobId = clientJobUuid();
         optimisticJobIds.push(clientJobId);
@@ -162,6 +164,7 @@ export function useGenerationActions(view: any) {
           body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
+        firstItemOf.set(jobId, items?.[0] || optimisticItems[0]);
         if (wentHidden && !hiddenSpace) {
           // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.
           galleryRemove([clientJobId, jobId]);
@@ -198,7 +201,8 @@ export function useGenerationActions(view: any) {
           if (job.status === "error") {
             const message = job.error || "Generation failed";
             galleryPatch((item: GalleryItem) => item.jobId === jobId ? { ...item, status: "error", optimistic: false, filename: message } : item);
-            showToast(message, "error");
+            const failed = firstItemOf.get(jobId);
+            showToast(message, "error", failed ? { action: { label: "See why", onClick: () => setActive({ ...failed, status: "error", optimistic: false, filename: message }) } } : undefined);
             setStatus(message);
             return job;
           }
@@ -262,9 +266,13 @@ export function useGenerationActions(view: any) {
       action: many ? "Stop all" : "Stop generation",
       destructive: true
     })) return;
+    await stopJob(jobId);
+  }
+
+  async function stopJob(jobId: string) {
     const response = await fetch(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
     if (!response?.ok) {
-      showToast("Couldn’t stop it. It may still be running in ComfyUI.", "error");
+      showToast("Couldn’t stop it. It may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: () => stopJob(jobId) } });
       return;
     }
     galleryRemove([jobId]);
@@ -273,9 +281,13 @@ export function useGenerationActions(view: any) {
 
   async function cancelQueue() {
     if (!await confirmAction({"title": "Stop all generations?", "description": "All queued and running generations and upscales will be canceled.", "action": "Stop all", "destructive": true})) return;
+    await stopQueue();
+  }
+
+  async function stopQueue() {
     const response = await fetch("/api/queue/cancel", { method: "POST" }).catch(() => null);
     if (!response?.ok) {
-      showToast("Couldn’t stop the queue. Generations may still be running in ComfyUI.", "error");
+      showToast("Couldn’t stop the queue. Generations may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: stopQueue } });
       return;
     }
     galleryRemoveWhere((item: GalleryItem) => item.status === "pending" || item.status === "canceled");
@@ -329,11 +341,15 @@ export function useGenerationActions(view: any) {
 
   async function clearAllCache() {
     if (!await confirmAction({"title": "Clear cache?", "description": "Clear cached previews and free ComfyUI memory. Finished gallery items will stay.", "action": "Clear cache", "destructive": false})) return;
+    await clearCaches();
+  }
+
+  async function clearCaches() {
     if ("caches" in window) {
       await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => null);
     }
     const data = await fetch("/api/cache/clear", { method: "POST" }).then((res) => res.ok ? res.json() : null).catch(() => null);
-    if (!data) { showToast("Couldn’t clear ComfyUI’s cache", "error"); return; }
+    if (!data) { showToast("Couldn’t clear ComfyUI’s cache", "error", { action: { label: "Try again", onClick: clearCaches } }); return; }
     setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
     showToast("Cache cleared", "removed");
     setStatus("Ready");

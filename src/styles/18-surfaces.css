@@ -211,6 +211,14 @@
 }
 .modal-input:focus-visible { border-color: rgb(255 255 255 / .16); }
 
+/* ------------------------------------------------------------ Copied
+   A copy button confirms in place (src/app/CopyFeedback.tsx): its icon turns
+   into a green check for a moment. */
+
+.copy-icon { display: inline-grid; flex: none; place-items: center; }
+.copy-icon > * { display: grid; grid-area: 1 / 1; }
+.copy-icon.is-copied { color: #7fd49a; }
+
 /* ---------------------------------------------------------------- Phone */
 
 @media (max-width: 760px) {

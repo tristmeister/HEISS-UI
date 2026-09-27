@@ -3,6 +3,7 @@ import { apiJson } from './api';
 import { announceComfyRestart, fetchManager } from './ComfyRestart';
 import type { ModelFolderReport, StrayModelFolder } from './types';
 import { useThisComputer } from './device';
+import type { ShowToast } from './toast';
 
 /**
  * Model folders ComfyUI is not reading, and the walk from "found" to "ready":
@@ -30,7 +31,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   /** ComfyUI lists no model HEISS can run: found folders then open the dialog by themselves, once. */
   emptyModels: boolean;
   onModelsChanged: () => void;
-  showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
+  showToast: ShowToast;
 }) {
   // Model folders belong to the computer running HEISS UI; other devices never scan or ask.
   const thisComputer = useThisComputer();

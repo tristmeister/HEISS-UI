@@ -3,8 +3,8 @@ import { ApiError, apiJson } from './api';
 import { forgetDeviceSecret, hasDeviceSecret, keepDeviceSecret, passkeyCancelled, passkeySupport, registerPasskey, unlockWithPasskey, type PasskeyOption, type PasskeySupport } from './passkeys';
 import type { GalleryItem, PrivacyStatus } from './types';
 import type { GallerySpace } from './useGalleryStore';
+import type { ShowToast } from './toast';
 
-type Toast = (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
 
 /** How long Hidden stays open without anyone touching the page. 0: until the browser forgets. */
 export const autoLockChoices = [
@@ -22,7 +22,7 @@ export type HiddenUnlockStage = "idle" | "asking" | "checking" | "opening" | "fa
 const activityKey = "heiss-ui:hidden-activity";
 const json = (body: unknown) => ({ method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 
-export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: number; showToast: Toast }) {
+export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: number; showToast: ShowToast }) {
   const [status, setStatus] = useState<PrivacyStatus | null>(null);
   const [space, setSpaceState] = useState<GallerySpace>("gallery");
   const [support, setSupport] = useState<PasskeySupport | null>(null);
@@ -145,7 +145,6 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     try {
       const next = await apiJson<PrivacyStatus>("/api/privacy/lock", { method: "POST" });
       setStatus((current) => ({ ...(current || next), ...next, unlocked: false }));
-      if (!quiet) showToast("Hidden locked", "success");
     } catch (error) {
       if (!quiet) showToast(error instanceof Error ? error.message : "Could not lock Hidden", "error");
     }

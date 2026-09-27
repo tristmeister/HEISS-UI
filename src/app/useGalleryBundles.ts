@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiJson } from './api';
 import type { BundlePending, BundleStatus, Preferences } from './types';
+import type { ShowToast } from './toast';
 
 type Domain = "gallery" | "vault";
 
@@ -39,7 +40,7 @@ export function useGalleryBundles({
   domain: Domain;
   enabled: boolean;
   reloadGallery: () => Promise<unknown>;
-  showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
+  showToast: ShowToast;
 }) {
   const [pending, setPending] = useState(emptyPending);
   const [busy, setBusy] = useState(false);
@@ -110,7 +111,6 @@ export function useGalleryBundles({
         body: JSON.stringify({ itemId })
       });
       await reloadGallery();
-      showToast("Cover updated", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not set the cover", "error");
     }
@@ -122,7 +122,6 @@ export function useGalleryBundles({
       await reloadGallery();
       // The run becomes tidy-able again straight away, so refresh the count.
       await refreshBundles();
-      showToast("Run ungrouped", "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Could not ungroup the run", "error");
     }

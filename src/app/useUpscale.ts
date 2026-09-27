@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
 import type { GalleryItem, Preferences, UpscaleInstall, UpscaleStatus } from './types';
+import type { ShowToast } from './toast';
 
 /** The gallery keeps the original as the record; only the view swaps. */
 export function upscaleDisplayUrl(item: GalleryItem) {
@@ -70,7 +71,7 @@ export type UpscaleSetupStage = "checking" | "offline" | "nodes" | "models" | "d
 type UpscaleOptions = {
   gallery: GalleryItem[];
   prefs: Preferences;
-  showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
+  showToast: ShowToast;
   loadGalleryDelta: () => void;
   patchGalleryItems: (update: (item: GalleryItem) => GalleryItem) => void;
 };

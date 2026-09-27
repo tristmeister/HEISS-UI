@@ -21,10 +21,28 @@ version opens with a `> ` summary line, which the update pill shows.
   back. A ring around the glyph shows how long Undo stays, and the files are
   only removed once the toast is gone. Moving images into or out of Hidden,
   and repeats of the same message, count up the same way.
-- **The download and update pills share one column** at the top, and slide
-  up when one above them leaves.
+- **Downloads and updates are activities.** They share one column at the
+  top and slide up when one above them leaves. When the work finishes, the
+  same island turns into the note ("Smart upscale is ready") and leaves by
+  itself, but not while the pointer rests on it.
+- **Fewer toasts.** Copy buttons show a check where you clicked instead of a
+  toast. Things you can already see no longer get one: a new cover, an
+  ungrouped run, a reference image, a saved folder or ComfyUI address, a
+  locked Hidden, a new passkey, or a workflow switch loading its defaults.
+- **Errors offer the next step** when HEISS UI can take it: Check again,
+  Workflows, Try again, See why, Reload. An error stays in front of lighter
+  toasts that arrive after it.
+
+### Added
+- **A generation you can't see floats at the top.** With the viewer on
+  another image, zen on an older one, or the gallery scrolled away, the run
+  shows as an island with its live preview, progress and time left; click it
+  to go to it. When it finishes it becomes "Image ready" with the result and
+  View.
 
 ### Fixed
+- **A failed model download is reported once**, in its own island, instead
+  of there and in a toast.
 - **Images taken out of Hidden go back into the heiss-ui folder** with
   everything else HEISS UI saves, instead of loose in ComfyUI's output
   folder. Their upscales too.

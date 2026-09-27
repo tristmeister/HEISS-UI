@@ -1,21 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { X } from 'lucide-react';
 import { AnimatedNumber } from './AnimatedNumber';
-import { CellBar } from './UpscaleDialogs';
 import { ARROW, heatColor } from './UpscaleHero';
 import { cn } from './format';
 import { formatBytes } from './useUpscale';
 import type { UpscaleSetup } from './useUpscale';
 import type { UpscaleInstall } from './types';
 import { SafeImg } from './SafeImg';
+import type { Activity } from './Activities';
 
 /**
- * While the SeedVR2 weights download with the setup dialog closed, a small
- * glass pill floats at the top: the setup hero's arrow in miniature, filling
- * with heat, over a cell bar and the numbers. Clicking it reopens setup. It
- * checks the download, flashes ready, and leaves; a failed download stays
- * until it is dealt with.
+ * While the SeedVR2 weights download with the setup dialog closed, an
+ * activity floats at the top: the setup hero's arrow in miniature, filling
+ * with heat, over a cell bar and the numbers. The arrow is shared by the other
+ * download and update activities.
  */
 
 export type Mode = 'downloading' | 'verifying' | 'ready' | 'error';
@@ -85,12 +82,18 @@ export function formatEta(seconds: number) {
   return `${Math.floor(minutes / 60)} h ${minutes % 60} min left`;
 }
 
-/** Whether the widget shows and in which mode. */
-export function useUpscaleDownloadWidget(setup: UpscaleSetup, install: UpscaleInstall) {
+/**
+ * The download as an activity: shown while it runs with setup closed. Once it
+ * lands it becomes the "ready" note (with the image it went on to upscale) and
+ * leaves by itself; a failed download stays until it is dealt with. Clicking
+ * it reopens setup, which takes over while open.
+ */
+export function useUpscaleDownloadActivity(setup: UpscaleSetup, install: UpscaleInstall): Activity | null {
   const { stage, open } = setup;
-  const [readyFlash, setReadyFlash] = useState<string | null>(null);
+  // The image it went on to upscale once ready: its thumbnail, 'pending' without one, '' when none waited.
+  const [finished, setFinished] = useState<string | null>(null);
   const [dismissedError, setDismissedError] = useState<string>('');
-  // setup clears the waiting image the moment it starts the upscale, so keep a copy for the ready line.
+  // setup clears the waiting image the moment it starts the upscale, so keep a copy for the ready note.
   const lastPending = useRef<string>('');
   if (setup.pending) lastPending.current = setup.pending.thumbnailUrl || setup.pending.url || 'pending';
   const previous = useRef(stage);
@@ -98,96 +101,55 @@ export function useUpscaleDownloadWidget(setup: UpscaleSetup, install: UpscaleIn
     const was = previous.current;
     previous.current = stage;
     if ((was === 'downloading' || was === 'verifying') && stage === 'ready' && !open) {
-      setReadyFlash(lastPending.current || '');
+      setFinished(lastPending.current || '');
       lastPending.current = '';
     }
   }, [stage, open]);
-  // Its own effect, so a later stage or open change cannot cancel the hide.
-  useEffect(() => {
-    if (readyFlash === null) return;
-    const timer = window.setTimeout(() => setReadyFlash(null), READY_HOLD_MS);
-    return () => window.clearTimeout(timer);
-  }, [readyFlash]);
-  useEffect(() => { if (open) setReadyFlash(null); }, [open]);
+  useEffect(() => { if (open) setFinished(null); }, [open]);
 
   const errorKey = install?.status === 'error' ? `${install.error}` : '';
   const mode: Mode | null = open ? null
     : stage === 'downloading' ? 'downloading'
     : stage === 'verifying' ? 'verifying'
     : stage === 'error' && errorKey && errorKey !== dismissedError ? 'error'
-    : readyFlash !== null ? 'ready'
+    : finished !== null ? 'ready'
     : null;
-  return {
-    mode,
-    visible: mode !== null,
-    readyThumb: readyFlash && readyFlash !== 'pending' ? readyFlash : '',
-    upscaling: Boolean(readyFlash),
-    dismiss: () => {
-      if (mode === 'error') setDismissedError(errorKey);
-      setReadyFlash(null);
-    }
-  };
-}
+  if (!mode) return null;
 
-export function UpscaleDownloadWidget({ widget, setup, install }: {
-  widget: ReturnType<typeof useUpscaleDownloadWidget>;
-  setup: UpscaleSetup;
-  install: UpscaleInstall;
-}) {
-  const reduced = useReducedMotion();
-  const { mode } = widget;
   const received = install?.receivedBytes || 0;
   const total = install?.totalBytes || 0;
   const progress = total ? Math.min(1, received / total) : 0;
   const speed = install?.bytesPerSecond || 0;
   const eta = speed > 0 ? (total - received) / speed : 0;
-  const waiting = Boolean(setup.pending);
+  const readyThumb = finished && finished !== 'pending' ? finished : '';
+  const waitingThumb = mode !== 'ready' ? setup.pending?.thumbnailUrl : '';
+  const dismiss = () => {
+    if (mode === 'error') setDismissedError(errorKey);
+    setFinished(null);
+  };
 
   const title = mode === 'downloading' ? 'Downloading SeedVR2'
     : mode === 'verifying' ? 'Checking the download'
     : mode === 'ready' ? 'Smart upscale is ready'
     : 'Download stopped';
-  const meta = mode === 'downloading'
-    ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', formatEta(eta)].filter(Boolean).join(' · ')
-    : mode === 'verifying' ? 'Matching checksums, then ComfyUI'
-    : mode === 'ready' ? (widget.upscaling ? 'Upscaling your image now' : 'Every finished image has an upscale arrow')
-    : 'Click to resume where it left off';
-
-  return (
-    <AnimatePresence>
-      {mode ? (
-        <motion.div
-          key="upscale-download-widget"
-          layout="position"
-          className={cn('island', 'udw', `is-${mode}`)}
-          role="status"
-          aria-live="polite"
-          initial={reduced ? { opacity: 0 } : { opacity: 0, y: -18, scale: 0.94 }}
-          animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-          exit={reduced ? { opacity: 0 } : { opacity: 0, y: -14, scale: 0.96 }}
-          transition={{ type: 'spring', duration: 0.42, bounce: 0.18 }}
-        >
-          <button type="button" className="udw-main" onClick={() => setup.openSetup()} aria-label={`${title}. Open smart upscale setup`}>
-            <MiniArrow mode={mode} progress={progress} />
-            <span className="udw-text">
-              <span className="udw-title">
-                <strong>{title}</strong>
-                {mode === 'downloading' ? <em><AnimatedNumber value={Math.floor(progress * 100)} />%</em> : null}
-              </span>
-              {mode === 'downloading' ? <CellBar value={progress} /> : null}
-              <small>{meta}</small>
-            </span>
-            {waiting && mode !== 'ready' && setup.pending?.thumbnailUrl ? (
-              <SafeImg className="udw-thumb" src={setup.pending.thumbnailUrl} draggable={false} title="Upscales when the download is done" />
-            ) : widget.readyThumb ? (
-              <SafeImg className="udw-thumb" src={widget.readyThumb} draggable={false} />
-            ) : null}
-          </button>
-          {mode === 'error' || mode === 'ready' ? (
-            <button type="button" className="island-close" onClick={widget.dismiss} aria-label="Dismiss"><X size={13} /></button>
-          ) : null}
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-  );
+  return {
+    id: 'upscale-download',
+    phase: mode,
+    state: mode === 'error' ? 'error' : mode === 'ready' ? 'done' : 'live',
+    glyph: <MiniArrow mode={mode} progress={progress} />,
+    title,
+    figure: mode === 'downloading' ? <><AnimatedNumber value={Math.floor(progress * 100)} />%</> : undefined,
+    progress: mode === 'downloading' ? progress : undefined,
+    meta: mode === 'downloading'
+      ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', formatEta(eta)].filter(Boolean).join(' · ')
+      : mode === 'verifying' ? 'Matching checksums, then ComfyUI'
+      : mode === 'ready' ? (finished ? 'Upscaling your image now' : 'Every finished image has an upscale arrow')
+      : 'Click to resume where it left off',
+    aside: waitingThumb ? <SafeImg className="activity-thumb is-waiting" src={waitingThumb} draggable={false} title="Upscales when the download is done" />
+      : readyThumb ? <SafeImg className="activity-thumb" src={readyThumb} draggable={false} />
+      : null,
+    open: { label: `${title}. Open smart upscale setup`, run: () => setup.openSetup() },
+    dismiss: mode === 'error' || mode === 'ready' ? { label: 'Dismiss', run: dismiss } : undefined,
+    expire: mode === 'ready' ? { after: READY_HOLD_MS, run: () => setFinished(null) } : undefined
+  };
 }

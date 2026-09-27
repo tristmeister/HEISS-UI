@@ -5,8 +5,8 @@ import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import { autoLockChoices, type HiddenState } from './useHidden';
 import type { ConfirmAction } from './useConfirmation';
 import { passwordStrength } from './HiddenSetup';
+import type { ShowToast } from './toast';
 
-type Toast = (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
 
 function when(value?: string) {
   if (!value) return "";
@@ -22,7 +22,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   hidden: HiddenState;
   prefs: { hiddenAutoLockMinutes?: number };
   setPrefs: (next: { hiddenAutoLockMinutes: number }) => void;
-  showToast: Toast;
+  showToast: ShowToast;
   confirmAction: ConfirmAction;
   Group: React.ComponentType<React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>>;
   Row: React.ComponentType<React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>>;
@@ -50,7 +50,6 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
     setBusy("passkey");
     try {
       await hidden.addBiometric();
-      showToast(`${label} added`, "success");
     } catch (error) {
       if (!passkeyCancelled(error)) showToast(error instanceof PasskeyWithoutSecretError ? `This browser can’t unlock Hidden with ${label}.` : error instanceof Error ? error.message : `Could not add ${label}`, "error");
     } finally {

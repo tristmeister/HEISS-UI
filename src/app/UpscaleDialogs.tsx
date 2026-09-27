@@ -8,6 +8,7 @@ import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
 import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
 import { SafeImg } from './SafeImg';
+import type { ShowToast } from './toast';
 
 // Until the server reports the pack, the same entry as server/node-packs.js.
 const seedvr2Pack = { id: "seedvr2", name: "SeedVR2", repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git", search: "SeedVR2" };
@@ -116,7 +117,7 @@ export function UpscaleSetupDialog({
   comfyUrl?: string;
   onQualityChange: (quality: UpscaleQuality) => void;
   onOpenLibrary: () => void;
-  showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
+  showToast: ShowToast;
 }) {
   const { stage, pending } = setup;
   const progress = install?.totalBytes ? (install.receivedBytes || 0) / install.totalBytes : 0;

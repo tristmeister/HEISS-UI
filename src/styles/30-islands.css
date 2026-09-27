@@ -4,7 +4,7 @@
    Everything that floats in at the top edge is one family: the composer's
    frosted glass as a capsule, a cell glyph on the left, a title with a quiet
    line under it, one bright capsule for the action and the same close button.
-   The pills stack in .islands; toasts stack under them.
+   Activities (long-running work) stack in .islands; toasts stack under them.
 --------------------------------------------------------------------------- */
 
 .island {
@@ -20,7 +20,7 @@
   -webkit-font-smoothing: antialiased;
 }
 
-/* The pills' column: under dialogs, over the viewer. Each pill slides up when one above leaves. */
+/* The activities' column: under dialogs, over the viewer. Each slides up when one above leaves. */
 .islands {
   position: fixed;
   top: max(14px, env(safe-area-inset-top));
@@ -35,6 +35,101 @@
   pointer-events: none;
 }
 .islands > * { pointer-events: auto; }
+
+/* ------------------------------------------------------------ Activities
+   Long-running work (src/app/Activities.tsx). The glow under the glass says
+   how it is going: warm while it works, white once done, red when stopped. */
+
+.activity { width: min(380px, calc(100vw - 24px)); overflow: hidden; }
+.activity.is-wide { width: min(420px, calc(100vw - 24px)); }
+.activity::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120px 60px at 34px 50%, rgb(255 154 82 / .16), transparent 70%);
+  pointer-events: none;
+  transition: background var(--dur-base);
+}
+.activity.is-done::before { background: radial-gradient(120px 60px at 34px 50%, rgb(255 240 222 / .14), transparent 70%); }
+.activity.is-error::before { background: radial-gradient(120px 60px at 34px 50%, rgb(255 110 90 / .14), transparent 70%); }
+
+.activity-body { position: relative; display: flex; align-items: center; }
+.activity-main {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: var(--r-island);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.activity-main { cursor: pointer; }
+.activity-main:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.activity-glyph { flex: none; display: grid; place-items: center; min-width: 38px; }
+/* Positioned, so the words leaving on a new phase lie over the ones arriving. */
+.activity-text { position: relative; display: grid; flex: 1; min-width: 0; }
+.activity-copy { display: grid; gap: 5px; min-width: 0; }
+.activity-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.activity-title strong { overflow: hidden; font-size: 13px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap; text-overflow: ellipsis; }
+.activity-title em { flex: none; font: 600 12px var(--font-mono); font-style: normal; font-variant-numeric: tabular-nums; color: var(--ember); }
+.activity-copy small { overflow: hidden; font-size: 11.5px; font-variant-numeric: tabular-nums; color: hsl(var(--muted-foreground)); white-space: nowrap; text-overflow: ellipsis; }
+/* A release headline gets two lines rather than an ellipsis. */
+.activity-copy small.is-two-line { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.4; white-space: normal; }
+.activity .cell-bar { height: 5px; }
+.activity-body > .island-action { margin-right: 4px; }
+.activity-body > .island-action:last-child { margin-right: 12px; }
+.activity-thumb { flex: none; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; outline: 1px solid rgb(255 255 255 / .1); outline-offset: -1px; }
+.activity-thumb.is-waiting { opacity: .75; filter: saturate(.7); }
+
+/* A generation's live preview, in a frame the size of the arrow's box, with
+   heat passing over it while ComfyUI works. */
+.activity-frame {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 11px;
+  background: var(--well);
+  outline: 1px solid rgb(255 255 255 / .1);
+  outline-offset: -1px;
+}
+.activity-frame img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.activity-frame.is-working::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 32%, rgb(255 154 82 / .3) 50%, transparent 68%) 0 0 / 260% 100%;
+  mix-blend-mode: screen;
+  animation: activity-sweep 2.4s var(--ease-soft) infinite;
+}
+@keyframes activity-sweep { from { background-position: 130% 0; } to { background-position: -130% 0; } }
+.activity-heat { width: 22px; height: 22px; }
+.activity-heat rect { fill: var(--ember); animation: activity-heat 1.8s ease-in-out infinite; }
+@keyframes activity-heat { 0%, 100% { opacity: .14; } 50% { opacity: .85; } }
+.activity-frame.is-done .activity-heat rect { fill: #f4f4f4; opacity: .6; animation: none; }
+
+/* The results, dealt like prints: one, or the first few of a batch, newest on top. */
+.activity-fan { --mid: 0; position: relative; display: block; width: 38px; height: 38px; }
+.activity-fan.has-2 { --mid: .5; }
+.activity-fan.has-3 { --mid: 1; }
+.activity-fan .activity-frame {
+  position: absolute;
+  inset: 0;
+  z-index: calc(10 - var(--fan));
+  box-shadow: 0 2px 8px rgb(0 0 0 / .4);
+  transform: translateX(calc((var(--fan) - var(--mid)) * 4px)) rotate(calc((var(--fan) - var(--mid)) * 9deg));
+  animation: activity-deal 560ms var(--ease-out) calc(var(--fan) * 70ms) backwards;
+}
+@keyframes activity-deal { from { opacity: 0; transform: translateY(6px) scale(.8); } }
 
 /* One quiet capsule, the only bright thing on an island. */
 .island-action {
@@ -229,6 +324,9 @@
 @media (hover: none) { .toast-close { opacity: .8; } }
 
 @media (prefers-reduced-motion: reduce) {
+  .activity-frame.is-working::after,
+  .activity-heat rect,
+  .activity-fan .activity-frame { animation: none; }
   .toasts,
   .toast-glyph,
   .toast-body { transition: none; }

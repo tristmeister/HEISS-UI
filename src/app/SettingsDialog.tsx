@@ -1,9 +1,10 @@
 import React from 'react';
 import { ComfyManagerNote, ComfyRestart, restartResultLine, useComfyRestart, useComfyRestartEta, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
+import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, Copy, Flame, RotateCw, Workflow, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, Flame, RotateCw, Workflow, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { githubUrl } from './constants';
 import { cn } from './format';
 import { NumberPicker, Skeleton, StudioSelect } from './components';
@@ -15,6 +16,7 @@ import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstal
 import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
+import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
@@ -51,7 +53,7 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
 }
 
 /** Where HEISS UI looks for ComfyUI: test an address, then keep it. */
-function ComfyAddressRow({ current, showToast, onSaved }: { current: string; showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void; onSaved: () => void }) {
+function ComfyAddressRow({ current, showToast, onSaved }: { current: string; showToast: ShowToast; onSaved: () => void }) {
   const [value, setValue] = React.useState(current);
   const [busy, setBusy] = React.useState(false);
   const [note, setNote] = React.useState('');
@@ -65,7 +67,7 @@ function ComfyAddressRow({ current, showToast, onSaved }: { current: string; sho
       if (!response.ok) { setNote(data.error || 'That address could not be checked.'); return; }
       setValue(data.url);
       if (!data.reachable) { setNote(`${data.detail || 'ComfyUI didn’t answer there.'}${save ? ' Nothing was changed.' : ''}`); return; }
-      if (data.saved) { showToast('ComfyUI address saved', 'success'); onSaved(); }
+      if (data.saved) { setNote('Saved. ComfyUI answers there.'); onSaved(); }
       else setNote('ComfyUI answers there.');
     } catch {
       setNote('HEISS UI could not be reached to check it.');
@@ -388,9 +390,10 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
   galleryNote?: string;
   onSave: (dir: string) => Promise<OutputFolderReport | null>;
   onOpen: () => void;
-  onCopy: (dir: string) => void;
-  showToast: (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
+  onCopy: (dir: string) => Promise<boolean>;
+  showToast: ShowToast;
 }) {
+  const pathCopy = useCopyFeedback();
   const [report, setReport] = React.useState<OutputFolderReport | null>(null);
   const [canBrowse, setCanBrowse] = React.useState(false);
   const [draft, setDraft] = React.useState(savedDir);
@@ -497,7 +500,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
       <div className="set-actions">
         <button className="btn is-ghost" onClick={detect} disabled={Boolean(busy)}><ScanSearch size={14} /> {busy === 'detect' ? 'Searching…' : 'Find automatically'}</button>
         <button className="btn is-ghost" onClick={onOpen} disabled={!hasSaved}><FolderOpen size={14} /> Open</button>
-        <button className="btn is-ghost" onClick={() => onCopy(report?.path || savedDir)} disabled={!hasSaved}><Copy size={14} /> Copy path</button>
+        <button className="btn is-ghost" onClick={() => pathCopy.copyWith(() => onCopy(report?.path || savedDir))} disabled={!hasSaved}><CopyIcon copied={Boolean(pathCopy.copied)} /> {pathCopy.copied ? 'Copied' : 'Copy path'}</button>
       </div>
     </Row>
   );
@@ -531,7 +534,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const {
     prefs, setPrefs, setZenMode, zenGalleryOpen, setZenGalleryOpen,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
-    gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyAndToast, showToast,
+    gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyToClipboard, showToast,
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
     hidden,
     health, refreshHealth, models, refreshModels, refreshWorkflows, modelFolders,
@@ -606,7 +609,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   }, [open, section]);
   // The page's own port: Vite's in development, HEISS UI's otherwise.
   const lanUrl = (address: string) => `${window.location.protocol}//${address}:${window.location.port || network?.port || 8787}`;
-  const copyLanUrl = React.useCallback((address: string) => copyAndToast(lanUrl(address), 'Address copied'), [copyAndToast, network]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lanCopy = useCopyFeedback();
 
   const upscaleOn = prefs.smartUpscale !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
@@ -762,7 +765,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
                 onSave={saveOutputDirectory}
                 onOpen={openOutputFolder}
-                onCopy={(dir) => copyAndToast(dir, 'Output path copied')}
+                onCopy={(dir) => copyToClipboard(dir)}
                 showToast={showToast}
               />
               <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path">{paths.workflowsDir}</code> : <Skeleton className="skeleton-text path" />}>
@@ -821,7 +824,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               ) : null}
               {(network?.interfaces || []).map((item) => (
                 <Row key={`${item.name}-${item.address}`} label={<span className="set-model-name">{lanUrl(item.address)}</span>} description={`${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`}>
-                  <button className="btn" onClick={() => copyLanUrl(item.address)} disabled={!network?.listening}><Copy size={14} /> Copy</button>
+                  <button className="btn" onClick={() => lanCopy.copyWith(() => copyToClipboard(lanUrl(item.address)), item.address)} disabled={!network?.listening}><CopyIcon copied={lanCopy.copied === item.address} /> {lanCopy.copied === item.address ? 'Copied' : 'Copy'}</button>
                 </Row>
               ))}
               {network && !network.interfaces.length ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}

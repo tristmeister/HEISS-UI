@@ -1,19 +1,12 @@
 /* ------------------------------------------------------------ Update pill
-   A new release, offered once, in the same island as the download pills and
-   under them in the top column. Its button is the shared .island-action. */
+   A new release, offered once, as an activity (src/app/UpdateActivity.tsx).
+   The island is shared; these are its own words and its arrow. */
 
-.udw.uup.is-updated::before { background: radial-gradient(120px 60px at 34px 50%, rgb(255 240 222 / .14), transparent 70%); }
-.uup-main { cursor: default; }
-.uup-copy { display: grid; gap: 5px; min-width: 0; }
-/* The release's headline gets two lines rather than an ellipsis. */
-.udw.uup.is-available { width: min(420px, calc(100vw - 24px)); }
-.uup.is-available .udw-text small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.4; white-space: normal; }
 .uup-more { color: hsl(var(--muted-foreground) / .7); }
 .uup-link { color: hsl(var(--foreground) / .82); text-decoration: none; transition: color var(--dur-fast); }
 .uup-link:hover { color: hsl(var(--foreground)); text-decoration: underline; text-underline-offset: 2px; }
 .uup-link:focus-visible { outline: none; border-radius: 4px; box-shadow: var(--focus-ring); }
 
-.uup:not(:has(.island-close)) .island-action { margin-right: 4px; }
 
 /* The arrow's cells: dim at rest with a pulse of heat rising through it now
    and then; lit ember to white, bottom to top, once it's updated. */

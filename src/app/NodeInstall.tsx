@@ -1,27 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Check, Copy, Download, RotateCw } from 'lucide-react';
+import { Check, Download, RotateCw } from 'lucide-react';
 import { ComfyRestart, managerMajor, useComfyManager } from './ComfyRestart';
+import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { apiJson, copyText } from './api';
 import { cn } from './format';
 import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
+import type { ShowToast } from './toast';
 
-type Toast = (message: string, tone?: 'default' | 'success' | 'warning' | 'error' | 'removed') => void;
 
-export function CopyRow({ text, label, block, showToast }: { text: string; label: string; block?: boolean; showToast: Toast }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
-    if (!(await copyText(text))) {
-      showToast('Copy failed', 'error');
-      return;
-    }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
-  };
+export function CopyRow({ text, label, block, showToast }: { text: string; label: string; block?: boolean; showToast: ShowToast }) {
+  const { copied, copyWith } = useCopyFeedback();
+  const copy = () => copyWith(async () => {
+    const ok = await copyText(text);
+    if (!ok) showToast('Copy failed', 'error');
+    return ok;
+  });
   return (
     <div className={cn('upscale-url', block && 'is-block')}>
       <code>{text}</code>
       <button type="button" className={copied ? 'is-copied' : ''} onClick={copy} aria-label={label}>
-        {copied ? <Check size={13} /> : <Copy size={13} />}
+        <CopyIcon copied={Boolean(copied)} size={13} />
         <span>{copied ? 'Copied' : 'Copy'}</span>
       </button>
     </div>
@@ -29,7 +27,7 @@ export function CopyRow({ text, label, block, showToast }: { text: string; label
 }
 
 /** A command per shell (Terminal, or PowerShell and Command Prompt on Windows), with a switch between them. */
-export function ShellCommand({ plan, showToast }: { plan: ShellPlan; showToast: Toast }) {
+export function ShellCommand({ plan, showToast }: { plan: ShellPlan; showToast: ShowToast }) {
   const [index, setIndex] = useState(0);
   const shell = plan.commands[Math.min(index, plan.commands.length - 1)];
   if (!shell) return null;
@@ -55,7 +53,7 @@ export function ShellCommand({ plan, showToast }: { plan: ShellPlan; showToast: 
 function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
   pack: NodePackInfo & { id: string };
   onDone: (state: PackInstallState | null) => void;
-  showToast: Toast;
+  showToast: ShowToast;
   onRestarted: () => void;
   afterRestart: string;
 }) {
@@ -121,7 +119,7 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
   plan?: ShellPlan & { cloned?: boolean; needsGit?: boolean; exact?: boolean; customNodesDir?: string; python?: string };
   /** What the server last knew about Manager, used until ComfyUI answers directly. */
   managerHint?: boolean;
-  showToast: Toast;
+  showToast: ShowToast;
   onRestarted: () => void;
   afterRestart?: string;
 }) {

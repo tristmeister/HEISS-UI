@@ -1,5 +1,6 @@
 import React from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Copy, RotateCcw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { cn } from './format';
 import type { GalleryItem, GenerationFailure } from './types';
 
@@ -42,7 +43,8 @@ export function FailureTile({ item }: { item: GalleryItem }) {
 }
 
 /** The viewer's side of a failure: what went wrong, what to do, and the whole error one click away. */
-export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onCopy: (text: string, message?: string) => void; onReuse?: () => void }) {
+export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onCopy: (text: string) => Promise<boolean>; onReuse?: () => void }) {
+  const { copied, copyWith } = useCopyFeedback();
   const failure = failureOf(item);
   const raw = [failure.detail !== failure.summary ? failure.detail : '', failure.traceback].filter(Boolean).join('\n\n');
   const hasDetail = Boolean(raw || failure.nodeType || failure.exceptionType);
@@ -55,7 +57,7 @@ export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onC
       {failure.hint ? <p className="failure-hint">{failure.hint}</p> : null}
       <div className="failure-actions">
         {onReuse ? <button type="button" className="btn is-primary" onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
-        <button type="button" className="btn" onClick={() => onCopy(reportFor(item, failure), 'Error report copied')}><Copy size={14} /> Copy report</button>
+        <button type="button" className="btn" onClick={() => copyWith(() => onCopy(reportFor(item, failure)))}><CopyIcon copied={Boolean(copied)} /> {copied ? 'Copied' : 'Copy report'}</button>
       </div>
       {hasDetail ? (
         <div className={cn('failure-detail', open && 'is-open')}>

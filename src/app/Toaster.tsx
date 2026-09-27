@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { AnimatedNumber } from './AnimatedNumber';
 import { cn } from './format';
 import { dismissToast, runToastAction, subscribeToasts, toastSnapshot, type ToastGlyph, type ToastRecord, type ToastTone } from './toast';
+import { usePageHidden, usePausableTimeout } from '@/hooks/use-pausable-timeout';
 
 /**
  * The toast stack, top center under the pills. At rest the newest sits in
@@ -108,17 +109,6 @@ function ToastTitle({ toast }: { toast: ToastRecord }) {
 }
 
 /* -------------------------------------------------------------- Stack */
-
-function usePageHidden() {
-  return useSyncExternalStore(
-    (onChange) => {
-      document.addEventListener('visibilitychange', onChange);
-      return () => document.removeEventListener('visibilitychange', onChange);
-    },
-    () => document.hidden,
-    () => false
-  );
-}
 
 /** `offset`: how far below the top edge the stack starts, so it clears the pills. */
 export function Toaster({ offset = 0 }: { offset?: number }) {
@@ -235,17 +225,7 @@ function ToastItem({ toast, index, expanded, paused, y, height, onHeight }: {
 
   // Time on screen, paused while the stack is hovered or the tab is hidden.
   // A merge (new version) starts it over.
-  const remaining = useRef(toast.duration);
-  useEffect(() => { remaining.current = toast.duration; }, [toast.version, toast.duration]);
-  useEffect(() => {
-    if (paused || !Number.isFinite(toast.duration)) return;
-    const started = Date.now();
-    const timer = window.setTimeout(() => dismissToast(toast.id), Math.max(0, remaining.current));
-    return () => {
-      window.clearTimeout(timer);
-      remaining.current -= Date.now() - started;
-    };
-  }, [paused, toast.id, toast.version, toast.duration]);
+  usePausableTimeout(toast.duration, () => dismissToast(toast.id), paused, toast.version);
 
   // Another one of the same: a small bump of the glass.
   const seen = useRef(toast.version);

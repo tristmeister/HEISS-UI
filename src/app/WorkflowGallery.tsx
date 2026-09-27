@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ClipboardPaste, Copy, FileJson, Heart, RefreshCw, Search, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardPaste, FileJson, Heart, RefreshCw, Search, Trash2, Upload, Wand2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import type { ConfirmAction } from './useConfirmation';
 import { apiJson, copyText } from './api';
@@ -12,6 +12,8 @@ import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
 import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
 import { useThisComputer } from './device';
+import type { ShowToast } from './toast';
+import { CopyIcon, useCopyFeedback } from "./CopyFeedback";
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
 type Filter = "all" | "favorites" | "attention";
@@ -75,7 +77,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     refreshWorkflows: () => void;
     selectWorkflow: (id: string) => void;
     setWorkflowPreferences: (prefs: WorkflowPreferences) => void;
-    showToast: (message: string, tone?: "default" | "success" | "warning" | "error" | "removed") => void;
+    showToast: ShowToast;
     workflowPreferences: WorkflowPreferences;
     workflows: WorkflowSummary[];
     setWorkflows: (value: WorkflowSummary[] | ((current: WorkflowSummary[]) => WorkflowSummary[])) => void;
@@ -124,10 +126,12 @@ export function WorkflowGallery({ view }: { view: any }) {
     setChecking(true);
     try { refreshModels(false); await Promise.resolve(refreshWorkflows()); } finally { window.setTimeout(() => setChecking(false), 600); }
   };
-  const copyMissing = async (nodes: string[]) => {
+  const nodesCopy = useCopyFeedback();
+  const copyMissing = (nodes: string[]) => nodesCopy.copyWith(async () => {
     const ok = await copyText(nodes.join("\n"));
-    showToast(ok ? "Node names copied" : "Copy failed", ok ? "success" : "error");
-  };
+    if (!ok) showToast("Copy failed", "error");
+    return ok;
+  });
 
   const updateFavorites = async (id: string) => {
     const favorites = workflowPreferences.favorites.includes(id)
@@ -349,7 +353,7 @@ export function WorkflowGallery({ view }: { view: any }) {
               {selected.validation.missingNodes?.length ? (
                 <div className="wf-missing">
                   <ul>{selected.validation.missingNodes.map((node) => <li key={node}><code>{node}</code></li>)}</ul>
-                  <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><Copy size={13} /> Copy names</button>
+                  <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><CopyIcon copied={Boolean(nodesCopy.copied)} size={13} /> {nodesCopy.copied ? "Copied" : "Copy names"}</button>
                 </div>
               ) : null}
               {[...(selectedProfile?.missing?.length ? [] : selected.validation.issues.filter((issue) => !(selected.validation.missingNodes?.length && issue.startsWith("Missing node class:")) && !(settingUp && missingFileIssue.test(issue)))), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
