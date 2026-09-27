@@ -153,6 +153,7 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
       description: profile.description || "",
       kind: profile.kind,
       family: profile.family,
+      familyName: profile.familyName || "",
       // Every workflow-JSON profile is `custom:*`, bundled or not, so the id
       // prefix cannot tell them apart - use the record's actual folder.
       source: custom ? (custom.source === "bundled" ? "builtin" : "custom") : isCustom ? "custom" : "builtin",
@@ -176,7 +177,9 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
         warnings: [],
         missingNodes: [],
         missingPacks: (profile.missing || []).filter((item) => item.nodePack).map((item) => item.nodePack.name),
-        missingFiles: (profile.missing || []).filter((item) => item.part !== "comfy").map((item) => item.label)
+        missingFiles: (profile.missing || []).filter((item) => item.part !== "comfy").map((item) => item.label),
+        // ComfyUI itself is too old for this family: no download fixes that.
+        outdatedComfy: (profile.missing || []).some((item) => item.part === "comfy" && !item.nodePack)
       }
     };
     summary.tags = automaticTags(summary, preferences);

@@ -137,7 +137,9 @@ export function WorkflowGallery({ view }: { view: any }) {
   };
 
   const useWorkflow = (workflow: WorkflowSummary) => {
-    if (!workflow.validation.ok) {
+    // A built-in model that only lacks parts can be picked: its setup panel then sits in the sidebar.
+    const settingUp = models?.profiles.some((profile) => profile.id === workflow.profileId && profile.missing?.length);
+    if (!workflow.validation.ok && !settingUp) {
       showToast("This workflow needs setup before it can run", "error");
       return;
     }
@@ -302,7 +304,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                 {workflow.profileId === model ? <span className="wf-current">In use</span> : null}
                 <span className="wf-card-copy">
                   <strong>{workflow.name}</strong>
-                  <span>{workflow.family}{workflow.source === "custom" ? " · Imported" : ""}</span>
+                  <span>{workflow.familyName || workflow.family}{workflow.source === "custom" ? " · Imported" : ""}</span>
                 </span>
                 {workflow.validation.ok && !workflow.validation.unverified ? null : <StatusBadge validation={workflow.validation} />}
               </button>
@@ -333,7 +335,8 @@ export function WorkflowGallery({ view }: { view: any }) {
 
             <div className={cn("wf-health", `is-${selectedStatus.state}`)}>
               <StatusBadge validation={selected.validation} />
-              <p>{selectedStatus.detail}</p>
+              {/* With the setup panel below, its rows say it; the summary and issue lines would repeat them. */}
+              {selectedProfile?.missing?.length ? null : <p>{selectedStatus.detail}</p>}
               {selectedProfile?.missing?.length ? (
                 <ModelSetup variant="gallery" profile={selectedProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
               ) : null}
@@ -343,13 +346,13 @@ export function WorkflowGallery({ view }: { view: any }) {
                   <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><Copy size={13} /> Copy names</button>
                 </div>
               ) : null}
-              {[...(selected.validation.missingNodes?.length ? selected.validation.issues.filter((issue) => !issue.startsWith("Missing node class:")) : selected.validation.issues), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
+              {[...(selectedProfile?.missing?.length ? [] : selected.validation.missingNodes?.length ? selected.validation.issues.filter((issue) => !issue.startsWith("Missing node class:")) : selected.validation.issues), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
               {selected.validation.missingNodes?.length ? <ComfyRestart compact className="wf-restart" onBack={checkAgain} /> : null}
               {selectedStatus.state !== "ready" && !selectedProfile?.missing?.length ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
             </div>
 
             <div className="wf-detail-actions">
-              <button className="btn is-primary" onClick={() => useWorkflow(selected)} disabled={busy || !selected.validation.ok || selected.profileId === model}>
+              <button className="btn is-primary" onClick={() => useWorkflow(selected)} disabled={busy || (!selected.validation.ok && !selectedProfile?.missing?.length) || selected.profileId === model}>
                 {selected.profileId === model ? <><Check size={15} /> In use</> : "Use workflow"}
               </button>
               {selected.deleteId && thisComputer ? <button className="btn is-ghost is-danger-text" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={14} /> Delete</button> : null}
@@ -357,7 +360,7 @@ export function WorkflowGallery({ view }: { view: any }) {
 
             <dl className="wf-facts">
               <dt>Source</dt><dd>{selected.source === "builtin" ? "Built in" : "Imported"}</dd>
-              <dt>Family</dt><dd>{selected.family || "Unknown"}</dd>
+              <dt>Family</dt><dd>{selected.familyName || selected.family || "Unknown"}</dd>
               <dt>Last used</dt><dd>{timeLabel(selected.lastUsedAt) || "Never"}</dd>
               {selected.controls?.length ? <><dt>Controls</dt><dd>{selected.controls.map((key) => controlLabels[key] || key).join(", ")}</dd></> : null}
               {selected.mediaInputs?.length ? <><dt>Inputs</dt><dd>{selected.mediaInputs.map((input) => input.label || "Reference image").join(", ")}</dd></> : null}

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, CircleStop, Dices, Download, Eye, EyeOff, ImagePlus, Info, LockKeyhole, MoreHorizontal, RefreshCw, Search, Share, SlidersHorizontal, Square, Star, Trash2, Wand2, X } from 'lucide-react';
 import { cn, aspectIconStyle } from './format';
-import { familyLabel } from './components';
+import { familyLabel, setupNote } from './components';
 import { downloadUrl } from './GalleryTile';
 import { canUpscaleItem } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
@@ -600,7 +600,7 @@ function WorkflowSheet({ view, open, onClose }: { view: Record<string, any>; ope
   const row = (profile: Profile) => (
     <div key={profile.id} className="phone-row-wrap">
       <button type="button" className={cn('phone-row', profile.id === model && 'is-current')} onClick={() => { pickModel(profile.id); onClose(); }}>
-        <span>{profile.displayName || profile.label}<small>{profile.missing?.length ? 'Needs files, added on the computer' : familyLabel(profile)}</small></span>
+        <span>{profile.displayName || profile.label}<small className={cn(setupNote(profile) && 'is-setup')}>{setupNote(profile) || familyLabel(profile)}</small></span>
         {profile.id === model ? <Check size={18} className="phone-row-end" /> : null}
       </button>
       {modelMenu ? (

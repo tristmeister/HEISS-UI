@@ -15,8 +15,16 @@ import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vae
 
 const clipLoaderClass = [null, "CLIPLoader", "DualCLIPLoader", "TripleCLIPLoader", "QuadrupleCLIPLoader"];
 
+/** What a download is called in the queue and the top pill: the part, not its file name. */
+function partLabel(kind, key, file) {
+  if (kind === "encoder" && encoderKinds[key]) return `${encoderKinds[key].label} text encoder`;
+  if (kind === "vae" && vaeKinds[key]) return vaeKinds[key].label;
+  return file;
+}
+
 function downloadsFor(list = [], folder, prefix) {
-  return list.map((item, index) => ({ id: `${prefix}:${index}`, folder, label: item.file, ...item }));
+  const [kind, key] = prefix.split(":");
+  return list.map((item, index) => ({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...item }));
 }
 
 const downloadSources = {
@@ -31,7 +39,7 @@ export function catalogDownload(id = "") {
   const [source, folder] = downloadSources[kind] || [];
   const entry = source && Object.hasOwn(source, key) ? source[key][Number(index)] : null;
   if (!entry) return null;
-  return { id, folder, label: entry.file, ...entry };
+  return { id, folder, label: partLabel(kind, key, entry.file), ...entry };
 }
 
 function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
@@ -135,7 +143,7 @@ export function familyProfiles(info, helpers) {
     const family = families[info2.family];
     const fileEntry = {
       name, source, family: info2.family, via: info2.via,
-      label: familyLabel(info2.family) + (info2.variant && family?.variants.length > 1 ? ` · ${info2.variant.label}` : ""),
+      label: familyLabel(info2.family) + (info2.variant && family?.variants.length > 1 && !info2.variant.label.includes(family.label) ? ` · ${info2.variant.label}` : ""),
       choice: family ? (family.variants.length > 1 ? `${info2.family}/${info2.variant?.id}` : info2.family) : "",
       supported: false, reason: "", missing: []
     };
@@ -144,7 +152,7 @@ export function familyProfiles(info, helpers) {
     if (!family || !family.sources.includes(source)) {
       fileEntry.reason = knownFamilies[info2.family] && info2.family !== "other"
         ? `${knownFamilies[info2.family]} can’t run in HEISS UI yet.`
-        : "Model type not recognized. Pick it below.";
+        : "Model type not recognized. Choose its type.";
       continue;
     }
     if (incompatible(name)) {
@@ -215,8 +223,10 @@ export function familyProfiles(info, helpers) {
     if (packPart) {
       missing.push(packPart);
     } else if (!packPart && (nodes.length || !clipTypeAvailable(info, family))) {
-      missing.push({ part: "comfy", label: "Newer ComfyUI", detail: `This ComfyUI cannot run ${family.label} yet${nodes.length ? ` (missing ${nodes.join(", ")})` : ""}. Update ComfyUI.`, downloads: [] });
+      missing.push({ part: "comfy", label: "Newer ComfyUI", detail: `This ComfyUI can’t run ${family.label} yet${nodes.length ? ` (it lacks ${nodes.join(", ")})` : ""}. Update ComfyUI, then restart it.`, downloads: [] });
     }
+    // What ComfyUI itself lacks comes first: the files are no use until it can run them.
+    missing.sort((a, b) => Number(b.part === "comfy") - Number(a.part === "comfy"));
 
     const [width, height] = variant.size || family.size;
     const latentNode = runner ? runner.sizeNode : family.latent;
@@ -247,7 +257,7 @@ export function familyProfiles(info, helpers) {
       displayName: (runner && sanaLabel(name)) || prettyModelName(name),
       description: preset ? `NVIDIA ${preset.label}, downloaded by ComfyUI on first use`
         : diffusersRunner ? `${family.label}${variant.id === "sprint" ? " Sprint" : ""} through ComfyUI-SANA`
-        : `${family.label}${family.variants.length > 1 ? ` ${variant.label}` : ""}${source === "checkpoint" ? " checkpoint" : ""}`,
+        : `${family.variants.length > 1 && !variant.label.includes(family.label) ? `${family.label} ${variant.label}` : family.variants.length > 1 ? variant.label : family.label}${source === "checkpoint" ? " checkpoint" : ""}`,
       model: name,
       workflow: `family:${info2.family}`,
       family: info2.family,
@@ -289,6 +299,7 @@ export function familyProfiles(info, helpers) {
     });
     Object.assign(profile, {
       source,
+      familyName: family.label,
       variant: variant.id,
       variantLabel: variant.label,
       encoderSlots,

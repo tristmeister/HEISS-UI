@@ -75,6 +75,8 @@ export type Profile = {
   model: string;
   workflow: string;
   family: string;
+  /** The family's name as people know it ("Flux.1"), for built-in families. */
+  familyName?: string;
   defaults: Record<string, string | number>;
   aspectPresets: AspectPreset[];
   constraints?: Record<string, { min?: number; max?: number; step?: number; default?: number }>;
@@ -123,7 +125,7 @@ export type MissingPart = {
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
-export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number };
 export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
@@ -163,7 +165,7 @@ export type UpdateStatus = {
 /** Kept on the server, so every device shares them. */
 export type UpdatePrefs = { autoCheck: boolean; dismissed: string };
 export type AspectPreset = { label: string; value: string; w: number; h: number };
-export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[] };
+export type WorkflowValidation = { ok: boolean; unverified?: boolean; issues: string[]; warnings?: string[]; missingNodes?: string[]; missingFiles?: string[]; missingPacks?: string[]; /** ComfyUI itself is too old for this model. */ outdatedComfy?: boolean };
 export type WorkflowSummary = {
   id: string;
   profileId: string;
@@ -172,6 +174,7 @@ export type WorkflowSummary = {
   description?: string;
   kind: Mode;
   family: string;
+  familyName?: string;
   source: "builtin" | "custom";
   deleteId?: string;
   controls?: string[];

@@ -14,71 +14,76 @@ const hf = (repo, file) => `https://huggingface.co/${repo}/resolve/main/${file}`
 // abliterated builds lead wherever a ComfyUI-ready one exists.
 export const encoderDownloads = {
   clip_l: [{ file: "clip_l.safetensors", url: hf("comfyanonymous/flux_text_encoders", "clip_l.safetensors"), bytes: 246_144_152 }],
-  clip_g: [{ file: "clip_g.safetensors", url: hf("Comfy-Org/stable-diffusion-3.5-fp8", "text_encoders/clip_g.safetensors") }],
-  t5xl: [{ file: "pony-v7-pile-t5xl.fp16.safetensors", url: hf("purplesmartai/pony-v7-base", "text_encoder/model.fp16.safetensors") }],
+  clip_g: [{ file: "clip_g.safetensors", url: hf("Comfy-Org/stable-diffusion-3.5-fp8", "text_encoders/clip_g.safetensors"), bytes: 1_389_382_176 }],
+  t5xl: [{ file: "pony-v7-pile-t5xl.fp16.safetensors", url: hf("purplesmartai/pony-v7-base", "text_encoder/model.fp16.safetensors"), bytes: 2_950_448_704 }],
   t5xxl: [
-    { file: "t5xxl_fp8_e4m3fn_scaled.safetensors", url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp8_e4m3fn_scaled.safetensors") },
-    { file: "t5xxl_fp16.safetensors", url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp16.safetensors") }
+    { file: "t5xxl_fp8_e4m3fn_scaled.safetensors", url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp8_e4m3fn_scaled.safetensors"), bytes: 5_157_348_688 },
+    { file: "t5xxl_fp16.safetensors", url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp16.safetensors"), bytes: 9_787_841_024 }
   ],
-  umt5xxl: [{ file: "umt5_xxl_fp8_e4m3fn_scaled.safetensors", url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors") }],
-  byt5_glyph: [{ file: "byt5_small_glyphxl_fp16.safetensors", url: hf("Comfy-Org/HunyuanVideo_1.5_repackaged", "split_files/text_encoders/byt5_small_glyphxl_fp16.safetensors") }],
-  qwen3_06b: [{ file: "qwen_3_06b_base.safetensors", url: hf("circlestone-labs/Anima", "split_files/text_encoders/qwen_3_06b_base.safetensors") }],
+  umt5xxl: [{ file: "umt5_xxl_fp8_e4m3fn_scaled.safetensors", url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"), bytes: 6_735_906_897 }],
+  byt5_glyph: [{ file: "byt5_small_glyphxl_fp16.safetensors", url: hf("Comfy-Org/HunyuanVideo_1.5_repackaged", "split_files/text_encoders/byt5_small_glyphxl_fp16.safetensors"), bytes: 438_643_184 }],
+  qwen3_06b: [{ file: "qwen_3_06b_base.safetensors", url: hf("circlestone-labs/Anima", "split_files/text_encoders/qwen_3_06b_base.safetensors"), bytes: 1_192_135_096 }],
   // "Heretic" builds are abliterated with the Heretic tool; DreamFast and ethanfel
   // ship them converted for ComfyUI's single-file loaders.
   qwen3_4b: [
-    { file: "qwen3-4b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/qwen3-4b-heretic", "comfyui/qwen3-4b-heretic_fp8_e4m3fn.safetensors"), bytes: 4_410_000_000 },
-    { file: "qwen_3_4b.safetensors", url: hf("Comfy-Org/z_image_turbo", "split_files/text_encoders/qwen_3_4b.safetensors") }
+    { file: "qwen3-4b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/qwen3-4b-heretic", "comfyui/qwen3-4b-heretic_fp8_e4m3fn.safetensors"), bytes: 4_411_666_704 },
+    { file: "qwen_3_4b.safetensors", url: hf("Comfy-Org/z_image_turbo", "split_files/text_encoders/qwen_3_4b.safetensors"), bytes: 8_044_982_048 }
   ],
   qwen3_8b: [
-    { file: "qwen3-8b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/qwen3-8b-heretic", "comfyui/qwen3-8b-heretic_fp8_e4m3fn.safetensors"), bytes: 9_440_000_000 },
-    { file: "qwen_3_8b_fp8mixed.safetensors", url: hf("Comfy-Org/flux2-klein-9B", "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors") }
+    { file: "qwen3-8b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/qwen3-8b-heretic", "comfyui/qwen3-8b-heretic_fp8_e4m3fn.safetensors"), bytes: 9_435_845_548 },
+    { file: "qwen_3_8b_fp8mixed.safetensors", url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-9b", "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors"), bytes: 8_664_848_742 }
   ],
   qwen3vl_4b: [
-    { file: "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/Qwen3-VL-4b-Heretic-ComfyUI", "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors"), bytes: 4_830_000_000 },
-    { file: "qwen3vl_4b_fp8_scaled.safetensors", url: hf("Comfy-Org/Krea-2", "text_encoders/qwen3vl_4b_fp8_scaled.safetensors") }
+    { file: "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/Qwen3-VL-4b-Heretic-ComfyUI", "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors"), bytes: 4_831_492_476 },
+    { file: "qwen3vl_4b_fp8_scaled.safetensors", url: hf("Comfy-Org/Krea-2", "text_encoders/qwen3vl_4b_fp8_scaled.safetensors"), bytes: 5_242_467_968 }
   ],
   qwen3vl_8b: [
-    { file: "qwen3-vl-8b-heretic-1.3.0_fp8_e4m3fn.safetensors", url: hf("DreamFast/Qwen3-VL-8B-Heretic-1.3.0", "comfyui/qwen3-vl-8b-heretic-1.3.0_fp8_e4m3fn.safetensors"), bytes: 10_020_000_000 },
-    { file: "qwen3vl_8b_int8_convrot.safetensors", url: hf("Comfy-Org/Qwen-Image-2.1", "text_encoders/qwen3vl_8b_int8_convrot.safetensors") }
+    { file: "qwen3-vl-8b-heretic-1.3.0_fp8_e4m3fn.safetensors", url: hf("DreamFast/Qwen3-VL-8B-Heretic-1.3.0", "comfyui/qwen3-vl-8b-heretic-1.3.0_fp8_e4m3fn.safetensors"), bytes: 10_017_064_632 },
+    { file: "qwen3vl_8b_int8_convrot.safetensors", url: hf("Comfy-Org/Qwen-Image-2.1", "text_encoders/qwen3vl_8b_int8_convrot.safetensors"), bytes: 9_350_798_360 }
   ],
   qwen3vl_32b: [
-    { file: "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors", url: hf("ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot", "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors"), bytes: 26_360_000_000 },
-    { file: "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", url: hf("Comfy-Org/MiniMax-H3", "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors") }
+    { file: "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors", url: hf("ethanfel/Qwen3-VL-32B-Ultra-Heretic-H3-ComfyUI-INT8-ConvRot", "qwen3vl_32b_h3_ultra_uncensored_heretic_int8_convrot.safetensors"), bytes: 26_363_476_151 },
+    { file: "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", url: hf("Comfy-Org/MiniMax-H3", "text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"), bytes: 15_687_142_551 }
   ],
   qwen25vl_7b: [
-    { file: "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors", url: hf("ethanfel/Qwen2.5-VL-7B-Huihui-Abliterated-ComfyUI-ConvRot-INT8", "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors"), bytes: 10_060_000_000 },
-    { file: "qwen_2.5_vl_7b_fp8_scaled.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors") }
+    { file: "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors", url: hf("ethanfel/Qwen2.5-VL-7B-Huihui-Abliterated-ComfyUI-ConvRot-INT8", "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors"), bytes: 10_064_106_602 },
+    { file: "qwen_2.5_vl_7b_fp8_scaled.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"), bytes: 9_384_670_680 }
   ],
-  mistral3_24b: [{ file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors") }],
-  llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors") }],
-  ministral3_3b: [{ file: "ministral-3-3b.safetensors", url: hf("Comfy-Org/ERNIE-Image", "text_encoders/ministral-3-3b.safetensors") }],
-  gemma2_2b: [{ file: "gemma_2_2b_fp16.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/text_encoders/gemma_2_2b_fp16.safetensors") }],
-  hidream_clip_l: [{ file: "clip_l_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_l_hidream.safetensors") }],
-  hidream_clip_g: [{ file: "clip_g_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_g_hidream.safetensors") }]
+  mistral3_24b: [{ file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447 }],
+  llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors"), bytes: 9_081_258_056 }],
+  ministral3_3b: [{ file: "ministral-3-3b.safetensors", url: hf("Comfy-Org/ERNIE-Image", "text_encoders/ministral-3-3b.safetensors"), bytes: 7_717_637_511 }],
+  gemma2_2b: [{ file: "gemma_2_2b_fp16.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/text_encoders/gemma_2_2b_fp16.safetensors"), bytes: 5_232_958_283 }],
+  hidream_clip_l: [{ file: "clip_l_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_l_hidream.safetensors"), bytes: 247_586_528 }],
+  hidream_clip_g: [{ file: "clip_g_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_g_hidream.safetensors"), bytes: 1_389_743_104 }]
 };
 
 export const vaeDownloads = {
-  sd15: [{ file: "vae-ft-mse-840000-ema-pruned.safetensors", url: hf("stabilityai/sd-vae-ft-mse-original", "vae-ft-mse-840000-ema-pruned.safetensors") }],
-  sdxl: [{ file: "sdxl_vae.safetensors", url: hf("stabilityai/sdxl-vae", "sdxl_vae.safetensors") }],
-  flux1: [{ file: "ae.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/vae/ae.safetensors") }],
+  sd15: [{ file: "vae-ft-mse-840000-ema-pruned.safetensors", url: hf("stabilityai/sd-vae-ft-mse-original", "vae-ft-mse-840000-ema-pruned.safetensors"), bytes: 334_641_190 }],
+  sdxl: [{ file: "sdxl_vae.safetensors", url: hf("stabilityai/sdxl-vae", "sdxl_vae.safetensors"), bytes: 334_641_164 }],
+  flux1: [{ file: "ae.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/vae/ae.safetensors"), bytes: 335_304_388 }],
   // SD3.5's VAE only ships inside its checkpoints or Stability's gated repo.
   sd3: [],
-  aura: [{ file: "pony-v7-vae.fp16.safetensors", url: hf("purplesmartai/pony-v7-base", "vae/diffusion_pytorch_model.fp16.safetensors") }],
-  flux2: [{ file: "flux2-vae.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors") }],
-  wan21: [{ file: "wan_2.1_vae.safetensors", url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/vae/wan_2.1_vae.safetensors") }],
-  wan22: [{ file: "wan2.2_vae.safetensors", url: hf("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "split_files/vae/wan2.2_vae.safetensors") }],
-  qwen_image: [{ file: "qwen_image_vae.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/vae/qwen_image_vae.safetensors") }],
-  qwen_image_21: [{ file: "qwen_image_2.1_vae_bf16.safetensors", url: hf("Comfy-Org/Qwen-Image-2.1", "vae/qwen_image_2.1_vae_bf16.safetensors") }],
-  hunyuan15: [{ file: "hunyuanvideo15_vae_fp16.safetensors", url: hf("Comfy-Org/HunyuanVideo_1.5_repackaged", "split_files/vae/hunyuanvideo15_vae_fp16.safetensors") }],
-  h3_video: [{ file: "minimax_h3_video_vae_int8_convrot.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_video_vae_int8_convrot.safetensors") }],
-  h3_audio: [{ file: "minimax_h3_audio_vae_fp32.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_audio_vae_fp32.safetensors") }],
-  mage_flow: [{ file: "mage_flow_vae_bf16.safetensors", url: hf("Comfy-Org/Mage-Flow", "vae/mage_flow_vae_bf16.safetensors") }]
+  aura: [{ file: "pony-v7-vae.fp16.safetensors", url: hf("purplesmartai/pony-v7-base", "vae/diffusion_pytorch_model.fp16.safetensors"), bytes: 167_335_342 }],
+  flux2: [{ file: "flux2-vae.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/vae/flux2-vae.safetensors"), bytes: 336_213_556 }],
+  wan21: [{ file: "wan_2.1_vae.safetensors", url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/vae/wan_2.1_vae.safetensors"), bytes: 253_815_318 }],
+  wan22: [{ file: "wan2.2_vae.safetensors", url: hf("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "split_files/vae/wan2.2_vae.safetensors"), bytes: 1_409_400_960 }],
+  qwen_image: [{ file: "qwen_image_vae.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/vae/qwen_image_vae.safetensors"), bytes: 253_806_246 }],
+  qwen_image_21: [{ file: "qwen_image_2.1_vae_bf16.safetensors", url: hf("Comfy-Org/Qwen-Image-2.1", "vae/qwen_image_2.1_vae_bf16.safetensors"), bytes: 675_509_688 }],
+  hunyuan15: [{ file: "hunyuanvideo15_vae_fp16.safetensors", url: hf("Comfy-Org/HunyuanVideo_1.5_repackaged", "split_files/vae/hunyuanvideo15_vae_fp16.safetensors"), bytes: 2_521_292_758 }],
+  h3_video: [{ file: "minimax_h3_video_vae_int8_convrot.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_video_vae_int8_convrot.safetensors"), bytes: 2_811_065_184 }],
+  h3_audio: [{ file: "minimax_h3_audio_vae_fp32.safetensors", url: hf("Comfy-Org/MiniMax-H3", "vae/minimax_h3_audio_vae_fp32.safetensors"), bytes: 605_254_808 }],
+  mage_flow: [{ file: "mage_flow_vae_bf16.safetensors", url: hf("Comfy-Org/Mage-Flow", "vae/mage_flow_vae_bf16.safetensors"), bytes: 345_053_056 }]
 };
 
 // Second model files a family runs next to the one you pick (see `pair`).
+const wan22 = (file, bytes) => [{ file, url: hf("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", `split_files/diffusion_models/${file}`), bytes }];
 export const modelDownloads = {
-  ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors") }],
-  ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors") }]
+  wan22_t2v_low_fp8: wan22("wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors", 14_293_923_632),
+  wan22_t2v_low_fp16: wan22("wan2.2_t2v_low_noise_14B_fp16.safetensors", 28_577_095_592),
+  wan22_i2v_low_fp8: wan22("wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors", 14_294_742_832),
+  wan22_i2v_low_fp16: wan22("wan2.2_i2v_low_noise_14B_fp16.safetensors", 28_577_914_792),
+  ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors"), bytes: 9_280_741_293 }],
+  ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors"), bytes: 9_583_465_712 }]
 };
 
 /* ------------------------------------------------------------ Families */
@@ -310,7 +315,9 @@ export const families = {
       owns: /wan/i, isPartner: (base) => /low[-_ ]?noise/i.test(base),
       partnerOf: (name) => name.replace(/high([-_ ]?)noise/i, (_match, sep) => `low${sep}noise`),
       label: "Low-noise model", runsAs: "Runs as the second half of its high-noise model.",
-      detail: (base) => `Wan 2.2 14B also needs the matching low-noise file next to ${base} in diffusion_models.`
+      detail: (base) => `Wan 2.2 14B also needs the matching low-noise file next to ${base} in diffusion_models.`,
+      // Comfy-Org's low-noise half of the same task and precision.
+      download: (name) => `wan22_${/i2v/i.test(name) ? "i2v" : "t2v"}_low_${/fp16|bf16/i.test(name) ? "fp16" : "fp8"}`
     },
     slots: [{ slot: "encoder", label: "UMT5-XXL", kinds: ["umt5xxl"] }], clipType: "wan",
     vae: ["wan21"], latent: "EmptyHunyuanLatentVideo", sizeStep: 16, frameStep: 4, negative: "text", sampling: "pair", aspects: wide,

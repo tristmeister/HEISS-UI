@@ -337,6 +337,7 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.phone-row small.is-setup { color: var(--ember); }
 .phone-row .phone-row-end { margin-left: auto; }
 .phone-row.is-current { color: #fff; }
 .phone-row.is-current .phone-row-end { color: #fff; }

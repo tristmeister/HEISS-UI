@@ -18,7 +18,7 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting
+    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -96,7 +96,9 @@ export function useGenerationActions(view: any) {
       return;
     }
     if (generateDisabled) {
-      showToast(generateDisabledReason ? `${generateDisabledReason}. Open Set up in the workflow menu.` : "This model needs files first. Open Set up in the workflow menu.", "error");
+      // Straight to the setup panel for this model, instead of a hint to go find it.
+      showToast(`${currentProfile.displayName || currentProfile.label} isn’t ready yet. ${generateDisabledReason || "It needs files first"}.`, "error");
+      openModelSetup?.();
       return;
     }
     // Asked before anything is sent, so a Hidden prompt never runs in the open.

@@ -213,6 +213,24 @@ test("missing parts are named, with downloads, and keep the model from running",
     objectInfo({ unets: ["flux1-dev-fp8.safetensors"] })), /still needs: CLIP-L text encoder/);
 });
 
+test("setup lists what ComfyUI lacks first, names downloads by part, and knows every size", async () => {
+  const { encoderDownloads, vaeDownloads, modelDownloads } = await import("./family-catalog.js");
+  const models = inferModels(objectInfo({ unets: ["ideogram4_fp8_scaled.safetensors"], clips: [], vaeFiles: [] }));
+  const ideogram = models.profiles.find((profile) => profile.family === "ideogram4");
+  assert.equal(ideogram.missing[0].label, "Newer ComfyUI", "no point downloading for a ComfyUI that cannot run it");
+  const flux = inferModels(objectInfo({ unets: ["flux1-dev-fp8.safetensors"] })).profiles.find((profile) => profile.family === "flux1");
+  assert.deepEqual(flux.missing.map((item) => item.downloads[0].label), ["CLIP-L text encoder", "T5-XXL text encoder", "Flux VAE (ae)"]);
+  for (const list of [encoderDownloads, vaeDownloads, modelDownloads].flatMap((source) => Object.values(source))) {
+    for (const item of list) assert.ok(item.bytes > 0, `${item.file} has a size, so "Get all" adds up`);
+  }
+});
+
+test("a lone Wan 2.2 high-noise file is offered its matching low-noise half", () => {
+  const wan = inferModels(objectInfo({ unets: ["wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"] })).profiles.find((profile) => profile.family === "wan22_14b");
+  const partner = wan.missing.find((item) => item.part === "model");
+  assert.equal(partner.downloads[0].file, "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors");
+});
+
 test("an old ComfyUI is told to update instead of failing mid-run", () => {
   const models = inferModels(objectInfo({ unets: ["myRealismMix_v2.safetensors"], clips: ["qwen3VL4BAbliteratedComfyui_v10.safetensors"], vaeFiles: ["qwen_image_vae.safetensors"], clipTypes: ["wan"] }));
   const krea = models.profiles.find((profile) => profile.family === "krea2");

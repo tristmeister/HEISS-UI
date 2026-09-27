@@ -16,13 +16,14 @@ export function canUpscaleItem(item: GalleryItem) {
   return item.status === "done" && item.type === "image" && !item.vaultLocked && Boolean(item.url);
 }
 
+/** Decimal units, like the Finder and every model setup panel, so one file never shows two sizes. */
 export function formatBytes(bytes = 0) {
   if (!bytes) return "unknown size";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
   let unit = 0;
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024;
+  while (value >= 1000 && unit < units.length - 1) {
+    value /= 1000;
     unit += 1;
   }
   return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;

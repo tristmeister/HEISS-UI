@@ -262,6 +262,15 @@ input::placeholder, textarea::placeholder { color: hsl(var(--muted-foreground) /
   color: hsl(var(--muted-foreground));
   font-size: 12px; font-style: normal;
 }
+/* A model that still needs files or nodes: said in the menu, flagged on the trigger. */
+.model-copy em.is-setup { color: var(--ember); }
+.model-trigger.needs-setup { position: relative; }
+.model-setup-flag {
+  position: absolute; top: 6px; right: 6px;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ember);
+  box-shadow: 0 0 0 2px hsl(var(--input));
+}
 
 .model-picker.is-compact { width: auto; }
 .model-picker.is-compact .model-trigger {

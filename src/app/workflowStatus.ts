@@ -10,11 +10,14 @@ export function workflowState(validation?: WorkflowValidation, comfyRestarting =
   const missing = validation?.missingNodes?.length || 0;
   const files = validation?.missingFiles?.length || 0;
   const packs = validation?.missingPacks || [];
+  if (validation && !validation.ok && validation.outdatedComfy) {
+    return { state: 'missing-nodes', label: 'Needs newer ComfyUI', detail: 'This ComfyUI is too old for this model. Update it, then check again.' };
+  }
   if (validation && !validation.ok && packs.length) {
     return { state: 'missing-nodes', label: 'Needs ComfyUI nodes', detail: `Needs ${packs.join(' and ')}, which ComfyUI doesn’t include.` };
   }
   if (validation && !validation.ok && files) {
-    return { state: 'needs-setup', label: `Needs ${files} file${files === 1 ? '' : 's'}`, detail: 'A file this model needs isn’t installed yet.' };
+    return { state: 'needs-setup', label: `Needs ${files} file${files === 1 ? '' : 's'}`, detail: files === 1 ? 'A file this model needs isn’t installed yet.' : `${files} files this model needs aren’t installed yet.` };
   }
   if (validation && !validation.ok && missing) {
     return { state: 'missing-nodes', label: `Missing ${missing} node${missing === 1 ? '' : 's'}`, detail: 'Install the missing custom nodes in ComfyUI, then check again.' };

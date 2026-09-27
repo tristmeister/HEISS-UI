@@ -370,11 +370,21 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
 
 export function familyLabel(profile: Profile | null) {
   if (!profile) return "";
+  if (profile.familyName) return profile.familyName;
   if (profile.family === "z-image") return "Z image";
   if (profile.family === "checkpoint") return "Checkpoint";
   if (profile.family === "wan") return "Wan video";
   if (profile.family === "custom") return "Workflow";
   return profile.family;
+}
+
+/** What an unready model still lacks, in the words the gallery badges use; "" when it can run. */
+export function setupNote(profile: Profile | null) {
+  const missing = profile?.missing || [];
+  if (!missing.length) return "";
+  if (missing.some((item) => item.part === "comfy" && !item.nodePack)) return "Needs a newer ComfyUI";
+  if (missing.some((item) => item.nodePack)) return "Needs ComfyUI nodes";
+  return `Needs ${missing.length} file${missing.length === 1 ? "" : "s"}`;
 }
 
 /** Favorites and recents for the model menu, and how to change them. */
@@ -481,7 +491,8 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
   let rowIndex = -1;
   return (
     <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={selected ? `${selected.displayName || selected.label} - choose workflow` : "Choose model"}><button ref={triggerRef} type="button" data-open-trigger className="model-trigger" aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+      <Tip content={selected ? `${selected.displayName || selected.label}${setupNote(selected) ? ` · ${setupNote(selected)}` : ""} - choose workflow` : "Choose model"}><button ref={triggerRef} type="button" data-open-trigger className={cn("model-trigger", setupNote(selected) && "needs-setup")} aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+          {setupNote(selected) ? <span className="model-setup-flag" aria-label={setupNote(selected)} /> : null}
           {compact ? (
             <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No model"}</strong></span>
           ) : (
@@ -530,7 +541,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                           >
                             <span className="model-copy">
                               <strong>{profile.displayName || profile.label}</strong>
-                              <em>{profile.description || familyLabel(profile)}</em>
+                              {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}</em>}
                             </span>
                             {badge ? <span className="model-badge">{badge}</span> : null}
                           </button></Tip>

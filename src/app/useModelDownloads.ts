@@ -80,9 +80,13 @@ export const downloadActions = {
 export function downloadFor(state: DownloadState | null, file: string): ModelDownload | undefined {
   if (!state) return undefined;
   if (state.active?.file === file) return state.active;
-  return state.queued.find((item) => item.file === file)
-    || state.paused?.find((item) => item.file === file)
-    || state.recent.find((item) => item.file === file && item.status === 'error');
+  const queued = state.queued.find((item) => item.file === file);
+  if (queued) return queued;
+  // A failure leaves a partial file too; it reads as the failure, not as a pause nobody asked for.
+  const paused = state.paused?.find((item) => item.file === file);
+  const last = state.recent.find((item) => item.file === file);
+  if (last?.status === 'error') return { ...paused, ...last, receivedBytes: paused?.receivedBytes || last.receivedBytes };
+  return paused;
 }
 
 export function useModelDownloads(events?: { onDone?: (item: ModelDownload) => void; onError?: (item: ModelDownload) => void }) {

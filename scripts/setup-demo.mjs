@@ -14,7 +14,8 @@
  *     restart to notice a new file; the other folders are read live.
  *   - Hugging Face: downloads tick up at DEMO_MBPS (400) into sparse files,
  *     so gigabytes cost no disk. Scripted trouble, per file:
- *       umt5_xxl…              drops the connection at 40% once (retry resumes)
+ *       umt5_xxl…              drops the connection at 40% until the automatic
+ *                              retries give up (about 20 s); Retry then finishes it
  *       ideogram4_unconditional… gated (HTTP 401), retrying cannot help
  *       qwen3-vl-8b-heretic…   the disk is too full for it
  *   - Node packs: "installs" in a few seconds; ComfyUI loads them on restart.
@@ -181,11 +182,7 @@ await new Promise((resolve) => comfy.listen(comfyPort, "127.0.0.1", resolve));
 
 /* ------------------------------------------------------------ Hugging Face */
 
-const sizes = [
-  [/^t5xxl_fp8/, 4.89e9], [/^t5xxl_fp16/, 9.79e9], [/^clip_g/, 1.39e9], [/^ae\./, 335e6], [/^umt5/, 6.74e9],
-  [/^wan_2\.1_vae/, 254e6], [/^flux2-vae/, 336e6], [/^sdxl_vae/, 335e6], [/^ideogram4_unconditional/, 11.9e9]
-];
-const failedOnce = new Set();
+const drops = new Map();
 const sleep = (ms, signal) => new Promise((resolve, reject) => {
   const timer = setTimeout(resolve, ms);
   signal.addEventListener("abort", () => { clearTimeout(timer); reject(Object.assign(new Error("aborted"), { name: "AbortError" })); }, { once: true });
@@ -197,11 +194,11 @@ setDownloadTransport(async (entry, signal, { targetFor, finishDownload, finalErr
   fs.mkdirSync(dir, { recursive: true });
   await sleep(500, signal); // connecting
   if (/^ideogram4_unconditional/.test(entry.file)) {
-    throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP 401). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`);
+    throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP 401). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
   }
-  const total = sizes.find(([pattern]) => pattern.test(entry.file))?.[1] || entry.totalBytes || 1.2e9;
+  const total = entry.totalBytes || 1.2e9; // the catalog's exact size
   if (/^qwen3-vl-8b-heretic/.test(entry.file)) {
-    throw finalError(`Not enough space: ${entry.file} needs ${(total / 1024 ** 3).toFixed(0)} GB, and the disk has 6.1 GB free.`);
+    throw finalError(`Not enough space: ${entry.file} needs ${(total / 1e9).toFixed(0)} GB, and the disk has 6.1 GB free.`);
   }
   let received = fileSize(partial);
   entry.totalBytes = total;
@@ -216,8 +213,8 @@ setDownloadTransport(async (entry, signal, { targetFor, finishDownload, finalErr
     fs.truncateSync(partial, received); // sparse: no real bytes written
     entry.receivedBytes = received;
     entry.bytesPerSecond = bytesPerSecond * jitter;
-    if (/^umt5/.test(entry.file) && !failedOnce.has(entry.file) && received > total * 0.4) {
-      failedOnce.add(entry.file);
+    if (/^umt5/.test(entry.file) && (drops.get(entry.file) || 0) < 4 && received > total * 0.4) {
+      drops.set(entry.file, (drops.get(entry.file) || 0) + 1);
       throw new TypeError("terminated"); // what undici says when the connection drops
     }
   }

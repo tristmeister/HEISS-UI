@@ -404,7 +404,7 @@ export function startModelInstall(quality, info) {
   // Leave room to breathe: a disk filled to the last byte takes ComfyUI down with it.
   const headroom = 512 * 1024 * 1024;
   if (plan.freeBytes !== null && plan.freeBytes < plan.remainingBytes + headroom) {
-    const gb = (bytes) => `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+    const gb = (bytes) => `${(bytes / 1e9).toFixed(1)} GB`;
     throw new Error(`Not enough disk space: the models need ${gb(plan.remainingBytes)} but only ${gb(plan.freeBytes)} is free on that drive.`);
   }
   fs.mkdirSync(dir, { recursive: true });

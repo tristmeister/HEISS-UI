@@ -118,6 +118,7 @@ function App() {
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [workflowPreferences, setWorkflowPreferences] = useState<WorkflowPreferences>({ favorites: [], lastUsed: {}, thumbnails: {} });
   const [workflowGalleryOpen, setWorkflowGalleryOpen] = useState(false);
+  const modelsRefreshRef = useRef<Promise<unknown> | null>(null);
   const [active, setActive] = useState<GalleryItem | null>(null);
   const [viewerZoom, setViewerZoom] = useState(1);
   const [viewerPan, setViewerPan] = useState({ x: 0, y: 0 });
@@ -657,7 +658,7 @@ function App() {
   }
 
   function refreshModels(notify = true) {
-    apiJson<Models>("/api/models")
+    const request = apiJson<Models>("/api/models")
       .then((data: Models) => {
         setModels(data);
         const profileId = model || "";
@@ -671,10 +672,16 @@ function App() {
         setStatus(error.message);
         if (notify) showToast("Model refresh failed", "error");
       });
+    modelsRefreshRef.current = request;
+    return request;
   }
 
   function refreshWorkflows() {
-    apiJson<{ workflows: WorkflowSummary[]; preferences: WorkflowPreferences }>("/api/workflows")
+    // /api/models asks ComfyUI afresh; /api/workflows reuses that answer, so it waits for a
+    // refresh in flight rather than racing it and showing a model as still missing files.
+    const pending = modelsRefreshRef.current || Promise.resolve();
+    pending.catch(() => null)
+      .then(() => apiJson<{ workflows: WorkflowSummary[]; preferences: WorkflowPreferences }>("/api/workflows"))
       .then((data) => {
         setWorkflows(data.workflows || []);
         if (data.preferences) setWorkflowPreferences(data.preferences);
@@ -1210,7 +1217,8 @@ function App() {
 
 
   const generationActions = useGenerationActions({
-    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting)
+    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
+    openModelSetup: () => setWorkflowGalleryOpen(true)
   });
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems } = generationActions;
 

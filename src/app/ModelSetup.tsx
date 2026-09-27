@@ -76,19 +76,25 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     return { item, download, current, rowState };
   });
 
-  const startable = remote ? [] : rows.filter((row) => row.download && (row.rowState === 'idle' || row.rowState === 'paused' || row.rowState === 'error'));
+  // Failures that trying again cannot fix (a gated file, a full disk) stay out of "Get all".
+  const startable = remote ? [] : rows.filter((row) => row.download && (row.rowState === 'idle' || row.rowState === 'paused' || (row.rowState === 'error' && row.current?.retryable !== false)));
   const remainingBytes = startable.reduce((sum, row) => sum + Math.max(0, (row.current?.totalBytes || row.download?.bytes || 0) - (row.current?.receivedBytes || 0)), 0);
+  const sizeUnknown = startable.some((row) => !(row.current?.totalBytes || row.download?.bytes));
   const moving = rows.some((row) => row.rowState === 'downloading' || row.rowState === 'queued');
   const stuck = rows.some((row) => row.rowState === 'landed');
   const fetchable = rows.filter((row) => row.download).length;
 
   // A missing node pack comes first: nothing else can be checked until ComfyUI has it.
   const pack = missing.find((item) => item.nodePack)?.nodePack;
+  // An older ComfyUI cannot run this family at all, whatever gets downloaded.
+  const outdated = missing.some((item) => item.part === 'comfy' && !item.nodePack);
   const manual = rows.some((row) => row.rowState === 'manual');
   const title = moving ? 'Downloading'
+    : outdated ? 'Update ComfyUI first'
     : pack ? `Add ${pack.name} to ComfyUI`
     : fetchable === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet';
-  const subtitle = pack ? `${profile.displayName} runs on custom nodes that ComfyUI does not ship. They install once.`
+  const subtitle = outdated ? `This ComfyUI is too old for ${profile.displayName}. Update it before downloading the rest.`
+    : pack ? `${profile.displayName} runs on custom nodes that ComfyUI does not ship. They install once.`
     : profile.encoderBuiltIn === false && profile.source === 'checkpoint'
     ? 'This checkpoint ships without everything it needs.'
     : `${profile.displayName} runs once ${missing.length === 1 ? 'this is' : 'these are'} in place.`;
@@ -100,9 +106,9 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
           <strong>{title}</strong>
           <span>{subtitle}</span>
         </div>
-        {startable.length > 1 ? (
+        {startable.length > 1 && !outdated ? (
           <button type="button" className="btn is-primary" onClick={() => run(async () => { for (const row of startable) await start(row.download!.id); })}>
-            <Download size={14} /> Get all{remainingBytes ? ` · ${formatBytes(remainingBytes)}` : ''}
+            <Download size={14} /> Get all{remainingBytes ? ` · ${formatBytes(remainingBytes)}${sizeUnknown ? '+' : ''}` : ''}
           </button>
         ) : null}
       </header>
@@ -135,8 +141,9 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
                 </motion.div>
               ) : null}
             </AnimatePresence>
-            {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'}{current?.retryable === false ? null : ' Trying again picks up where it left off.'}</p> : null}
-            {rowState === 'idle' || rowState === 'manual' ? <p className="model-setup-detail">{item.detail}</p> : null}
+            {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'}</p> : null}
+            {/* A row with its own download says enough; the where-to-put-it line is for the rest. */}
+            {rowState === 'manual' || (rowState === 'idle' && remote) ? <p className="model-setup-detail">{item.detail}</p> : null}
             {item.nodePack ? (
               <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={`${profile.displayName} is ready after that.`} />
             ) : item.command ? (
@@ -163,6 +170,7 @@ function progressLine(current: ModelDownload, rowState: RowState) {
   const pct = current.totalBytes ? Math.floor((current.receivedBytes / current.totalBytes) * 100) : 0;
   if (rowState === 'queued') return current.receivedBytes ? `Waiting · resumes at ${pct}%` : 'Waiting for the file before it';
   if (rowState === 'paused') return `Paused at ${pct}% · ${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`;
+  if (current.reconnecting) return `Connection dropped at ${pct}% · reconnecting (try ${current.reconnecting} of 3)…`;
   const speed = current.bytesPerSecond || 0;
   const eta = speed > 0 && current.totalBytes ? formatEta((current.totalBytes - current.receivedBytes) / speed) : '';
   return [`${pct}%`, `${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`, speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', eta].filter(Boolean).join(' · ');
@@ -209,8 +217,12 @@ function RowActions({ rowState, download, current, remote, run, start, pause, di
       </>
     );
   }
+  if (rowState === 'error' && current?.needsBrowser) {
+    // Gated: only a logged-in browser can fetch it, so the way on is its page.
+    return <a className="btn" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Hugging Face</a>;
+  }
   if (rowState === 'error') {
-    return <button type="button" className="btn" onClick={() => run(() => start(download.id))}><RotateCw size={13} /> Retry</button>;
+    return <button type="button" className="btn" onClick={() => run(() => start(download.id))}><RotateCw size={13} /> {current?.retryable === false ? 'Try again' : 'Resume'}</button>;
   }
   if (rowState === 'landed') return <span className="model-setup-meta">In place</span>;
   return (

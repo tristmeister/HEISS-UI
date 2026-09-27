@@ -89,7 +89,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
   if (state?.status === 'done') {
     return (
       <div className="node-quick is-done" role="status">
-        <p><Check size={13} strokeWidth={3} /> {pack.name} is installed. <strong>Restart ComfyUI</strong> to load it{afterRestart ? <>; {afterRestart.charAt(0).toLowerCase() + afterRestart.slice(1)}</> : '.'}</p>
+        <p><Check size={13} strokeWidth={3} /><span>{pack.name} is installed. <strong>Restart ComfyUI</strong> to load it.{afterRestart ? ` ${afterRestart}` : ''}</span></p>
         <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
       </div>
     );
@@ -141,11 +141,12 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
   const canQuick = Boolean(pack.id && autoInstall && (autoInstall.local || (autoInstall.manager && hasManager)));
   const [manual, setManual] = useState(false);
   const [quickError, setQuickError] = useState('');
+  const [installed, setInstalled] = useState(false);
   if (canQuick && !manual && !quickError) {
     return (
       <div className="node-install">
-        <QuickInstall pack={pack as NodePackInfo & { id: string }} showToast={showToast} onRestarted={onRestarted} afterRestart={afterRestart} onDone={(state) => { if (state?.status === 'error') setQuickError(state.error || 'The install stopped.'); }} />
-        <button type="button" className="comfy-restart-link node-install-manual" onClick={() => setManual(true)}>Install it yourself instead</button>
+        <QuickInstall pack={pack as NodePackInfo & { id: string }} showToast={showToast} onRestarted={onRestarted} afterRestart={afterRestart} onDone={(state) => { if (state?.status === 'error') setQuickError(state.error || 'The install stopped.'); if (state?.status === 'done') setInstalled(true); }} />
+        {installed ? null : <button type="button" className="comfy-restart-link node-install-manual" onClick={() => setManual(true)}>Install it yourself instead</button>}
       </div>
     );
   }

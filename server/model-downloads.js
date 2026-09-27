@@ -105,15 +105,37 @@ function existingCopy(spec) {
   return "";
 }
 
-/** An error that trying again will not fix (full disk, gated file). */
-function finalError(message) {
+/**
+ * An error that trying again will not fix (full disk, gated file). `browser`:
+ * the file needs a Hugging Face login, so the way on is its page, not a retry.
+ */
+function finalError(message, { browser = false } = {}) {
   const error = new Error(message);
   error.final = true;
+  error.browser = browser;
   return error;
 }
 
+/** A dropped or refused connection, as undici reports it, rather than an answer from the server. */
+export function isNetworkError(error) {
+  const code = error?.code || error?.cause?.code || "";
+  return error instanceof TypeError || /^(ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ENOTFOUND|EAI_AGAIN|UND_ERR_\w+)$/.test(code)
+    || /terminated|fetch failed|socket|other side closed/i.test(error?.message || "");
+}
+
+// Decimal, like the setup panel and the file browser on a Mac.
 function gigabytes(bytes) {
-  return `${(bytes / 1024 ** 3).toFixed(bytes < 10 * 1024 ** 3 ? 1 : 0)} GB`;
+  return `${(bytes / 1e9).toFixed(bytes < 10e9 ? 1 : 0)} GB`;
+}
+
+// A connection that drops mid-file is tried again by itself, waiting a little longer each time.
+const retryDelaysMs = [2000, 5000, 12000];
+
+function wait(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => { clearTimeout(timer); reject(signal.reason); }, { once: true });
+  });
 }
 
 function fileSize(file) {
@@ -172,16 +194,34 @@ async function pump() {
   active.controller = new AbortController();
   active.status = "downloading";
   active.startedAt = Date.now();
+  const signal = active.controller.signal;
+  const attempt = () => (transport ? transport(active, signal, { targetFor, finishDownload, finalError, fileSize }) : fetchInto(active, signal));
   try {
-    await (transport ? transport(active, active.controller.signal, { targetFor, finishDownload, finalError, fileSize }) : fetchInto(active, active.controller.signal));
+    for (let retry = 0; ; retry += 1) {
+      try {
+        await attempt();
+        break;
+      } catch (error) {
+        if (signal.aborted || !isNetworkError(error) || retry >= retryDelaysMs.length) throw error;
+        active.bytesPerSecond = 0;
+        active.reconnecting = retry + 1;
+        await wait(retryDelaysMs[retry], signal);
+      }
+    }
     active.status = "done";
   } catch (error) {
-    const canceled = active.controller.signal.aborted;
+    const canceled = signal.aborted;
     active.status = canceled ? "paused" : "error";
-    active.error = canceled ? "" : error?.code === "ENOSPC" ? "The disk filled up. Free some space, then try again; it resumes where it stopped." : error.message || "Download failed.";
+    const percent = active.totalBytes ? Math.floor((active.receivedBytes / active.totalBytes) * 100) : 0;
+    active.error = canceled ? ""
+      : error?.code === "ENOSPC" ? "The disk filled up. Free some space, then try again; it resumes where it stopped."
+      : isNetworkError(error) ? `The connection to Hugging Face kept dropping${percent ? ` at ${percent}%` : ""}. Check the internet connection, then try again; it resumes where it stopped.`
+      : error.message || "Download failed.";
     // Retrying only helps when the network was the problem.
     active.retryable = canceled || !error?.final;
+    active.needsBrowser = Boolean(error?.browser);
   }
+  delete active.reconnecting;
   active.finishedAt = Date.now();
   const finished = active;
   active = null;
@@ -216,7 +256,7 @@ async function fetchInto(entry, signal) {
   if (!response.ok || !response.body) {
     await response.body?.cancel().catch(() => {});
     if (response.status === 401 || response.status === 403) {
-      throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`);
+      throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
     }
     if (response.status === 404) throw finalError(`${entry.file} is no longer at its download address (HTTP 404).`);
     throw new Error(`Hugging Face answered ${response.status} for ${entry.file}.`);

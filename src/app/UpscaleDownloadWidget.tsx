@@ -151,7 +151,7 @@ export function UpscaleDownloadWidget({ widget, setup, install }: {
     : mode === 'ready' ? 'Smart upscale is ready'
     : 'Download stopped';
   const meta = mode === 'downloading'
-    ? [`${formatBytes(received)} of ${formatBytes(total)}`, speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', formatEta(eta)].filter(Boolean).join(' · ')
+    ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', formatEta(eta)].filter(Boolean).join(' · ')
     : mode === 'verifying' ? 'Matching checksums, then ComfyUI'
     : mode === 'ready' ? (widget.upscaling ? 'Upscaling your image now' : 'Every finished image has an upscale arrow')
     : 'Click to resume where it left off';
