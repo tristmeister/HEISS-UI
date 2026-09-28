@@ -298,21 +298,32 @@ export function useGenerationActions(view: any) {
     const where = outputDir ? ` in ${outputDir}` : " in ComfyUI’s output folder";
     if (!await confirmAction({
       title: "Delete every finished image?",
-      description: `The files${where} are deleted from disk, not only from the gallery. This can’t be undone. Hidden isn’t affected.`,
+      description: `Their files${where} move to HEISS UI’s trash there, where they stay for 30 days in case you want them back. Hidden isn’t affected.`,
       action: "Delete all",
-      destructive: true,
-      irreversible: true
+      destructive: true
     })) return;
-    const data = await apiJson<GalleryPayload & { files?: { deleted: number; skipped: number } }>("/api/gallery/clear", { method: "POST" }).catch(() => null);
+    const data = await apiJson<GalleryPayload & { files?: { deleted: number; skipped: number }; trash?: { batch: string; moved: number; days: number } }>("/api/gallery/clear", { method: "POST" }).catch(() => null);
     if (!data) {
       showToast("Couldn’t clear the gallery. Nothing was deleted.", "error");
       return;
     }
     const items = payloadItems(data);
     setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
-    const deleted = data.files?.deleted || 0;
-    showToast(deleted ? `Deleted ${deleted} file${deleted === 1 ? "" : "s"}` : "Gallery cleared", "removed");
+    const moved = data.trash?.moved ?? data.files?.deleted ?? 0;
+    const batch = data.trash?.batch || "";
+    showToast(moved ? `Moved ${moved} file${moved === 1 ? "" : "s"} to the trash` : "Gallery cleared", "removed", batch ? { action: { label: "Undo", onClick: () => restoreCleared(batch) } } : undefined);
     setStatus("Ready");
+  }
+
+  /** Undo for "Delete all": the batch comes back out of the trash, into the gallery. */
+  async function restoreCleared(batch: string) {
+    const data = await apiJson<GalleryPayload & { restored: number; missing: number }>("/api/gallery/trash/restore", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ batch }) }).catch(() => null);
+    if (!data) {
+      showToast("Couldn’t bring them back. They’re still in the trash; try again from Settings › Library.", "error");
+      return;
+    }
+    setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
+    showToast(data.missing ? `${data.restored} back in the gallery. ${data.missing} file${data.missing === 1 ? "" : "s"} stayed in the trash because something new has the same name.` : `${data.restored} back in the gallery`, data.missing ? "warning" : "success");
   }
 
   async function clearFailedItems() {

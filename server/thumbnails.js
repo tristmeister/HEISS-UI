@@ -133,6 +133,54 @@ export async function getThumbnail(filename, subfolder, type) {
   return promise;
 }
 
+/** The filename, subfolder and type a /comfy/view or /comfy/thumb URL names, or null. */
+export function viewParams(url = "") {
+  const text = String(url || "");
+  if (!/^\/comfy\/(view|thumb)\?/.test(text)) return null;
+  const params = new URLSearchParams(text.slice(text.indexOf("?") + 1));
+  const filename = params.get("filename") || "";
+  return filename ? { filename, subfolder: params.get("subfolder") || "", type: params.get("type") || "output" } : null;
+}
+
+/**
+ * Deletes every cached thumbnail of one output. Hiding an image must leave
+ * nothing of it in the open, and a thumbnail is a small copy of it.
+ * Returns how many files went.
+ */
+export function forgetThumbnail(filename, subfolder = "", type = "output") {
+  if (!filename) return 0;
+  const key = cacheKey(filename, subfolder, type);
+  let removed = 0;
+  let names = [];
+  try { names = fs.readdirSync(thumbnailDir); } catch { return 0; }
+  for (const name of names) {
+    if (!name.startsWith(`${key}-`)) continue;
+    try {
+      fs.rmSync(path.join(thumbnailDir, name), { force: true });
+      removed += 1;
+    } catch {
+      // Held open for a moment (Windows); the caller can try again.
+    }
+  }
+  return removed;
+}
+
+/**
+ * Forgets the thumbnails of a gallery item: its original, its thumbnail URL
+ * and its upscale. A thumbnail still being made for it is waited for first,
+ * so it cannot land on disk just after.
+ */
+export async function forgetItemThumbnails(item) {
+  let removed = 0;
+  for (const url of [item?.url, item?.thumbnailUrl, item?.upscale?.url, item?.upscale?.thumbnailUrl]) {
+    const params = viewParams(url);
+    if (!params) continue;
+    await pending.get(`${params.type}:${params.subfolder}:${params.filename}`)?.catch(() => null);
+    removed += forgetThumbnail(params.filename, params.subfolder, params.type);
+  }
+  return removed;
+}
+
 // Vault assets are decrypted per request and must never leave a plaintext
 // derivative on disk, so this resizes in memory only — nothing is cached.
 export async function resizeInMemory(buffer, mime) {

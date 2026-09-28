@@ -17,6 +17,7 @@ import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { OtherDevicesGroup } from './OtherDevices';
+import { TrashRow } from './TrashRow';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
@@ -662,7 +663,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Reset" tone="danger">
               {thisComputer ? (
                 <>
-                  <Row label="Delete all finished images" description="Deletes their files from ComfyUI’s output folder, not only from the gallery. Hidden isn’t affected.">
+                  <Row label="Delete all finished images" description="Moves their files to a trash in ComfyUI’s output folder for 30 days, then deletes them. Hidden isn’t affected.">
                     <button className="btn is-danger-soft" onClick={clearGallery}>Delete all</button>
                   </Row>
                   <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
@@ -771,6 +772,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
+              {thisComputer ? <TrashRow confirmAction={confirmAction} showToast={showToast} Row={Row} /> : null}
             </Group>
           </>
         ) : null}

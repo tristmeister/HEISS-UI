@@ -24,6 +24,7 @@ import { cancelDownload, discardDownload, downloadState, startDownload } from '.
 import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
+import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
@@ -45,7 +46,7 @@ import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
-import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
+import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
 
 const app = express();
 // Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
@@ -704,7 +705,13 @@ app.get("/api/paths", async (_req, res) => {
 app.post("/api/config/output-dir", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
-    const outputDir = setComfyOutputDir(req.body?.outputDir || "");
+    // Only a folder ComfyUI writes to: HEISS serves and clears what is in it.
+    const choice = await outputDirChoice(req.body?.outputDir || "");
+    if (!choice.ok) {
+      res.status(400).json({ ok: false, error: choice.error, report: choice.report });
+      return;
+    }
+    const outputDir = setComfyOutputDir(choice.dir);
     res.json({ ok: true, outputDir, galleryDir: dataDir, workflowsDir: userWorkflowsDir, report: await inspectOutputDir(outputDir) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -1493,11 +1500,39 @@ app.post("/api/gallery/clear", (req, res) => {
   if (!requireAdmin(req, res)) return;
   // Clearing the gallery never touches Hidden; that has its own erase.
   const cleared = gallery.filter((item) => item.status === "done" && !item.privateVault);
-  const files = deleteGalleryFiles(cleared);
+  // Into the trash, not deleted: it can be put back until the trash empties itself (gallery-trash.js).
+  const trash = trashGalleryItems(cleared);
   hideGalleryItems(cleared);
   setGallery(gallery.filter((item) => item.status !== "done" || item.privateVault));
   saveGallery();
-  res.json({ ok: true, files, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+  res.json({ ok: true, files: { deleted: trash.moved, skipped: trash.skipped }, trash: { batch: trash.batch, moved: trash.moved, days: trashSummary().days }, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+});
+
+app.get("/api/gallery/trash", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ ok: true, ...trashSummary() });
+});
+
+// Undo for a clear, or Settings' Restore: the newest batch unless one is named.
+app.post("/api/gallery/trash/restore", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const { restored, missing } = restoreTrash(String(req.body?.batch || ""));
+    if (restored.length) addGalleryItems(restored);
+    res.json({ ok: true, restored: restored.length, missing, revision: galleryRevisionValue(), trash: trashSummary(), outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/gallery/trash/empty", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const removed = await emptyTrash();
+    res.json({ ok: true, removed, trash: trashSummary() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
 });
 
 app.post("/api/gallery/errors/clear", (_req, res) => {
@@ -1762,6 +1797,12 @@ app.get("/comfy/*path", async (req, res) => {
   try {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
     const proxyPath = Array.isArray(req.params.path) ? req.params.path.join("/") : req.params.path;
+    // Only ComfyUI's image route, for outputs, inputs and previews. Its other GET routes
+    // (settings, logs, Manager's) are not for the studio's visitors.
+    if (proxyPath !== "view" || !["output", "input", "temp"].includes(String(req.query.type || "output"))) {
+      res.status(404).json({ ok: false, error: "Not an output." });
+      return;
+    }
     // Forward conditional headers so an unchanged image gets a 304 instead of a
     // full re-transfer over a slow LAN link, and stream the body instead of
     // buffering it so bytes start moving to the client as soon as they arrive.
@@ -1816,6 +1857,7 @@ if (fs.existsSync(dist)) {
 }
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
+scheduleTrashPurge();
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }
 

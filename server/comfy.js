@@ -46,16 +46,28 @@ export function saveLanSetting(enabled) {
   return enabled;
 }
 export const port = Number(process.env.PORT || 8787);
+/** What an output can be: images, videos and sound. Anything else in the folder is never served. */
+export const outputMediaPattern = /\.(png|jpe?g|webp|gif|avif|bmp|tiff?|mp4|webm|mov|mkv|m4v|flac|mp3|wav|ogg|opus|m4a|aac)$/i;
+
 /**
  * An output file on this computer, for when ComfyUI itself cannot serve it
- * (stopped, restarting). Only files inside the output folder; null otherwise.
+ * (stopped, restarting). Only images, videos and sound inside the output
+ * folder, checked on the real path so a symlink cannot point outside it, and
+ * never from a hidden folder (the trash); null otherwise.
  */
 export function localOutputFile(filename, subfolder = "", type = "output") {
   if (type !== "output" || !comfyOutputDir || !filename) return null;
+  if (!outputMediaPattern.test(String(filename))) return null;
+  if (String(subfolder || "").split(/[\\/]/).some((part) => part.startsWith("."))) return null;
   const base = path.resolve(comfyOutputDir);
   const file = path.resolve(base, String(subfolder || ""), String(filename));
-  if (!isInside(base, file, { orSame: true })) return null;
-  try { return fs.statSync(file).isFile() ? file : null; } catch { return null; }
+  if (!isInside(base, file)) return null;
+  try {
+    if (!isInside(fs.realpathSync(base), fs.realpathSync(file))) return null;
+    return fs.statSync(file).isFile() ? file : null;
+  } catch {
+    return null;
+  }
 }
 
 // Resolved, so a hand-written `D:/x` becomes `D:\x` on Windows (Explorer opens its default view otherwise).
