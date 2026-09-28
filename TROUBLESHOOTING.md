@@ -133,6 +133,10 @@ HEISS UI checks the free space before a large download. Free some space on the d
 
 A release copy installs an update on restart and keeps the old version. If the new one doesn't start, HEISS UI goes back by itself and **Settings › About** says why. Try again later, or download the new zip by hand and unpack it over the old folder (your `data` folder and `.env` stay).
 
+### Going back to an earlier version
+
+The first time a new version starts, HEISS UI keeps a copy of its settings, gallery list, Hidden's records and sign-ins in `data/.backups/`, in a folder named after the two versions (for example `0.11.0-to-0.12.0-…`). Thumbnails, reference images and Hidden's encrypted images aren't copied; no update changes them. To go back: stop HEISS UI, put the earlier version in place, copy everything from that folder back into `data/`, and start it. Copies go after 14 days, at most three are kept, and erasing Hidden removes them all.
+
 ### A Git checkout wasn't updated
 
 **Install update** in a copy cloned with Git only runs when the copy has no changed files of its own; commit or stash them first, or update by hand with `git pull`, `npm install`, `npm run build`. If the new version doesn't install or build, HEISS UI goes back to the commit it had and says what failed. "Couldn't reach GitHub" means the connection is down; "Git isn't installed" means Git isn't on this computer.

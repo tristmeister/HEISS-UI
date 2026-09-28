@@ -1,3 +1,5 @@
+// First: keeps a copy of data/ before a new version's stores load and migrate it.
+import { dropSnapshots } from "./data-snapshot.js";
 import express from "express";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -424,6 +426,8 @@ app.post("/api/privacy/erase", (req, res) => {
   }
   eraseVault();
   erasePrivacy();
+  // Copies taken before an update may still hold Hidden's older records.
+  try { dropSnapshots(); } catch { /* held open (Windows); they go within 14 days anyway */ }
   clearUnlockCookie(res);
   res.json({ ok: true, enabled: false, unlocked: false, passkeys: [], vault: { unlocked: false, revision: 0 } });
 });

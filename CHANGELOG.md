@@ -11,6 +11,14 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### What changes when you update
+- **Phones and other computers sign in once more.** Set a studio password in
+  Settings › Connection; until you do, the Hidden password still works.
+- **Admin from other devices is off** until you turn on Trust other devices
+  with admin at the computer running HEISS UI.
+- **HEISS UI keeps a copy of its data first**, in `data/.backups/`, so going
+  back to 0.11 works (see TROUBLESHOOTING.md).
+
 ### Security
 - **Other websites can't drive HEISS UI any more.** Every request must name
   a known host, and anything that changes something must come from the
@@ -66,6 +74,8 @@ version opens with a `> ` summary line, which the update pill shows.
   their trigger words.
 - **Civitai-ready images (beta)** write A1111-style parameters into new PNGs.
 - **Copy image** and **Copy settings** in the viewer.
+- **A copy of HEISS UI's data before each update**, kept for 14 days, for
+  going back to the version before.
 - **Troubleshooting guide**, linked from every failed card, and **Copy
   diagnostics** in Settings › About.
 
