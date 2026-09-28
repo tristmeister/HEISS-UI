@@ -241,7 +241,8 @@
    and the first row of tiles starts below it. */
 .gallery-search {
   position: fixed;
-  top: max(var(--deck-gap, 18px), env(safe-area-inset-top));
+  /* Under the activity pills while one shows (--islands-h), over the tiles' glass. */
+  top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + var(--islands-h, 0px));
   left: 50%;
   z-index: 12;
   width: min(480px, calc(100vw - 2 * var(--deck-gap, 18px)));
@@ -257,7 +258,7 @@
   -webkit-backdrop-filter: var(--surface-float-blur);
   backdrop-filter: var(--surface-float-blur);
   box-shadow: var(--shadow-float-sm);
-  transition: border-color var(--dur-base) var(--ease-out);
+  transition: border-color var(--dur-base) var(--ease-out), top 260ms var(--ease-out);
 }
 .gallery-search:focus-within { border-color: rgb(255 255 255 / .16); }
 .gallery-search-glyph { flex: none; color: rgb(255 255 255 / .5); }
@@ -323,7 +324,7 @@
 }
 /* In Hidden the bar owns the top left; where both would touch, the field goes under it. */
 @media (max-width: 920px) {
-  .gallery-search.is-hidden-space { top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 8px); }
+  .gallery-search.is-hidden-space { top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 8px + var(--islands-h, 0px)); }
   .app-shell.is-hidden-space:has(.gallery-search) .stage-gallery {
     padding-top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 8px + var(--dock-h) + 12px);
   }
@@ -436,5 +437,6 @@
 @media (prefers-reduced-motion: reduce) {
   .prompt-history-row,
   .prompt-history-icon,
-  .tile-star { transition: none; }
+  .tile-star,
+  .gallery-search { transition: none; }
 }

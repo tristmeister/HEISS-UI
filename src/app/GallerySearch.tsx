@@ -62,6 +62,8 @@ export function GallerySearchButton({ search, open, setOpen }: Pick<SearchProps,
         className={cn('zen-control-button gallery-search-button', on && 'is-on')}
         aria-label="Search the gallery"
         aria-expanded={on}
+        // The field keeps its focus, so this click toggles instead of racing the field's blur.
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => setOpen(!open)}
       >
         <Search size={16} />
@@ -70,7 +72,10 @@ export function GallerySearchButton({ search, open, setOpen }: Pick<SearchProps,
   );
 }
 
-export function GallerySearchBar({ search, setSearch, count, open, setOpen, hiddenSpace = false }: SearchProps) {
+export function GallerySearchBar({ search, setSearch, count, open, setOpen, hiddenSpace = false, islandsHeight = 0 }: SearchProps & {
+  /** The activity pills own the top centre; the field waits under them while they show. */
+  islandsHeight?: number;
+}) {
   const reduced = useReducedMotion();
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const active = searchActive(search);
@@ -89,6 +94,7 @@ export function GallerySearchBar({ search, setSearch, count, open, setOpen, hidd
           className={cn('gallery-search', active && 'is-active', hiddenSpace && 'is-hidden-space')}
           role="search"
           data-open-surface
+          style={{ '--islands-h': `${islandsHeight ? islandsHeight + 8 : 0}px` } as React.CSSProperties}
           initial={reduced ? { opacity: 0 } : { opacity: 0, y: -10, scale: 0.97 }}
           animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
           exit={reduced ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.97 }}

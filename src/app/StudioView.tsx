@@ -696,7 +696,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </main>
           {studioDock}
           {hiddenBar}
-          {hiddenLocked ? null : <GallerySearchBar search={gallerySearch} setSearch={setGallerySearch} count={hiddenSpace ? renderedGallery.length : view.galleryTotalApprox} open={searchOpen} setOpen={setSearchOpen} hiddenSpace={Boolean(hiddenSpace)} />}
+          {hiddenLocked ? null : <GallerySearchBar search={gallerySearch} setSearch={setGallerySearch} count={hiddenSpace ? renderedGallery.length : view.galleryTotalApprox} open={searchOpen} setOpen={setSearchOpen} hiddenSpace={Boolean(hiddenSpace)} islandsHeight={islandsHeight} />}
           <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
