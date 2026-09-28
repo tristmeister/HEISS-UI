@@ -684,6 +684,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
               {phoneDevice || prefs.fullStudioOnPhone ? <SwitchRow label="Simple phone studio" description="Just making, browsing and sharing, laid out for your thumb. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
+              <SwitchRow label="Wide images take two columns" description="Landscapes span two gallery columns, so they show as large as portraits. Needs three or more columns." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
             </Group>
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
               <ShortcutsDrawer />

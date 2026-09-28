@@ -261,6 +261,8 @@ export type Preferences = {
   confirmActions: boolean;
   enterToGenerate: boolean;
   followLatest: boolean;
+  /** Wide images take two gallery columns, from three columns up. */
+  spanWideImages: boolean;
   showFailedItems: boolean;
   groupRuns: boolean;
   runGroupingMode: "smart" | "job";

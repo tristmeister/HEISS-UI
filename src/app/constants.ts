@@ -12,6 +12,7 @@ export const defaultPrefs: Preferences = {
   confirmActions: true,
   enterToGenerate: true,
   followLatest: true,
+  spanWideImages: false,
   showFailedItems: true,
   groupRuns: true,
   runGroupingMode: "smart",
