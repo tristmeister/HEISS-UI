@@ -6,6 +6,7 @@ import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
 import { forgetComfyRun } from './hidden-traces.js';
 import { storeHiddenOutputs } from './vault.js';
+import { writeCivitaiParameters } from './civitai.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 import { remainingMs, RunTimer, slowSteps } from './generation-timing.js';
 import { generationEstimate, generationWarm, recordGeneration } from './timings.js';
@@ -375,6 +376,8 @@ async function runJob(id, body) {
           setTerminalJob(id, { status: "done", outputs: items, leftBehind });
           await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
         } else {
+          // Before the gallery shows them, so no browser reads a file mid-write.
+          writeCivitaiParameters(outputs, body);
           const completed = replaceGalleryJob(id, outputs, body, jobs);
           markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
           setTerminalJob(id, { status: "done", outputs: completed });

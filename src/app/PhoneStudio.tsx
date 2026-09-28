@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from 'framer-motion';
-import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, CircleStop, Dices, Download, Eye, EyeOff, ImagePlus, Info, LockKeyhole, MoreHorizontal, RefreshCw, Search, Share, SlidersHorizontal, Square, Star, Trash2, Wand2, X } from 'lucide-react';
+import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, CircleStop, Dices, Download, Eye, EyeOff, History, ImagePlus, Info, LockKeyhole, MoreHorizontal, RefreshCw, Search, Share, SlidersHorizontal, Square, Star, Trash2, Wand2, X } from 'lucide-react';
 import { cn, aspectIconStyle } from './format';
 import { familyLabel, setupNote } from './components';
 import { downloadUrl } from './GalleryTile';
@@ -17,6 +17,10 @@ import { RestartEtaText } from './ComfyRestart';
 import { estimatePhrase } from './useGenerationEstimate';
 import type { AspectPreset, GalleryItem, Profile } from './types';
 import type { ShowToast } from './toast';
+import { PromptHistorySheet } from './PromptHistory';
+import { PhoneSearchBar } from './GallerySearch';
+import { canStar, emptySearch, searchActive, type GallerySearch } from './favorites';
+import { usePromptHistory } from './recentPrompts';
 
 /* ---------------------------------------------------------------------------
    The phone studio
@@ -211,6 +215,7 @@ export type PhoneItemActions = {
   hide: (item: GalleryItem) => void;
   unhide: (item: GalleryItem) => void;
   remove: (item: GalleryItem) => void;
+  star: (item: GalleryItem) => void;
 };
 
 function upscaleLabel(item: GalleryItem) {
@@ -238,9 +243,14 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
               {item.upscale?.status === 'running' ? <Square size={16} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={20} />}<span>{upscaleLabel(item)}</span>
             </button>
           ) : null}
+          {canStar(item) ? (
+            <button type="button" className={cn('phone-row', item.favorite && 'is-starred')} onClick={() => run(() => { haptic('tap'); actions.star(item); })}>
+              <Star size={20} fill={item.favorite ? 'currentColor' : 'none'} /><span>{item.favorite ? 'Unstar' : 'Star'}</span><HapticTarget />
+            </button>
+          ) : null}
           {item.prompt ? <button type="button" className="phone-row" onClick={() => run(() => actions.reuse(item))}><Wand2 size={20} /><span>Make another like this</span></button> : null}
-          {done && actions.useAsReference && item.type === 'image' && !item.vaultLocked ? <button type="button" className="phone-row" onClick={() => run(() => actions.useAsReference!(item))}><ImagePlus size={20} /><span>Use as reference</span></button> : null}
-          {done ? (
+          {done && actions.useAsReference && item.type === 'image' && !item.vaultLocked && !item.library ? <button type="button" className="phone-row" onClick={() => run(() => actions.useAsReference!(item))}><ImagePlus size={20} /><span>Use as reference</span></button> : null}
+          {done && !item.library ? (
             item.privateVault
               ? <button type="button" className="phone-row" onClick={() => run(() => actions.unhide(item))}><Eye size={20} /><span>Move to gallery</span></button>
               : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Hide</span></button>
@@ -268,7 +278,12 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, co
       ) : null}
       {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
       {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Again</span></button> : null}
-      {done ? (
+      {canStar(item) ? (
+        <button type="button" className={cn(item.favorite && 'is-starred')} aria-pressed={Boolean(item.favorite)} onClick={() => { haptic('tap'); actions.star(item); }}>
+          <Star size={21} fill={item.favorite ? 'currentColor' : 'none'} /><span>{item.favorite ? 'Starred' : 'Star'}</span><HapticTarget />
+        </button>
+      ) : null}
+      {done && !item.library ? (
         item.privateVault
           ? <button type="button" onClick={() => actions.unhide(item)}><Eye size={21} /><span>Unhide</span></button>
           : <button type="button" onClick={() => actions.hide(item)}><EyeOff size={21} /><span>Hide</span></button>
@@ -336,6 +351,9 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
     return () => window.clearTimeout(timer);
   }, [peek]);
   const [moreOpen, setMoreOpen] = React.useState(false);
+  const gallerySearch = (view.gallerySearch || emptySearch) as GallerySearch;
+  const setGallerySearch = view.setGallerySearch as (next: GallerySearch) => void;
+  const [searchOpen, setSearchOpen] = React.useState(false);
   const restarting = Boolean(comfyStatus?.restarting);
   const connected = Boolean(comfyStatus?.connected);
   const statusText = restarting ? 'ComfyUI is restarting' : connected ? `Connected${comfyStatus?.device ? ` · ${comfyStatus.device}` : ''}` : comfyStatus?.checked ? 'ComfyUI is offline' : 'Checking ComfyUI…';
@@ -361,6 +379,9 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         <div className="phone-title">
           {hiddenSpace ? <><button type="button" className="phone-icon" aria-label="Back to the gallery" onClick={toggleHiddenSpace}><ArrowLeft size={20} /></button><LockKeyhole size={16} className="phone-ember" /><span>Hidden</span></> : <span>Gallery</span>}
         </div>
+        {!hiddenLocked ? (
+          <button type="button" className={cn('phone-icon', searchActive(gallerySearch) && 'is-on')} aria-label="Search" aria-expanded={searchOpen || searchActive(gallerySearch)} onClick={() => { if (searchOpen || searchActive(gallerySearch)) { setGallerySearch(emptySearch); setSearchOpen(false); } else setSearchOpen(true); }}><Search size={21} /></button>
+        ) : null}
         {!hiddenSpace ? (
           <button type="button" className={cn('phone-icon', hidden.enabled && hidden.unlocked && 'has-dot')} aria-label={hidden.enabled && hidden.unlocked ? 'Open Hidden, unlocked' : 'Open Hidden'} onClick={toggleHiddenSpace}><LockKeyhole size={20} /></button>
         ) : hidden.unlocked ? (
@@ -368,6 +389,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         ) : null}
         <button type="button" className="phone-icon" aria-label="More" onClick={() => setMoreOpen(true)}><MoreHorizontal size={22} /></button>
       </header>
+      {!hiddenLocked && !selecting ? <PhoneSearchBar search={gallerySearch} setSearch={setGallerySearch} open={searchOpen} setOpen={setSearchOpen} hiddenSpace={Boolean(hiddenSpace)} /> : null}
 
       {runningCount ? (
         <div className="phone-running" role="status">
@@ -465,6 +487,8 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   } = view;
   const [sheet, setSheet] = React.useState<'' | 'workflow' | 'aspect' | 'advanced'>('');
   const [showNegative, setShowNegative] = React.useState(Boolean(negative));
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const { prompts: recentPrompts } = usePromptHistory(open);
   const restarting = Boolean(comfyStatus?.restarting);
   const variations = mode === 'image' && currentProfile?.capabilities?.variations !== false;
   const maxCount = Math.max(1, Math.min(4, Number(countMeta?.max || 4)));
@@ -526,7 +550,18 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
           rows={4}
           autoFocus={!prompt.trim()}
         />
+        {recentPrompts.length ? (
+          <button type="button" className="phone-compose-recent" onClick={() => { haptic('tap'); setHistoryOpen(true); }}>
+            <History size={15} /> Recent
+          </button>
+        ) : null}
       </div>
+      <PromptHistorySheet
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        onPick={(text) => { setPrompt(clampText(text, promptLimit)); setHistoryOpen(false); }}
+        onError={(message) => showToast(message, 'error')}
+      />
 
       {canUseNegativePrompt ? (
         showNegative ? (

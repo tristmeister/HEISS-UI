@@ -1,0 +1,151 @@
+import React from 'react';
+import { FolderPlus, RefreshCw } from 'lucide-react';
+import { apiJson } from './api';
+import { BetaTag } from './components';
+import { clearPrompts, usePromptHistory } from './recentPrompts';
+import type { ConfirmAction } from './useConfirmation';
+import type { ShowToast } from './toast';
+
+/* ---------------------------------------------------------------------------
+   Settings › Library additions: earlier images, Civitai-ready files (beta),
+   and forgetting recent prompts. The row pieces come from SettingsDialog, as
+   HiddenSettings takes them, so every row reads the same.
+--------------------------------------------------------------------------- */
+
+type GroupProps = React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>;
+type RowProps = React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>;
+type Parts = {
+  Group: React.ComponentType<GroupProps>;
+  Row: React.ComponentType<RowProps>;
+  Switch: React.ComponentType<{ checked: boolean; onChange: (next: boolean) => void; disabled?: boolean; label: string }>;
+  showToast: ShowToast;
+};
+
+type LibraryFolder = { id: string; path: string; name: string; count: number; scannedAt: string; available: boolean };
+type ImportResult = { ok?: boolean; canceled?: boolean; output?: boolean; added?: number; found?: number; capped?: boolean; folders?: LibraryFolder[]; error?: string };
+
+const plural = (count: number, word: string) => `${count.toLocaleString()} ${word}${count === 1 ? '' : 's'}`;
+
+function resultLine(result: ImportResult, where: string) {
+  const added = result.added || 0;
+  const more = result.capped ? ' The first 20,000 files were looked at; add a subfolder for the rest.' : '';
+  if (!added) return `Nothing new ${where}.${more}`;
+  return `Added ${plural(added, 'image')} ${where}.${more}`;
+}
+
+/** Earlier images: other folders shown in place, and the output folder's unknown files. */
+export function EarlierImagesGroup({ Group, Row, showToast, confirmAction, outputDir }: Omit<Parts, 'Switch'> & {
+  confirmAction: ConfirmAction;
+  outputDir?: string;
+}) {
+  const [folders, setFolders] = React.useState<LibraryFolder[] | null>(null);
+  const [busy, setBusy] = React.useState('');
+  React.useEffect(() => {
+    let live = true;
+    apiJson<{ folders: LibraryFolder[] }>('/api/library/folders').then((data) => { if (live) setFolders(data.folders || []); }).catch(() => { if (live) setFolders([]); });
+    return () => { live = false; };
+  }, []);
+
+  const run = async (key: string, request: () => Promise<ImportResult>, where: string) => {
+    setBusy(key);
+    try {
+      const result = await request();
+      if (result.folders) setFolders(result.folders);
+      if (result.canceled) return;
+      showToast(resultLine(result, result.output ? 'from the output folder' : where), result.added ? 'success' : 'default');
+
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'That folder could not be read', 'error');
+    } finally {
+      setBusy('');
+    }
+  };
+  const post = (url: string, body?: unknown) => apiJson<ImportResult>(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
+
+  return (
+    <Group title="Earlier images" note="Images are shown where they are, never copied. A prompt saved in the file (by ComfyUI or AUTOMATIC1111) comes along so you can search for it.">
+      {(folders || []).map((folder) => (
+        <Row
+          key={folder.id}
+          label={folder.name}
+          description={<><code className="set-path">{folder.path}</code><br />{folder.available ? plural(folder.count, 'image') : 'Not reachable right now. Is the drive connected?'}</>}
+        >
+          <button className="btn is-ghost" disabled={Boolean(busy)} onClick={() => run(folder.id, () => post(`/api/library/folders/${encodeURIComponent(folder.id)}/scan`), `from ${folder.name}`)} aria-label={`Look through ${folder.name} again`}>
+            <RefreshCw size={14} className={busy === folder.id ? 'spin' : undefined} /> Rescan
+          </button>
+          <button className="btn is-ghost" disabled={Boolean(busy)} onClick={async () => {
+            if (!await confirmAction({ title: `Stop showing ${folder.name}?`, description: 'Its images leave the gallery. The files stay where they are.', action: 'Remove folder' })) return;
+            try {
+              const result = await apiJson<ImportResult>(`/api/library/folders/${encodeURIComponent(folder.id)}`, { method: 'DELETE' });
+              if (result.folders) setFolders(result.folders);
+
+            } catch (error) {
+              showToast(error instanceof Error ? error.message : 'Could not remove that folder', 'error');
+            }
+          }}>Remove</button>
+        </Row>
+      ))}
+      <Row label="Add a folder" description="Old ComfyUI outputs, or an AUTOMATIC1111 or Forge folder. Subfolders count too.">
+        <button className="btn" disabled={Boolean(busy)} onClick={() => run('add', () => post('/api/library/folders', { start: outputDir || '' }), 'from that folder')}>
+          <FolderPlus size={14} /> {busy === 'add' ? 'Looking…' : 'Choose…'}
+        </button>
+      </Row>
+      {outputDir ? (
+        <Row label="Everything in the output folder" description="Adds images ComfyUI saved that the gallery never showed, like runs from ComfyUI itself or older than its history.">
+          <button className="btn" disabled={Boolean(busy)} onClick={() => run('output', () => post('/api/library/output'), 'from the output folder')}>
+            <RefreshCw size={14} className={busy === 'output' ? 'spin' : undefined} /> {busy === 'output' ? 'Looking…' : 'Look'}
+          </button>
+        </Row>
+      ) : null}
+    </Group>
+  );
+}
+
+/** Civitai-ready PNGs: off unless switched on, and never for Hidden. */
+export function CivitaiGroup({ Group, Row, Switch, showToast, canChange }: Parts & { canChange: boolean }) {
+  const [enabled, setEnabled] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    let live = true;
+    apiJson<{ enabled: boolean }>('/api/civitai').then((data) => { if (live) setEnabled(Boolean(data.enabled)); }).catch(() => { if (live) setEnabled(false); });
+    return () => { live = false; };
+  }, []);
+  const change = async (next: boolean) => {
+    const before = enabled;
+    setEnabled(next);
+    try {
+      const data = await apiJson<{ enabled: boolean }>('/api/civitai', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: next }) });
+      setEnabled(Boolean(data.enabled));
+    } catch (error) {
+      setEnabled(before);
+      showToast(error instanceof Error ? error.message : 'Could not save that', 'error');
+    }
+  };
+  return (
+    <Group title="Beta" note="Only new PNGs get it, in ComfyUI’s output folder on this computer. ComfyUI’s own workflow stays in the file too.">
+      <Row
+        label={<>Civitai-ready images<BetaTag /></>}
+        description="Writes the prompt, LoRAs, steps, sampler, seed and model into each new image the way AUTOMATIC1111 does, so Civitai fills them in when you upload. Hidden images never get it."
+        disabled={enabled === null || !canChange}
+      >
+        <Switch label="Civitai-ready images" checked={Boolean(enabled)} onChange={change} disabled={enabled === null || !canChange} />
+      </Row>
+    </Group>
+  );
+}
+
+/** Recent prompts: what the list is, and the way to empty it. */
+export function PromptHistoryRow({ Row, showToast, confirmAction }: Pick<Parts, 'Row' | 'showToast'> & { confirmAction: ConfirmAction }) {
+  const { prompts } = usePromptHistory(true);
+  const starred = prompts.filter((entry) => entry.pinned).length;
+  return (
+    <Row
+      label="Recent prompts"
+      description={`Press ↑ in an empty prompt, or the clock beside Negative. ${prompts.length ? `${plural(prompts.length - starred, 'recent prompt')}${starred ? `, ${starred} starred` : ''}. ` : ''}Prompts from Hidden are never kept.`}
+    >
+      <button className="btn" disabled={prompts.length === starred} onClick={async () => {
+        if (!await confirmAction({ title: 'Forget recent prompts?', description: starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.', action: 'Forget' })) return;
+        clearPrompts().catch((error) => showToast(error instanceof Error ? error.message : 'Could not forget them', 'error'));
+      }}>Forget</button>
+    </Row>
+  );
+}

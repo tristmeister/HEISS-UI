@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, Copy, Download, Eye, EyeOff, Loader2, MoreHorizontal, Square, Trash2 } from 'lucide-react';
+import { Check, Copy, Download, Eye, EyeOff, Loader2, MoreHorizontal, Square, Star, Trash2 } from 'lucide-react';
+import { canStar, useStar } from './favorites';
 import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { Tip } from './components';
@@ -106,7 +107,8 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   const isEntering = !mountedRef.current && (Date.now() - Date.parse(item.createdAt || "")) < 2000;
   useEffect(() => { mountedRef.current = true; }, []);
   const hiddenActions = useHiddenActions();
-  const canMove = item.status === "done" && Boolean(item.url) && Boolean(hiddenActions);
+  const canMove = item.status === "done" && Boolean(item.url) && Boolean(hiddenActions) && !item.library;
+  const star = useStar();
   // Phones get one "More" button instead of a row of circles that would not fit.
   const [menuOpen, setMenuOpen] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -193,8 +195,16 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
               ) : null}
               {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
               {item.status === "done" ? <Tip content="Copy prompt" side="left"><button type="button" className="tile-icon" aria-label="Copy prompt" onClick={() => act(() => copyPromptAndToast(item))}><Copy size={14} /><span className="tile-menu-label">Copy prompt</span></button></Tip> : null}
-              <Tip content={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} side="left"><button type="button" className="tile-delete" aria-label={item.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => act(() => deleteItem(item))}><Trash2 size={14} /><span className="tile-menu-label">Delete</span></button></Tip>
+              <Tip content={item.privateVault ? "Delete from Hidden" : item.library ? "Remove from gallery" : "Delete from gallery"} side="left"><button type="button" className="tile-delete" aria-label={item.privateVault ? "Delete from Hidden" : item.library ? "Remove from gallery" : "Delete from gallery"} onClick={() => act(() => deleteItem(item))}><Trash2 size={14} /><span className="tile-menu-label">{item.library ? "Remove" : "Delete"}</span></button></Tip>
             </span>
+            {/* Its own corner: always there once starred, on hover otherwise. */}
+            {star && canStar(item) ? (
+              <Tip content={item.favorite ? "Unstar" : "Star"} side="left">
+                <button type="button" className={cn("tile-star", item.favorite && "is-on")} aria-label={item.favorite ? "Unstar" : "Star"} aria-pressed={Boolean(item.favorite)} onClick={() => act(() => star([item], !item.favorite))}>
+                  <Star size={14} fill={item.favorite ? "currentColor" : "none"} />
+                </button>
+              </Tip>
+            ) : null}
           </>
         ) : null}
       </div>

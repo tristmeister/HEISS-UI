@@ -133,6 +133,27 @@ export async function getThumbnail(filename, subfolder, type) {
   return promise;
 }
 
+/**
+ * A thumbnail for any image file on this computer (an image added from
+ * another folder), cached like an output's, by the file's path, size and
+ * modified time. The caller checks the file is one it may serve.
+ */
+export async function getFileThumbnail(file) {
+  const resolved = path.resolve(file);
+  const key = crypto.createHash("sha1").update(`file:${resolved}:${longestEdge}:${quality}`).digest("hex");
+  if (!(await loadSharp())) return cachedThumbnail(key) || { original: true };
+  if (pending.has(key)) return pending.get(key);
+  const promise = (async () => {
+    const stat = fs.statSync(resolved);
+    const sourceHash = crypto.createHash("sha256").update(`local:${stat.size}:${stat.mtimeMs}`).digest("hex");
+    const cached = cachePath(key, sourceHash);
+    if (fs.existsSync(cached)) return { file: cached, etag: `"${sourceHash}"` };
+    return writeThumbnail(key, sourceHash, fs.readFileSync(resolved));
+  })().finally(() => pending.delete(key));
+  pending.set(key, promise);
+  return promise;
+}
+
 // Vault assets are decrypted per request and must never leave a plaintext
 // derivative on disk, so this resizes in memory only — nothing is cached.
 export async function resizeInMemory(buffer, mime) {

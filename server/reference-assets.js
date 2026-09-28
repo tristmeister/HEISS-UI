@@ -111,7 +111,7 @@ const newestFirst = (a, b) => Date.parse(b.createdAt || 0) - Date.parse(a.create
  */
 export function listReferenceAssets(req, { source = "upload", cursor = "", limit = 60 } = {}) {
   if (source === "generation") {
-    return paginate(filterVisibleGallery(gallery).filter(finishedImage).sort(newestFirst).map(galleryAsset), cursor, limit);
+    return paginate(filterVisibleGallery(gallery).filter((item) => finishedImage(item) && !item.library).sort(newestFirst).map(galleryAsset), cursor, limit);
   }
   if (source === "hidden") {
     if (!encryptionKeyFromRequest(req)) return { items: [], nextCursor: "", hasMore: false, locked: true };
@@ -280,7 +280,8 @@ async function publicGalleryBuffer(item) {
 }
 
 export function referenceAssetFromGallery(req, galleryItemId) {
-  const publicItem = filterVisibleGallery(gallery).find((item) => item.type === "image" && item.status === "done" && (item.id === galleryItemId || item.url === galleryItemId || galleryKey(item) === galleryItemId));
+  // Images added from another folder are shown in place, not ComfyUI outputs it can read back.
+  const publicItem = filterVisibleGallery(gallery).find((item) => item.type === "image" && item.status === "done" && !item.library && (item.id === galleryItemId || item.url === galleryItemId || galleryKey(item) === galleryItemId));
   if (publicItem) return galleryAsset(publicItem);
   const vaultItem = vaultGalleryItemsForRequest(req, { bundles: false }).find((item) => item.type === "image" && item.status === "done" && item.id === galleryItemId);
   if (vaultItem) return galleryAsset(vaultItem);

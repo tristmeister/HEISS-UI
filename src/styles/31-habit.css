@@ -1,0 +1,442 @@
+/* ---------------------------------------------------------------------------
+   Coming back: recent prompts, gallery search and stars
+
+   All three stay out of sight until wanted and borrow what is already here:
+   the history list is a composer menu, the search is a deck pill, a star is
+   a tile control. The one warm note marks what you starred.
+--------------------------------------------------------------------------- */
+
+/* --------------------------------------------------------- Recent prompts */
+
+/* Opens above the composer from its left edge, like the composer's menus. */
+.zen-prompt:has(.prompt-history) { z-index: 14; }
+.prompt-history {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  z-index: 16;
+  width: min(560px, 100%);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-menu);
+  background: var(--surface-grain), var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float);
+  transform-origin: 24px 100%;
+}
+.prompt-history-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: min(440px, calc(100dvh - var(--zen-prompt-h, 160px) - 64px));
+  padding: 8px;
+  outline: none;
+}
+
+.prompt-history-search {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin-bottom: 6px;
+  padding: 0 10px;
+  border-radius: var(--r-item);
+  background: rgb(255 255 255 / .06);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .08);
+  color: rgb(255 255 255 / .5);
+  cursor: text;
+  transition: box-shadow var(--dur-fast), color var(--dur-fast);
+}
+.prompt-history-search:focus-within { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .2); color: rgb(255 255 255 / .75); }
+.prompt-history-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.prompt-history-search input::placeholder { color: rgb(255 255 255 / .4); }
+.prompt-history-clear {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .1);
+  color: rgb(255 255 255 / .7);
+  cursor: pointer;
+}
+.prompt-history-clear:hover { background: rgb(255 255 255 / .18); color: #fff; }
+
+.prompt-history-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  margin-right: -3px;
+  padding-right: 3px;
+  scrollbar-width: thin;
+}
+.prompt-history-section { display: grid; gap: 1px; }
+.prompt-history-label {
+  padding: 6px 10px 2px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / .6);
+}
+
+.prompt-history-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+  border-radius: var(--r-item);
+  transition: background var(--dur-fast);
+}
+.prompt-history-row.is-cursor { background: var(--control-hover); }
+.prompt-history-use {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 6px 8px 10px;
+  border: 0;
+  background: transparent;
+  color: rgb(255 255 255 / .8);
+  text-align: left;
+  cursor: pointer;
+}
+.prompt-history-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13px;
+  line-height: 1.42;
+  overflow-wrap: anywhere;
+}
+.prompt-history-row.is-cursor .prompt-history-use { color: hsl(var(--foreground)); }
+.prompt-history-text mark {
+  background: none;
+  color: #fff;
+  font-weight: 600;
+}
+.prompt-history-meta {
+  color: rgb(255 255 255 / .42);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.prompt-history-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: rgb(255 255 255 / .5);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out), background var(--dur-fast), color var(--dur-fast);
+}
+.prompt-history-row:hover .prompt-history-icon,
+.prompt-history-row.is-cursor .prompt-history-icon,
+.prompt-history-row.is-pinned .prompt-history-icon.is-pin { opacity: 1; }
+.prompt-history-icon:hover { background: rgb(255 255 255 / .1); color: #fff; }
+.prompt-history-row.is-pinned .prompt-history-icon.is-pin { color: var(--ember); }
+@media (hover: none) {
+  .prompt-history-icon { opacity: .6; }
+}
+
+.prompt-history-empty {
+  margin: 0;
+  padding: 16px 10px 14px;
+  color: rgb(255 255 255 / .5);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.prompt-history-foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 10px 2px;
+  border-top: 1px solid rgb(255 255 255 / .06);
+  margin-top: 6px;
+  color: rgb(255 255 255 / .42);
+  font-size: 11px;
+}
+.prompt-history-foot span { display: inline-flex; align-items: center; gap: 3px; }
+.prompt-history-foot em { margin-left: auto; font-style: normal; }
+.prompt-history-foot kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgb(255 255 255 / .08);
+  color: rgb(255 255 255 / .62);
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+/* Nothing to press on a touch screen. */
+@media (hover: none) {
+  .prompt-history-foot span { display: none; }
+  .prompt-history-foot:not(:has(em)) { display: none; }
+}
+
+/* Phone: a chip in the prompt box, and a sheet of big rows. */
+.phone-compose-recent {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 13px 0 11px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .07);
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+  font-weight: 550;
+}
+.phone-compose-recent:active { background: rgb(255 255 255 / .12); }
+.phone-history-row .phone-row > span { gap: 4px; }
+.phone-history-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  font-size: 15px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.phone-history-text mark { background: none; color: #fff; font-weight: 650; }
+.phone-history-row .phone-icon { color: hsl(var(--muted-foreground)); }
+.phone-history-row .phone-icon.is-on { color: var(--ember); }
+
+/* ---------------------------------------------------------- Gallery search */
+
+/* The magnifier sits beside Controls, the same 48px glass circle. */
+.app-shell .zen-control-button.gallery-search-button { left: calc(var(--deck-gap) + var(--deck-h) + 8px); }
+.gallery-search-button.is-on { color: #fff; background: rgb(44 44 44 / .94); }
+@media (max-width: 620px) {
+  .app-shell .zen-control-button.gallery-search-button { left: calc(max(8px, env(safe-area-inset-left)) + var(--deck-h) + 8px); }
+}
+
+/* The field floats over the top of the gallery, where a search is looked for,
+   and the first row of tiles starts below it. */
+.gallery-search {
+  position: fixed;
+  /* Under the activity pills while one shows (--islands-h), over the tiles' glass. */
+  top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + var(--islands-h, 0px));
+  left: 50%;
+  z-index: 12;
+  width: min(480px, calc(100vw - 2 * var(--deck-gap, 18px)));
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--dock-h);
+  padding: 3px 3px 3px 15px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-pill);
+  background: var(--surface-grain), var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm);
+  transition: border-color var(--dur-base) var(--ease-out), top 260ms var(--ease-out);
+}
+.gallery-search:focus-within { border-color: rgb(255 255 255 / .16); }
+.gallery-search-glyph { flex: none; color: rgb(255 255 255 / .5); }
+.gallery-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--foreground));
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  box-shadow: none;
+}
+.gallery-search input::placeholder { color: rgb(255 255 255 / .42); }
+.gallery-search-count {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  background: var(--control-fill);
+  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.gallery-search-fav,
+.gallery-search-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--control-h);
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.gallery-search-fav { padding: 0 13px 0 11px; }
+.gallery-search-close { width: var(--control-h); }
+.gallery-search-fav:hover,
+.gallery-search-close:hover { background: var(--control-hover); color: #fff; }
+.gallery-search-fav.is-on { background: var(--ember-soft); color: #ffc9a0; box-shadow: inset 0 0 0 1px rgb(255 154 82 / .2); }
+.gallery-search-fav.is-on svg { color: var(--ember); }
+@media (max-width: 560px) {
+  .gallery-search-fav { width: var(--control-h); padding: 0; }
+  .gallery-search-fav span { display: none; }
+}
+
+.app-shell:has(.gallery-search) .stage-gallery {
+  padding-top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + var(--dock-h) + 12px);
+  scroll-padding-top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + var(--dock-h) + 12px);
+}
+/* In Hidden the bar owns the top left; where both would touch, the field goes under it. */
+@media (max-width: 920px) {
+  .gallery-search.is-hidden-space { top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 8px + var(--islands-h, 0px)); }
+  .app-shell.is-hidden-space:has(.gallery-search) .stage-gallery {
+    padding-top: calc(max(var(--deck-gap, 18px), env(safe-area-inset-top)) + 42px + 8px + var(--dock-h) + 12px);
+  }
+}
+
+/* A stacked deck steps aside for the recent-prompts list, as for the composer's menus. */
+@media (max-width: 1040px) {
+  :is(.app-shell, .zen-shell):has(.zen-prompt .prompt-history) :is(.studio-dock, .zen-control-button) {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
+/* Nothing matched: a quiet glyph instead of a scene. */
+.search-empty .search-empty-glyph {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 16px;
+  border-radius: 18px;
+  background: var(--control-fill);
+  color: hsl(var(--muted-foreground));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
+}
+.search-empty h2 { overflow-wrap: anywhere; }
+.search-empty .stage-copy { min-height: 0; }
+
+/* Phone: a row under the top bar. */
+.phone-searchbar {
+  position: fixed;
+  top: calc(max(6px, env(safe-area-inset-top)) + 50px);
+  left: max(10px, env(safe-area-inset-left));
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 19;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.phone-searchbar .phone-search { flex: 1; min-width: 0; min-height: 48px; margin: 0; background: #1b1b1b; box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
+.phone-searchbar .phone-search-fav { color: hsl(var(--muted-foreground)); }
+.phone-searchbar .phone-search-fav.is-on { color: var(--ember); }
+.phone-shell:has(.phone-searchbar) .phone-gallery { padding-top: calc(max(6px, env(safe-area-inset-top)) + 110px); }
+.phone-shell:has(.phone-searchbar) .phone-running { top: calc(max(6px, env(safe-area-inset-top)) + 106px); }
+.phone-shell:has(.phone-searchbar):has(.phone-running) .phone-gallery { padding-top: calc(max(6px, env(safe-area-inset-top)) + 164px); }
+
+/* ------------------------------------------------------------------ Stars */
+
+/* A tile's star has the top right corner to itself: shown on hover, and
+   always once starred. The other quick actions move over to make room. */
+.tile-overlay { --star-room: 35px; }
+.tile-star {
+  --tile-ctl: 30px;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  width: var(--tile-ctl);
+  height: var(--tile-ctl);
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(10 10 10 / .56);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+  backdrop-filter: blur(12px) saturate(1.4);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .16), 0 2px 10px rgb(0 0 0 / .28);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: auto;
+  transition: background var(--dur-fast), color var(--dur-fast), opacity 220ms var(--ease-out), scale 160ms var(--ease-out);
+}
+.tile-star svg { display: block; width: 14px; height: 14px; }
+.tile-star:hover { background: rgb(10 10 10 / .78); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .26), 0 2px 10px rgb(0 0 0 / .32); }
+.tile-star:active { scale: .92; }
+.tile-star.is-on { opacity: 1; color: var(--ember); }
+.tile-overlay:has(.tile-star) .tile-hover-actions { right: calc(8px + var(--star-room)); }
+@media (hover: hover) {
+  .tile-motion-wrap:hover .tile-star,
+  .tile-motion-wrap:focus-within .tile-star { opacity: 1; }
+  .tile-overlay:has(.tile-star) .tile-hover-actions { right: calc(2px + var(--star-room)); }
+}
+@media (hover: none) {
+  .tile-star { opacity: 1; }
+}
+@media (max-width: 760px) {
+  .tile-overlay { --star-room: 39px; }
+  .tile-star { --tile-ctl: 34px; top: 6px; right: 6px; }
+  .tile-star svg { width: 15px; height: 15px; }
+}
+@media (max-width: 480px) {
+  .tile-overlay:has(.tile-star) .tile-hover-actions { right: calc(6px + var(--star-room)); }
+}
+/* Touch phones in the full studio: More owns the corner, so only a set star shows, under it. */
+@media (hover: none) and (max-width: 620px) {
+  .tile-star:not(.is-on) { display: none; }
+  .tile-star { top: 48px; }
+}
+/* The phone studio: a set star is a mark; the long press is where it changes. */
+.tile-overlay.is-phone .tile-star:not(.is-on) { display: none; }
+.tile-overlay.is-phone .tile-star { top: 6px; right: 6px; pointer-events: none; }
+
+.viewer-dock .icon-button.viewer-star.is-on,
+.viewer-dock .icon-button.viewer-star.is-on:hover { color: var(--ember); }
+.viewer-phone-bar button.is-starred { color: var(--ember); }
+.phone-row.is-starred > svg { color: var(--ember); }
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-history-row,
+  .prompt-history-icon,
+  .tile-star,
+  .gallery-search { transition: none; }
+}
