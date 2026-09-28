@@ -2,7 +2,7 @@ import { ChevronRight, GalleryHorizontalEnd, Wand2 } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
 import { maxLoras } from './loras';
-import { Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
+import { BetaTag, Field, NumberPicker, Skeleton, StudioSelect as Select, Tip } from './components';
 import { LoraPanel } from './LoraPanel';
 import { ModelSetup } from './ModelSetup';
 import { ModelFoldersNotice } from './ModelFoldersNotice';
@@ -89,7 +89,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
     <div className="phone-advanced-controls">
       <div className="phone-seg phone-mode" role="radiogroup" aria-label="Make">
         {(["image", "video"] as const).map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={mode === value} className={cn(mode === value && "active")} onClick={() => changeMode(value)}>{value === "image" ? "Image" : "Video"}</button>
+          <button key={value} type="button" role="radio" aria-checked={mode === value} className={cn(mode === value && "active")} onClick={() => changeMode(value)}>{value === "image" ? "Image" : <>Video<BetaTag /></>}</button>
         ))}
       </div>
 
@@ -183,7 +183,7 @@ export function SidebarControls({ view }: { view: any }) {
     <>
       <div className="mode-tabs" role="tablist" aria-label="Generation mode">
         <Tip content="Image generation"><button type="button" role="tab" aria-selected={mode === "image"} className={cn(mode === "image" && "active")} onClick={() => changeMode("image")}>Image</button></Tip>
-        <Tip content="Video generation"><button type="button" role="tab" aria-selected={mode === "video"} className={cn(mode === "video" && "active")} onClick={() => changeMode("video")}>Video</button></Tip>
+        <Tip content="Video generation · beta, expect rough edges"><button type="button" role="tab" aria-selected={mode === "video"} className={cn(mode === "video" && "active")} onClick={() => changeMode("video")}>Video<BetaTag /></button></Tip>
       </div>
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />
@@ -219,7 +219,7 @@ export function SidebarControls({ view }: { view: any }) {
                 <NumberPicker label="Variants" value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} fill />
               ) : null}
             </div>
-            <Field label="Seed"><input value={seed} placeholder="Random" onChange={(event) => setSeed(event.target.value)} /></Field>
+            <Field label="Seed"><input inputMode="numeric" value={seed} placeholder="Random" onChange={(event) => setSeed(event.target.value.replace(/[^0-9]/g, ""))} /></Field>
             {customSize && !aspectLocked ? (
               <div className="number-row">
                 <NumberPicker label="Width" value={width} onChange={setWidth} min={widthMeta.min ?? 64} max={widthMeta.max ?? 4096} step={widthMeta.step || (mode === "video" ? 32 : 64)} fill />

@@ -22,6 +22,15 @@ export const defaultPrefs: Preferences = {
   hiddenAutoLockMinutes: 15
 };
 
+/**
+ * Features that are built but kept out of sight for now. Off hides every way
+ * in; what a feature already made (like existing stacks) still shows.
+ */
+export const features = {
+  /** Stacking finished runs in the gallery: the "Group runs" chip and Library › Runs. */
+  runGrouping: false
+} as const;
+
 export const galleryInitialBatch = 72;
 export const galleryBatchSize = 48;
 

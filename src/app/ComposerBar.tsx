@@ -372,7 +372,7 @@ export function ComposerBar(props: ComposerBarProps) {
           </Tip>
           {inline("private", privateToggle)}
           {pinnedSeed.trim() && onRandomSeed ? (
-            <Tip content={`Every run uses seed ${pinnedSeed.trim()}. Tap for a random seed.`}>
+            <Tip content={`Every run uses seed ${pinnedSeed.trim()}. Click for a random seed.`}>
               <button type="button" className="seed-chip" aria-label={`Seed ${pinnedSeed.trim()} is fixed. Use a random seed`} onClick={onRandomSeed}>
                 <Dices size={14} />
                 <span>{pinnedSeed.trim()}</span>

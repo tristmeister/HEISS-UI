@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiJson } from './api';
+import { features } from './constants';
 import type { BundlePending, BundleStatus, Preferences } from './types';
 import type { ShowToast } from './toast';
 
@@ -46,7 +47,7 @@ export function useGalleryBundles({
   const [busy, setBusy] = useState(false);
   const [gathering, setGathering] = useState<Set<string>>(() => new Set());
   const [settling, setSettling] = useState<Set<string>>(() => new Set());
-  const enabled = prefs.groupRuns !== false && domainEnabled;
+  const enabled = features.runGrouping && prefs.groupRuns !== false && domainEnabled;
 
   const query = `mode=${encodeURIComponent(prefs.runGroupingMode || "smart")}&cooldownMinutes=${Number(prefs.runCooldownMinutes ?? 5)}`;
 

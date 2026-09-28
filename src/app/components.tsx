@@ -119,6 +119,15 @@ export function Tip({ content, side = "bottom", children }: { content: React.Rea
   );
 }
 
+/**
+ * Marks something that works but isn't finished: rough edges, and it may
+ * still change. Sits after a label, inside the same line.
+ */
+export function BetaTag({ className }: { className?: string }) {
+  // The hidden comma keeps a screen reader from reading "VideoBeta" as one word.
+  return <span className={cn("beta-tag", className)}><span className="sr-only">, </span>Beta</span>;
+}
+
 /** Small "i" affordance for the one explanation a control genuinely needs. */
 export function InfoTip({ content, side = "top" }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left" }) {
   return (

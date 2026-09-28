@@ -59,3 +59,36 @@
   .skeleton-media::before,
   .skeleton-media::after { animation: none; opacity: .6; }
 }
+
+/* ---------------------------------------------------------- Beta tag
+   Works, not finished. A status marker, so it takes the ember and the
+   square family: mono caps on a warm tint, never an outline. It sits in
+   the line after a label and never grows the control it's in. */
+
+.beta-tag {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--ember-soft);
+  color: var(--ember);
+  font: 600 9.5px/1 var(--font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+  user-select: none;
+}
+/* In a line of text it keeps its own air; flex rows space it with their gap. */
+.beta-tag { margin-inline-start: 7px; translate: 0 -1px; }
+.mode-tabs .beta-tag { margin-inline-start: 0; translate: none; }
+/* On a pressed tab or segment the fill behind it is lighter; the tint stays readable. */
+:is(.active, [aria-checked="true"], [aria-selected="true"]) > .beta-tag { background: rgb(255 154 82 / .2); }
+/* The phone's pressed segment is near-white: burn the ember darker to keep it legible. */
+.phone-seg button.active > .beta-tag { background: rgb(214 104 30 / .14); color: #b0500f; }
+
+@media (forced-colors: active) {
+  .beta-tag { outline: 1px solid CanvasText; outline-offset: -1px; }
+}
