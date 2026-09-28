@@ -138,3 +138,16 @@ test("a copy keeps only its own system's launcher", async () => {
   removeForeignLaunchers(root, "darwin");
   assert.deepEqual(Object.values(LAUNCHERS).filter((name) => fs.existsSync(path.join(root, name))), [LAUNCHERS.darwin]);
 });
+
+test("Linux keeps its desktop entry beside the .sh; other systems drop it", async () => {
+  const { DESKTOP_ENTRY, foreignLauncher, removeForeignLaunchers, LAUNCHERS } = await import("./release-swap.js");
+  assert.equal(foreignLauncher(DESKTOP_ENTRY, "linux"), false);
+  assert.equal(foreignLauncher(DESKTOP_ENTRY, "darwin"), true);
+  assert.equal(foreignLauncher(DESKTOP_ENTRY, "win32"), true);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-launchers-"));
+  write(path.join(root, "release.json"), "{}");
+  for (const name of [...Object.values(LAUNCHERS), DESKTOP_ENTRY]) write(path.join(root, name), "x");
+  removeForeignLaunchers(root, "linux");
+  assert.deepEqual(fs.readdirSync(root).filter((name) => name.startsWith("Start")).sort(), [DESKTOP_ENTRY, LAUNCHERS.linux].sort());
+  fs.rmSync(root, { recursive: true, force: true });
+});

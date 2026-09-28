@@ -40,13 +40,18 @@ const LEGACY_ENTRIES = ["dist", "server", "workflows", "scripts", "package.json"
  * folder never grows a Mac .command (or the other way round).
  */
 export const LAUNCHERS = { win32: "Start HEISS UI.bat", darwin: "Start HEISS UI.command", linux: "Start HEISS UI.sh" };
+/** Linux also gets a desktop entry: file managers open a .sh in a text editor, a .desktop runs it in a terminal. */
+export const DESKTOP_ENTRY = "Start HEISS UI.desktop";
+/** Every launcher file, and the system it belongs to. */
+export const LAUNCHER_FILES = { ...Object.fromEntries(Object.entries(LAUNCHERS).map(([system, name]) => [name, system])), [DESKTOP_ENTRY]: "linux" };
 export function foreignLauncher(name, platform = process.platform) {
-  return Object.values(LAUNCHERS).includes(name) && name !== (LAUNCHERS[platform] || LAUNCHERS.linux);
+  const system = LAUNCHER_FILES[name];
+  return Boolean(system) && system !== (LAUNCHERS[platform] ? platform : "linux");
 }
 /** Clears launchers an update from an older copy put in anyway (its swap did not know to skip them). */
 export function removeForeignLaunchers(root, platform = process.platform) {
   if (!fs.existsSync(path.join(root, "release.json")) || fs.existsSync(path.join(root, ".git"))) return;
-  for (const name of Object.values(LAUNCHERS)) {
+  for (const name of Object.keys(LAUNCHER_FILES)) {
     if (foreignLauncher(name, platform)) fs.rmSync(path.join(root, name), { force: true });
   }
 }
