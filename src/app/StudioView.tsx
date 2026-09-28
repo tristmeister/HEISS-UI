@@ -276,6 +276,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   useHistoryDismiss(Boolean(settings), () => setSettings(false));
   const [noComfyOpen, setNoComfyOpen] = React.useState(false);
   const [getModelsOpen, setGetModelsOpen] = React.useState(false);
+  const openGetModels = React.useCallback(() => setGetModelsOpen(true), []);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   // "?" anywhere outside a field lists the keyboard shortcuts.
   React.useEffect(() => {
@@ -653,8 +654,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
               comfyRestarting={Boolean(comfyStatus?.restarting)}
-              onFindModels={modelFolders?.openDialog}
-              onGetModels={() => setGetModelsOpen(true)}
+              onFindModels={thisComputer ? modelFolders?.openDialog : undefined}
+              onGetModels={thisComputer ? openGetModels : undefined}
               strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
@@ -758,8 +759,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
               comfyRestarting={Boolean(comfyStatus?.restarting)}
-              onFindModels={modelFolders?.openDialog}
-              onGetModels={() => setGetModelsOpen(true)}
+              onFindModels={thisComputer ? modelFolders?.openDialog : undefined}
+              onGetModels={thisComputer ? openGetModels : undefined}
               strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
@@ -813,7 +814,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       )}
       <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
       <NoComfySheet open={noComfyOpen} onOpenChange={setNoComfyOpen} onChangeAddress={thisComputer ? () => openSettings("connection") : undefined} />
-      <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={modelFolders?.openDialog} />
+      <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={thisComputer ? modelFolders?.openDialog : undefined} />
       <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {modelFolders ? <ModelFoldersDialog folders={modelFolders} runningCount={runningCount} /> : null}
       <UpscaleSetupDialog
