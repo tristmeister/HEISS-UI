@@ -398,7 +398,7 @@ export function startModelInstall(quality, info) {
   if (install?.status === "running") return installSnapshot();
   const plan = downloadPlan(quality, info);
   const dir = plan.modelDir;
-  if (!dir) throw new Error("Set the ComfyUI output folder (or HEISS_SEEDVR2_MODEL_DIR) so HEISS UI knows where to install SeedVR2 models.");
+  if (!dir) throw new Error("HEISS UI doesn’t know where ComfyUI keeps its models yet. Choose ComfyUI’s output folder under Settings › Library, then try again: the upscale models go next to it.");
   if (!plan.files.length) {
     install = { status: "done", quality: plan.quality, files: [], receivedBytes: 0, totalBytes: 0, startedAt: Date.now(), finishedAt: Date.now() };
     return installSnapshot();

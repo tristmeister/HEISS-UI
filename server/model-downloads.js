@@ -113,6 +113,17 @@ export function existingCopy(spec) {
  * An error that trying again will not fix (full disk, gated file). `browser`:
  * the file needs a Hugging Face login, so the way on is its page, not a retry.
  */
+/** The Hugging Face page a file's download address belongs to, for looking it up by hand. */
+export function repositoryPage(url = "") {
+  try {
+    const parsed = new URL(url);
+    const [owner, repo, kind] = parsed.pathname.split("/").filter(Boolean);
+    return owner && repo && ["resolve", "blob"].includes(kind) ? `${parsed.origin}/${owner}/${repo}` : "";
+  } catch {
+    return "";
+  }
+}
+
 function finalError(message, { browser = false } = {}) {
   const error = new Error(message);
   error.final = true;
@@ -262,7 +273,11 @@ async function fetchInto(entry, signal) {
     if (response.status === 401 || response.status === 403) {
       throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
     }
-    if (response.status === 404) throw finalError(`${entry.file} is no longer at its download address (HTTP 404).`);
+    if (response.status === 404) {
+      // The catalog in this version is out of date; a newer one usually knows where the file went.
+      const page = repositoryPage(entry.url);
+      throw finalError(`${entry.file} is no longer at its download address (HTTP 404). Update HEISS UI under Settings › About: newer versions know its new address. Or download it yourself${page ? ` from ${page}` : ""} and put it in ComfyUI’s ${entry.folder} folder.`);
+    }
     throw new Error(`Hugging Face answered ${response.status} for ${entry.file}.`);
   }
   // Catalog sizes are approximate; only the server's own length is a check.

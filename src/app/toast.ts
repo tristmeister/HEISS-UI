@@ -20,7 +20,7 @@ import type { ReactNode } from 'react';
  * - Not when the result is right there: a copied prompt shows a check on its
  *   button, a new cover is the new cover, a saved setting reads as saved.
  * - An error says what to do next, and offers it as the action when the app
- *   can do it (Try again, Set up, See why).
+ *   can do it (Try again, Set up, See why). It stays until dismissed.
  */
 
 export type ToastTone = 'neutral' | 'success' | 'warning' | 'error' | 'removed';
@@ -97,9 +97,15 @@ export function toastSnapshot() {
   return toasts;
 }
 
-/** Long messages stay long enough to read; anything with an action gets at least six seconds. */
+/**
+ * An error stays until it is dismissed: it is often the only place a failure
+ * is said, and it may land while you look elsewhere. Everything else times
+ * out; long messages stay long enough to read, and anything with an action
+ * gets at least six seconds.
+ */
 function durationFor(tone: ToastTone, title: string, options: ToastOptions) {
   if (options.duration !== undefined) return options.duration;
+  if (tone === 'error') return Infinity;
   const reading = BASE_DURATION[tone] + Math.max(0, title.length - 48) * 45;
   return Math.min(12000, options.action ? Math.max(6000, reading) : reading);
 }

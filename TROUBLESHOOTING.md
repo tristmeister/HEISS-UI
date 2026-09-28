@@ -106,14 +106,14 @@ Some models need you to sign in and accept a licence first (HTTP 401 or 403). Do
 
 ### ComfyUI-Manager refuses to install a node pack
 
-Installing a node pack from its Git address is something ComfyUI-Manager only allows at a security level of `normal-` or `weak` (its default is `normal`). Either use the terminal command the panel shows, or lower the level:
+ComfyUI-Manager only installs what its security level allows. At its default, `normal`, it installs packs from its registry while ComfyUI listens on this computer alone; `strong` refuses them, and a ComfyUI started with `--listen` for other computers refuses more. Installing straight from a Git address needs `normal-` (or `weak`).
+
+Either use the terminal command the panel shows, or change the level:
 
 1. Stop ComfyUI.
 2. Open Manager's `config.ini`: `ComfyUI/user/__manager/config.ini` in current versions, `ComfyUI/user/default/ComfyUI-Manager/config.ini` in older ones.
-3. Set `security_level = normal-` and save.
+3. Set `security_level = normal` (or `normal-` for a Git address) and save.
 4. Start ComfyUI again and retry the install.
-
-`normal-` only applies while ComfyUI listens on this computer alone. Set it back to `normal` afterwards if you prefer.
 
 ### A download stops because the disk is full
 
