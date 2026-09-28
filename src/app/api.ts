@@ -28,16 +28,30 @@ export async function copyImage(item: GalleryItem) {
   if (!item.url) return copyText(fullGenerationText(item));
   if (item.type !== "image") return copyText(item.url);
   try {
-    const response = await fetch(item.url);
-    const blob = await response.blob();
-    const type = blob.type || "image/png";
-    await navigator.clipboard.write([
-      new ClipboardItem({ [type]: blob })
-    ]);
+    // Clipboards take PNG everywhere, and only PNG in some browsers, so a JPEG
+    // or WebP is turned into one first. The promise keeps Safari's permission,
+    // which only lasts while the click is still being handled.
+    const png = fetch(item.url)
+      .then((response) => {
+        if (!response.ok) throw new Error("fetch failed");
+        return response.blob();
+      })
+      .then((blob) => (blob.type === "image/png" ? blob : asPng(blob)));
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
     return true;
   } catch {
     return copyText(item.url);
   }
+}
+
+async function asPng(blob: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(blob);
+  const canvas = document.createElement("canvas");
+  canvas.width = bitmap.width;
+  canvas.height = bitmap.height;
+  canvas.getContext("2d")?.drawImage(bitmap, 0, 0);
+  bitmap.close();
+  return new Promise((resolve, reject) => canvas.toBlob((png) => (png ? resolve(png) : reject(new Error("encode failed"))), "image/png"));
 }
 
 /**
