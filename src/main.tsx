@@ -190,6 +190,15 @@ function App() {
     showToast
   });
 
+  // Chrome on Windows can hand playing videos to a hardware layer that frosted
+  // glass can't blur, so the glass over the video gallery shows it through.
+  // There, in video mode, the glass turns nearly opaque (16-system.css).
+  useEffect(() => {
+    const root = document.documentElement;
+    const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform || navigator.platform || "";
+    root.classList.toggle("is-windows", /^win/i.test(platform));
+    root.classList.toggle("is-video-mode", mode === "video");
+  }, [mode]);
   useEffect(() => {
     refreshHealth();
     refreshComfyStatus();

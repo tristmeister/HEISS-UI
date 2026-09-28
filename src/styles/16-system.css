@@ -33,6 +33,11 @@
   backdrop-filter: var(--surface-float-blur);
 }
 
+/* Windows, video gallery: Chrome may put playing videos on a hardware layer
+   the blur can't read, and the glass would show them through at its tint.
+   The glass goes nearly opaque there instead (main.tsx sets the classes). */
+:root.is-windows.is-video-mode { --surface-float: rgb(20 20 20 / .95); }
+
 /* The composer and its drawer hold menus that pop out past their edges. An
    element with backdrop-filter becomes the backdrop root for everything inside
    it, so those menus would have nothing to blur and the gallery would show

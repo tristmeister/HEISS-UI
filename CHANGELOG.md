@@ -11,6 +11,14 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Fixed
+- **The sidebar and other glass stay readable over the video gallery on
+  Windows**, where Chrome can hand playing videos to a layer the blur can't
+  reach.
+- **Pixel glyphs no longer show a faint grid on Windows screens.** The toast
+  marks, the update and upscale arrows and the plug draw their cells edge to
+  edge where a screen is too coarse for the fine gaps between them.
+
 ## [0.12.0] - 2026-09-28
 
 > An easy first run, prompt history, search and safer sharing
