@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LifeBuoy, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, ChevronDown, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LifeBuoy, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
 import { cn } from './format';
 import { BetaTag, NumberPicker, Skeleton, StudioSelect } from './components';
@@ -158,6 +158,31 @@ function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsCha
 
 function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad' | 'warn' }>) {
   return <span className={cn('set-status', tone && `is-${tone}`)}><i aria-hidden="true" />{children}</span>;
+}
+
+/* ------------------------------------------------------------ Keyboard */
+
+/** Every shortcut, folded away until asked for: the list is long and rarely needed here. */
+function ShortcutsDrawer() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className={cn('set-drawer', open && 'is-open')}>
+      <button type="button" className="set-row set-drawer-toggle" aria-expanded={open} aria-controls="set-shortcuts" onClick={() => setOpen((value) => !value)}>
+        <span className="set-row-text">
+          <strong>Keyboard shortcuts</strong>
+          <span>{shortcuts.length} shortcuts. Press <kbd className="set-kbd">?</kbd> anywhere to see them.</span>
+        </span>
+        <ChevronDown size={16} className="set-drawer-chevron" aria-hidden="true" />
+      </button>
+      <div className="set-drawer-body" id="set-shortcuts" inert={!open}>
+        <div className="set-drawer-inner">
+          {shortcuts.map(([keys, what]) => (
+            <Row key={keys} label={<kbd className="set-kbd">{keys}</kbd>} description={what} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------ Restarts */
@@ -672,9 +697,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
-              {shortcuts.map(([keys, what]) => (
-                <Row key={keys} label={<kbd className="set-kbd">{keys}</kbd>} description={what} />
-              ))}
+              <ShortcutsDrawer />
             </Group>
             <Group title="Safety">
               <SwitchRow label="Confirm before removing things" description="Ask before deleting or stopping things. Deletes can still be undone for a few seconds, and anything permanent always asks." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
