@@ -309,7 +309,7 @@ Start-Process "http://localhost:8787/"
 Yes. HEISS UI doesn't ship its own runtime or models, and it doesn't patch your ComfyUI install. It reads what ComfyUI has installed and builds its controls from that. The only things it ever adds are files and node packs you choose to download for a model, and those go into ComfyUI's own folders.
 
 **Which models work?**
-26 families out of the box, 21 for images and 5 for video. See [Supported models](#supported-models). Anything else runs as [your own workflow](#bring-your-own-workflow).
+28 families out of the box, 21 for images and 7 for video. See [Supported models](#supported-models). Anything else runs as [your own workflow](#bring-your-own-workflow).
 
 **Where do my images go?**
 Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own local data folder. No account, no cloud in between.
