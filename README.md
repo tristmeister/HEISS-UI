@@ -150,7 +150,7 @@ It shows up as soon as the nodes it needs are installed. Only the mapped inputs 
 Getting a new model running in ComfyUI usually means hunting for the right text encoder, the right VAE and a custom node pack or two. HEISS UI does that part for you.
 
 - **It knows what each model needs.** Pick a model and HEISS lists exactly what's missing: a text encoder, a VAE, a companion file (like Wan 2.2's low-noise half), a custom node pack, or a newer ComfyUI. The model menu says what each model lacks, and a blocked Generate opens that model's setup.
-- **One click per part, or Get all.** Files come from Hugging Face straight into the folders ComfyUI actually reads from, including shared folders set up in `extra_model_paths.yaml`. **Get all** adds up the real sizes first. Where an abliterated text encoder exists, it's the one offered.
+- **One click per part, or Get all.** Files come from Hugging Face straight into the folders ComfyUI actually reads from, including shared folders set up in `extra_model_paths.yaml`. **Get all** adds up the real sizes and checks them against the free space first. Where an abliterated text encoder exists, it's the one offered; the other builds (smaller precisions, Comfy-Org's own) sit under **Other versions**, and a build that has moved or is gated falls back to the next by itself.
 - **Custom nodes install themselves too.** Packs listed in ComfyUI-Manager install through it; otherwise, with ComfyUI on this computer, HEISS clones the pack and installs its requirements with ComfyUI's own Python. The manual steps stay one tap away.
 - **Downloads you can trust.** They show progress, speed and time left, resume after a restart, retry a dropped connection by themselves, check free space first, and send gated files to their Hugging Face page instead of failing.
 - **It ends in "ready".** Each part is ticked off as it lands, and the last one turns the panel into "Krea 2 is ready". Restarting ComfyUI halfway keeps your progress.
@@ -226,6 +226,8 @@ COMFY_OUTPUT_DIR=
 ```
 
 `COMFY_OUTPUT_DIR` is optional; HEISS UI usually finds the folder. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
+
+Model downloads follow the Hugging Face tools' own settings: `HF_TOKEN` (or a token saved in **Settings › Models**) opens gated repos and is sent to huggingface.co only, `HF_ENDPOINT` points them at a mirror, and `HTTPS_PROXY`, `HTTP_PROXY` and `NO_PROXY` send them through a proxy.
 
 <details>
 <summary><b>Windows shortcut</b></summary>

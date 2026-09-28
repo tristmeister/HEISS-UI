@@ -5,6 +5,8 @@ import { pipeline } from "node:stream/promises";
 import { comfyModelsDir, modelFolders } from './comfy.js';
 import { renameWithRetry } from "./json-store.js";
 import { freeBytesAt } from "./paths.js";
+// Every catalog request goes through Hugging Face access: token, mirror and proxy (hf-access.js).
+import { hfFetch as fetch } from "./hf-access.js";
 
 /**
  * Fetches text encoders and VAEs a model needs into ComfyUI's own folders. Only
@@ -29,7 +31,7 @@ export function setDownloadTransport(fn) {
 
 function snapshot(entry) {
   if (!entry) return null;
-  const { controller, ...rest } = entry;
+  const { controller, alternatives, ...rest } = entry;
   return rest;
 }
 
@@ -40,7 +42,8 @@ export function downloadState() {
     active: snapshot(active),
     queued: queue.map(snapshot),
     recent: recent.map(snapshot),
-    paused: pausedDownloads()
+    paused: pausedDownloads(),
+    space: downloadSpace()
   };
 }
 
@@ -172,7 +175,9 @@ export function startDownload(spec) {
     totalBytes: Number(spec.bytes || 0),
     bytesPerSecond: 0,
     queuedAt: Date.now(),
-    error: ""
+    error: "",
+    // Other builds of the same part, tried in order if this one is gone or gated.
+    alternatives: Array.isArray(spec.alternatives) ? spec.alternatives : []
   };
   queue.push(entry);
   pump();
@@ -224,6 +229,7 @@ async function pump() {
     // Retrying only helps when the network was the problem.
     active.retryable = canceled || !error?.final;
     active.needsBrowser = Boolean(error?.browser);
+    active.unavailable = !canceled && unavailable(error);
   }
   delete active.reconnecting;
   active.finishedAt = Date.now();
@@ -231,8 +237,60 @@ async function pump() {
   active = null;
   delete finished.controller;
   finished.bytesPerSecond = 0;
+  const next = fallbackFor(finished);
+  if (next) {
+    finished.fellBackTo = next.file;
+    queue.unshift(next);
+  }
   remember(finished);
   pump();
+}
+
+/** Gone from its address (404, 410) or gated (401, 403): another build of the part may still be there. */
+function unavailable(error) {
+  const status = Number(error?.status) || Number(/\b(?:HTTP|answered) (\d{3})\b/.exec(error?.message || "")?.[1] || 0);
+  return Boolean(error?.browser) || status === 404 || status === 410 || status === 401 || status === 403;
+}
+
+/**
+ * The next catalog build of a part whose download is gone or gated, queued in
+ * its place so "Get" still ends with a working file. Builds already on disk
+ * count as done; nothing is tried twice.
+ */
+function fallbackFor(failed) {
+  if (failed.status !== "error" || !failed.unavailable) return null;
+  const rest = [...(failed.alternatives || [])];
+  while (rest.length) {
+    const spec = rest.shift();
+    const same = (entry) => entry && entry.folder === spec.folder && entry.file === spec.file;
+    if (queue.some(same)) return null;
+    try { targetFor(spec); } catch { continue; }
+    if (existingCopy(spec)) return null;
+    return {
+      id: spec.id, file: spec.file, folder: spec.folder, label: spec.label || spec.file, url: spec.url, dir: targetFor(spec).dir,
+      status: "queued", receivedBytes: 0, totalBytes: Number(spec.bytes || 0), bytesPerSecond: 0, queuedAt: Date.now(), error: "",
+      alternatives: rest, fallbackFrom: failed.file
+    };
+  }
+  return null;
+}
+
+/** Free space where each kind of model lands, and which disk that is, so a batch can be checked before it starts. */
+export function downloadSpace() {
+  const space = {};
+  if (!comfyModelsDir()) return space;
+  for (const folder of allowedFolders) {
+    let dir;
+    try { ({ dir } = targetFor({ folder, file: "probe.safetensors", url: "https://huggingface.co/x" })); } catch { continue; }
+    // The folder may not exist yet; its nearest existing parent is on the same disk.
+    let probe = dir;
+    while (probe && !fs.existsSync(probe) && path.dirname(probe) !== probe) probe = path.dirname(probe);
+    let disk = "";
+    try { disk = String(fs.statSync(probe).dev); } catch { /* unknown disk: grouped alone */ }
+    const free = freeBytesAt(probe);
+    if (free !== null) space[folder] = { free, disk: disk || folder };
+  }
+  return space;
 }
 
 async function fetchInto(entry, signal) {

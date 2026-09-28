@@ -131,7 +131,7 @@ export type Profile = {
 };
 export type SpeedVariant = { label: string; steps: number; cfg: number; sampler: string; scheduler: string };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
-export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean };
+export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean; /** Who publishes it on Hugging Face (the repo owner), and the repo. */ source?: string; repo?: string };
 /** A ComfyUI custom node pack (server/node-packs.js). */
 export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
 /** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */
@@ -149,8 +149,8 @@ export type MissingPart = {
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
-export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number };
-export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number; /** Gone or gated, and the next build of the same part the server tried instead. */ unavailable?: boolean; fellBackTo?: string; fallbackFrom?: string };
+export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[]; /** Free bytes where each models folder lands, and which disk that is. */ space?: Record<string, { free: number; disk: string }> };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
 export type ModelFile = { name: string; source: ModelSource; family: string; choice: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string; missing?: string[]; /** A quantized format ComfyUI cannot load natively (svdq, nf4). */ quant?: string };

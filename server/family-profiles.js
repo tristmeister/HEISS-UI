@@ -23,9 +23,15 @@ function partLabel(kind, key, file) {
   return file;
 }
 
+/** Who publishes a Hugging Face file: the repo's owner ("Comfy-Org", a community converter). */
+export function downloadSource(url = "") {
+  const match = /^https:\/\/huggingface\.co\/([^/]+)\/([^/]+)\//.exec(String(url));
+  return match ? { source: match[1], repo: `${match[1]}/${match[2]}` } : {};
+}
+
 function downloadsFor(list = [], folder, prefix) {
   const [kind, key] = prefix.split(":");
-  return list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...item }));
+  return list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...downloadSource(item.url), ...item }));
 }
 
 /** `onDisk`: fetched already (even before a restart), ComfyUI just has not listed it yet. */
@@ -65,12 +71,19 @@ export function referenceSlots(count = 0) {
   }));
 }
 
+/**
+ * One catalog download by id, with the builds listed after it for the same
+ * part as `alternatives`: tried in order if this one is gone or gated.
+ */
 export function catalogDownload(id = "") {
   const [kind, key, index] = String(id).split(":");
   const [source, folder] = downloadSources[kind] || [];
-  const entry = source && Object.hasOwn(source, key) ? source[key][Number(index)] : null;
+  const list = source && Object.hasOwn(source, key) ? source[key] : [];
+  const at = Number(index);
+  const entry = Number.isInteger(at) ? list[at] : null;
   if (!entry) return null;
-  return { id, folder, label: partLabel(kind, key, entry.file), ...entry };
+  const spec = (item, position) => ({ id: `${kind}:${key}:${position}`, folder, label: partLabel(kind, key, item.file), ...item });
+  return { ...spec(entry, at), alternatives: list.slice(at + 1).map((item, offset) => spec(item, at + 1 + offset)) };
 }
 
 /**
@@ -85,7 +98,7 @@ export function catalogDownloadsForFile(file = "", folder = "") {
     if (sourceFolder !== folder) continue;
     for (const [key, list] of Object.entries(source)) {
       list.forEach((entry, index) => {
-        if (entry.file === file) found.push(withDisk({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...entry }));
+        if (entry.file === file) found.push(withDisk({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...downloadSource(entry.url), ...entry }));
       });
     }
   }

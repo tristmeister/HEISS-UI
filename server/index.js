@@ -21,6 +21,7 @@ import { getThumbnail, resizeInMemory } from './thumbnails.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { cancelPrompt, cancelPrompts } from './comfy-queue.js';
 import { loraInfos } from './lora-info.js';
+import { hfEndpoint, hfTokenStatus, saveHfToken } from './hf-access.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
@@ -668,6 +669,20 @@ app.post("/api/models/downloads/cancel", (req, res) => {
   if (spec) discardDownload(spec);
   else cancelDownload(id);
   res.json({ ok: true, ...downloadState() });
+});
+
+// A Hugging Face token for gated downloads: kept in .env, only ever sent to huggingface.co, never shown back.
+app.get("/api/settings/hf-token", (_req, res) => {
+  res.json({ ok: true, ...hfTokenStatus(), mirror: hfEndpoint()?.origin || "" });
+});
+
+app.post("/api/settings/hf-token", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json({ ok: true, ...saveHfToken(req.body?.token), mirror: hfEndpoint()?.origin || "" });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
 });
 
 // "Download again" for a catalog file a run found damaged: the broken copy goes first.

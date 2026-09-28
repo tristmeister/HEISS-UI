@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Download, ExternalLink, Pause, Play, RefreshCw, RotateCw, X } from 'lucide-react';
+import { Check, ChevronDown, Download, ExternalLink, Pause, Play, RefreshCw, RotateCw, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ComfyRestart } from './ComfyRestart';
 import { NodeInstall, ShellCommand } from './NodeInstall';
@@ -7,7 +7,7 @@ import { CellBar } from './UpscaleDialogs';
 import { formatEta } from './UpscaleDownloadActivity';
 import { cn } from './format';
 import { downloadFor, useModelDownloads } from './useModelDownloads';
-import type { MissingPart, ModelDownload, Profile } from './types';
+import type { MissingPart, ModelDownload, PartDownload, Profile } from './types';
 import { useThisComputer } from './device';
 import type { ShowToast } from './toast';
 
@@ -103,10 +103,12 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     }
   };
 
+  // Which build of a part someone picked under "Other versions", by part.
+  const [chosen, setChosen] = React.useState<Record<string, string>>({});
   const shownDone = allDone ? installed : ready;
   // A download that just landed waits for the rescan; only a file ComfyUI still does not list after that is stuck.
   // The server's onDisk covers files fetched before HEISS restarted, which `landed` has forgotten.
-  const landedWaiting = missing.some((item) => item.downloads[0] && (landed.has(item.downloads[0].file) || item.downloads[0].onDisk) && !downloadFor(state, item.downloads[0].file));
+  const landedWaiting = missing.some((item) => item.downloads.some((download) => (landed.has(download.file) || download.onDisk) && !downloadFor(state, download.file)));
   const [stuckShown, setStuckShown] = React.useState(false);
   React.useEffect(() => {
     if (!landedWaiting) { setStuckShown(false); return; }
@@ -133,8 +135,17 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   if (!missing.length) return null;
 
   const rows = missing.map((item) => {
-    const download = item.downloads[0];
-    const current = download ? downloadFor(state, download.file) : undefined;
+    // The build this row is about: one already moving or in place (a fallback the
+    // server picked by itself included), else the one picked here, else the catalog's first.
+    const tracked = item.downloads.map((entry) => ({ entry, state: downloadFor(state, entry.file) }));
+    const moving = tracked.find((row) => row.state?.status === 'downloading' || row.state?.status === 'queued');
+    const inPlace = tracked.find((row) => landed.has(row.entry.file) || row.entry.onDisk);
+    const paused = tracked.find((row) => row.state?.status === 'paused');
+    const picked = tracked.find((row) => row.entry.id === chosen[partKey(item)]);
+    const failed = [...tracked].reverse().find((row) => row.state?.status === 'error');
+    const pick = moving || inPlace || paused || picked || failed || tracked[0];
+    const download = pick?.entry;
+    const current = pick?.state;
     let rowState: RowState = !download ? 'manual' : 'idle';
     if (current?.status === 'queued') rowState = 'queued';
     else if (current?.status === 'downloading') rowState = 'downloading';
@@ -148,6 +159,25 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const startable = remote ? [] : rows.filter((row) => row.download && (row.rowState === 'idle' || row.rowState === 'paused' || (row.rowState === 'error' && row.current?.retryable !== false)));
   const remainingBytes = startable.reduce((sum, row) => sum + Math.max(0, (row.current?.totalBytes || row.download?.bytes || 0) - (row.current?.receivedBytes || 0)), 0);
   const sizeUnknown = startable.some((row) => !(row.current?.totalBytes || row.download?.bytes));
+  // "Get all" lands several files, maybe on one disk: check them together before the first starts,
+  // with the same margin per file the server keeps.
+  const perDisk = new Map<string, { need: number; free: number }>();
+  for (const row of startable) {
+    const room = state?.space?.[row.download!.folder];
+    if (!room) continue;
+    const left = Math.max(0, (row.current?.totalBytes || row.download?.bytes || 0) - (row.current?.receivedBytes || 0));
+    const disk = perDisk.get(room.disk) || { need: 0, free: room.free };
+    disk.need += left + 256 * 1024 * 1024;
+    perDisk.set(room.disk, disk);
+  }
+  const short = startable.length > 1 ? [...perDisk.values()].find((disk) => disk.need > disk.free) : undefined;
+  const getAll = () => {
+    if (short) {
+      showToast(`Not enough space for all of them: they need ${formatBytes(short.need)}, and the disk has ${formatBytes(short.free)} free. Free some space, or get them one at a time.`, 'error');
+      return;
+    }
+    run(async () => { for (const row of startable) await start(row.download!.id); });
+  };
   const moving = rows.some((row) => row.rowState === 'downloading' || row.rowState === 'queued');
   const stuck = stuckShown && rows.some((row) => row.rowState === 'landed');
   const fetchable = rows.filter((row) => row.download).length;
@@ -176,10 +206,10 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       <header className="model-setup-head">
         <div>
           <strong>{title}</strong>
-          <span>{subtitle}</span>
+          <span>{short && !moving ? `Together they need ${formatBytes(short.need)}, and the disk has ${formatBytes(short.free)} free.` : subtitle}</span>
         </div>
         {startable.length > 1 && !outdated ? (
-          <button type="button" className="btn is-primary" onClick={() => run(async () => { for (const row of startable) await start(row.download!.id); })}>
+          <button type="button" className={cn('btn', short ? 'is-ghost' : 'is-primary')} onClick={getAll}>
             <Download size={14} /> Get all{remainingBytes ? ` · ${formatBytes(remainingBytes)}${sizeUnknown ? '+' : ''}` : ''}
           </button>
         ) : null}
@@ -209,6 +239,17 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
               ) : null}
             </AnimatePresence>
             {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'}</p> : null}
+            {rowState === 'error' && current?.needsBrowser ? <p className="model-setup-detail">Or add a Hugging Face token in Settings › Models, then try again here.</p> : null}
+            {download && download.id !== item.downloads[0]?.id && downloadFor(state, item.downloads[0].file)?.status === 'error' && (rowState === 'downloading' || rowState === 'queued')
+              ? <p className="model-setup-detail">{item.downloads[0].file} wasn’t available, so this build is coming instead.</p>
+              : null}
+            {download && item.downloads.length > 1 && !remote && rowState !== 'landed' && rowState !== 'downloading' && rowState !== 'queued' ? (
+              <OtherVersions
+                downloads={item.downloads}
+                current={download}
+                onPick={(entry) => { setChosen((all) => ({ ...all, [key]: entry.id })); run(() => start(entry.id)); }}
+              />
+            ) : null}
             {/* A row with its own download says enough; the where-to-put-it line is for the rest. */}
             {rowState === 'manual' || (rowState === 'idle' && remote) ? <p className="model-setup-detail">{item.detail}</p> : null}
             {item.nodePack ? (
@@ -231,6 +272,45 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       ) : null}
       {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer, so put these files into its models folders there, then rescan.' : 'Add these on the computer running HEISS UI; this workflow is ready here once they are in place.'}</p> : null}
     </section>
+  );
+}
+
+/** Who publishes a build, as a short line: Comfy-Org's own repackaging, or the community converter's name. */
+function sourceLine(download: PartDownload) {
+  const size = formatBytes(download.bytes);
+  const who = download.source === 'Comfy-Org' ? 'Comfy-Org' : download.source ? `${download.source} (community)` : '';
+  return [size, who].filter(Boolean).join(' · ');
+}
+
+/**
+ * The other builds of a part (another precision, another publisher), folded
+ * away under one quiet line: the default is the first, and most people never
+ * need to open this.
+ */
+function OtherVersions({ downloads, current, onPick }: { downloads: PartDownload[]; current: PartDownload; onPick: (download: PartDownload) => void }) {
+  const [open, setOpen] = React.useState(false);
+  const others = downloads.filter((entry) => entry.id !== current.id);
+  if (!others.length) return null;
+  return (
+    <div className={cn('model-setup-versions', open && 'is-open')}>
+      <button type="button" className="model-setup-versions-toggle" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        {current.file === downloads[0].file ? `Other version${others.length === 1 ? '' : 's'}` : 'All versions'} <em>{others.length}</em> <ChevronDown size={12} />
+      </button>
+      {open ? (
+        <ul>
+          <li className="is-current">
+            <span><strong>{breakable(current.file)}</strong><small>{sourceLine(current)}</small></span>
+            <em>Selected</em>
+          </li>
+          {others.map((entry) => (
+            <li key={entry.id}>
+              <span><strong>{breakable(entry.file)}</strong><small>{sourceLine(entry)}{entry.onDisk ? ' · already here' : ''}</small></span>
+              <button type="button" className="btn is-ghost" onClick={() => { setOpen(false); onPick(entry); }}><Download size={13} /> Get this</button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
@@ -326,7 +406,7 @@ function RowActions({ rowState, download, current, remote, run, start, pause, di
   return (
     <>
       {!remote ? (
-        <button type="button" className="btn" onClick={() => run(() => start(download.id))} title={download.file}>
+        <button type="button" className="btn" onClick={() => run(() => start(download.id))} title={[download.file, download.source].filter(Boolean).join(' · ')}>
           <Download size={14} /> {download.bytes ? formatBytes(download.bytes) : 'Get'}
         </button>
       ) : null}
