@@ -5,6 +5,7 @@
 // app asks (Settings › General › Restart, the LAN switch), and Vite follows
 // when the LAN choice changed, so the switch works in a checkout too.
 import { fork, spawn } from "node:child_process";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listensBeyondThisComputer, readEnvFile, resolveLan } from "../server/lan.js";
@@ -13,6 +14,10 @@ import { RESTART_CODE } from "../server/release-swap.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
 const shell = { ...process.env };
+// Vite proxies the API, so to the server every request comes from 127.0.0.1.
+// This token lets Vite say who is really asking (vite.config.ts), so a phone
+// in dev LAN mode is another device, not this computer.
+process.env.HEISS_DEV_PROXY_TOKEN = crypto.randomBytes(32).toString("base64url");
 
 // Read .env fresh each time: the LAN switch writes to it between restarts.
 function viteHost() {

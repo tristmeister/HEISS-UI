@@ -20,7 +20,9 @@ export const defaultPrefs: Preferences = {
   upscaleQuality: "balanced",
   upscaleFaceDetail: false,
   hiddenAutoLockMinutes: 15,
-  modelFolderHints: true
+  modelFolderHints: true,
+  shareWithoutSettings: false,
+  hiddenShareWithoutSettings: true
 };
 
 /**

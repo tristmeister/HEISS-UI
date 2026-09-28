@@ -351,6 +351,7 @@ function progressLine(current: ModelDownload, rowState: RowState) {
   if (rowState === 'queued') return current.receivedBytes ? `Waiting · resumes at ${pct}%` : 'Waiting for the file before it';
   if (rowState === 'paused') return `Paused at ${pct}% · ${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`;
   if (current.reconnecting) return `Connection dropped at ${pct}% · reconnecting (try ${current.reconnecting} of 3)…`;
+  if (current.verifying) return `${formatBytes(current.totalBytes)} · checking the file…`;
   const speed = current.bytesPerSecond || 0;
   const eta = speed > 0 && current.totalBytes ? formatEta((current.totalBytes - current.receivedBytes) / speed) : '';
   return [`${pct}%`, current.receivedBytes ? `${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}` : formatBytes(current.totalBytes), speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', eta].filter(Boolean).join(' · ');

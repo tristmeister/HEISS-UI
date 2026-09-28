@@ -80,12 +80,15 @@ function listenOnce(handler, port, host) {
  * Listens on `port`, or on the next free one when another program has it.
  * Resolves `{ server, port, moved }`. Rejects with the listen error; when
  * HEISS UI itself holds a port on the way, the error has `heissRunning` and
- * that `port`. `tries` ports are tried in all; `fallback: false` tries one.
+ * that `port`. `tries` ports are tried in all; `fallback: false` tries one;
+ * `skip` names ports the fallback passes over.
  */
-export async function listenWithFallback(handler, { port, host, tries = 10, fallback = true, isHeiss = heissAnswersAt } = {}) {
+export async function listenWithFallback(handler, { port, host, tries = 10, fallback = true, skip = [], isHeiss = heissAnswersAt } = {}) {
   const first = Number(port);
   for (let offset = 0; ; offset += 1) {
     const candidate = first + offset;
+    // A port kept for something else of ours (HTTPS for other devices) is passed over.
+    if (offset > 0 && skip.includes(candidate)) continue;
     try {
       const server = await listenOnce(handler, candidate, host);
       // Port 0 asks the system for any free port; report the one it gave.

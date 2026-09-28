@@ -10,18 +10,26 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, requestedPort, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, setListeningPort } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, outputMediaPattern, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, requestedPort, setListeningPort } from './comfy.js';
+import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
+import { limitedCheck, registerAccessRoutes } from './access-routes.js';
+import { requestGuard } from './request-guard.js';
+import { stripMetadata } from './metadata-strip.js';
+import { httpsListening, httpsProblem, startServers } from './listen.js';
+import { httpsPort, inspectTls, startupTls, tlsHostNames, tlsSummary } from './tls.js';
+import { envFileKeys, writeLocalEnvValue } from './env.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
 import { cancelDownload, discardDownload, downloadState, replaceDownload, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
-import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
+import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
-import { getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
+import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { clearPromptHistory, forgetPrompts, listPrompts, promptKey, recordPrompt, setPromptPinned } from './prompt-history.js';
 import { addLibraryFolder, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
 import { civitaiPrefs, saveCivitaiPrefs } from './civitai.js';
+import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { cancelPrompt, cancelPrompts } from './comfy-queue.js';
 import { loraInfos } from './lora-info.js';
@@ -34,7 +42,7 @@ import { starterPlan } from './starter-models.js';
 import { findComfy, findComfyNow, nearbyAddresses } from './comfy-finder.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
-import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
+import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockWithPasskey, unlockWithPassword } from './privacy.js';
 import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, retireVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
 import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
@@ -49,16 +57,17 @@ import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
-import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
+import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
-import { listenWithFallback } from './launch.js';
 import { describeGitError, updateCheckout } from './git-update.js';
 import { diagnostics, diagnosticsText } from './diagnostics.js';
 
 const app = express();
+// Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
+app.use(requestGuard({ lan: () => allowLanActions, extraHosts: tlsHostNames }));
 app.use(express.json({ limit: "25mb" }));
 // Gallery pages and model lists travel compressed to phones and tablets; this computer skips the work.
-app.use(compressJson({ skip: (req) => isLocalClient(req.socket.remoteAddress || "") }));
+app.use(compressJson({ skip: (req) => clientOf(req).thisComputer }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -107,41 +116,39 @@ async function recoverGalleryFromHistory() {
   setGallery(dedupeGallery([...pending, ...gallery, ...recovered]).slice(0, galleryLimit));
 }
 
+/** This computer, or another device that signed in (the gate below has already checked). */
 function requireLocal(req, res) {
-  const remote = req.socket.remoteAddress || "";
-  if (isTrustedClient(remote)) return true;
-  res.status(403).json({ ok: false, error: "This action is only allowed from this computer or trusted local network." });
+  const client = clientOf(req);
+  if (client.thisComputer || (client.network && deviceSession(req))) return true;
+  res.status(403).json({ ok: false, error: "This action is only allowed from this computer or a signed-in device." });
   return false;
 }
 
-function requireTrustedAccess(req, res) {
-  const remote = req.socket.remoteAddress || "";
-  if (isLocalClient(remote) || isTrustedClient(remote)) return true;
-  res.status(403).json({ ok: false, error: "This app is only available from this computer or trusted local network." });
-  return false;
-}
-
-function requireLanUnlock(req, res, next) {
+/**
+ * The gate for other devices. This computer goes straight through. Anyone
+ * else is answered only in LAN mode, from a private network address (or
+ * through a proxy, which always counts as someone else), and only once
+ * signed in with the studio password. /api/access is how they sign in.
+ */
+function requireSignedIn(req, res, next) {
   if (!req.path.startsWith("/api") && !req.path.startsWith("/comfy")) return next();
-  if (req.path.startsWith("/api/privacy")) return next();
-  const remote = req.socket.remoteAddress || "";
-  if (isLocalClient(remote)) return next();
-  if (!allowLanActions || !isTrustedClient(remote)) {
-    res.status(403).json({ ok: false, error: "This app is only available from this computer unless LAN mode is enabled." });
+  const client = clientOf(req);
+  if (client.thisComputer) return next();
+  if (!client.network) {
+    res.status(403).json({ ok: false, reason: "lan-off", error: "This app is only available from this computer unless it’s opened to other devices (Settings › Connection)." });
     return;
   }
-  if (!isPrivacyEnabled()) {
-    res.status(403).json({ ok: false, error: "Set up Hidden on this computer first. Other devices unlock with its password." });
-    return;
-  }
-  if (!encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, locked: true, error: "Enter the Hidden password to continue." });
+  if (req.path.startsWith("/api/access/")) return next();
+  if (!deviceSession(req)) {
+    res.setHeader("X-HEISS-Sign-In", "1");
+    res.status(401).json({ ok: false, reason: "sign-in", error: "Sign in with the studio password to continue." });
     return;
   }
   next();
 }
 
-app.use(requireLanUnlock);
+app.use(requireSignedIn);
+registerAccessRoutes(app);
 
 async function runRepoCommand(command, args) {
   const npm = command === npmCommand ? npmInvocation(args) : { command, args, shell: false };
@@ -185,18 +192,38 @@ async function hiddenReadiness() {
   return { outputDir: Boolean(outputDir), outputPath: outputDir || "" };
 }
 
+/**
+ * Images hidden before hiding cleaned up after itself left cached thumbnails
+ * behind; the first unlock after the update finds and removes them, once.
+ */
+let oldHiddenThumbnailsChecked = false;
+function forgetOldHiddenThumbnails(key) {
+  if (oldHiddenThumbnailsChecked) return;
+  oldHiddenThumbnailsChecked = true;
+  try {
+    const names = vaultItems(key, { bundles: false }).flatMap((item) => [item.outputName, item.upscale?.outputName]);
+    const removed = forgetLegacyHiddenThumbnails(names);
+    if (removed) console.log(`[HEISS] Removed ${removed} thumbnail${removed === 1 ? "" : "s"} left behind by images hidden before.`);
+  } catch {
+    oldHiddenThumbnailsChecked = false;
+  }
+}
+
 async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
   const status = privacyStatusFor(req);
   const unlocked = Boolean(key);
-  if (unlocked) migrateLegacyPrompts(key);
+  if (unlocked) {
+    migrateLegacyPrompts(key);
+    forgetOldHiddenThumbnails(key);
+  }
   return {
     ...status,
     unlocked,
     // Nothing about what Hidden holds is shared with a locked browser, not even whether it is empty.
     vault: { unlocked, revision: unlocked ? vaultRevision() : 0 },
     readiness: await hiddenReadiness(),
-    // Another device on the network signs in with the Hidden password before it sees anything.
-    remote: !isLocalClient(req.socket?.remoteAddress || "")
+    // Another device, signed in with the studio password; Hidden itself still opens with its own.
+    remote: !clientOf(req).thisComputer
   };
 }
 
@@ -215,8 +242,47 @@ app.get("/api/network", (req, res) => {
   res.json({
     addresses: interfaces.map((item) => item.address), interfaces, port, listening: lanListening,
     // saved: what the next start does. source: who decides it now (flag and shell outrank the switch).
-    lan: { saved: lan.saved, source: lan.source, supervised: typeof process.send === "function", hiddenReady: isPrivacyEnabled() }
+    lan: { saved: lan.saved, source: lan.source, supervised: typeof process.send === "function", hiddenReady: isPrivacyEnabled() },
+    // HTTPS for other devices (tls.js). `next`: what .env says now, used from the next start.
+    tls: networkTls(clientOf(req).thisComputer)
   });
+});
+
+// HTTPS set in the shell outranks Settings, like HOST does.
+const tlsFromShell = ["HEISS_TLS_CERT", "HEISS_TLS_KEY"].some((name) => process.env[name] && !envFileKeys.has(name));
+
+/** HTTPS as it runs, and as .env has it for the next start. File paths only for this computer. */
+function networkTls(thisComputer) {
+  const hidePaths = (summary) => (thisComputer ? summary : { ...summary, certPath: "", keyPath: "" });
+  const next = inspectTls(process.env.HEISS_TLS_CERT || "", process.env.HEISS_TLS_KEY || "");
+  return { ...hidePaths(tlsSummary(startupTls, { active: httpsListening })), problem: httpsProblem, next: hidePaths(tlsSummary(next)), fromShell: tlsFromShell };
+}
+
+/**
+ * Settings › Connection › HTTPS: check a certificate and key and keep them in
+ * .env, or clear them. Used from the next start. Only this computer can,
+ * since it decides how every other device connects.
+ */
+app.post("/api/network/tls", (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  if (tlsFromShell) {
+    res.status(409).json({ ok: false, error: "HTTPS is set where HEISS UI was started (HEISS_TLS_CERT and HEISS_TLS_KEY), so change it there." });
+    return;
+  }
+  const off = !req.body?.cert && !req.body?.key;
+  const report = off ? null : inspectTls(String(req.body?.cert || ""), String(req.body?.key || ""));
+  if (report && !report.ok) {
+    res.status(400).json({ ok: false, error: report.error, tls: tlsSummary(report) });
+    return;
+  }
+  try {
+    writeLocalEnvValue("HEISS_TLS_CERT", report ? report.certPath : "");
+    writeLocalEnvValue("HEISS_TLS_KEY", report ? report.keyPath : "");
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+    return;
+  }
+  res.json({ ok: true, tls: report ? tlsSummary(report) : null, restartNeeded: true });
 });
 
 // The Settings switch for other devices. It takes effect when HEISS UI starts again.
@@ -239,25 +305,21 @@ function sessionSeconds(req) {
 
 /**
  * Looking after the computer (model folders and downloads, node installs,
- * ComfyUI's address and restarts, the output folder, updates, workflow files)
- * happens at that computer, or from a trusted local network when LAN mode is
- * on (those requests have already passed the Hidden unlock). Anywhere else
- * the server refuses them and the app hides them.
+ * ComfyUI's address and restarts, the output folder, updates, workflow files,
+ * clearing the gallery) happens at that computer. A signed-in device may too
+ * when the owner turned on "Trust other devices with admin" (access.js).
+ * Anywhere else the server refuses them and the app hides them.
  */
-function canAdmin(req) {
-  return isTrustedClient(req.socket.remoteAddress || "");
-}
-
 function requireAdmin(req, res) {
   if (canAdmin(req)) return true;
-  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on, or from its local network with LAN mode on." });
+  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on. Its owner can trust other devices with this in Settings › Connection." });
   return false;
 }
 
-/** Creating or erasing Hidden happens at the computer it runs on, never from the network. */
+/** Creating, erasing or re-keying Hidden happens at the computer it runs on, never from the network. */
 function requireThisComputer(req, res) {
-  if (isLocalClient(req.socket.remoteAddress || "")) return true;
-  res.status(403).json({ ok: false, error: "Only the computer HEISS UI runs on can do this." });
+  if (clientOf(req).thisComputer) return true;
+  res.status(403).json({ ok: false, reason: "this-computer", error: "Only the computer HEISS UI runs on can do this." });
   return false;
 }
 
@@ -268,47 +330,34 @@ app.post("/api/privacy/setup", async (req, res) => {
     // remove its copies, and says so then.
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
     if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
-    const key = setupPrivacy(req.body?.password || "");
-    setUnlockCookie(res, key, sessionSeconds(req));
+    const key = await setupPrivacy(req.body?.password || "");
+    setUnlockCookie(res, key, sessionSeconds(req), req);
     res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
 });
 
-async function slowDownGuessing() {
-  const wait = unlockBackoffMs();
-  if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
-}
-
 app.post("/api/privacy/unlock", async (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
-  await slowDownGuessing();
-  const key = unlockWithPassword(req.body?.password || "");
-  if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "That password is incorrect." });
-    return;
-  }
-  setUnlockCookie(res, key, sessionSeconds(req));
+  if (!requireLocal(req, res)) return;
+  const key = await limitedCheck(req, res, () => unlockWithPassword(req.body?.password || ""), "That password is incorrect.");
+  if (!key) return;
+  setUnlockCookie(res, key, sessionSeconds(req), req);
   res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
 });
 
 app.get("/api/privacy/passkeys/options", (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
+  if (!requireLocal(req, res)) return;
   res.json({ ok: true, passkeys: passkeyUnlockOptions(), challenge: issueChallenge() });
 });
 
 app.post("/api/privacy/passkeys/unlock", async (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
-  await slowDownGuessing();
-  const key = req.body?.secret
+  if (!requireLocal(req, res)) return;
+  const key = await limitedCheck(req, res, async () => (req.body?.secret
     ? unlockWithDevicePasskey(req.body, String(req.headers.origin || ""))
-    : unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""));
-  if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "This passkey isn’t set up for Hidden. Use your password." });
-    return;
-  }
-  setUnlockCookie(res, key, sessionSeconds(req));
+    : unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""))), "This passkey isn’t set up for Hidden. Use your password.");
+  if (!key) return;
+  setUnlockCookie(res, key, sessionSeconds(req), req);
   res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
 });
 
@@ -344,11 +393,11 @@ app.delete("/api/privacy/passkeys/:id", async (req, res) => {
 });
 
 app.post("/api/privacy/password", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!requireThisComputer(req, res)) return;
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
-    changePassword(key, req.body?.password || "");
+    await changePassword(key, req.body?.password || "");
     res.json({ ok: true, ...(await privacyPayload(req, key)) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -356,7 +405,7 @@ app.post("/api/privacy/password", async (req, res) => {
 });
 
 app.post("/api/privacy/lock", (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
+  if (!requireLocal(req, res)) return;
   clearUnlockCookie(res);
   res.json({ ok: true, enabled: isPrivacyEnabled(), unlocked: false, passkeys: privacyStatusFor({ headers: {} }).passkeys, vault: { unlocked: false, revision: 0 } });
 });
@@ -435,10 +484,15 @@ app.post("/api/hidden/hide", async (req, res) => {
     // A marker keeps them from coming back out of ComfyUI's history if a copy stayed behind.
     hideGalleryItems(result.movedFrom || []);
     removeGalleryItems(result.movedFrom || []);
+    // Nothing of them stays in the open: the gallery's copy of their prompts (and its
+    // backup), their cached thumbnails, the prompt history, and what ComfyUI kept of them.
+    writeGalleryNow();
+    writeGalleryNow();
     // A prompt that now only belongs to Hidden leaves the prompt history too.
     const stillShown = new Set(filterVisibleGallery(gallery).map((item) => promptKey(item.prompt)));
     forgetPrompts((result.movedFrom || []).map((item) => item.prompt || ""), stillShown);
-    await forgetComfyRun({ promptIds: result.promptIds });
+    for (const item of result.movedFrom || []) await forgetItemThumbnails(item).catch(() => 0);
+    await forgetComfyRun({ promptIds: result.promptIds, inputNames: result.inputNames });
     res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), hiddenIds: result.moved.map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });
@@ -552,9 +606,9 @@ const serverStartedAt = Date.now();
 app.get("/api/health", async (req, res) => {
   try {
     const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req) });
+    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer });
   } catch (error) {
-    res.status(503).json({ ok: false, thisComputer: canAdmin(req), restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
+    res.status(503).json({ ok: false, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
 });
 
@@ -778,7 +832,13 @@ app.get("/api/paths", async (_req, res) => {
 app.post("/api/config/output-dir", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
-    const outputDir = setComfyOutputDir(req.body?.outputDir || "");
+    // Only a folder ComfyUI writes to: HEISS serves and clears what is in it.
+    const choice = await outputDirChoice(req.body?.outputDir || "");
+    if (!choice.ok) {
+      res.status(400).json({ ok: false, error: choice.error, report: choice.report });
+      return;
+    }
+    const outputDir = setComfyOutputDir(choice.dir);
     res.json({ ok: true, outputDir, galleryDir: dataDir, workflowsDir: userWorkflowsDir, report: await inspectOutputDir(outputDir) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -788,7 +848,7 @@ app.post("/api/config/output-dir", async (req, res) => {
 app.get("/api/output-dir", async (req, res) => {
   if (!requireLocal(req, res)) return;
   await autoDetectOutputDir();
-  res.json({ outputDir: comfyOutputDir, report: await inspectOutputDir(comfyOutputDir), canBrowse: isLocalClient(req.socket.remoteAddress || "") });
+  res.json({ outputDir: comfyOutputDir, report: await inspectOutputDir(comfyOutputDir), canBrowse: clientOf(req).thisComputer });
 });
 
 app.post("/api/output-dir/check", async (req, res) => {
@@ -803,7 +863,7 @@ app.get("/api/output-dir/detect", async (req, res) => {
 
 app.post("/api/output-dir/browse", async (req, res) => {
   // The picker opens on this machine's screen, so only its own browser may ask.
-  if (!isLocalClient(req.socket.remoteAddress || "")) {
+  if (!clientOf(req).thisComputer) {
     res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
     return;
   }
@@ -1056,7 +1116,8 @@ app.get("/api/vault/media/:id", (req, res) => {
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   const name = encodeURIComponent(hiddenDownloadName(asset, variant));
   res.setHeader("Content-Disposition", `${req.query.download === "1" ? "attachment" : "inline"}; filename*=UTF-8''${name}`);
-  res.send(asset.buffer);
+  // Shared without its settings: the prompt and workflow inside the file stay in Hidden.
+  res.send(req.query.clean === "1" ? stripMetadata(asset.buffer).buffer : asset.buffer);
 });
 
 app.get("/api/vault/thumbnail/:id", async (req, res) => {
@@ -1684,11 +1745,39 @@ app.post("/api/gallery/clear", (req, res) => {
   if (!requireAdmin(req, res)) return;
   // Clearing the gallery never touches Hidden; that has its own erase.
   const cleared = gallery.filter((item) => item.status === "done" && !item.privateVault);
-  const files = deleteGalleryFiles(cleared);
+  // Into the trash, not deleted: it can be put back until the trash empties itself (gallery-trash.js).
+  const trash = trashGalleryItems(cleared);
   hideGalleryItems(cleared);
   setGallery(gallery.filter((item) => item.status !== "done" || item.privateVault));
   saveGallery();
-  res.json({ ok: true, files, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+  res.json({ ok: true, files: { deleted: trash.moved, skipped: trash.skipped }, trash: { batch: trash.batch, moved: trash.moved, days: trashSummary().days }, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+});
+
+app.get("/api/gallery/trash", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ ok: true, ...trashSummary() });
+});
+
+// Undo for a clear, or Settings' Restore: the newest batch unless one is named.
+app.post("/api/gallery/trash/restore", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const { restored, missing } = restoreTrash(String(req.body?.batch || ""));
+    if (restored.length) addGalleryItems(restored);
+    res.json({ ok: true, restored: restored.length, missing, revision: galleryRevisionValue(), trash: trashSummary(), outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.post("/api/gallery/trash/empty", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const removed = await emptyTrash();
+    res.json({ ok: true, removed, trash: trashSummary() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+  }
 });
 
 app.post("/api/gallery/errors/clear", (_req, res) => {
@@ -1772,7 +1861,7 @@ app.delete("/api/model-folders", async (req, res) => {
 
 // The person points at a folder the scan missed; it still has to read as a models folder.
 app.post("/api/model-folders/pick", async (req, res) => {
-  if (!isLocalClient(req.socket.remoteAddress || "")) {
+  if (!clientOf(req).thisComputer) {
     res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
     return;
   }
@@ -1788,7 +1877,8 @@ app.post("/api/model-folders/pick", async (req, res) => {
 app.post("/api/node-packs/:id/install", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
-    res.json({ ok: true, install: await startPackInstall(String(req.params.id)) });
+    // `override`: the person was told ComfyUI-Manager refused it and chose to install anyway.
+    res.json({ ok: true, install: await startPackInstall(String(req.params.id), { overrideManager: req.body?.override === "manager-security" }) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
@@ -1915,7 +2005,9 @@ app.post("/api/update/install", async (req, res) => {
     if (before.release) {
       // A release copy has no git to pull: download the new release, swap it in on restart.
       if (!before.canInstall && before.download?.status !== "ready") {
-        res.json({ ...before, updated: false, message: `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
+        res.json({ ...before, updated: false, message: before.unsigned
+          ? `HEISS UI ${before.latest} isn’t signed with the release key, so it won’t install itself. If you trust it, download it from ${before.url} and replace this folder (keep your data folder).`
+          : `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
         return;
       }
       if (before.download?.status === "ready") { res.json({ ...before, updated: false }); return; }
@@ -1942,8 +2034,8 @@ app.post("/api/update/restart", (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/shutdown", (_req, res) => {
-  if (!requireLocal(_req, res)) return;
+app.post("/api/shutdown", (req, res) => {
+  if (!requireAdmin(req, res)) return;
   res.json({ ok: true });
   setTimeout(() => process.exit(0), 250);
 });
@@ -1953,6 +2045,8 @@ app.get("/comfy/thumb", async (req, res) => {
   const subfolder = String(req.query.subfolder || "");
   const type = String(req.query.type || "output");
   if (!filename) { res.status(400).json({ error: "filename is required." }); return; }
+  // The same outputs /comfy/view serves, and nothing else.
+  if (!["output", "input", "temp"].includes(type) || !outputMediaPattern.test(filename)) { res.status(404).json({ error: "Not an output." }); return; }
   try {
     const thumbnail = await getThumbnail(filename, subfolder, type);
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
@@ -1970,10 +2064,54 @@ app.get("/comfy/thumb", async (req, res) => {
   }
 });
 
+/**
+ * "Share without settings" for an output: the whole file, with the prompt and
+ * workflow ComfyUI wrote into it taken out (metadata-strip.js). Buffered, since
+ * the file changes; never cached, since the plain one lives at the same address.
+ */
+async function sendWithoutSettings(req, res, localFile) {
+  const params = new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== "clean").map(([key, value]) => [key, String(value)]));
+  let bytes = null;
+  let type = "";
+  const known = comfyRecentlyUnreachable() ? localFile() : null;
+  if (!known) {
+    try {
+      const response = await fetch(`${comfyUrl}/view?${params}`, { signal: AbortSignal.timeout(120000) });
+      noteComfyReachable();
+      if (!response.ok) {
+        res.status(response.status).json({ ok: false, error: "ComfyUI doesn’t have this file." });
+        return;
+      }
+      bytes = Buffer.from(await response.arrayBuffer());
+      type = response.headers.get("content-type") || "";
+    } catch (error) {
+      noteComfyFetchError(error);
+    }
+  }
+  if (!bytes) {
+    const file = known || localFile();
+    if (!file) {
+      res.status(502).json({ ok: false, error: "ComfyUI isn’t answering and the file isn’t in the output folder." });
+      return;
+    }
+    bytes = fs.readFileSync(file);
+    type = "";
+  }
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.type(type || path.extname(String(req.query.filename || "")) || "application/octet-stream");
+  res.send(stripMetadata(bytes).buffer);
+}
+
 app.get("/comfy/*path", async (req, res) => {
   try {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
     const proxyPath = Array.isArray(req.params.path) ? req.params.path.join("/") : req.params.path;
+    // Only ComfyUI's image route, for images, videos and sound among its outputs, inputs
+    // and previews. Its other GET routes (settings, logs, Manager's) are not for the studio's visitors.
+    if (proxyPath !== "view" || !["output", "input", "temp"].includes(String(req.query.type || "output")) || !outputMediaPattern.test(String(req.query.filename || ""))) {
+      res.status(404).json({ ok: false, error: "Not an output." });
+      return;
+    }
     // Forward conditional headers so an unchanged image gets a 304 instead of a
     // full re-transfer over a slow LAN link, and stream the body instead of
     // buffering it so bytes start moving to the client as soon as they arrive.
@@ -1984,6 +2122,10 @@ app.get("/comfy/*path", async (req, res) => {
     // ComfyUI is stopped or restarting: outputs still open from the output folder.
     const localFile = () => (proxyPath === "view" ? localOutputFile(String(req.query.filename || ""), String(req.query.subfolder || ""), String(req.query.type || "output")) : null);
     const sendLocal = (file) => res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } });
+    if (req.query.clean === "1") {
+      await sendWithoutSettings(req, res, localFile);
+      return;
+    }
     // It just failed to answer: go straight to disk instead of waiting ~2 s for another refusal (Windows).
     const known = comfyRecentlyUnreachable() ? localFile() : null;
     if (known) { sendLocal(known); return; }
@@ -2025,45 +2167,56 @@ app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "
 if (fs.existsSync(dist)) serveApp(app, dist);
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null).then(() => rescanLibraryFolders()).catch(() => null), 1200);
+scheduleTrashPurge();
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }
 
 // Under `npm run dev*` the page comes from Vite, which forwards to this exact port, so it stays put there.
 const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
-listenWithFallback(app, { port, host, fallback: !dev }).then(({ port: listening, moved }) => {
-  // From here on everything that names the address (banner, phone links in Settings) uses this one.
-  setListeningPort(listening);
-  if (moved) console.log(`\n  Port ${requestedPort} is taken by another program, so HEISS UI uses ${listening} this time.`);
-  // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
-  // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
-  const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
-  const pagePort = dev ? 5173 : port;
-  Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
-    // Listening beyond this computer: say where a phone can open it.
-    if (host === "0.0.0.0" || host === "::") {
-      const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal);
-      for (const entry of addresses) console.log(`    ➜  Network   http://${entry.address}:${pagePort}`);
-      if (addresses.length) console.log(isPrivacyEnabled()
-        ? "    Other devices sign in with your Hidden password.\n"
-        : "    Other devices sign in with a Hidden password: set one up in Settings › Hidden first.\n");
-    }
-    // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
-    const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
-    const found = answering || demoMode ? "" : await findComfy({ current: comfyUrl });
-    if (!(found && adoptFoundComfy(found)) && !answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
-  }).catch(() => {});
-  // Tells scripts/start.mjs this version runs, so a fresh update is kept, and where to open it.
-  process.send?.({ type: "ready", version: appVersion, url: `http://${shownHost}:${pagePort}` });
-}, (error) => {
-  let message = `\n  HEISS UI could not start: ${error.message}\n`;
-  if (error.heissRunning) message = `\n  HEISS UI is already running: http://localhost:${error.port}\n`;
-  else if (error.code === "EADDRINUSE") message = dev
-    ? `\n  Port ${port} is already in use. Stop what uses it, or set another PORT in .env.\n`
-    : `\n  Ports ${port} to ${port + 9} are all in use. Set another PORT in .env.\n`;
-  console.error(message);
-  // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
-  const exit = () => process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
-  // The launcher opens the copy that is already running instead.
-  if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://localhost:${error.port}` }, exit);
-  else exit();
+startServers(app, {
+  host,
+  port,
+  fallback: !dev,
+  onFatal(error) {
+    let message = `\n  HEISS UI could not start: ${error.message}\n`;
+    if (error.heissRunning) message = `\n  HEISS UI is already running: http://localhost:${error.port}\n`;
+    else if (error.code === "EADDRINUSE") message = dev
+      ? `\n  Port ${port} is already in use. Stop what uses it, or set another PORT in .env.\n`
+      : `\n  Ports ${port} to ${port + 9} are all in use. Set another PORT in .env.\n`;
+    console.error(message);
+    // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
+    const exit = () => process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
+    // The launcher opens the copy that is already running instead.
+    if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://localhost:${error.port}` }, exit);
+    else exit();
+  },
+  onListening({ plan, port: listening, moved }) {
+    // From here on everything that names the address (banner, phone links in Settings) uses this one.
+    setListeningPort(listening);
+    if (moved) console.log(`\n  Port ${requestedPort} is taken by another program, so HEISS UI uses ${listening} this time.`);
+    // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
+    // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
+    const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
+    const pagePort = dev ? 5173 : listening;
+    Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
+      // Listening beyond this computer: say where a phone can open it.
+      if ((host === "0.0.0.0" || host === "::") && !plan.tlsProblem) {
+        const addresses = plan.httpsHost
+          ? startupTls.names.filter((name) => !name.startsWith("*.")).map((name) => `https://${name.includes(":") ? `[${name}]` : name}:${httpsPort}`)
+          : Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal).map((entry) => `http://${entry.address}:${pagePort}`);
+        for (const address of addresses) console.log(`    ➜  Network   ${address}`);
+        if (addresses.length) console.log(studioPasswordSet()
+          ? "    Other devices sign in with the studio password.\n"
+          : isPrivacyEnabled()
+            ? "    Other devices sign in with your Hidden password until you set a studio password (Settings › Connection).\n"
+            : "    Other devices sign in with a studio password: set one in Settings › Connection first.\n");
+      }
+      // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
+      const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
+      const found = answering || demoMode ? "" : await findComfy({ current: comfyUrl });
+      if (!(found && adoptFoundComfy(found)) && !answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
+    }).catch(() => {});
+    // Tells scripts/start.mjs this version runs, so a fresh update is kept, and where to open it.
+    process.send?.({ type: "ready", version: appVersion, url: `http://${shownHost}:${pagePort}` });
+  }
 });

@@ -92,7 +92,7 @@ test("versions compare by number and the release zip carries its checksum", () =
     { name: "heiss-ui-0.4.0.zip", browser_download_url: "https://x/zip", size: 10, digest: `sha256:${digest}` },
     { name: "heiss-ui-0.4.0.zip.sha256", browser_download_url: "https://x/sum" }
   ] });
-  assert.deepEqual(asset, { version: "0.4.0", name: "heiss-ui-0.4.0.zip", url: "https://x/zip", size: 10, sha256: digest, sumUrl: "https://x/sum" });
+  assert.deepEqual(asset, { version: "0.4.0", name: "heiss-ui-0.4.0.zip", url: "https://x/zip", size: 10, sha256: digest, sumUrl: "https://x/sum", sigUrl: "" });
   assert.equal(pickAsset({ tag_name: "v0.4.0", assets: [] }), null);
 });
 

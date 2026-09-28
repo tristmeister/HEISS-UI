@@ -70,10 +70,27 @@ function noteServerClock(response: Response, sentAt: number) {
   serverClockOffset = Math.abs(sample) < 1500 ? 0 : sample;
 }
 
+/** Fired when the server says this device has to sign in again (its session ended or was revoked). */
+export const signedOutEvent = "heiss:signed-out";
+
+/**
+ * Every request the studio makes to its own server goes through here. The
+ * X-HEISS header tells the server it came from the studio's page: other
+ * websites cannot send it (server/request-guard.js), so they cannot make it
+ * delete, install or change anything. A signed-out device hears about it here.
+ */
+export async function apiFetch(url: string, options: RequestInit = {}) {
+  const headers = new Headers(options.headers);
+  headers.set("X-HEISS", "1");
+  const response = await fetch(url, { ...options, headers });
+  if (response.status === 401 && response.headers.get("X-HEISS-Sign-In")) window.dispatchEvent(new Event(signedOutEvent));
+  return response;
+}
+
 export async function apiJson<T>(url: string, options?: RequestInit): Promise<T> {
   const sentAt = Date.now();
   // The browser's own wording ("Failed to fetch", "Load failed") means nothing to people.
-  const response = await fetch(url, options).catch((error) => {
+  const response = await apiFetch(url, options).catch((error) => {
     if (error?.name === "AbortError") throw error;
     throw new Error("Can’t reach HEISS UI. Check that it’s still running, then try again.");
   });
@@ -112,6 +129,7 @@ export function uploadReferenceAsset(file: File, onProgress?: (progress: number)
     const form = new FormData();
     form.append("image", file);
     request.open("POST", "/api/reference-assets/upload");
+    request.setRequestHeader("X-HEISS", "1");
     request.responseType = "json";
     request.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));

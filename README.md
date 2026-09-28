@@ -122,7 +122,7 @@ Please do the full local setup for me:
 10. Open http://localhost:8787 and verify the app can reach ComfyUI, detect models, and load the gallery.
 11. For future updates, use Settings -> Update, or run git pull, npm install, and npm run build.
 
-Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.
+Keep everything local. Do not open it to other devices (npm start -- --lan, or Settings -> Connection) unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.
 ```
 
 ## Supported models
@@ -208,9 +208,14 @@ Nothing downloads until you press the button.
 
 HEISS UI has a phone studio of its own, laid out for your thumb: the gallery edge to edge, one **Describe…** pill that opens the prompt, reference image, workflow, shape and number of images, and Advanced one link away. Long press a tile to Share, Upscale, Make another, Hide or Delete. Share hands the file to the phone's share sheet. Added to the home screen it opens full-screen, with haptics where the phone allows them. A ring around Generate shows progress while you browse.
 
-To use it, turn on **Settings › Connection › Open on other devices**. HEISS UI restarts listening on your network and lists every address to open from the phone. Phones sign in with your Hidden password, so set up Hidden first. For a single run, start it with `npm start -- --lan` (or `npm run dev:lan` in a checkout) instead. The first time, your system may ask whether Node.js may accept connections; allow it for private networks. Only do this on a network you trust.
+To use it, turn on **Settings › Connection › Open on other devices** and set a **studio password** right below it. HEISS UI restarts listening on your network and lists every address to open from the phone, each with a code to scan. For a single run, start it with `npm start -- --lan` (or `npm run dev:lan` in a checkout) instead. The first time, your system may ask whether Node.js may accept connections; allow it for private networks. Only do this on a network you trust.
 
-Looking after the computer stays at the computer: model downloads, node installs, updates, restarts and deleting everything are refused from other devices, and the phone hides them. The share sheet needs HTTPS; without it, Share saves the file instead. "Use the full studio" in More switches to the complete layout, and `?phone=1` shows the phone studio on any screen.
+- **Signing in.** Phones and other computers sign in with the studio password once and stay signed in for a week. It only lets devices in; Hidden keeps its own password and unlocks on the phone the same way it does on the computer. (Until a studio password is set, the Hidden password signs devices in, as it did before the two were split.) Wrong passwords lock that device out for longer each time; the computer itself is never slowed down by them. **Settings › Connection** lists the signed-in devices, and **Sign out all devices** ends every one of them at once.
+- **Looking after the computer stays at the computer.** Updates, node and model installs, the output folder, restarts and clearing the gallery are refused from other devices, and they hide those controls. Turn on **Trust other devices with admin** (at the computer) to let signed-in devices do them too. The passwords, that switch and signing devices out only ever change at the computer.
+- **HTTPS.** Over plain http, what devices send, the studio password included, crosses your network unencrypted, and the phone's share sheet stays off (Share saves the file instead). Under **Settings › Connection › HTTPS**, add a certificate that browsers already trust, for example the two files `tailscale cert <machine>.<tailnet>.ts.net` writes (or `HEISS_TLS_CERT` and `HEISS_TLS_KEY` in `.env`). After a restart, other devices open `https://<that name>:8788` (`HEISS_HTTPS_PORT`), and this computer keeps `http://localhost:8787`. HEISS UI never makes a self-signed certificate: a warning people learn to click through protects nothing.
+- **Behind your own proxy or tunnel** (Caddy, nginx, `tailscale serve`, cloudflared), every visitor counts as another device, even though the proxy connects from this computer: they sign in like a phone does. Add the name they use to `HEISS_ALLOWED_HOSTS`; HEISS UI only answers to names it knows.
+
+"Use the full studio" in More switches to the complete layout, and `?phone=1` shows the phone studio on any screen.
 
 ## Hidden
 
@@ -230,7 +235,7 @@ Each image, its prompt, settings and upscale are encrypted with AES-256-GCM unde
 
 Passkeys need the page at `localhost` (not `127.0.0.1`) or over HTTPS, and a browser with PRF support (current Chrome, Edge and Safari). Everywhere else, the password works.
 
-ComfyUI necessarily writes a working file while it renders. HEISS encrypts it and removes it when the run finishes, along with the run's entry in ComfyUI's history and any image it was handed. That needs ComfyUI's output folder, which HEISS finds by itself or asks for. It keeps things out of casual view, but it is not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
+ComfyUI necessarily writes a working file while it renders. HEISS encrypts it and removes it when the run finishes, along with the run's entry in ComfyUI's history and any image it was handed. Hiding an image later also removes its cached thumbnail and any copy ComfyUI kept from using it as a reference, and the list of what was hidden (so it never comes back out of ComfyUI's history) holds keyed digests, not names. Downloads and shares from Hidden leave out the prompt and workflow inside the file (Settings › Hidden › Share without settings). That needs ComfyUI's output folder, which HEISS finds by itself or asks for. It keeps things out of casual view, but it is not a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running.
 
 There is no password reset. If the password and every passkey are lost, **Erase Hidden** in Settings is the only way to start over, and it takes everything in Hidden with it.
 
@@ -238,7 +243,7 @@ There is no password reset. If the password and every passkey are lost, **Erase 
 
 ## Updating
 
-**A downloaded release** updates itself: **Settings → About → Install update** downloads the new release, checks it against its published SHA-256 and swaps it in when you press **Restart now**. Your `data` folder, `.env` and installed packages stay where they are. The previous version is kept in `.update/backup`, and if the new one does not start, HEISS UI goes back to it by itself. This needs the copy to run through its launcher (or `npm start`), and a release from 0.3.1 on; older copies need one manual download first.
+**A downloaded release** updates itself: **Settings → About → Install update** downloads the new release, checks it against its published SHA-256 and the release signature, and swaps it in when you press **Restart now**. A release that isn't signed with HEISS UI's release key is never installed by itself. Your `data` folder, `.env` and installed packages stay where they are. The previous version is kept in `.update/backup`, and if the new one does not start, HEISS UI goes back to it by itself. This needs the copy to run through its launcher (or `npm start`), and a release from 0.3.1 on; older copies need one manual download first.
 
 A downloaded release also looks for a new version on its own, every few hours, and offers it once in a small pill at the top: **Update**, then **Restart**. It only asks GitHub which version is the latest, says nothing when you're offline, and **Settings → About → Check automatically** turns it off. Your choice and any "Later" are kept in `data/updates.json`.
 
@@ -265,7 +270,9 @@ HEISS_DATA_DIR=./data
 COMFY_OUTPUT_DIR=
 ```
 
-`COMFY_OUTPUT_DIR` is optional; HEISS UI usually finds the folder. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
+`COMFY_OUTPUT_DIR` is optional; HEISS UI usually finds the folder. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden. Settings only accepts a folder ComfyUI writes to (one with ComfyUI's images, or next to its `models` or `custom_nodes`), and **Delete all finished images** moves them to `.heiss-trash` in it, where they wait 30 days (`HEISS_TRASH_DAYS`) in case you want them back.
+
+For other devices: `HEISS_ALLOWED_HOSTS` (extra names to answer to, comma-separated), `HEISS_DEVICE_SESSION_DAYS` (how long a device stays signed in, 7 by default), and `HEISS_TLS_CERT`, `HEISS_TLS_KEY` and `HEISS_HTTPS_PORT` for HTTPS. See [On your phone](#on-your-phone) and [SECURITY.md](./SECURITY.md).
 
 Also optional: `HEISS_NO_BROWSER=1` keeps the launcher from opening the browser, and `HEISS_THUMBNAIL_CACHE_MB` caps the gallery's thumbnail cache (2048 by default; the least recently shown go first).
 

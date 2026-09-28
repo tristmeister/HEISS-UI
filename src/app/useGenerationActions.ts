@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { toast } from './toast';
-import { apiJson, serverClockOffset } from './api';
+import { apiFetch, apiJson, serverClockOffset } from './api';
 import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
@@ -287,7 +287,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function stopJob(jobId: string) {
-    const response = await fetch(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
+    const response = await apiFetch(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
     if (!response?.ok) {
       showToast("Couldn’t stop it. It may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: () => stopJob(jobId) } });
       return;
@@ -302,7 +302,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function stopQueue() {
-    const response = await fetch("/api/queue/cancel", { method: "POST" }).catch(() => null);
+    const response = await apiFetch("/api/queue/cancel", { method: "POST" }).catch(() => null);
     if (!response?.ok) {
       showToast("Couldn’t stop the queue. Generations may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: stopQueue } });
       return;
@@ -315,21 +315,32 @@ export function useGenerationActions(view: any) {
     const where = outputDir ? ` in ${outputDir}` : " in ComfyUI’s output folder";
     if (!await confirmAction({
       title: "Delete every finished image?",
-      description: `The files${where} are deleted from disk, not only from the gallery. This can’t be undone. Hidden isn’t affected.`,
+      description: `Their files${where} move to HEISS UI’s trash there, where they stay for 30 days in case you want them back. Hidden isn’t affected.`,
       action: "Delete all",
-      destructive: true,
-      irreversible: true
+      destructive: true
     })) return;
-    const data = await apiJson<GalleryPayload & { files?: { deleted: number; skipped: number } }>("/api/gallery/clear", { method: "POST" }).catch(() => null);
+    const data = await apiJson<GalleryPayload & { files?: { deleted: number; skipped: number }; trash?: { batch: string; moved: number; days: number } }>("/api/gallery/clear", { method: "POST" }).catch(() => null);
     if (!data) {
       showToast("Couldn’t clear the gallery. Nothing was deleted.", "error");
       return;
     }
     const items = payloadItems(data);
     setGallery(items.filter((item: GalleryItem) => item.status !== "canceled"));
-    const deleted = data.files?.deleted || 0;
-    showToast(deleted ? `Deleted ${deleted} file${deleted === 1 ? "" : "s"}` : "Gallery cleared", "removed");
+    const moved = data.trash?.moved ?? data.files?.deleted ?? 0;
+    const batch = data.trash?.batch || "";
+    showToast(moved ? `Moved ${moved} file${moved === 1 ? "" : "s"} to the trash` : "Gallery cleared", "removed", batch ? { action: { label: "Undo", onClick: () => restoreCleared(batch) } } : undefined);
     setStatus("Ready");
+  }
+
+  /** Undo for "Delete all": the batch comes back out of the trash, into the gallery. */
+  async function restoreCleared(batch: string) {
+    const data = await apiJson<GalleryPayload & { restored: number; missing: number }>("/api/gallery/trash/restore", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ batch }) }).catch(() => null);
+    if (!data) {
+      showToast("Couldn’t bring them back. They’re still in the trash; try again from Settings › Library.", "error");
+      return;
+    }
+    setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
+    showToast(data.missing ? `${data.restored} back in the gallery. ${data.missing} file${data.missing === 1 ? "" : "s"} stayed in the trash because something new has the same name.` : `${data.restored} back in the gallery`, data.missing ? "warning" : "success");
   }
 
   async function clearFailedItems() {
@@ -349,7 +360,7 @@ export function useGenerationActions(view: any) {
     clearLoraLibrary();
     // The server keeps its own copy of LoRA strengths and stacks; clear it too,
     // or the next load would restore everything the dialog said was cleared.
-    await fetch("/api/loras", { method: "DELETE" }).catch(() => null);
+    await apiFetch("/api/loras", { method: "DELETE" }).catch(() => null);
     if ("caches" in window) {
       await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => null);
     }
@@ -365,7 +376,7 @@ export function useGenerationActions(view: any) {
     if ("caches" in window) {
       await caches.keys().then((keys) => Promise.all(keys.map((key) => caches.delete(key)))).catch(() => null);
     }
-    const data = await fetch("/api/cache/clear", { method: "POST" }).then((res) => res.ok ? res.json() : null).catch(() => null);
+    const data = await apiFetch("/api/cache/clear", { method: "POST" }).then((res) => res.ok ? res.json() : null).catch(() => null);
     if (!data) { showToast("Couldn’t clear ComfyUI’s cache", "error", { action: { label: "Try again", onClick: clearCaches } }); return; }
     setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
     showToast("Cache cleared", "removed");
@@ -373,7 +384,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function openOutputFolder() {
-    const response = await fetch("/api/open-output-folder", { method: "POST" }).catch(() => null);
+    const response = await apiFetch("/api/open-output-folder", { method: "POST" }).catch(() => null);
     if (!response?.ok) showToast("Could not open folder", "error");
   }
 
@@ -383,7 +394,7 @@ export function useGenerationActions(view: any) {
   const pendingDeletes = useRef(new Map<string, GalleryItem>());
 
   async function commitDelete(item: GalleryItem) {
-    const response = await fetch(`/api/gallery/${encodeURIComponent(item.id)}`, { method: "DELETE", keepalive: true }).catch(() => null);
+    const response = await apiFetch(`/api/gallery/${encodeURIComponent(item.id)}`, { method: "DELETE", keepalive: true }).catch(() => null);
     if (response?.ok) return;
     // Put it back: the server still has it, and the screen must say so.
     galleryUpsert([item]);

@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { comfy } from "./comfy.js";
 import { StringDecoder } from "node:string_decoder";
@@ -17,8 +18,15 @@ import { nodePack } from "./node-packs.js";
  *             Manager 3 custom node's (Manager cannot install by Git URL
  *             unless a config flag is on, so unlisted packs never go this way).
  *   local   - ComfyUI sits on this machine: clone the pack into custom_nodes
- *             and install its requirements with ComfyUI's own Python.
+ *             at its reviewed commit (node-packs.js), and install its
+ *             requirements with ComfyUI's own Python, holding torch,
+ *             torchvision, torchaudio and numpy at the versions ComfyUI has,
+ *             so a pack can never swap out the PyTorch that ComfyUI runs on.
  * Either way ComfyUI loads the nodes only after a restart.
+ *
+ * When ComfyUI-Manager refuses an install because of its security level,
+ * HEISS stops and asks (status "blocked"): going around a setting the person
+ * chose happens only when they say so.
  */
 
 const installs = new Map();
@@ -63,19 +71,25 @@ async function managerGeneration() {
   return 0;
 }
 
+/** Runs one step, its output into the install log. Resolves to what it printed on stdout. */
 function run(state, command, args, cwd, env = process.env) {
   return new Promise((resolve, reject) => {
     // UTF-8 output from Python whatever the Windows code page, so names in the log stay readable.
     const child = spawn(command, args, { cwd, env: { ...env, GIT_TERMINAL_PROMPT: "0", PYTHONUTF8: "1", PYTHONIOENCODING: "utf-8" }, windowsHide: true });
     state.child = child;
     const timer = setTimeout(() => child.kill(), stepTimeoutMs);
+    let stdout = "";
     // One decoder per stream, so a character split across two chunks is not garbled.
-    const collector = () => {
+    const collector = (keep) => {
       const decoder = new StringDecoder("utf8");
-      return (chunk) => { state.log = (state.log + decoder.write(chunk)).slice(-tailLimit); };
+      return (chunk) => {
+        const text = decoder.write(chunk);
+        if (keep) stdout = (stdout + text).slice(-256 * 1024);
+        state.log = (state.log + text).slice(-tailLimit);
+      };
     };
-    child.stdout.on("data", collector());
-    child.stderr.on("data", collector());
+    child.stdout.on("data", collector(true));
+    child.stderr.on("data", collector(false));
     child.on("error", (error) => {
       clearTimeout(timer);
       reject(new Error(error.code === "ENOENT" ? `${path.basename(command)} is not installed on this computer.` : error.message));
@@ -83,10 +97,29 @@ function run(state, command, args, cwd, env = process.env) {
     child.on("close", (code) => {
       clearTimeout(timer);
       state.child = null;
-      if (code === 0) resolve();
+      if (code === 0) resolve(stdout);
       else reject(new Error(`${path.basename(command)} stopped with exit code ${code}.`));
     });
   });
+}
+
+/** The packages a node pack must never replace: what ComfyUI's PyTorch stands on. */
+export const heldPackages = ["torch", "torchvision", "torchaudio", "numpy"];
+
+/**
+ * A pip constraints file pinning heldPackages at whatever ComfyUI's Python has
+ * now. A requirement that wants another version then fails the install with
+ * pip's own explanation, instead of quietly replacing CUDA PyTorch.
+ */
+export function constraintsFrom(freeze = "") {
+  const wanted = new Set(heldPackages);
+  return String(freeze).split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => {
+      const name = line.split(/[=<>!~ @]/)[0].toLowerCase().replace(/_/g, "-");
+      return wanted.has(name) && /==/.test(line);
+    })
+    .join("\n");
 }
 
 async function installLocally(state, pack) {
@@ -97,25 +130,70 @@ async function installLocally(state, pack) {
   const target = path.join(customNodes, pack.folder);
   if (!fs.existsSync(target)) {
     state.step = "Downloading the nodes";
-    await run(state, "git", ["clone", pack.repository, target], customNodes);
+    try {
+      // Exactly the reviewed commit, never whatever the branch says today.
+      await run(state, "git", ["clone", "--no-checkout", pack.repository, target], customNodes);
+      if (pack.commit) {
+        await run(state, "git", ["-c", "advice.detachedHead=false", "checkout", "--detach", pack.commit], target);
+        const head = (await run(state, "git", ["rev-parse", "HEAD"], target)).trim();
+        if (head !== pack.commit) throw new Error("The download isn’t the reviewed version.");
+      } else {
+        await run(state, "git", ["checkout"], target);
+      }
+    } catch (error) {
+      // Only what this install created goes; a folder that was already there is never touched.
+      fs.rmSync(target, { recursive: true, force: true });
+      throw new Error(/reviewed|did not match|reference is not a tree|pathspec/i.test(`${error.message}\n${state.log}`)
+        ? `The reviewed version of ${pack.name} (${pack.ref || pack.commit}) isn’t on GitHub any more, so nothing was installed.`
+        : error.message);
+    }
   }
   if (fs.existsSync(path.join(target, "requirements.txt"))) {
+    state.step = "Checking ComfyUI’s PyTorch";
+    let freeze;
+    try {
+      freeze = await run(state, python, [...pipArgs(python), "list", "--format=freeze", "--disable-pip-version-check"], target, pythonEnv(python));
+    } catch {
+      throw new Error("Could not read which PyTorch ComfyUI uses, so its packages were left alone. Use the terminal steps instead.");
+    }
+    const constraints = path.join(os.tmpdir(), `heiss-constraints-${crypto.randomUUID()}.txt`);
+    fs.writeFileSync(constraints, `${constraintsFrom(freeze)}\n`);
     state.step = "Installing what they need";
-    await run(state, python, [...pipArgs(python), "install", "-r", "requirements.txt"], target, pythonEnv(python));
+    try {
+      await run(state, python, [...pipArgs(python), "install", "-r", "requirements.txt", "-c", constraints, "--disable-pip-version-check"], target, pythonEnv(python));
+    } catch (error) {
+      if (/ResolutionImpossible|conflict/i.test(state.log)) throw new Error(`${pack.name} wants a different PyTorch or NumPy than ComfyUI has, so its packages weren’t installed. Its folder is there; see its page for a version that fits.`);
+      throw error;
+    } finally {
+      fs.rmSync(constraints, { force: true });
+    }
   }
 }
+
+/** A refusal because of ComfyUI-Manager's security level, as opposed to a failed install. */
+function managerRefused(error) {
+  const refused = new Error(error.message);
+  refused.security = true;
+  return refused;
+}
+const securityWords = /security|not allowed|forbidden|\b403\b|permission/i;
 
 async function installWithManager(state, pack) {
   const uiId = `heiss-${crypto.randomUUID()}`;
   state.step = "Queued in ComfyUI-Manager";
-  await comfy("/v2/manager/queue/task", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      ui_id: uiId, client_id: "heiss-ui", kind: "install",
-      params: { id: pack.manager, version: "latest", selected_version: "latest", mode: "remote", channel: "default" }
-    })
-  });
+  try {
+    await comfy("/v2/manager/queue/task", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ui_id: uiId, client_id: "heiss-ui", kind: "install",
+        params: { id: pack.manager, version: "latest", selected_version: "latest", mode: "remote", channel: "default" }
+      })
+    });
+  } catch (error) {
+    if (/\b403\b/.test(error.message) || securityWords.test(error.message)) throw managerRefused(new Error("ComfyUI-Manager refused the install because of its security level."));
+    throw error;
+  }
   await comfy("/v2/manager/queue/start", { method: "POST" }).catch(() => null);
   state.step = "ComfyUI-Manager is installing";
   const deadline = Date.now() + stepTimeoutMs;
@@ -126,8 +204,8 @@ async function installWithManager(state, pack) {
     if (!item) continue;
     if (item.status?.status_str === "success" || item.result === "success") return;
     const message = [item.result, ...(item.status?.messages || [])].filter((text) => text && text !== "failed").join(" ");
-    // An empty or "not allowed" answer is Manager's security level at work.
-    throw new Error(!message || /security|not allowed/i.test(message) ? managerRefusedMessage : message);
+    if (!message || securityWords.test(message) || /not allowed/i.test(message)) throw managerRefused(new Error(managerRefusedMessage));
+    throw new Error(message || "ComfyUI-Manager could not install it.");
   }
   throw new Error("ComfyUI-Manager did not finish in time.");
 }
@@ -149,7 +227,8 @@ async function installWithManager3(state, pack) {
       })
     });
   } catch (error) {
-    throw new Error(/\b(403|404)\b/.test(error.message) ? managerRefusedMessage : error.message);
+    if (/\b403\b/.test(error.message) || securityWords.test(error.message)) throw managerRefused(new Error(managerRefusedMessage));
+    throw error;
   }
   // Bodyless POST: Manager rejects form content types here. Older versions took a GET.
   await comfy("/manager/queue/start", { method: "POST" }).catch(() => comfy("/manager/queue/start").catch(() => null));
@@ -170,13 +249,18 @@ async function installWithManager3(state, pack) {
   throw new Error("ComfyUI-Manager did not finish in time.");
 }
 
-/** Starts (or reports) the install of one pack; the caller polls packInstallState. */
-export async function startPackInstall(id) {
+/**
+ * Starts (or reports) the install of one pack; the caller polls packInstallState.
+ * `overrideManager`: the person saw Manager's security refusal and chose to
+ * install with ComfyUI's own Python anyway.
+ */
+export async function startPackInstall(id, { overrideManager = false } = {}) {
   const pack = nodePack(id);
   const current = installs.get(id);
   if (current?.status === "running") return snapshot(current);
   const routes = packInstallRoutes(id);
-  const generation = routes.manager ? await managerGeneration() : 0;
+  if (overrideManager && !routes.local) throw new Error("ComfyUI isn't on this computer, so only ComfyUI-Manager can install this.");
+  const generation = routes.manager && !overrideManager ? await managerGeneration() : 0;
   const viaManager = generation > 0;
   if (!viaManager && !routes.local) {
     throw new Error("ComfyUI runs on another computer and Manager cannot install this pack, so it needs the steps below.");
@@ -191,7 +275,12 @@ export async function startPackInstall(id) {
         try {
           await (generation === 4 ? installWithManager(state, pack) : installWithManager3(state, pack));
         } catch (error) {
-          // Manager refused (security level) or failed: do it ourselves when we can.
+          // Refused on purpose (its security level): stop and ask, never go around it silently.
+          if (error.security) {
+            Object.assign(state, { status: "blocked", step: "", error: error.message, canOverride: routes.local, finishedAt: Date.now() });
+            return;
+          }
+          // Failed for another reason: do it ourselves when we can.
           if (!routes.local) throw error;
           state.route = "local";
           state.log = `${error.message}\n`;

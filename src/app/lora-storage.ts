@@ -1,4 +1,5 @@
 import { normalizeLoras } from './loras';
+import { apiFetch } from './api';
 import { clientJobUuid } from './format';
 import type { LoraSelection } from './types';
 
@@ -200,7 +201,7 @@ async function flush() {
   const batch = pending.slice();
   inFlight = batch.length;
   try {
-    const response = await fetch('/api/loras/library/ops', {
+    const response = await apiFetch('/api/loras/library/ops', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ops: batch })

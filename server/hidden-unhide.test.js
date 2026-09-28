@@ -38,7 +38,7 @@ const vault = await import("./vault.js");
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 test("unhiding hands the image to ComfyUI, into heiss-ui in its own output folder", async () => {
-  const key = privacy.setupPrivacy("battery staple");
+  const key = await privacy.setupPrivacy("battery staple");
   await vault.storeHiddenOutputs(key, [{ url: `data:image/png;base64,${png.toString("base64")}`, filename: "HEISS_00007_.png", type: "image" }], { prompt: "a far pier", kind: "image", width: 1, height: 1 });
   // A file of that name is already there, from a run made while it was hidden.
   fs.mkdirSync(path.join(comfyOutput, "heiss-ui"), { recursive: true });

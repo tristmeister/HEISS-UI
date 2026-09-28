@@ -71,7 +71,18 @@ npm run release -- minor             # bump, date the changelog, commit "Release
 git push --atomic origin main vX.Y.Z # publishes the GitHub release
 ```
 
-`patch`, `minor` or an exact version like `1.0.0` all work; `--push` pushes for you. The script checks the tree is clean and in sync, runs the tests and the build, and moves the **Unreleased** notes into the new version. Pushing the tag runs the Release workflow, which checks the tag matches `package.json`, builds the download and publishes it with that changelog section as the notes. Release copies find it through their update check and install it in one click: `server/updater.js` downloads it and checks it against the SHA-256 digest GitHub publishes for the asset, and `scripts/start.mjs` (a release's `npm start`) swaps it in on restart and rolls back if it does not start.
+`patch`, `minor` or an exact version like `1.0.0` all work; `--push` pushes for you. The script checks the tree is clean and in sync, runs the tests and the build, and moves the **Unreleased** notes into the new version. Pushing the tag runs the Release workflow, which checks the tag matches `package.json`, builds the download and publishes it with that changelog section as the notes. Release copies find it through their update check and install it in one click: `server/updater.js` downloads it, checks it against the SHA-256 digest GitHub publishes for the asset and against its Ed25519 signature, and `scripts/start.mjs` (a release's `npm start`) swaps it in on restart and rolls back if it does not start.
+
+### Signing releases
+
+Every release zip is signed in CI (`<zip>.sig` beside it), and copies that know the release public key install nothing without a valid signature. Setting it up is a one-time step for the maintainer, on their own computer:
+
+```bash
+node scripts/release-keygen.mjs   # writes ~/.config/heiss-ui/release-signing-key.pem (mode 600), prints the public key
+gh secret set HEISS_RELEASE_SIGNING_KEY < ~/.config/heiss-ui/release-signing-key.pem
+```
+
+Then paste the printed public key into `RELEASE_PUBLIC_KEY` in `server/release-signing.js` and release as usual. Until that constant is filled in, updates are checked by SHA-256 alone. Once it is, a tag build without the secret fails, `npm run release` checks the secret exists, and an unsigned release tells people to download it by hand instead of installing itself. Keep a backup of the private key offline: installed copies trust only that key.
 
 Between releases a source checkout shows how far it is past its tag in **Settings › About**, for example `v0.2.0 + 3`.
 

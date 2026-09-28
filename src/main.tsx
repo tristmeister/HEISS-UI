@@ -13,6 +13,8 @@ import { normalizeLoras, sameBaseModel } from './app/loras';
 import { deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks, recordLoraRecents, rememberActiveLoras, rememberedLoraStrength, rememberLoraStrengths, renameLoraStack, saveLoraStack, startLoraSync, subscribeLoraLibrary, subscribeLoraSync, toggleLoraFavorite, updateLoraStack, type LoraSnapshot, type LoraSyncStatus } from './app/lora-storage';
 import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
+import { DeviceGate } from './app/DeviceGate';
+import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
 import { useSpeedLoras } from './app/useSpeedLoras';
@@ -25,7 +27,7 @@ import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
 import { useKeyboardInset } from './hooks/use-keyboard-inset';
-import { setThisComputer, usePhone, useThisComputer } from './app/device';
+import { setAtComputer, setThisComputer, usePhone, useThisComputer } from './app/device';
 import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
 import { useGenerationEstimate } from './app/useGenerationEstimate';
 import { listNames, registerRestartConfirm, setComfyRestartClock, setComfyRestartResult, setComfyRestarting } from './app/ComfyRestart';
@@ -88,6 +90,8 @@ function App() {
   // The version this page just came back on after an update, for the "Updated" pill.
   const [justUpdated, setJustUpdated] = useState("");
   const [prefs, setPrefsState] = useState<Preferences>(() => loadPrefs());
+  // Read by every download link and share as it is made (shareSettings.ts); kept in step here.
+  setShareSettings(prefs);
   const hidden = useHidden({ autoLockMinutes: prefs.hiddenAutoLockMinutes ?? 15, showToast });
   const hiddenSpace = hidden.space === "hidden";
   const [prompt, setPrompt] = useState(String(initialDraft.prompt || ""));
@@ -749,6 +753,7 @@ function App() {
         if (!data) throw new Error(response.statusText || "Connection failed");
         setHealth(data);
         if (typeof data.thisComputer === "boolean") setThisComputer(data.thisComputer);
+        if (typeof data.atComputer === "boolean") setAtComputer(data.atComputer);
       })
       .catch((error) => setHealth({ ok: false, error: error instanceof Error && !/fetch|load failed/i.test(error.message) ? error.message : "Can’t reach HEISS UI. Check that it’s still running." }));
   }
@@ -1450,4 +1455,5 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Other devices sign in before the studio loads (DeviceGate.tsx).
+createRoot(document.getElementById("root")!).render(<DeviceGate><App /></DeviceGate>);

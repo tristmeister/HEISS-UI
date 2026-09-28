@@ -53,16 +53,28 @@ export function setListeningPort(value) {
   port = Number(value) || requestedPort;
   return port;
 }
+/** What an output can be: images, videos and sound. Anything else in the folder is never served. */
+export const outputMediaPattern = /\.(png|jpe?g|webp|gif|avif|bmp|tiff?|mp4|webm|mov|mkv|m4v|flac|mp3|wav|ogg|opus|m4a|aac)$/i;
+
 /**
  * An output file on this computer, for when ComfyUI itself cannot serve it
- * (stopped, restarting). Only files inside the output folder; null otherwise.
+ * (stopped, restarting). Only images, videos and sound inside the output
+ * folder, checked on the real path so a symlink cannot point outside it, and
+ * never from a hidden folder (the trash); null otherwise.
  */
 export function localOutputFile(filename, subfolder = "", type = "output") {
   if (type !== "output" || !comfyOutputDir || !filename) return null;
+  if (!outputMediaPattern.test(String(filename))) return null;
+  if (String(subfolder || "").split(/[\\/]/).some((part) => part.startsWith("."))) return null;
   const base = path.resolve(comfyOutputDir);
   const file = path.resolve(base, String(subfolder || ""), String(filename));
-  if (!isInside(base, file, { orSame: true })) return null;
-  try { return fs.statSync(file).isFile() ? file : null; } catch { return null; }
+  if (!isInside(base, file)) return null;
+  try {
+    if (!isInside(fs.realpathSync(base), fs.realpathSync(file))) return null;
+    return fs.statSync(file).isFile() ? file : null;
+  } catch {
+    return null;
+  }
 }
 
 // Resolved, so a hand-written `D:/x` becomes `D:\x` on Windows (Explorer opens its default view otherwise).
@@ -140,24 +152,12 @@ export function modelFolders(kind, subfolders = [kind]) {
   });
 }
 
-export const localHosts = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+// Whether other devices may use the studio at all. Who a request comes from
+// (this computer, a device, a proxy) is decided in client-trust.js, never
+// from the socket address alone.
 export const allowLanActions = process.env.HEISS_ALLOW_LAN === "1" || process.env.JAI_ALLOW_LAN === "1" || lanListening;
 /** Fake models and placeholder generations when ComfyUI is unreachable. A dev opt-in for agent and UI testing without a GPU. */
 export const demoMode = process.env.HEISS_DEMO === "1";
-
-export function isTrustedClient(remote = "") {
-  if (localHosts.has(remote)) return true;
-  const address = String(remote || "").replace(/^::ffff:/, "");
-  if (!allowLanActions) return false;
-  if (/^10\./.test(address)) return true;
-  if (/^192\.168\./.test(address)) return true;
-  const match = address.match(/^172\.(\d+)\./);
-  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
-}
-
-export function isLocalClient(remote = "") {
-  return localHosts.has(remote) || localHosts.has(String(remote || "").replace(/^::ffff:/, ""));
-}
 
 /*
  * Whether ComfyUI just failed to answer. On Windows a refused localhost

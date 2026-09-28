@@ -5,32 +5,58 @@ import { useEffect, useState } from 'react';
  *
  *   thisComputer  the page may look after the computer HEISS UI runs on
  *                 (folders, downloads, installs, restarts, updates): it is
- *                 open on that computer, or on its trusted local network with
- *                 LAN mode on. Elsewhere the server refuses those, and the
- *                 app hides them.
+ *                 open on that computer, or on a signed-in device its owner
+ *                 trusts with that (Settings › Connection). Elsewhere the
+ *                 server refuses those, and the app hides them.
+ *   atComputer    the page is open on that computer itself. Only there can
+ *                 the passwords, the admin switch and sign-ins be changed.
  *   phone         a touch phone, which gets the simplified phone studio
  *                 unless someone chose the full one.
  */
 
 const localNames = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
-let thisComputer = typeof window === 'undefined' ? true : localNames.has(window.location.hostname);
-const listeners = new Set<(value: boolean) => void>();
+const onLoopback = typeof window === 'undefined' ? true : localNames.has(window.location.hostname);
+
+/** A value the server confirms later, shared by every component that asks. */
+function sharedFlag(initial: boolean) {
+  let current = initial;
+  const listeners = new Set<(value: boolean) => void>();
+  return {
+    set(value: boolean) {
+      if (value === current) return;
+      current = value;
+      listeners.forEach((listener) => listener(value));
+    },
+    use() {
+      const [value, setValue] = useState(current);
+      useEffect(() => {
+        listeners.add(setValue);
+        setValue(current);
+        return () => { listeners.delete(setValue); };
+      }, []);
+      return value;
+    }
+  };
+}
+
+const admin = sharedFlag(onLoopback);
+const atComputer = sharedFlag(onLoopback);
 
 /** The server's answer (from /api/health) replaces the guess from the address. */
 export function setThisComputer(value: boolean) {
-  if (value === thisComputer) return;
-  thisComputer = value;
-  listeners.forEach((listener) => listener(value));
+  admin.set(value);
+}
+
+export function setAtComputer(value: boolean) {
+  atComputer.set(value);
 }
 
 export function useThisComputer() {
-  const [value, setValue] = useState(thisComputer);
-  useEffect(() => {
-    listeners.add(setValue);
-    setValue(thisComputer);
-    return () => { listeners.delete(setValue); };
-  }, []);
-  return value;
+  return admin.use();
+}
+
+export function useAtComputer() {
+  return atComputer.use();
 }
 
 // Narrow, or short (a phone held sideways is wide but only ~400px tall).

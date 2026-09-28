@@ -3,7 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { comfy, comfyOutputDir, normalizeFolderInput, root, setComfyOutputDir } from "./comfy.js";
-import { gallery, isComfyOutputItem, outputFolderMatch, outputsFrom } from "./gallery-store.js";
+import { dataDir, gallery, isComfyOutputItem, outputFolderMatch, outputsFrom } from "./gallery-store.js";
+import { isInside, samePath } from "./paths.js";
 
 const mediaPattern = /\.(png|jpe?g|webp|gif|avif|mp4|webm|mov|mkv)$/i;
 const scanLimit = 4000;
@@ -63,6 +64,47 @@ export async function inspectOutputDir(value, samples) {
   const { checked, found } = outputFolderMatch(dir, samples || await sampleOutputs());
   const state = !checked ? "ok" : found ? "match" : "mismatch";
   return { path: dir, state, media, capped, checked, found, looksLikeComfy: comfyNamed || hasComfySiblings(dir) };
+}
+
+/**
+ * Whether a folder may become the output folder. HEISS reads, serves and
+ * clears what is in it, so it has to be one ComfyUI writes to: one that
+ * holds ComfyUI's images or our recent outputs, sits next to ComfyUI's
+ * models or custom_nodes, has our heiss-ui subfolder, or is where ComfyUI
+ * says it saves. The folder already configured stays acceptable, so nobody
+ * is locked out of a setup that works. Never a whole disk, a home folder,
+ * or anything that holds HEISS UI itself.
+ */
+export async function outputDirChoice(value, { current = comfyOutputDir, comfyDirs = null, samples = undefined } = {}) {
+  const dir = normalizeFolderInput(value);
+  if (!dir) return { ok: false, error: "Choose an existing ComfyUI output folder." };
+  const report = await inspectOutputDir(dir, samples);
+  if (report.state === "missing") return { ok: false, error: "That folder does not exist on this computer.", report };
+  if (report.state === "not-folder") return { ok: false, error: "That path points at a file, not a folder.", report };
+  if (current && samePath(dir, current)) return { ok: true, dir, report };
+  const resolved = path.resolve(dir);
+  const guarded = [path.parse(resolved).root, os.homedir(), path.dirname(os.homedir())].filter(Boolean);
+  if (guarded.some((item) => samePath(item, resolved)) || isInside(resolved, root, { orSame: true }) || isInside(resolved, dataDir, { orSame: true })) {
+    return { ok: false, error: "That folder is too wide: pick the output folder inside your ComfyUI folder.", report };
+  }
+  if (report.looksLikeComfy || report.state === "match" || fs.existsSync(path.join(resolved, "heiss-ui"))) return { ok: true, dir, report };
+  const told = comfyDirs || await comfyOutputDirs().catch(() => []);
+  if (told.some((item) => samePath(item, resolved))) return { ok: true, dir, report };
+  return { ok: false, error: "That doesn’t look like a ComfyUI output folder: no ComfyUI images in it, and no models or custom_nodes folder next to it. Pick the output folder inside your ComfyUI folder.", report };
+}
+
+/** Where ComfyUI itself says it saves: --output-directory, --base-directory, or next to its models. */
+async function comfyOutputDirs() {
+  const stats = await comfy("/system_stats").catch(() => null);
+  const argv = Array.isArray(stats?.system?.argv) ? stats.system.argv : [];
+  const dirs = [];
+  const explicit = argValue(argv, "--output-directory");
+  if (explicit) dirs.push(explicit);
+  const baseDir = argValue(argv, "--base-directory");
+  if (baseDir) dirs.push(path.join(baseDir, "output"));
+  const folders = await comfy("/internal/folder_paths").catch(() => null);
+  for (const comfyRoot of new Set(flattenStrings(folders).map(rootFromComfyPath).filter(Boolean))) dirs.push(path.join(comfyRoot, "output"));
+  return dirs.map((dir) => normalizeFolderInput(dir)).filter(Boolean);
 }
 
 function argValue(argv, flag) {

@@ -4,6 +4,7 @@ import { ComfyRestart, managerMajor, useComfyManager } from './ComfyRestart';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { apiJson, copyText } from './api';
 import { BetaTag } from './components';
+import { useThisComputer } from './device';
 import { cn } from './format';
 import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
 import type { ShowToast } from './toast';
@@ -77,14 +78,32 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
     }
     if (alive.current) onDone(current);
   };
-  const start = async () => {
+  const start = async (override = false) => {
     try {
-      const { install } = await apiJson<{ install: PackInstallState }>(url, { method: 'POST' });
+      const { install } = await apiJson<{ install: PackInstallState }>(url, override
+        ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ override: 'manager-security' }) }
+        : { method: 'POST' });
       await follow(install);
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Could not start the install', 'error');
     }
   };
+  // Where the code comes from, and which version: it runs inside ComfyUI once installed.
+  const source = (() => {
+    const match = /github\.com\/([^/]+\/[^/.]+)/.exec(pack.repository || '');
+    return match ? `github.com/${match[1]}${pack.ref ? ` · ${pack.ref}` : ''}` : '';
+  })();
+  if (state?.status === 'blocked') {
+    return (
+      <div className="node-quick" role="alert">
+        <p className="upscale-fine is-warn">{state.error} HEISS UI didn’t go around it.</p>
+        <p className="upscale-fine">{state.canOverride
+          ? <>You can install {pack.name} with ComfyUI’s own Python instead. It’s third-party code from {source || 'GitHub'} and runs inside ComfyUI.</>
+          : <>Lower Manager’s security level if you trust {pack.name}, or install it yourself below.</>}</p>
+        {state.canOverride ? <button type="button" className="btn" onClick={() => start(true)}><Download size={14} /> Install anyway</button> : null}
+      </div>
+    );
+  }
   if (state?.status === 'done') {
     return (
       <div className="node-quick is-done" role="status">
@@ -96,12 +115,13 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
   const running = state?.status === 'running';
   return (
     <div className="node-quick">
-      <button type="button" className="btn is-primary" onClick={start} disabled={running}>
+      <button type="button" className="btn is-primary" onClick={() => start()} disabled={running}>
         {running ? <RotateCw size={14} className="is-spinning" /> : <Download size={14} />}
         {running ? state.step || 'Installing…' : state?.status === 'error' ? 'Try again' : `Install ${pack.name}`}
         {running ? null : <BetaTag />}
       </button>
       {running ? <p className="upscale-fine">{state.route === 'manager' ? 'ComfyUI-Manager is doing this. ' : "Using ComfyUI's own Python. "}It can take a few minutes.</p> : null}
+      {!running && source ? <p className="upscale-fine">Third-party code from {source}, run inside ComfyUI.</p> : null}
       {state?.status === 'error' ? <p className="upscale-fine is-warn">{state.error}</p> : null}
     </div>
   );
@@ -137,8 +157,9 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
     decided.current = true;
     setRoute(manager.available ? 'manager' : 'terminal');
   }, [manager]);
-  // One click where HEISS can do it; the manual routes stay one tap away.
-  const canQuick = Boolean(pack.id && autoInstall && (autoInstall.local || (autoInstall.manager && hasManager)));
+  // One click where HEISS can do it, for whoever may install; the manual routes stay one tap away.
+  const admin = useThisComputer();
+  const canQuick = Boolean(admin && pack.id && autoInstall && (autoInstall.local || (autoInstall.manager && hasManager)));
   const [manual, setManual] = useState(false);
   const [quickError, setQuickError] = useState('');
   const [installed, setInstalled] = useState(false);

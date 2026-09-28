@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, Fingerprint, KeyRound, LockKeyhole, Trash2 } from 'lucide-react';
 import { BetaTag } from './components';
+import { useAtComputer } from './device';
 import { cn } from './format';
 import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import { autoLockChoices, type HiddenState } from './useHidden';
@@ -19,15 +20,16 @@ function when(value?: string) {
  * Settings › Hidden. Built from the same Group / Row pieces as every other
  * section; passed in so this file does not re-implement them.
  */
-export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmAction, Group, Row, Status }: {
+export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmAction, Group, Row, Status, Switch }: {
   hidden: HiddenState;
-  prefs: { hiddenAutoLockMinutes?: number };
-  setPrefs: (next: { hiddenAutoLockMinutes: number }) => void;
+  prefs: { hiddenAutoLockMinutes?: number; hiddenShareWithoutSettings?: boolean };
+  setPrefs: (next: { hiddenAutoLockMinutes?: number; hiddenShareWithoutSettings?: boolean }) => void;
   showToast: ShowToast;
   confirmAction: ConfirmAction;
   Group: React.ComponentType<React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>>;
   Row: React.ComponentType<React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>>;
   Status: React.ComponentType<React.PropsWithChildren<{ tone?: 'ok' | 'bad' | 'warn' }>>;
+  Switch: React.ComponentType<{ checked: boolean; onChange: (next: boolean) => void; disabled?: boolean; label: string }>;
 }) {
   const { status, support, enabled, unlocked } = hidden;
   const label = support?.label || "Touch ID";
@@ -36,12 +38,14 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [busy, setBusy] = React.useState("");
   const autoLock = prefs.hiddenAutoLockMinutes ?? 15;
+  // The password is only ever changed at the computer Hidden lives on.
+  const atComputer = useAtComputer();
 
   if (!enabled) {
     return (
       <Group>
-        <Row label={<Status>Not set up</Status>} description="Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello.">
-          <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button>
+        <Row label={<Status>Not set up</Status>} description={atComputer ? "Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello." : "Images you keep to yourself, encrypted on the computer running HEISS UI. Set it up there first."}>
+          {atComputer ? <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button> : null}
         </Row>
       </Group>
     );
@@ -110,7 +114,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       </Group>
 
       <Group title="Unlock methods" note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <> Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it.</> : null}</> : undefined}>
-        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description="Works on any device, including over the network." stacked={changing}>
+        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description={atComputer ? "Works on any device you’ve signed in, including over the network." : "Works on any device you’ve signed in. Change it on the computer HEISS UI runs on."} stacked={changing}>
           {changing ? (
             <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (canSavePassword) savePassword(); }}>
               {/* Typed twice, as at setup: there is no reset, so a typo would lock you out. */}
@@ -120,7 +124,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
               <button type="button" className="btn is-ghost" onClick={() => { setChanging(false); setPassword(""); setConfirmPassword(""); }}>Cancel</button>
               <button type="submit" className="btn is-primary" disabled={!canSavePassword}>{busy === "password" ? "Saving…" : passwordStrength(password) > 0.6 ? "Save" : "Save anyway"}</button>
             </form>
-          ) : <button className="btn" disabled={!unlocked} onClick={() => setChanging(true)}>Change</button>}
+          ) : <button className="btn" disabled={!unlocked || !atComputer} onClick={() => setChanging(true)}>Change</button>}
         </Row>
         {passkeys.map((passkey) => (
           <Row key={passkey.id} label={<span className="hidden-way"><Fingerprint size={14} /> {passkey.name || "Passkey"}<BetaTag /></span>} description={unlocked ? [passkey.kind === "device" ? "Tied to this browser" : "", passkey.createdAt ? `added ${when(passkey.createdAt)}` : "", passkey.lastUsedAt ? `last used ${when(passkey.lastUsedAt)}` : ""].filter(Boolean).join(", ").replace(/^a/, "A") : undefined}>
@@ -142,6 +146,12 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
         </div>
       </Group>
 
+      <Group title="Sharing">
+        <Row label="Share without settings" description="Downloads and shares from Hidden leave out the prompt, seed and workflow saved inside PNG, WebP, JPEG and MP4 files.">
+          <Switch label="Share without settings" checked={prefs.hiddenShareWithoutSettings !== false} onChange={(next) => setPrefs({ hiddenShareWithoutSettings: next })} />
+        </Row>
+      </Group>
+
       <Group title="Export">
         <Row label="Export Hidden" description="Every image, unencrypted, in one ZIP file." disabled={!unlocked}>
           <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/hidden/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Export</a>
@@ -151,11 +161,13 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
         </Row>
       </Group>
 
-      <Group title="Start over" tone="danger" note="If you lose the password and every passkey, this is the only way to start over.">
-        <Row label="Erase Hidden" description="Erases every Hidden image, the password and all passkeys from this computer.">
-          <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} /> Erase</button>
-        </Row>
-      </Group>
+      {atComputer ? (
+        <Group title="Start over" tone="danger" note="If you lose the password and every passkey, this is the only way to start over.">
+          <Row label="Erase Hidden" description="Erases every Hidden image, the password and all passkeys from this computer.">
+            <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} /> Erase</button>
+          </Row>
+        </Group>
+      ) : null}
     </>
   );
 }

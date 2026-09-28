@@ -135,10 +135,10 @@ export type SpeedVariant = { label: string; steps: number; cfg: number; sampler:
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean; /** Who publishes it on Hugging Face (the repo owner), and the repo. */ source?: string; repo?: string };
 /** A ComfyUI custom node pack (server/node-packs.js). */
-export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
+export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string; /** The reviewed commit a one-click install takes, and what it is (a release tag, or a branch and date). */ commit?: string; ref?: string };
 /** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */
 export type PackAutoInstall = { manager: boolean; local: boolean };
-export type PackInstallState = { id: string; name: string; route: "manager" | "local"; status: "running" | "done" | "error"; step: string; log: string; error: string; startedAt: number; finishedAt: number };
+export type PackInstallState = { id: string; name: string; route: "manager" | "local"; status: "running" | "done" | "error" | "blocked"; step: string; log: string; error: string; startedAt: number; finishedAt: number; /** Blocked by ComfyUI-Manager's security level: whether ComfyUI's own Python could do it instead, if the person agrees. */ canOverride?: boolean };
 /** One command per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
 export type ShellPlan = { commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }> };
 export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: string; python: string; cloned: boolean; needsGit: boolean };
@@ -151,7 +151,7 @@ export type MissingPart = {
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
-export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number; /** Gone or gated, and the next build of the same part the server tried instead. */ unavailable?: boolean; fellBackTo?: string; fallbackFrom?: string };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number; /** Gone or gated, and the next build of the same part the server tried instead. */ unavailable?: boolean; fellBackTo?: string; fallbackFrom?: string ; /** All there, being checked against its published SHA-256. */ verifying?: boolean };
 export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[]; /** Free bytes where each models folder lands, and which disk that is. */ space?: Record<string, { free: number; disk: string }> };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
@@ -176,7 +176,7 @@ export type Models = {
 export type Paths = { outputDir?: string; galleryDir?: string; workflowsDir?: string };
 export type OutputFolderState = "empty" | "missing" | "not-folder" | "ok" | "match" | "mismatch";
 export type OutputFolderReport = { path: string; state: OutputFolderState; media?: number; capped?: boolean; checked?: number; found?: number; looksLikeComfy?: boolean; source?: "comfy" | "common" };
-export type Health = { ok: boolean; comfyUrl?: string; error?: string; /** Admin allowed: on the computer HEISS UI runs on, or its trusted LAN in LAN mode. */ thisComputer?: boolean };
+export type Health = { ok: boolean; comfyUrl?: string; error?: string; /** Admin allowed: on the computer HEISS UI runs on, or a signed-in device trusted with admin. */ thisComputer?: boolean; /** Open on the computer HEISS UI runs on itself. */ atComputer?: boolean };
 /** How a ComfyUI restart ended, as the server saw it: how long it took, and which node packs it brought in or failed to load. */
 export type RestartResult = { startedAt: number; endedAt: number; outcome: 'back' | 'failed'; durationMs?: number | null; newPacks?: string[]; failedPacks?: string[] };
 export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean; checked?: boolean; /** A restart HEISS asked for is under way: not answering is expected. */ restarting?: boolean; restartStartedAt?: number; restartElapsedMs?: number; /** How long restarts usually take here, once they agree. */ restartTypicalMs?: number; /** The restart that ended in the last two minutes. */ lastRestart?: RestartResult; /** ComfyUI turned up at this other usual address, which is now saved. */ found?: string; /** Other addresses on this computer HEISS UI tries by itself. */ nearby?: string[] };
@@ -186,6 +186,8 @@ export type UpdateStatus = {
   ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string;
   /** A copy unpacked from a GitHub release rather than a Git checkout. */
   release?: boolean; url?: string; size?: number; canInstall?: boolean; supervised?: boolean; download?: UpdateDownload; result?: UpdateResult;
+  /** A release key is configured and this release has no signature, so it can't install itself. */
+  unsigned?: boolean;
   /** The first headline of the new release's notes, and how many more changes it has. */
   highlight?: string; more?: number;
   prefs?: UpdatePrefs;
@@ -241,7 +243,11 @@ export type WorkflowImportPreview = {
     nodes: Array<{ id: string; classType: string; title?: string; inputs: string[]; suggestedInputs: string[] }>;
   };
   validation: WorkflowValidation;
+  /** Nodes that run code, read or write files elsewhere, or go online (server/workflow-risk.js). */
+  risks?: WorkflowRisk[];
 };
+
+export type WorkflowRisk = { node: string; classType: string; title?: string; kind: "code" | "files" | "network"; reason: string; detail?: string };
 
 export type Preferences = {
   defaultImageCount: number;
@@ -269,6 +275,10 @@ export type Preferences = {
   mobileZenDefaulted?: boolean;
   /** On a phone, show the full studio instead of the simplified phone one. */
   fullStudioOnPhone?: boolean;
+  /** Downloads and shares from the gallery leave out the prompt and workflow saved in the file. */
+  shareWithoutSettings?: boolean;
+  /** The same for Hidden; on unless turned off. */
+  hiddenShareWithoutSettings?: boolean;
 };
 
 export type UpscaleModelInfo = { key: string; file: string; label: string; detail?: string; bytes: number; present: boolean; partialBytes: number };

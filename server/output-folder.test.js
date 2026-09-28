@@ -48,3 +48,34 @@ test("inspection tells the right output folder from a merely existing one", asyn
     fs.rmSync(base, { recursive: true, force: true });
   }
 });
+
+test("only a folder ComfyUI writes to can become the output folder", async () => {
+  const { outputDirChoice } = await import("./output-folder.js");
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-choice-"));
+  const comfyOutput = path.join(base, "ComfyUI", "output");
+  const empty = path.join(base, "ComfyUI", "output-empty-sibling");
+  const random = path.join(base, "Documents");
+  const renders = path.join(base, "renders");
+  fs.mkdirSync(comfyOutput, { recursive: true });
+  fs.mkdirSync(path.join(base, "ComfyUI", "models"));
+  fs.mkdirSync(empty);
+  fs.mkdirSync(random);
+  fs.mkdirSync(path.join(renders, "heiss-ui"), { recursive: true });
+  fs.writeFileSync(path.join(random, "taxes.pdf"), "");
+  const options = { current: "", comfyDirs: [], samples: [] };
+  try {
+    assert.equal((await outputDirChoice(comfyOutput, options)).ok, true, "next to ComfyUI’s models");
+    assert.equal((await outputDirChoice(empty, options)).ok, true, "a fresh, empty one next to models too");
+    assert.equal((await outputDirChoice(renders, options)).ok, true, "one HEISS UI already saved into");
+    const refused = await outputDirChoice(random, options);
+    assert.equal(refused.ok, false);
+    assert.match(refused.error, /doesn’t look like a ComfyUI output folder/);
+    assert.equal((await outputDirChoice(random, { ...options, comfyDirs: [random] })).ok, true, "ComfyUI says it saves there");
+    assert.equal((await outputDirChoice(random, { ...options, current: random })).ok, true, "the folder already set keeps working");
+    assert.equal((await outputDirChoice(os.homedir(), options)).ok, false);
+    assert.equal((await outputDirChoice(path.parse(base).root, options)).ok, false);
+    assert.equal((await outputDirChoice(path.join(base, "nope"), options)).ok, false);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});

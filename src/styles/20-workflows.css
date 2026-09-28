@@ -202,6 +202,13 @@
 .wf-missing ul { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
 .wf-missing code { display: inline-block; padding: 3px 8px; border-radius: 8px; background: rgb(0 0 0 / .3); font: 500 11px/1.4 var(--font-mono); color: hsl(var(--foreground)); }
 .wf-issue { margin: 0; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
+/* An imported workflow that runs code, touches files elsewhere or goes online: said before it is saved. */
+.wf-caution { display: grid; gap: 6px; padding: 10px 12px; border-radius: var(--r-item); background: var(--danger-fill); color: var(--danger-ink); font-size: 12px; line-height: 1.5; }
+.wf-caution strong { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.wf-caution ul { display: grid; gap: 2px; margin: 0; padding: 0 0 0 20px; }
+.wf-caution li { overflow-wrap: anywhere; }
+.wf-caution code { font: 500 11px/1.4 var(--font-mono); }
+.wf-caution p { margin: 0; color: hsl(var(--muted-foreground)); }
 
 .wf-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .wf-detail-actions .btn.is-primary { flex: 1; }
