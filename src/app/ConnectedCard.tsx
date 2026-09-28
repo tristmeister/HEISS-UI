@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { toast } from './toast';
+import { useCellGap } from './cells';
 
 /**
  * The "it just works" moment when ComfyUI comes back while the gallery has
@@ -19,10 +20,11 @@ const SOCKET = [[13, 1], [13, 3], [13, 4], [13, 5], [13, 7], [14, 1], [14, 3], [
 let played = 0;
 
 function ConnectedGlyph() {
+  const gap = useCellGap(0.1);
   return (
     <svg className="connected-glyph" viewBox="0 0 22 9" aria-hidden="true">
-      <g className="connected-plug">{PLUG.map(([x, y]) => <rect key={`p${x}-${y}`} x={x + 0.1} y={y + 0.1} width="0.8" height="0.8" rx="0.18" />)}</g>
-      <g className="connected-socket">{SOCKET.map(([x, y]) => <rect key={`s${x}-${y}`} x={x + 0.1} y={y + 0.1} width="0.8" height="0.8" rx="0.18" />)}</g>
+      <g className="connected-plug">{PLUG.map(([x, y]) => <rect key={`p${x}-${y}`} x={x + gap} y={y + gap} width={1 - gap * 2} height={1 - gap * 2} rx={gap * 1.8} />)}</g>
+      <g className="connected-socket">{SOCKET.map(([x, y]) => <rect key={`s${x}-${y}`} x={x + gap} y={y + gap} width={1 - gap * 2} height={1 - gap * 2} rx={gap * 1.8} />)}</g>
       <circle className="connected-flash" cx="12" cy="4.5" r="3" />
     </svg>
   );

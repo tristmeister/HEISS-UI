@@ -7,6 +7,7 @@ import type { UpscaleSetup } from './useUpscale';
 import type { UpscaleInstall } from './types';
 import { SafeImg } from './SafeImg';
 import type { Activity } from './Activities';
+import { useCellGap } from './cells';
 
 /**
  * While the SeedVR2 weights download with the setup dialog closed, an
@@ -26,6 +27,7 @@ const jitter = (x: number, y: number) => ((x * 73 + y * 151) % 97) / 97;
 
 /** The setup hero's arrow, drawn as SVG cells: dim until the fill line reaches them, ember below it, white-hot at it. */
 export function MiniArrow({ mode, progress }: { mode: Mode; progress: number }) {
+  const gap = useCellGap(0.1);
   const filled = mode === 'downloading' ? Math.round(progress * rows) : rows;
   const front = rows - filled;
   const bottomRow = ARROW[rows - 1];
@@ -47,10 +49,10 @@ export function MiniArrow({ mode, progress }: { mode: Mode; progress: number }) 
           <rect
             key={`${x}-${y}`}
             className={cn(twinkle && 'udw-twinkle', mode === 'verifying' && 'udw-scan')}
-            x={x + 0.1}
-            y={y + 0.1}
-            width={0.8}
-            height={0.8}
+            x={x + gap}
+            y={y + gap}
+            width={1 - gap * 2}
+            height={1 - gap * 2}
             fill={fill}
             style={{ animationDelay: mode === 'verifying' ? `${(rows - y) * 45}ms` : `${-jitter(x, y) * 2.4}s` }}
           />

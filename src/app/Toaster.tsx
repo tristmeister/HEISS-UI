@@ -6,6 +6,7 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { cn } from './format';
 import { dismissToast, runToastAction, subscribeToasts, toastSnapshot, type ToastGlyph, type ToastRecord, type ToastTone } from './toast';
 import { usePageHidden, usePausableTimeout } from '@/hooks/use-pausable-timeout';
+import { useCellGap } from './cells';
 
 /**
  * The toast stack, top center under the pills. At rest the newest sits in
@@ -54,9 +55,10 @@ function cellStep(glyph: ToastGlyph, x: number, y: number) {
 function CellGlyph({ glyph }: { glyph: ToastGlyph }) {
   const rows = GLYPHS[glyph];
   const lidRows = LID_ROWS[glyph] || 0;
+  const gap = useCellGap(0.08);
   const cells = rows.flatMap((row, y) => [...row].map((bit, x) => (bit === 'X' ? { x, y } : null)).filter(Boolean)) as Array<{ x: number; y: number }>;
   const rect = ({ x, y }: { x: number; y: number }) => (
-    <rect key={`${x}-${y}`} x={x + 0.08} y={y + 0.08} width={0.84} height={0.84} rx={0.16} style={{ animationDelay: `${cellStep(glyph, x, y) * 38}ms` }} />
+    <rect key={`${x}-${y}`} x={x + gap} y={y + gap} width={1 - gap * 2} height={1 - gap * 2} rx={gap * 2} style={{ animationDelay: `${cellStep(glyph, x, y) * 38}ms` }} />
   );
   return (
     <svg className={cn('toast-cells', `is-${glyph}`)} viewBox="-0.5 -0.5 8 8" aria-hidden="true">

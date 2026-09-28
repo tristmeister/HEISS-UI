@@ -5,6 +5,7 @@ import { cn, titleFromPrompt } from './format';
 import { SafeImg } from './SafeImg';
 import type { Activity } from './Activities';
 import type { GalleryItem } from './types';
+import { useCellGap } from './cells';
 
 /**
  * A generation you can't see, as an activity. While the viewer is on another
@@ -141,11 +142,12 @@ function WorkFrame({ src, working }: { src?: string; working: boolean }) {
 
 /** Before the first preview: a few cells warming up, the same cells as the download arrows. */
 function HeatCells() {
+  const gap = useCellGap(0.1);
   const cells = Array.from({ length: 16 }, (_, index) => ({ x: index % 4, y: Math.floor(index / 4) }));
   return (
     <svg className="activity-heat" viewBox="-0.5 -0.5 5 5">
       {cells.map(({ x, y }) => (
-        <rect key={`${x}-${y}`} x={x + 0.1} y={y + 0.1} width={0.8} height={0.8} rx={0.14} style={{ animationDelay: `${-(((x * 7 + y * 13) % 11) / 11) * 1.8}s` }} />
+        <rect key={`${x}-${y}`} x={x + gap} y={y + gap} width={1 - gap * 2} height={1 - gap * 2} rx={gap * 1.4} style={{ animationDelay: `${-(((x * 7 + y * 13) % 11) / 11) * 1.8}s` }} />
       ))}
     </svg>
   );

@@ -6,6 +6,7 @@ import { cn } from './format';
 import { formatBytes } from './useUpscale';
 import type { Activity } from './Activities';
 import type { UpdateStatus } from './types';
+import { useCellGap } from './cells';
 
 /**
  * A new release, offered once, as an activity: the upscale arrow in cells,
@@ -25,15 +26,16 @@ const releaseNotesUrl = (version: string) => `https://github.com/tristmeister/HE
 
 /** The arrow at rest (a pulse of heat rising through it) or just updated (lit bottom to top). */
 function RisingArrow({ mode }: { mode: 'available' | 'updated' }) {
+  const gap = useCellGap(0.1);
   return (
     <svg className={cn('udw-arrow', 'uup-arrow', `is-${mode}`)} viewBox="-1 -5 17 21" aria-hidden="true">
       {CELLS.map(({ x, y }) => (
         <rect
           key={`${x}-${y}`}
-          x={x + 0.1}
-          y={y + 0.1}
-          width={0.8}
-          height={0.8}
+          x={x + gap}
+          y={y + gap}
+          width={1 - gap * 2}
+          height={1 - gap * 2}
           className={isEdge(x, y) ? 'is-edge' : undefined}
           style={{ animationDelay: `${(ROWS - 1 - y) * (mode === 'updated' ? 38 : 70)}ms` }}
         />
