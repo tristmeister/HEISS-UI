@@ -35,6 +35,12 @@ const hints = [
     fix: "rescan"
   },
   {
+    // ComfyUI-GGUF refuses architectures it doesn't know yet (Krea 2, Ideogram 4, MiniMax H3, Qwen-Image 2.1 in Sept 2026).
+    test: /Unexpected (?:text model )?architecture type in GGUF file|This model is not currently supported/i,
+    title: "ComfyUI-GGUF can't load this model yet",
+    hint: "HEISS UI knows this GGUF file, but the installed ComfyUI-GGUF doesn't support its model type yet. Update ComfyUI-GGUF, or use the model's safetensors version."
+  },
+  {
     test: /Node .* does not exist|missing_node_type|Cannot execute because a node is missing|The custom node may not be installed/i,
     title: "A node is missing in ComfyUI",
     hint: "The workflow uses a custom node ComfyUI does not have. Install it, restart ComfyUI, and try again.",

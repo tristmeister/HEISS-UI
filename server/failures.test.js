@@ -70,3 +70,9 @@ test("a damaged file from a node that is not a loader keeps the general title", 
   assert.equal(failure.title, "A model file is damaged or incomplete");
   assert.match(failure.summary, /^A model file could not be read/);
 });
+
+test("a GGUF model type ComfyUI-GGUF doesn't know says so plainly", () => {
+  const failure = describeFailure({ message: "ValueError: Unexpected architecture type in GGUF file: 'krea2'", nodeType: "UnetLoaderGGUF" });
+  assert.equal(failure.title, "ComfyUI-GGUF can't load this model yet");
+  assert.match(failure.hint, /safetensors/);
+});

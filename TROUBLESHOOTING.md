@@ -74,6 +74,10 @@ The text encoder, VAE or a LoRA was made for a different model family (for examp
 
 Something the run needs was moved or deleted after ComfyUI listed it. **Rescan** in Settings › Models and try again.
 
+### ComfyUI-GGUF can't load this model yet
+
+HEISS UI recognises GGUF files for every family it knows, but ComfyUI-GGUF only loads the model types its maintainers have added. In September 2026 it doesn't load Krea 2, Ideogram 4, MiniMax H3 or Qwen-Image 2.1 GGUFs. Update ComfyUI-GGUF through ComfyUI-Manager, or download the model's safetensors version instead.
+
 ### A node is missing in ComfyUI
 
 The workflow uses a custom node ComfyUI doesn't have. Install the node pack (HEISS UI offers it when it knows which one), restart ComfyUI, and try again. For a built-in model, HEISS UI says **Newer ComfyUI** instead when ComfyUI itself is too old: update ComfyUI.
