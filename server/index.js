@@ -1635,7 +1635,8 @@ app.post("/api/model-folders/pick", async (req, res) => {
 app.post("/api/node-packs/:id/install", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
-    res.json({ ok: true, install: await startPackInstall(String(req.params.id)) });
+    // `override`: the person was told ComfyUI-Manager refused it and chose to install anyway.
+    res.json({ ok: true, install: await startPackInstall(String(req.params.id), { overrideManager: req.body?.override === "manager-security" }) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }

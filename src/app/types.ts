@@ -118,10 +118,10 @@ export type Profile = {
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean };
 /** A ComfyUI custom node pack (server/node-packs.js). */
-export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
+export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string; /** The reviewed commit a one-click install takes, and what it is (a release tag, or a branch and date). */ commit?: string; ref?: string };
 /** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */
 export type PackAutoInstall = { manager: boolean; local: boolean };
-export type PackInstallState = { id: string; name: string; route: "manager" | "local"; status: "running" | "done" | "error"; step: string; log: string; error: string; startedAt: number; finishedAt: number };
+export type PackInstallState = { id: string; name: string; route: "manager" | "local"; status: "running" | "done" | "error" | "blocked"; step: string; log: string; error: string; startedAt: number; finishedAt: number; /** Blocked by ComfyUI-Manager's security level: whether ComfyUI's own Python could do it instead, if the person agrees. */ canOverride?: boolean };
 /** One command per shell: Terminal on macOS and Linux; PowerShell and Command Prompt on Windows. */
 export type ShellPlan = { commands: Array<{ shell: "sh" | "powershell" | "cmd"; label: string; command: string }> };
 export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: string; python: string; cloned: boolean; needsGit: boolean };
