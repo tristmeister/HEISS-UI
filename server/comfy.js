@@ -45,7 +45,14 @@ export function saveLanSetting(enabled) {
   if (envFileKeys.has("HOST")) writeLocalEnvValue("HOST", enabled ? "0.0.0.0" : "127.0.0.1");
   return enabled;
 }
-export const port = Number(process.env.PORT || 8787);
+/** The port asked for (PORT, else 8787). */
+export const requestedPort = Number(process.env.PORT || 8787);
+// A live binding: the server may move to the next free port when this one is taken (see launch.js).
+export let port = requestedPort;
+export function setListeningPort(value) {
+  port = Number(value) || requestedPort;
+  return port;
+}
 /**
  * An output file on this computer, for when ComfyUI itself cannot serve it
  * (stopped, restarting). Only files inside the output folder; null otherwise.

@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, requestedPort, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, setListeningPort } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -41,6 +41,7 @@ import { cancelModelInstall, downloadPlan, installState, managerAvailable, manag
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
+import { listenWithFallback } from './launch.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -449,6 +450,9 @@ app.get("/api/hidden/export", (req, res) => {
 const appVersion = (() => {
   try { return JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version || ""; } catch { return ""; }
 })();
+
+// How a second start finds out HEISS UI already holds the port (see launch.js).
+app.get("/api/ping", (_req, res) => res.json({ ok: true, app: "heiss-ui", version: appVersion }));
 
 /**
  * How far a source checkout is past its release tag, so About can tell
@@ -1791,20 +1795,15 @@ setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }
 
-app.listen(port, host, (error) => {
-  // Express 5 hands a failed listen to this callback instead of throwing.
-  if (error) {
-    console.error(error.code === "EADDRINUSE"
-      ? `\n  Port ${port} is already in use. HEISS UI may already be running: http://localhost:${port}\n`
-      : `\n  HEISS UI could not start: ${error.message}\n`);
-    // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
-    process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
-  }
+// Under `npm run dev*` the page comes from Vite, which forwards to this exact port, so it stays put there.
+const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
+listenWithFallback(app, { port, host, fallback: !dev }).then(({ port: listening, moved }) => {
+  // From here on everything that names the address (banner, phone links in Settings) uses this one.
+  setListeningPort(listening);
+  if (moved) console.log(`\n  Port ${requestedPort} is taken by another program, so HEISS UI uses ${listening} this time.`);
   // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
   // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
   const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
-  // Under `npm run dev*` the page comes from Vite; this server only answers the API.
-  const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
   const pagePort = dev ? 5173 : port;
   Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
     // Listening beyond this computer: say where a phone can open it.
@@ -1819,6 +1818,18 @@ app.listen(port, host, (error) => {
     const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
     if (!answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
   }).catch(() => {});
-  // Tells scripts/start.mjs this version runs, so a fresh update is kept.
-  process.send?.({ type: "ready", version: appVersion });
+  // Tells scripts/start.mjs this version runs, so a fresh update is kept, and where to open it.
+  process.send?.({ type: "ready", version: appVersion, url: `http://${shownHost}:${pagePort}` });
+}, (error) => {
+  let message = `\n  HEISS UI could not start: ${error.message}\n`;
+  if (error.heissRunning) message = `\n  HEISS UI is already running: http://localhost:${error.port}\n`;
+  else if (error.code === "EADDRINUSE") message = dev
+    ? `\n  Port ${port} is already in use. Stop what uses it, or set another PORT in .env.\n`
+    : `\n  Ports ${port} to ${port + 9} are all in use. Set another PORT in .env.\n`;
+  console.error(message);
+  // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
+  const exit = () => process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
+  // The launcher opens the copy that is already running instead.
+  if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://localhost:${error.port}` }, exit);
+  else exit();
 });
