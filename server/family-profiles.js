@@ -4,7 +4,7 @@ import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './co
 import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { missingPackPart } from './node-install.js';
-import { classifyModel, familyLabel } from './model-families.js';
+import { classifyModel, familyLabel, modelFileBytes } from './model-families.js';
 import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vaeKinds } from './model-components.js';
 
 /**
@@ -366,6 +366,8 @@ export function familyProfiles(info, helpers) {
       detectedBy: info2.via,
       missing,
       ready: missing.length === 0,
+      // For the model menu's quiet size note; 0 when the file is on another computer.
+      weightBytes: source.startsWith("sana") ? 0 : modelFileBytes(source, name),
       ...(family.sampling === "sana" ? { sana: sanaSettings(info, name, variant, info2.detail, cuda) } : {})
     });
     profiles.push(profile);

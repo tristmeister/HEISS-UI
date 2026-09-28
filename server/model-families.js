@@ -139,6 +139,12 @@ function localModelFile(source, name) {
   return "";
 }
 
+/** A model file's size in bytes when it is on this computer, else 0 (a remote ComfyUI's). */
+export function modelFileBytes(source, name) {
+  const file = localModelFile(source, name);
+  try { return file ? fs.statSync(file).size : 0; } catch { return 0; }
+}
+
 /** The local header of a model file, cached by size and mtime; null when out of reach. */
 export function modelHeader(source, name) {
   const file = localModelFile(source, name);
