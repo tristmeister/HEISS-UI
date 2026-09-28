@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { root } from './comfy.js';
+import { appendSetCookie, clientOf, deviceSession, deviceSessionSeconds, secureRequest } from './access.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
+import { scryptAsync, scryptParams } from './kdf.js';
 
 /**
  * The key ring for Hidden.
@@ -19,7 +21,9 @@ import { readJsonFile, writeJsonFile } from './json-store.js';
  * the weaker device passkey described further down.
  *
  * An unlocked browser holds the master key sealed in an HttpOnly cookie under
- * this install's session secret; nothing keeps a copy in server memory.
+ * this install's session secret; nothing keeps a copy in server memory. On
+ * another device that cookie is also tied to the device's sign-in (see
+ * access.js), so signing the device out, or all devices, locks it too.
  */
 
 const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
@@ -52,13 +56,13 @@ function writeConfig(config) {
 }
 
 function scrypt(password, salt) {
-  return crypto.scryptSync(String(password || ""), fromBase64url(salt), 32, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return scryptAsync(password, fromBase64url(salt), scryptParams);
 }
 
 // Version 1 installs derived keys with Node's default cost; their master key
 // is that derivation, so it has to be reproduced exactly once to migrate.
 function legacyScrypt(password, salt) {
-  return crypto.scryptSync(String(password || ""), fromBase64url(salt), 32);
+  return scryptAsync(password, fromBase64url(salt), {});
 }
 
 function seal(plain, key, aad = "") {
@@ -98,24 +102,38 @@ function timingEqual(a, b) {
 }
 
 function parseCookies(req) {
-  const header = req.headers.cookie || "";
+  const header = req?.headers?.cookie || "";
   return Object.fromEntries(header.split(";").map((part) => {
     const index = part.indexOf("=");
     if (index < 0) return ["", ""];
-    return [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())];
+    let value = "";
+    try { value = decodeURIComponent(part.slice(index + 1).trim()); } catch { /* a mangled cookie is no cookie */ }
+    return [part.slice(0, index).trim(), value];
   }).filter(([key]) => key));
 }
 
-function sealKey(key, config, seconds) {
+/** `sid`: the device session it belongs to, for another device; "" on this computer. */
+function sealKey(key, config, seconds, sid = "") {
   const expiresAt = Date.now() + seconds * 1000;
-  return base64url(Buffer.from(JSON.stringify({ v: 2, expiresAt, data: seal(key, sessionKey(config), String(expiresAt)) })));
+  return base64url(Buffer.from(JSON.stringify({ v: 3, expiresAt, sid, data: seal(key, sessionKey(config), `${expiresAt}:${sid}`) })));
 }
 
-function unsealKey(value, config) {
+/**
+ * The key a cookie holds, if it is still good for this request. Another
+ * device's cookie only counts with the device session it was made for;
+ * cookies from before that binding (v1, v2) only count on this computer.
+ */
+function unsealKey(value, config, { thisComputer = false, sid = "" } = {}) {
   if (!value || !config?.sessionSecret) return null;
   try {
     const envelope = JSON.parse(fromBase64url(value).toString("utf8"));
     if (Number(envelope.expiresAt || 0) < Date.now()) return null;
+    if (envelope.v === 3) {
+      const bound = String(envelope.sid || "");
+      if (thisComputer ? bound && bound !== sid : !bound || bound !== sid) return null;
+      return open(envelope.data, sessionKey(config), `${envelope.expiresAt}:${bound}`);
+    }
+    if (!thisComputer) return null;
     if (envelope.v === 2) return open(envelope.data, sessionKey(config), String(envelope.expiresAt));
     // Version 1 cookies carried iv/tag/data separately.
     const decipher = crypto.createDecipheriv("aes-256-gcm", sessionKey(config), fromBase64url(envelope.iv));
@@ -207,9 +225,8 @@ export function unlockWithDevicePasskey(body = {}, origin = "") {
   if (!config?.enabled || config.version !== 2) return null;
   const passkey = (config.passkeys || []).find((item) => item.id === body.id && item.kind === "device");
   const secret = fromBase64url(body.secret || "");
-  if (!passkey || secret.length < 32 || !verifyAssertion(passkey, body, origin)) { noteUnlock(false); return null; }
+  if (!passkey || secret.length < 32 || !verifyAssertion(passkey, body, origin)) return null;
   const key = open(passkey.wrapped, passkeyWrapKey(secret, passkey.salt), `passkey:${passkey.id}`);
-  noteUnlock(Boolean(key));
   if (key) {
     passkey.lastUsedAt = new Date().toISOString();
     writeConfig(config);
@@ -217,48 +234,36 @@ export function unlockWithDevicePasskey(body = {}, origin = "") {
   return key;
 }
 
-function migrateLegacy(config, password, key) {
+async function migrateLegacy(config, password, key) {
   const salt = base64url(crypto.randomBytes(16));
   const next = {
     version: 2,
     enabled: true,
     createdAt: config.createdAt || new Date().toISOString(),
     sessionSecret: config.sessionSecret || base64url(crypto.randomBytes(32)),
-    password: { salt, wrapped: seal(key, scrypt(password, salt), "password") },
+    password: { salt, wrapped: seal(key, await scrypt(password, salt), "password") },
     passkeys: []
   };
   writeConfig(next);
 }
 
-let failedUnlocks = 0;
-let lastFailedUnlock = 0;
-/** A wrong password costs a little more each time, so guessing from another device is slow. */
-export function unlockBackoffMs() {
-  if (Date.now() - lastFailedUnlock > 10 * 60 * 1000) failedUnlocks = 0;
-  return Math.min(8000, failedUnlocks > 3 ? 500 * 2 ** (failedUnlocks - 4) : 0);
-}
-
-function noteUnlock(ok) {
-  if (ok) { failedUnlocks = 0; return; }
-  failedUnlocks += 1;
-  lastFailedUnlock = Date.now();
-}
-
-export function unlockWithPassword(password = "") {
+/**
+ * The master key, if this is the Hidden password; null otherwise. Guessing is
+ * slowed per address by the caller (guess-limit.js); scrypt runs off the
+ * event loop, so a guess never holds up anyone else.
+ */
+export async function unlockWithPassword(password = "") {
   const config = readConfig();
   if (!config?.enabled) return null;
   if (config.version !== 2) {
     if (!config.passwordHash || !config.passwordSalt) return null;
-    const hash = base64url(legacyScrypt(password, config.passwordSalt));
-    if (!timingEqual(hash, config.passwordHash)) { noteUnlock(false); return null; }
-    const key = legacyScrypt(password, config.encryptionSalt);
-    migrateLegacy(config, password, key);
-    noteUnlock(true);
+    const hash = base64url(await legacyScrypt(password, config.passwordSalt));
+    if (!timingEqual(hash, config.passwordHash)) return null;
+    const key = await legacyScrypt(password, config.encryptionSalt);
+    await migrateLegacy(config, password, key);
     return key;
   }
-  const key = open(config.password?.wrapped, scrypt(password, config.password?.salt), "password");
-  noteUnlock(Boolean(key));
-  return key;
+  return open(config.password?.wrapped, await scrypt(password, config.password?.salt), "password");
 }
 
 export function unlockWithPasskey(id = "", prf = "") {
@@ -266,9 +271,8 @@ export function unlockWithPasskey(id = "", prf = "") {
   if (!config?.enabled || config.version !== 2) return null;
   const passkey = (config.passkeys || []).find((item) => item.id === id && item.kind !== "device");
   const secret = fromBase64url(prf);
-  if (!passkey || secret.length < 32) { noteUnlock(false); return null; }
+  if (!passkey || secret.length < 32) return null;
   const key = open(passkey.wrapped, passkeyWrapKey(secret, passkey.salt), `passkey:${passkey.id}`);
-  noteUnlock(Boolean(key));
   if (key) {
     passkey.lastUsedAt = new Date().toISOString();
     writeConfig(config);
@@ -281,29 +285,33 @@ function assertPassword(password) {
 }
 
 /** A fresh key ring: a random master key wrapped by the password. */
-export function setupPrivacy(password = "") {
+export async function setupPrivacy(password = "") {
   assertPassword(password);
   if (isPrivacyEnabled()) throw new Error("Hidden is already set up.");
   const key = crypto.randomBytes(32);
   const salt = base64url(crypto.randomBytes(16));
+  const wrapKey = await scrypt(password, salt);
+  if (isPrivacyEnabled()) throw new Error("Hidden is already set up.");
   writeConfig({
     version: 2,
     enabled: true,
     createdAt: new Date().toISOString(),
     sessionSecret: base64url(crypto.randomBytes(32)),
-    password: { salt, wrapped: seal(key, scrypt(password, salt), "password") },
+    password: { salt, wrapped: seal(key, wrapKey, "password") },
     passkeys: []
   });
   return key;
 }
 
 /** A new password wraps the same master key, so nothing in Hidden is re-encrypted. */
-export function changePassword(key, password = "") {
+export async function changePassword(key, password = "") {
   assertPassword(password);
-  const config = readConfig();
-  if (!config?.enabled || config.version !== 2 || !key) throw new Error("Unlock Hidden first.");
+  if (!readConfig()?.enabled || !key) throw new Error("Unlock Hidden first.");
   const salt = base64url(crypto.randomBytes(16));
-  config.password = { salt, wrapped: seal(key, scrypt(password, salt), "password") };
+  const wrapKey = await scrypt(password, salt);
+  const config = readConfig();
+  if (!config?.enabled || config.version !== 2) throw new Error("Unlock Hidden first.");
+  config.password = { salt, wrapped: seal(key, wrapKey, "password") };
   writeConfig(config);
 }
 
@@ -369,28 +377,45 @@ export function erasePrivacy() {
   }
 }
 
-export function setUnlockCookie(res, key, seconds = defaultSessionSeconds) {
+/**
+ * Keeps Hidden open in this browser. On another device the cookie lasts no
+ * longer than its sign-in (a week at most) and is tied to it; over HTTPS it
+ * is Secure, so it never crosses the network in the clear.
+ */
+export function setUnlockCookie(res, key, seconds = defaultSessionSeconds, req = null) {
   const config = readConfig();
   if (!config?.enabled || !key) return;
-  const lifetime = Math.max(60, Math.min(maxSessionSeconds, Number(seconds) || defaultSessionSeconds));
-  res.setHeader("Set-Cookie", [
-    `${cookieName}=${encodeURIComponent(sealKey(key, config, lifetime))}`,
+  let lifetime = Math.max(60, Math.min(maxSessionSeconds, Number(seconds) || defaultSessionSeconds));
+  let sid = "";
+  if (req && !clientOf(req).thisComputer) {
+    const session = deviceSession(req);
+    if (!session) return;
+    sid = session.id;
+    lifetime = Math.max(60, Math.min(lifetime, deviceSessionSeconds, Math.floor((Number(session.expiresAt) - Date.now()) / 1000)));
+  }
+  appendSetCookie(res, [
+    `${cookieName}=${encodeURIComponent(sealKey(key, config, lifetime, sid))}`,
     "Path=/",
     `Max-Age=${lifetime}`,
     "HttpOnly",
-    "SameSite=Strict"
+    "SameSite=Strict",
+    ...(secureRequest(req) ? ["Secure"] : [])
   ].join("; "));
 }
 
 export function clearUnlockCookie(res) {
-  res.setHeader("Set-Cookie", [`${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`, `${legacyCookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`]);
+  appendSetCookie(res, `${cookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`);
+  appendSetCookie(res, `${legacyCookieName}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax`);
 }
 
 export function encryptionKeyFromRequest(req) {
   const config = readConfig();
   if (!config?.enabled) return null;
   const cookies = parseCookies(req);
-  return unsealKey(cookies[cookieName] || cookies[legacyCookieName], config);
+  const value = cookies[cookieName] || cookies[legacyCookieName];
+  if (!value) return null;
+  const thisComputer = clientOf(req).thisComputer;
+  return unsealKey(value, config, { thisComputer, sid: thisComputer ? "" : deviceSession(req)?.id || "" });
 }
 
 /* Before Hidden, a privacy password also encrypted the prompts of the normal

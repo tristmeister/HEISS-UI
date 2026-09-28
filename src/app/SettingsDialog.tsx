@@ -11,11 +11,12 @@ import { BetaTag, NumberPicker, Skeleton, StudioSelect } from './components';
 import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
-import { apiJson } from './api';
+import { apiFetch, apiJson } from './api';
 import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
 import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
+import { OtherDevicesGroup } from './OtherDevices';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
@@ -62,7 +63,7 @@ function ComfyAddressRow({ current, showToast, onSaved }: { current: string; sho
     setBusy(true);
     setNote('');
     try {
-      const response = await fetch('/api/comfy-url', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: value, save }) });
+      const response = await apiFetch('/api/comfy-url', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: value, save }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) { setNote(data.error || 'That address could not be checked.'); return; }
       setValue(data.url);
@@ -348,96 +349,6 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
         <div className="about-update">{check}</div>
       </Row>
     </>
-  );
-}
-
-/* ------------------------------------------------------------ Other devices */
-
-type NetworkInfo = {
-  listening: boolean;
-  port: number;
-  interfaces: Array<{ name: string; address: string; likelyVirtual: boolean }>;
-  lan?: { saved: boolean; source: 'flag' | 'shell' | 'setting'; supervised: boolean; hiddenReady: boolean };
-};
-
-/**
- * Opening the studio on phones and other computers: one switch that restarts
- * HEISS UI into (or out of) LAN mode, then the addresses to open.
- */
-function OtherDevicesGroup({ canChange, hiddenEnabled, confirmAction, restartHeiss, restarting, copyToClipboard, showToast, onSetUpHidden }: {
-  canChange: boolean;
-  hiddenEnabled: boolean;
-  confirmAction: ConfirmAction;
-  restartHeiss: () => Promise<boolean>;
-  restarting: boolean;
-  copyToClipboard: (text: string) => Promise<boolean>;
-  showToast: ShowToast;
-  onSetUpHidden: () => void;
-}) {
-  const [network, setNetwork] = React.useState<NetworkInfo | null>(null);
-  const [busy, setBusy] = React.useState(false);
-  const copy = useCopyFeedback();
-  const load = React.useCallback(() => apiJson<NetworkInfo>('/api/network').then(setNetwork).catch(() => null), []);
-  React.useEffect(() => { load(); }, [load]);
-  // The page's own port: Vite's in development, HEISS UI's otherwise.
-  const lanUrl = (address: string) => `${window.location.protocol}//${address}:${window.location.port || network?.port || 8787}`;
-
-  const lan = network?.lan;
-  const on = Boolean(network?.listening);
-  const forced = lan?.source === 'flag' || lan?.source === 'shell';
-  // Saved one way, running the other: waiting for a restart.
-  const pending = Boolean(lan && !forced && lan.saved !== on);
-
-  const restartNow = () => { restartHeiss(); };
-  const toggle = async (next: boolean) => {
-    if (!lan) return;
-    if (lan.supervised && !await confirmAction({
-      title: next ? 'Open on other devices?' : 'Close to other devices?',
-      description: next
-        ? 'HEISS UI restarts to listen on your network. Running generations stop; this page reloads when it’s back.'
-        : 'HEISS UI restarts to answer only this computer. Running generations stop, and phones lose their connection.',
-      action: 'Restart HEISS UI'
-    })) return;
-    setBusy(true);
-    try {
-      const result = await apiJson<{ restartNeeded: boolean }>('/api/network/lan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: next }) });
-      await load();
-      if (result.restartNeeded && lan.supervised) restartNow();
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not change the setting', 'error');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const description = !lan ? undefined
-    : lan.source === 'flag' ? 'On for this run: HEISS UI was started with --lan.'
-    : lan.source === 'shell' ? 'Set by HOST where HEISS UI was started, so this switch can’t change it.'
-    : restarting ? 'Restarting…'
-    : pending ? (lan.supervised ? `${lan.saved ? 'Turns on' : 'Turns off'} when HEISS UI restarts.` : `${lan.saved ? 'Turns on' : 'Turns off'} the next time you start HEISS UI.`)
-    : on ? 'Phones and other computers on this network can open the studio.'
-    : 'Open the studio from your phone or another computer on this network. HEISS UI restarts to switch.';
-
-  return (
-    <Group title="Other devices" note="Only on a network you trust. Other devices sign in with your Hidden password.">
-      {lan ? (
-        <Row label="Open on other devices" description={description} disabled={busy || restarting}>
-          {pending && lan.supervised && !restarting ? <button className="btn" onClick={restartNow}>Restart now</button> : null}
-          <Switch label="Open on other devices" checked={forced ? on : lan.saved} disabled={!canChange || forced || busy || restarting} onChange={toggle} />
-        </Row>
-      ) : !network ? <Row label={<Skeleton className="skeleton-text short" />} /> : null}
-      {(on || lan?.saved) && !hiddenEnabled ? (
-        <Row label={<Status tone="warn">Needs a Hidden password</Status>} description="Other devices sign in with it before they see anything.">
-          <button className="btn is-primary" onClick={onSetUpHidden}><LockKeyhole size={14} /> Set up Hidden</button>
-        </Row>
-      ) : null}
-      {on ? (network?.interfaces || []).map((item) => (
-        <Row key={`${item.name}-${item.address}`} label={<span className="set-model-name">{lanUrl(item.address)}</span>} description={`${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`}>
-          <button className="btn" onClick={() => copy.copyWith(() => copyToClipboard(lanUrl(item.address)), item.address)}><CopyIcon copied={copy.copied === item.address} /> {copy.copied === item.address ? 'Copied' : 'Copy'}</button>
-        </Row>
-      )) : null}
-      {on && network && !network.interfaces.length ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
-    </Group>
   );
 }
 
@@ -887,13 +798,15 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </Group>
             <OtherDevicesGroup
               canChange={thisComputer}
-              hiddenEnabled={Boolean(hidden?.enabled)}
               confirmAction={confirmAction}
               restartHeiss={restartHeiss}
               restarting={Boolean(restarting)}
               copyToClipboard={copyToClipboard}
               showToast={showToast}
-              onSetUpHidden={() => onSectionChange('privacy')}
+              Group={Group}
+              Row={Row}
+              Status={Status}
+              Switch={Switch}
             />
           </>
         ) : null}

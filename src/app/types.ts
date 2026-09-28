@@ -159,7 +159,7 @@ export type Models = {
 export type Paths = { outputDir?: string; galleryDir?: string; workflowsDir?: string };
 export type OutputFolderState = "empty" | "missing" | "not-folder" | "ok" | "match" | "mismatch";
 export type OutputFolderReport = { path: string; state: OutputFolderState; media?: number; capped?: boolean; checked?: number; found?: number; looksLikeComfy?: boolean; source?: "comfy" | "common" };
-export type Health = { ok: boolean; comfyUrl?: string; error?: string; /** Admin allowed: on the computer HEISS UI runs on, or its trusted LAN in LAN mode. */ thisComputer?: boolean };
+export type Health = { ok: boolean; comfyUrl?: string; error?: string; /** Admin allowed: on the computer HEISS UI runs on, or a signed-in device trusted with admin. */ thisComputer?: boolean; /** Open on the computer HEISS UI runs on itself. */ atComputer?: boolean };
 /** How a ComfyUI restart ended, as the server saw it: how long it took, and which node packs it brought in or failed to load. */
 export type RestartResult = { startedAt: number; endedAt: number; outcome: 'back' | 'failed'; durationMs?: number | null; newPacks?: string[]; failedPacks?: string[] };
 export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean; checked?: boolean; /** A restart HEISS asked for is under way: not answering is expected. */ restarting?: boolean; restartStartedAt?: number; restartElapsedMs?: number; /** How long restarts usually take here, once they agree. */ restartTypicalMs?: number; /** The restart that ended in the last two minutes. */ lastRestart?: RestartResult };

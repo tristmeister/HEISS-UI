@@ -133,24 +133,12 @@ export function modelFolders(kind, subfolders = [kind]) {
   });
 }
 
-export const localHosts = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
+// Whether other devices may use the studio at all. Who a request comes from
+// (this computer, a device, a proxy) is decided in client-trust.js, never
+// from the socket address alone.
 export const allowLanActions = process.env.HEISS_ALLOW_LAN === "1" || process.env.JAI_ALLOW_LAN === "1" || lanListening;
 /** Fake models and placeholder generations when ComfyUI is unreachable. A dev opt-in for agent and UI testing without a GPU. */
 export const demoMode = process.env.HEISS_DEMO === "1";
-
-export function isTrustedClient(remote = "") {
-  if (localHosts.has(remote)) return true;
-  const address = String(remote || "").replace(/^::ffff:/, "");
-  if (!allowLanActions) return false;
-  if (/^10\./.test(address)) return true;
-  if (/^192\.168\./.test(address)) return true;
-  const match = address.match(/^172\.(\d+)\./);
-  return Boolean(match && Number(match[1]) >= 16 && Number(match[1]) <= 31);
-}
-
-export function isLocalClient(remote = "") {
-  return localHosts.has(remote) || localHosts.has(String(remote || "").replace(/^::ffff:/, ""));
-}
 
 /*
  * Whether ComfyUI just failed to answer. On Windows a refused localhost

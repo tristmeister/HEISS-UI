@@ -127,20 +127,16 @@ export function HiddenUnlockSheet({ hidden }: { hidden: HiddenState }) {
   const stage = heroStageFor(hidden);
   const busy = hidden.unlockStage === "asking" || hidden.unlockStage === "checking" || hidden.unlockStage === "opening";
   const what = hidden.intent?.kind === "hide" ? `to hide ${hidden.intent.items.length === 1 ? "this image" : `these ${hidden.intent.items.length} images`}` : hidden.intent?.kind === "generate" ? "to generate into it" : "";
-  // Another device on the network: the whole studio waits behind the password.
-  const remote = Boolean(hidden.status?.remote && !hidden.unlocked);
   return (
     <Modal
       open={hidden.unlockOpen}
-      onOpenChange={(open) => { if (!open && !remote) { hidden.setUnlockOpen(false); hidden.takeIntent(); } }}
+      onOpenChange={(open) => { if (!open) { hidden.setUnlockOpen(false); hidden.takeIntent(); } }}
       size="form"
       busy={busy}
-      hideClose={remote}
-      dismissOnOutside={!remote}
       className="upscale-modal hidden-modal hidden-unlock-modal"
       hero={<div className="upscale-hero-wrap hidden-hero-wrap is-short"><VaultHero className="upscale-hero hidden-hero" stage={stage} /></div>}
-      title={stage === "unlocking" ? "Unlocked" : remote ? "Unlock HEISS UI" : "Unlock Hidden"}
-      description={stage === "unlocking" ? "One moment." : remote ? "Enter the Hidden password to use HEISS UI from this device." : what ? `Unlock ${what}.` : "Hidden is locked."}
+      title={stage === "unlocking" ? "Unlocked" : "Unlock Hidden"}
+      description={stage === "unlocking" ? "One moment." : what ? `Unlock ${what}.` : "Hidden is locked."}
     >
       {stage !== "unlocking" ? <UnlockControls hidden={hidden} autoFocus compact /> : <div className="hidden-unlock-spacer" />}
     </Modal>

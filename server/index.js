@@ -10,7 +10,10 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
+import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
+import { limitedCheck, registerAccessRoutes } from './access-routes.js';
+import { requestGuard } from './request-guard.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -24,7 +27,7 @@ import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, 
 import { galleryStats } from './stats.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
-import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
+import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockWithPasskey, unlockWithPassword } from './privacy.js';
 import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, retireVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
 import { forgetComfyRun } from './hidden-traces.js';
 import { sendGalleryExport } from './gallery-export.js';
@@ -42,6 +45,8 @@ import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } fro
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 
 const app = express();
+// Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
+app.use(requestGuard({ lan: () => allowLanActions }));
 app.use(express.json({ limit: "25mb" }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
@@ -91,41 +96,39 @@ async function recoverGalleryFromHistory() {
   setGallery(dedupeGallery([...pending, ...gallery, ...recovered]).slice(0, galleryLimit));
 }
 
+/** This computer, or another device that signed in (the gate below has already checked). */
 function requireLocal(req, res) {
-  const remote = req.socket.remoteAddress || "";
-  if (isTrustedClient(remote)) return true;
-  res.status(403).json({ ok: false, error: "This action is only allowed from this computer or trusted local network." });
+  const client = clientOf(req);
+  if (client.thisComputer || (client.network && deviceSession(req))) return true;
+  res.status(403).json({ ok: false, error: "This action is only allowed from this computer or a signed-in device." });
   return false;
 }
 
-function requireTrustedAccess(req, res) {
-  const remote = req.socket.remoteAddress || "";
-  if (isLocalClient(remote) || isTrustedClient(remote)) return true;
-  res.status(403).json({ ok: false, error: "This app is only available from this computer or trusted local network." });
-  return false;
-}
-
-function requireLanUnlock(req, res, next) {
+/**
+ * The gate for other devices. This computer goes straight through. Anyone
+ * else is answered only in LAN mode, from a private network address (or
+ * through a proxy, which always counts as someone else), and only once
+ * signed in with the studio password. /api/access is how they sign in.
+ */
+function requireSignedIn(req, res, next) {
   if (!req.path.startsWith("/api") && !req.path.startsWith("/comfy")) return next();
-  if (req.path.startsWith("/api/privacy")) return next();
-  const remote = req.socket.remoteAddress || "";
-  if (isLocalClient(remote)) return next();
-  if (!allowLanActions || !isTrustedClient(remote)) {
-    res.status(403).json({ ok: false, error: "This app is only available from this computer unless LAN mode is enabled." });
+  const client = clientOf(req);
+  if (client.thisComputer) return next();
+  if (!client.network) {
+    res.status(403).json({ ok: false, reason: "lan-off", error: "This app is only available from this computer unless it’s opened to other devices (Settings › Connection)." });
     return;
   }
-  if (!isPrivacyEnabled()) {
-    res.status(403).json({ ok: false, error: "Set up Hidden on this computer first. Other devices unlock with its password." });
-    return;
-  }
-  if (!encryptionKeyFromRequest(req)) {
-    res.status(401).json({ ok: false, locked: true, error: "Enter the Hidden password to continue." });
+  if (req.path.startsWith("/api/access/")) return next();
+  if (!deviceSession(req)) {
+    res.setHeader("X-HEISS-Sign-In", "1");
+    res.status(401).json({ ok: false, reason: "sign-in", error: "Sign in with the studio password to continue." });
     return;
   }
   next();
 }
 
-app.use(requireLanUnlock);
+app.use(requireSignedIn);
+registerAccessRoutes(app);
 
 async function runRepoCommand(command, args) {
   const npm = command === npmCommand ? npmInvocation(args) : { command, args, shell: false };
@@ -177,8 +180,8 @@ async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
     // Nothing about what Hidden holds is shared with a locked browser, not even whether it is empty.
     vault: { unlocked, revision: unlocked ? vaultRevision() : 0 },
     readiness: await hiddenReadiness(),
-    // Another device on the network signs in with the Hidden password before it sees anything.
-    remote: !isLocalClient(req.socket?.remoteAddress || "")
+    // Another device, signed in with the studio password; Hidden itself still opens with its own.
+    remote: !clientOf(req).thisComputer
   };
 }
 
@@ -221,25 +224,21 @@ function sessionSeconds(req) {
 
 /**
  * Looking after the computer (model folders and downloads, node installs,
- * ComfyUI's address and restarts, the output folder, updates, workflow files)
- * happens at that computer, or from a trusted local network when LAN mode is
- * on (those requests have already passed the Hidden unlock). Anywhere else
- * the server refuses them and the app hides them.
+ * ComfyUI's address and restarts, the output folder, updates, workflow files,
+ * clearing the gallery) happens at that computer. A signed-in device may too
+ * when the owner turned on "Trust other devices with admin" (access.js).
+ * Anywhere else the server refuses them and the app hides them.
  */
-function canAdmin(req) {
-  return isTrustedClient(req.socket.remoteAddress || "");
-}
-
 function requireAdmin(req, res) {
   if (canAdmin(req)) return true;
-  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on, or from its local network with LAN mode on." });
+  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on. Its owner can trust other devices with this in Settings › Connection." });
   return false;
 }
 
-/** Creating or erasing Hidden happens at the computer it runs on, never from the network. */
+/** Creating, erasing or re-keying Hidden happens at the computer it runs on, never from the network. */
 function requireThisComputer(req, res) {
-  if (isLocalClient(req.socket.remoteAddress || "")) return true;
-  res.status(403).json({ ok: false, error: "Only the computer HEISS UI runs on can do this." });
+  if (clientOf(req).thisComputer) return true;
+  res.status(403).json({ ok: false, reason: "this-computer", error: "Only the computer HEISS UI runs on can do this." });
   return false;
 }
 
@@ -250,47 +249,34 @@ app.post("/api/privacy/setup", async (req, res) => {
     // remove its copies, and says so then.
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
     if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
-    const key = setupPrivacy(req.body?.password || "");
-    setUnlockCookie(res, key, sessionSeconds(req));
+    const key = await setupPrivacy(req.body?.password || "");
+    setUnlockCookie(res, key, sessionSeconds(req), req);
     res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
 });
 
-async function slowDownGuessing() {
-  const wait = unlockBackoffMs();
-  if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
-}
-
 app.post("/api/privacy/unlock", async (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
-  await slowDownGuessing();
-  const key = unlockWithPassword(req.body?.password || "");
-  if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "That password is incorrect." });
-    return;
-  }
-  setUnlockCookie(res, key, sessionSeconds(req));
+  if (!requireLocal(req, res)) return;
+  const key = await limitedCheck(req, res, () => unlockWithPassword(req.body?.password || ""), "That password is incorrect.");
+  if (!key) return;
+  setUnlockCookie(res, key, sessionSeconds(req), req);
   res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
 });
 
 app.get("/api/privacy/passkeys/options", (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
+  if (!requireLocal(req, res)) return;
   res.json({ ok: true, passkeys: passkeyUnlockOptions(), challenge: issueChallenge() });
 });
 
 app.post("/api/privacy/passkeys/unlock", async (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
-  await slowDownGuessing();
-  const key = req.body?.secret
+  if (!requireLocal(req, res)) return;
+  const key = await limitedCheck(req, res, async () => (req.body?.secret
     ? unlockWithDevicePasskey(req.body, String(req.headers.origin || ""))
-    : unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""));
-  if (!key) {
-    res.status(401).json({ ok: false, locked: true, error: "This passkey isn’t set up for Hidden. Use your password." });
-    return;
-  }
-  setUnlockCookie(res, key, sessionSeconds(req));
+    : unlockWithPasskey(String(req.body?.id || ""), String(req.body?.prf || ""))), "This passkey isn’t set up for Hidden. Use your password.");
+  if (!key) return;
+  setUnlockCookie(res, key, sessionSeconds(req), req);
   res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
 });
 
@@ -326,11 +312,11 @@ app.delete("/api/privacy/passkeys/:id", async (req, res) => {
 });
 
 app.post("/api/privacy/password", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+  if (!requireThisComputer(req, res)) return;
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
-    changePassword(key, req.body?.password || "");
+    await changePassword(key, req.body?.password || "");
     res.json({ ok: true, ...(await privacyPayload(req, key)) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -338,7 +324,7 @@ app.post("/api/privacy/password", async (req, res) => {
 });
 
 app.post("/api/privacy/lock", (req, res) => {
-  if (!requireTrustedAccess(req, res)) return;
+  if (!requireLocal(req, res)) return;
   clearUnlockCookie(res);
   res.json({ ok: true, enabled: isPrivacyEnabled(), unlocked: false, passkeys: privacyStatusFor({ headers: {} }).passkeys, vault: { unlocked: false, revision: 0 } });
 });
@@ -506,9 +492,9 @@ const serverStartedAt = Date.now();
 app.get("/api/health", async (req, res) => {
   try {
     const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req) });
+    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer });
   } catch (error) {
-    res.status(503).json({ ok: false, thisComputer: canAdmin(req), restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
+    res.status(503).json({ ok: false, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
 });
 
@@ -686,7 +672,7 @@ app.post("/api/config/output-dir", async (req, res) => {
 app.get("/api/output-dir", async (req, res) => {
   if (!requireLocal(req, res)) return;
   await autoDetectOutputDir();
-  res.json({ outputDir: comfyOutputDir, report: await inspectOutputDir(comfyOutputDir), canBrowse: isLocalClient(req.socket.remoteAddress || "") });
+  res.json({ outputDir: comfyOutputDir, report: await inspectOutputDir(comfyOutputDir), canBrowse: clientOf(req).thisComputer });
 });
 
 app.post("/api/output-dir/check", async (req, res) => {
@@ -701,7 +687,7 @@ app.get("/api/output-dir/detect", async (req, res) => {
 
 app.post("/api/output-dir/browse", async (req, res) => {
   // The picker opens on this machine's screen, so only its own browser may ask.
-  if (!isLocalClient(req.socket.remoteAddress || "")) {
+  if (!clientOf(req).thisComputer) {
     res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
     return;
   }
@@ -1531,7 +1517,7 @@ app.delete("/api/model-folders", async (req, res) => {
 
 // The person points at a folder the scan missed; it still has to read as a models folder.
 app.post("/api/model-folders/pick", async (req, res) => {
-  if (!isLocalClient(req.socket.remoteAddress || "")) {
+  if (!clientOf(req).thisComputer) {
     res.status(403).json({ ok: false, error: "The folder picker only opens on the computer running HEISS UI." });
     return;
   }
@@ -1702,8 +1688,8 @@ app.post("/api/update/restart", (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/shutdown", (_req, res) => {
-  if (!requireLocal(_req, res)) return;
+app.post("/api/shutdown", (req, res) => {
+  if (!requireAdmin(req, res)) return;
   res.json({ ok: true });
   setTimeout(() => process.exit(0), 250);
 });
@@ -1811,9 +1797,11 @@ app.listen(port, host, (error) => {
     if (host === "0.0.0.0" || host === "::") {
       const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal);
       for (const entry of addresses) console.log(`    ➜  Network   http://${entry.address}:${pagePort}`);
-      if (addresses.length) console.log(isPrivacyEnabled()
-        ? "    Other devices sign in with your Hidden password.\n"
-        : "    Other devices sign in with a Hidden password: set one up in Settings › Hidden first.\n");
+      if (addresses.length) console.log(studioPasswordSet()
+        ? "    Other devices sign in with the studio password.\n"
+        : isPrivacyEnabled()
+          ? "    Other devices sign in with your Hidden password until you set a studio password (Settings › Connection).\n"
+          : "    Other devices sign in with a studio password: set one in Settings › Connection first.\n");
     }
     // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
     const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);

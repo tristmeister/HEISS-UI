@@ -348,5 +348,6 @@
   .hidden-summary li { animation: none; }
 }
 
-/* Another device before Hidden exists: this is all it can show, above everything. */
-.hidden-lockscreen.remote-setup { z-index: 40; background: #0a0a0a; }
+/* Another device before it signs in (DeviceGate.tsx): this is all it can show, above everything. */
+.device-gate { position: fixed; inset: 0; z-index: 40; background: #0a0a0a; }
+.device-gate.hidden-lockscreen { pointer-events: auto; }

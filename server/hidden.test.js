@@ -19,7 +19,7 @@ const vault = await import("./vault.js");
 /** A browser request carrying whatever cookie a response set. */
 function requestFrom(res) {
   const header = [].concat(res.headers["Set-Cookie"] || [])[0] || "";
-  return { headers: { cookie: header.split(";")[0] } };
+  return { socket: { remoteAddress: "127.0.0.1" }, headers: { cookie: header.split(";")[0] } };
 }
 function response() {
   return { headers: {}, setHeader(name, value) { this.headers[name] = value; } };
@@ -28,12 +28,12 @@ function response() {
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 const dataUrl = `data:image/png;base64,${png.toString("base64")}`;
 
-test("the key ring opens with the password and with a passkey's PRF secret, nothing else", () => {
-  const key = privacy.setupPrivacy("correct horse");
+test("the key ring opens with the password and with a passkey's PRF secret, nothing else", async () => {
+  const key = await privacy.setupPrivacy("correct horse");
   assert.equal(key.length, 32);
-  assert.throws(() => privacy.setupPrivacy("another one"), /already/);
-  assert.deepEqual(privacy.unlockWithPassword("correct horse"), key);
-  assert.equal(privacy.unlockWithPassword("wrong horse"), null);
+  await assert.rejects(() => privacy.setupPrivacy("another one"), /already/);
+  assert.deepEqual(await privacy.unlockWithPassword("correct horse"), key);
+  assert.equal(await privacy.unlockWithPassword("wrong horse"), null);
 
   const prf = crypto.randomBytes(32).toString("base64url");
   privacy.addPasskey(key, { id: "cred-1", name: "Touch ID", salt: crypto.randomBytes(32).toString("base64url"), prf });
@@ -43,27 +43,27 @@ test("the key ring opens with the password and with a passkey's PRF secret, noth
   assert.deepEqual(privacy.passkeyUnlockOptions().map((item) => item.id), ["cred-1"]);
 
   // A new password wraps the same key, so the passkey keeps working too.
-  privacy.changePassword(key, "battery staple");
-  assert.equal(privacy.unlockWithPassword("correct horse"), null);
-  assert.deepEqual(privacy.unlockWithPassword("battery staple"), key);
+  await privacy.changePassword(key, "battery staple");
+  assert.equal(await privacy.unlockWithPassword("correct horse"), null);
+  assert.deepEqual(await privacy.unlockWithPassword("battery staple"), key);
   assert.deepEqual(privacy.unlockWithPasskey("cred-1", prf), key);
   assert.ok(privacy.removePasskey("cred-1"));
   assert.equal(privacy.unlockWithPasskey("cred-1", prf), null);
 });
 
-test("an unlock cookie carries the key and a locked request carries nothing", () => {
-  const key = privacy.unlockWithPassword("battery staple");
+test("an unlock cookie carries the key and a locked request carries nothing", async () => {
+  const key = await privacy.unlockWithPassword("battery staple");
   const res = response();
   privacy.setUnlockCookie(res, key, 120);
-  assert.match(res.headers["Set-Cookie"], /HttpOnly/);
-  assert.match(res.headers["Set-Cookie"], /Max-Age=120/);
+  assert.match([].concat(res.headers["Set-Cookie"]).join("\n"), /HttpOnly/);
+  assert.match([].concat(res.headers["Set-Cookie"]).join("\n"), /Max-Age=120/);
   assert.deepEqual(privacy.encryptionKeyFromRequest(requestFrom(res)), key);
   assert.equal(privacy.encryptionKeyFromRequest({ headers: {} }), null);
   assert.equal(privacy.privacyStatusFor({ headers: {} }).unlocked, false);
 });
 
 test("Hidden stores a run encrypted and never hands out its keys", async () => {
-  const key = privacy.unlockWithPassword("battery staple");
+  const key = await privacy.unlockWithPassword("battery staple");
   const { items } = await vault.storeHiddenOutputs(key, [{ url: dataUrl, filename: "out.png", type: "image" }], { prompt: "a secret lighthouse", kind: "image", width: 1, height: 1 });
   assert.equal(items.length, 1);
   const [item] = vault.vaultItems(key, { bundles: false });
@@ -85,7 +85,7 @@ test("Hidden stores a run encrypted and never hands out its keys", async () => {
 });
 
 test("hiding moves a file out of ComfyUI's folder and unhiding puts it back", async () => {
-  const key = privacy.unlockWithPassword("battery staple");
+  const key = await privacy.unlockWithPassword("battery staple");
   fs.writeFileSync(path.join(outputDir, "ComfyUI_00001_.png"), png);
   fs.writeFileSync(path.join(outputDir, "ComfyUI_00001_up.png"), png);
   const url = "/comfy/view?filename=ComfyUI_00001_.png&subfolder=&type=output";
@@ -116,7 +116,7 @@ test("hiding moves a file out of ComfyUI's folder and unhiding puts it back", as
 });
 
 test("a Hidden item's upscale is sealed and ComfyUI's plaintext copy removed", async () => {
-  const key = privacy.unlockWithPassword("battery staple");
+  const key = await privacy.unlockWithPassword("battery staple");
   await vault.storeHiddenOutputs(key, [{ url: dataUrl, filename: "out.png", type: "image" }], { prompt: "a hidden pier", kind: "image", width: 1, height: 1 });
   const [item] = vault.vaultItems(key, { bundles: false });
   fs.mkdirSync(path.join(outputDir, "heiss-ui"), { recursive: true });
@@ -132,7 +132,7 @@ test("a Hidden item's upscale is sealed and ComfyUI's plaintext copy removed", a
   vault.deleteVaultItems(key, [item.id]);
 });
 
-test("a version 1 install migrates on its first unlock and keeps its data readable", () => {
+test("a version 1 install migrates on its first unlock and keeps its data readable", async () => {
   vault.eraseVault();
   privacy.erasePrivacy();
   const salt = () => crypto.randomBytes(16).toString("base64url");
@@ -147,11 +147,11 @@ test("a version 1 install migrates on its first unlock and keeps its data readab
     sessionSecret: crypto.randomBytes(32).toString("base64url"),
     passwordHash: crypto.scryptSync("old password", Buffer.from(passwordSalt, "base64url"), 32).toString("base64url")
   }));
-  assert.equal(privacy.unlockWithPassword("nope"), null);
-  assert.deepEqual(privacy.unlockWithPassword("old password"), legacyKey);
+  assert.equal(await privacy.unlockWithPassword("nope"), null);
+  assert.deepEqual(await privacy.unlockWithPassword("old password"), legacyKey);
   // Now version 2, same key.
   assert.equal(JSON.parse(fs.readFileSync(path.join(process.env.HEISS_DATA_DIR, "privacy.json"), "utf8")).version, 2);
-  assert.deepEqual(privacy.unlockWithPassword("old password"), legacyKey);
+  assert.deepEqual(await privacy.unlockWithPassword("old password"), legacyKey);
 });
 
 test("old sealed gallery prompts open once with the key", () => {
@@ -166,9 +166,9 @@ test("old sealed gallery prompts open once with the key", () => {
   assert.equal(privacy.openLegacyPrompt(item, crypto.randomBytes(32)), null);
 });
 
-test("a device passkey unlocks only with its secret and a fresh signature from it", () => {
+test("a device passkey unlocks only with its secret and a fresh signature from it", async () => {
   privacy.erasePrivacy();
-  const key = privacy.setupPrivacy("device test pw");
+  const key = await privacy.setupPrivacy("device test pw");
   const { publicKey, privateKey } = crypto.generateKeyPairSync("ec", { namedCurve: "P-256" });
   const spki = publicKey.export({ format: "der", type: "spki" }).toString("base64url");
   const { secret } = privacy.addDevicePasskey(key, { id: "dev-1", name: "Touch ID", publicKey: spki });
@@ -195,7 +195,7 @@ test("a device passkey unlocks only with its secret and a fresh signature from i
 
 test("the reference picker keeps Hidden on its own shelf, shut while Hidden is locked", async () => {
   const references = await import("./reference-assets.js");
-  const key = privacy.setupPrivacy("shelf test pw");
+  const key = await privacy.setupPrivacy("shelf test pw");
   await vault.storeHiddenOutputs(key, [{ url: dataUrl, filename: "secret.png", type: "image" }], { prompt: "a private pier", kind: "image", width: 1, height: 1 });
   const res = response();
   privacy.setUnlockCookie(res, key, 120);

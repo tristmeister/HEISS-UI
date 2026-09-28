@@ -78,16 +78,10 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     setStatus(next);
     // The lock gets its moment before the pictures come in.
     window.setTimeout(() => {
-      // Another device had nothing loaded behind the lock; start it properly.
-      if (next.remote) { window.location.reload(); return; }
       setUnlockOpen(false);
       setUnlockStage("idle");
     }, 600);
   }, []);
-
-  // On another device everything waits behind the password.
-  const remoteLocked = Boolean(status?.remote && status.enabled && !status.unlocked);
-  useEffect(() => { if (remoteLocked) setUnlockOpen(true); }, [remoteLocked]);
 
   const failed = useCallback((message: string) => {
     setUnlockStage("failed");

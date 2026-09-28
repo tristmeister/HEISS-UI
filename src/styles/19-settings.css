@@ -390,3 +390,28 @@
 .set-row .btn.is-done:disabled { opacity: 1; color: #7fd49a; }
 
 .set-note.is-error { color: hsl(var(--destructive)); }
+
+/* ------------------------------------------------------- Other devices
+   An address as a code to scan: dark on white, which phone cameras read
+   best in any theme, in a quiet card under its row. */
+
+.btn.is-ghost.is-active { background: var(--control-hover); color: hsl(var(--foreground)); }
+.set-qr {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 18px 16px;
+}
+.set-qr .qr-code {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  padding: 6px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--surface-border);
+}
+.set-qr p { margin: 0; max-width: 32ch; font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+@media (max-width: 760px) {
+  .set-qr { flex-direction: column; align-items: flex-start; padding: 4px 14px 14px; }
+}

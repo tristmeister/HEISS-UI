@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, Fingerprint, KeyRound, LockKeyhole, Trash2 } from 'lucide-react';
 import { BetaTag } from './components';
+import { useAtComputer } from './device';
 import { cn } from './format';
 import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import { autoLockChoices, type HiddenState } from './useHidden';
@@ -36,6 +37,8 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [busy, setBusy] = React.useState("");
   const autoLock = prefs.hiddenAutoLockMinutes ?? 15;
+  // The password is only ever changed at the computer Hidden lives on.
+  const atComputer = useAtComputer();
 
   if (!enabled) {
     return (
@@ -110,7 +113,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       </Group>
 
       <Group title="Unlock methods" note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <> Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it.</> : null}</> : undefined}>
-        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description="Works on any device, including over the network." stacked={changing}>
+        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description={atComputer ? "Works on any device you’ve signed in, including over the network." : "Works on any device you’ve signed in. Change it on the computer HEISS UI runs on."} stacked={changing}>
           {changing ? (
             <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (canSavePassword) savePassword(); }}>
               {/* Typed twice, as at setup: there is no reset, so a typo would lock you out. */}
@@ -120,7 +123,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
               <button type="button" className="btn is-ghost" onClick={() => { setChanging(false); setPassword(""); setConfirmPassword(""); }}>Cancel</button>
               <button type="submit" className="btn is-primary" disabled={!canSavePassword}>{busy === "password" ? "Saving…" : passwordStrength(password) > 0.6 ? "Save" : "Save anyway"}</button>
             </form>
-          ) : <button className="btn" disabled={!unlocked} onClick={() => setChanging(true)}>Change</button>}
+          ) : <button className="btn" disabled={!unlocked || !atComputer} onClick={() => setChanging(true)}>Change</button>}
         </Row>
         {passkeys.map((passkey) => (
           <Row key={passkey.id} label={<span className="hidden-way"><Fingerprint size={14} /> {passkey.name || "Passkey"}<BetaTag /></span>} description={unlocked ? [passkey.kind === "device" ? "Tied to this browser" : "", passkey.createdAt ? `added ${when(passkey.createdAt)}` : "", passkey.lastUsedAt ? `last used ${when(passkey.lastUsedAt)}` : ""].filter(Boolean).join(", ").replace(/^a/, "A") : undefined}>
