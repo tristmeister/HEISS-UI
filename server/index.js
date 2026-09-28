@@ -2197,7 +2197,9 @@ startServers(app, {
   fallback: !dev,
   onFatal(error) {
     let message = `\n  HEISS UI could not start: ${error.message}\n`;
-    if (error.heissRunning) message = `\n  HEISS UI is already running: http://localhost:${error.port}\n`;
+    // Where the running copy answered: this computer, or the one address HOST names.
+    const runningHost = !error.host || error.host === "127.0.0.1" ? "localhost" : error.host.includes(":") ? `[${error.host}]` : error.host;
+    if (error.heissRunning) message = `\n  HEISS UI is already running: http://${runningHost}:${error.port}\n`;
     else if (error.code === "EADDRINUSE") message = dev
       ? `\n  Port ${port} is already in use. Stop what uses it, or set another PORT in .env.\n`
       : `\n  Ports ${port} to ${port + 9} are all in use. Set another PORT in .env.\n`;
@@ -2205,7 +2207,7 @@ startServers(app, {
     // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
     const exit = () => process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
     // The launcher opens the copy that is already running instead.
-    if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://localhost:${error.port}` }, exit);
+    if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://${runningHost}:${error.port}` }, exit);
     else exit();
   },
   onListening({ plan, port: listening, moved }) {
