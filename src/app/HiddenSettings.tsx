@@ -161,11 +161,13 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
         </Row>
       </Group>
 
-      <Group title="Start over" tone="danger" note="If you lose the password and every passkey, this is the only way to start over.">
-        <Row label="Erase Hidden" description="Erases every Hidden image, the password and all passkeys from this computer.">
-          <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} /> Erase</button>
-        </Row>
-      </Group>
+      {atComputer ? (
+        <Group title="Start over" tone="danger" note="If you lose the password and every passkey, this is the only way to start over.">
+          <Row label="Erase Hidden" description="Erases every Hidden image, the password and all passkeys from this computer.">
+            <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} /> Erase</button>
+          </Row>
+        </Group>
+      ) : null}
     </>
   );
 }
