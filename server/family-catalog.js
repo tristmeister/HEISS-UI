@@ -53,7 +53,7 @@ export const encoderDownloads = {
   ],
   // fp8 first: half the size of bf16, and what fits next to Flux.2 Dev on most machines.
   mistral3_24b: [
-    { file: "mistral_3_small_flux2_fp8.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors"), bytes: 18_034_640_095 },
+    { file: "mistral_3_small_flux2_fp8.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors"), bytes: 18_034_640_095, sha256: "e3467b7d912a234fb929cdf215dc08efdb011810b44bc21081c4234cc75b370e" },
     { file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447, sha256: "7d79902f60b1aeb3a6de2cfad02f4367b5e300a1387de3d03ac717cfa3df117c" }
   ],
   llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors"), bytes: 9_081_258_056, sha256: "9f86897bbeb933ef4fd06297740edb8dd962c94efcd92b373a11460c33765ea6" }],
@@ -65,7 +65,7 @@ export const encoderDownloads = {
 
 // Vision encoders that read a start image for image-to-video models (models/clip_vision).
 export const visionDownloads = {
-  sigclip_384: [{ file: "sigclip_vision_patch14_384.safetensors", url: hf("Comfy-Org/sigclip_vision_384", "sigclip_vision_patch14_384.safetensors"), bytes: 856_505_640 }]
+  sigclip_384: [{ file: "sigclip_vision_patch14_384.safetensors", url: hf("Comfy-Org/sigclip_vision_384", "sigclip_vision_patch14_384.safetensors"), bytes: 856_505_640, sha256: "1fee501deabac72f0ed17610307d7131e3e9d1e838d0363aa3c2b97a6e03fb33" }]
 };
 
 /** Which vision encoder a clip_vision file is, by name (they have no other use here). */
@@ -101,19 +101,19 @@ export const modelDownloads = {
   ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors"), bytes: 9_280_741_293, sha256: "9b359007dae162cca7591d00868feea733eb7c56e56e3a214a4d5a9a2a07cd60" }],
   ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors"), bytes: 9_583_465_712, sha256: "cd03ed94f244c9cb705e7d30ca0f40b5f5b004bb20674117adff88d16416c23d" }],
   // Starter models (see starterModels below).
-  krea2_turbo_fp8: [{ file: "krea2_turbo_fp8_scaled.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_fp8_scaled.safetensors"), bytes: 13_141_730_784 }],
-  krea2_turbo_bf16: [{ file: "krea2_turbo_bf16.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_bf16.safetensors"), bytes: 26_283_332_608 }],
-  krea2_raw_bf16: [{ file: "krea2_raw_bf16.safetensors", label: "Krea 2 Raw", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_raw_bf16.safetensors"), bytes: 26_283_332_608 }],
-  flux2_klein_4b_fp8: [{ file: "flux-2-klein-4b-fp8.safetensors", label: "Flux.2 Klein 4B", url: hf("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors"), bytes: 4_070_624_520 }],
-  flux2_klein_4b: [{ file: "flux-2-klein-4b.safetensors", label: "Flux.2 Klein 4B", url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-4b", "split_files/diffusion_models/flux-2-klein-4b.safetensors"), bytes: 7_751_105_712 }],
-  flux2_dev_fp8: [{ file: "flux2_dev_fp8mixed.safetensors", label: "Flux.2 Dev", url: hf("Comfy-Org/flux2-dev", "split_files/diffusion_models/flux2_dev_fp8mixed.safetensors"), bytes: 35_455_599_592 }]
+  krea2_turbo_fp8: [{ file: "krea2_turbo_fp8_scaled.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_fp8_scaled.safetensors"), bytes: 13_141_730_784, sha256: "eb4dd8c612cfd10f64f25b057e6e6bbcb5737c94a7372177e456dbf7579502f1" }],
+  krea2_turbo_bf16: [{ file: "krea2_turbo_bf16.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_bf16.safetensors"), bytes: 26_283_332_608, sha256: "78bbf8f4165eda19cea3cb06c78089221932a39e2eed8af9da741f942c47ffb3" }],
+  krea2_raw_bf16: [{ file: "krea2_raw_bf16.safetensors", label: "Krea 2 Raw", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_raw_bf16.safetensors"), bytes: 26_283_332_608, sha256: "f99bb0ff8e362b77342bc4994e0c50906fe7ef7074864b181b7d48d2fa6d03d7" }],
+  flux2_klein_4b_fp8: [{ file: "flux-2-klein-4b-fp8.safetensors", label: "Flux.2 Klein 4B", url: hf("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors"), bytes: 4_070_624_520, sha256: "97ed34fe0567e436200f2faee3939b88f2b5d99f8af2a4dc16532c4245c0ccb6" }],
+  flux2_klein_4b: [{ file: "flux-2-klein-4b.safetensors", label: "Flux.2 Klein 4B", url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-4b", "split_files/diffusion_models/flux-2-klein-4b.safetensors"), bytes: 7_751_105_712, sha256: "ec3d4e733a771f61c052fb4856c48b336c55eaf2c65487c2a1faeb9bbda7a343" }],
+  flux2_dev_fp8: [{ file: "flux2_dev_fp8mixed.safetensors", label: "Flux.2 Dev", url: hf("Comfy-Org/flux2-dev", "split_files/diffusion_models/flux2_dev_fp8mixed.safetensors"), bytes: 35_455_599_592, sha256: "863a82e4ff950a42a6b0e80bea824828f129eb1a8fbbdbd9e8cb29859127b486" }]
 };
 
 // Whole checkpoints (model, text encoders and VAE in one file), for models/checkpoints.
 export const checkpointDownloads = {
-  realvisxl5_lightning: [{ file: "RealVisXL_V5.0_Lightning_fp16.safetensors", label: "RealVisXL V5.0 Lightning", url: hf("SG161222/RealVisXL_V5.0_Lightning", "RealVisXL_V5.0_Lightning_fp16.safetensors"), bytes: 6_938_065_512 }],
-  realvisxl5: [{ file: "RealVisXL_V5.0_fp16.safetensors", label: "RealVisXL V5.0", url: hf("SG161222/RealVisXL_V5.0", "RealVisXL_V5.0_fp16.safetensors"), bytes: 6_938_065_488 }],
-  sdxl_base: [{ file: "sd_xl_base_1.0.safetensors", label: "SDXL 1.0", url: hf("stabilityai/stable-diffusion-xl-base-1.0", "sd_xl_base_1.0.safetensors"), bytes: 6_938_078_334 }]
+  realvisxl5_lightning: [{ file: "RealVisXL_V5.0_Lightning_fp16.safetensors", label: "RealVisXL V5.0 Lightning", url: hf("SG161222/RealVisXL_V5.0_Lightning", "RealVisXL_V5.0_Lightning_fp16.safetensors"), bytes: 6_938_065_512, sha256: "fabcadd9330dcc4f9702063428d40b9d4d07168d8acefc819b8d1d9db466b3ec" }],
+  realvisxl5: [{ file: "RealVisXL_V5.0_fp16.safetensors", label: "RealVisXL V5.0", url: hf("SG161222/RealVisXL_V5.0", "RealVisXL_V5.0_fp16.safetensors"), bytes: 6_938_065_488, sha256: "6a35a7855770ae9820a3c931d4964c3817b6d9e3c6f9c4dabb5b3a94e5643b80" }],
+  sdxl_base: [{ file: "sd_xl_base_1.0.safetensors", label: "SDXL 1.0", url: hf("stabilityai/stable-diffusion-xl-base-1.0", "sd_xl_base_1.0.safetensors"), bytes: 6_938_078_334, sha256: "31e35c80fc4829d14f90153f4c74cd59c90b779f6afe05a74cd6120b893f7e5b" }]
 };
 
 /**

@@ -35,7 +35,10 @@ test.before(async () => {
 });
 
 test.after(async () => {
+  // SIGTERM saves the gallery before exiting, so wait for that before removing its folder.
+  const exited = server && server.exitCode === null ? new Promise((resolve) => server.once("exit", resolve)) : null;
   server?.kill("SIGTERM");
+  await exited;
   await fake.close();
   fs.rmSync(dataDir, { recursive: true, force: true });
 });

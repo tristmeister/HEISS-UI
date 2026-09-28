@@ -11,6 +11,87 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Security
+- **Other websites can't drive HEISS UI any more.** Every request must name
+  a known host, and anything that changes something must come from the
+  studio's own page. Before, a page open in the same browser could clear the
+  gallery or shut the server down.
+- **Requests through a proxy or tunnel count as another device**, so Caddy,
+  `tailscale serve` or `cloudflared` no longer hand out this computer's rights.
+- **Trust other devices with admin** is a new switch in Settings › Connection,
+  off by default. Updates, installs, the output folder, clearing the gallery
+  and model downloads are then done at this computer only. The switch itself,
+  the Hidden and studio passwords, HTTPS and sign-out-all never leave it.
+- **Other devices sign in with a studio password** of their own, shown with a
+  QR code per address. Sessions last 7 days, **Sign out all devices** ends
+  them, and wrong guesses slow down per address without ever slowing this
+  computer. Until you set one, the Hidden password still signs devices in.
+- **HTTPS for other devices** with a certificate you already have (for example
+  from `tailscale cert`); plain HTTP then answers this computer only.
+- **Hiding an image leaves nothing of it in the open**: its thumbnails, the
+  copies ComfyUI kept of a reference, and its prompt in the gallery file and
+  prompt history go.
+- **Updates can be signed.** Releases carry an Ed25519 signature, and once the
+  public key is set, unsigned or badly signed updates are refused.
+- **Node packs install a reviewed commit** with ComfyUI's PyTorch and numpy
+  held in place, and HEISS asks before going around ComfyUI-Manager's
+  security level. Model downloads are checked against their published SHA-256
+  and resume only while the file is unchanged.
+- **Share without settings** removes the prompt and workflow from a shared or
+  downloaded image; on for Hidden. Imported workflows say when they contain
+  nodes that run code, touch files elsewhere or go online.
+
+### Added
+- **Pick a first model.** An empty studio offers Krea 2, Flux.2 and SDXL, each
+  in three versions, with the one that suits this computer marked. One tap
+  gets the model, its text encoder and VAE, then selects it with a prompt
+  ready. "Get more models" in the model menu brings the cards back.
+- **HEISS UI finds ComfyUI by itself** on port 8188 or ComfyUI Desktop's 8000,
+  and **No ComfyUI yet?** says which one to install.
+- **Recent prompts.** Press ↑ in an empty prompt, or the clock beside Negative,
+  to search, star and reuse earlier prompts.
+- **Search the gallery** with `/` or ⌘F, and **star images** (F in the
+  viewer) to find them under Favourites.
+- **Earlier images**: add a folder of older ComfyUI, A1111 or Forge images to
+  the gallery without copying them.
+- **Starter prompts, Surprise me and Vary this** for a quick first run, and a
+  `?` overlay with every shortcut.
+- **GGUF models** load through ComfyUI-GGUF, which HEISS offers to install.
+- **Image-to-video for Wan 2.2 14B and HunyuanVideo 1.5**, and a calm "usually
+  about N min here" before a video starts.
+- **Every build of a part** with its size and source under "Other versions";
+  a gone or gated build falls back to the next. A Hugging Face token, mirror
+  and proxy work for downloads.
+- **LoRAs say what they were made for**, sort matching ones first and show
+  their trigger words.
+- **Civitai-ready images (beta)** write A1111-style parameters into new PNGs.
+- **Copy image** and **Copy settings** in the viewer.
+- **Troubleshooting guide**, linked from every failed card, and **Copy
+  diagnostics** in Settings › About.
+
+### Changed
+- **The model picker is called Model**, with imported graphs under Your
+  workflows. Desktop controls use the phone's plain labels, sampling moved to
+  Advanced, and **Back to recommended** undoes changes.
+- **Failed runs offer the fix**: free memory and retry, retry smaller,
+  download again, rescan or install.
+- **A ComfyUI that drops for a moment no longer fails the run**; the tile says
+  Reconnecting and picks the result up. Cancel only stops HEISS's own runs.
+- **Delete all moves images to a trash** you can restore for 30 days.
+- **Downloads bring Node.js on every system**, the launcher opens the browser,
+  and a taken port moves HEISS UI to the next free one.
+- **Large galleries page and save faster**, the app is compressed for phones,
+  and the thumbnail cache has a size limit.
+- **Speed LoRAs switch to few-step settings**, and img2img strength follows
+  each family.
+
+### Fixed
+- Nunchaku, NF4 and unrecognised checkpoints no longer look ready and then
+  fail; unrecognised ones ask for their type instead of running as SDXL.
+- Error toasts stay until dismissed.
+- A Git checkout only updates without local changes, and goes back if the
+  update doesn't build.
+
 ## [0.11.0] - 2026-09-27
 
 > Notes as islands, a floating live run, gentler face detail

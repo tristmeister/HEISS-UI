@@ -483,7 +483,7 @@ export function useGenerationActions(view: any) {
 
   /** Out of memory: let ComfyUI unload what it holds (it does so between runs), then run it again. */
   async function freeMemoryAndRetry(item: GalleryItem) {
-    const response = await fetch("/api/comfy/free", { method: "POST" }).catch(() => null);
+    const response = await apiFetch("/api/comfy/free", { method: "POST" }).catch(() => null);
     if (!response?.ok) {
       showToast("Couldn’t reach ComfyUI to free its memory", "error", { action: { label: "Try again", onClick: () => freeMemoryAndRetry(item) } });
       return;

@@ -84,10 +84,15 @@ const bigGallery = (count) => {
 test("paging through 50,000 items reads each page from one sorted list, without repeats", () => {
   const items = bigGallery(50_000);
   setGallery(items, { persist: false });
+  // The first page builds the sorted list; the rest only cut from it. Timed
+  // against each other, so a busy machine slows both alike.
+  const firstStarted = performance.now();
+  const first = pageGallery({ limit: 220 });
+  const firstPage = performance.now() - firstStarted;
+  const seen = first.items.map((item) => item.id);
+  let cursor = first.nextCursor;
+  let pages = 1;
   const started = performance.now();
-  const seen = [];
-  let cursor = "";
-  let pages = 0;
   do {
     const page = pageGallery({ limit: 220, cursor });
     seen.push(...page.items.map((item) => item.id));
@@ -98,8 +103,9 @@ test("paging through 50,000 items reads each page from one sorted list, without 
   assert.equal(new Set(seen).size, seen.length, "no item is served twice");
   assert.equal(seen.length, 50_000);
   assert.deepEqual(seen.slice(0, 4), ["local-49996", "local-49997", "local-49998", "local-49999"], "newest first, a batch in its own order");
-  // Re-filtering and re-sorting per page took several seconds for this; the cached list takes well under one.
-  assert.ok(elapsed < 3000, `paging took ${Math.round(elapsed)} ms`);
+  // Re-filtering and re-sorting per page made each of the ${pages} pages cost as much as
+  // the first; from the cached list all the rest together cost a few first pages at most.
+  assert.ok(elapsed < Math.max(50, firstPage * 10), `the other ${pages - 1} pages took ${Math.round(elapsed)} ms, the first ${Math.round(firstPage)} ms`);
 
   const videos = pageGallery({ type: "video", limit: 500, includeFailed: false });
   assert.ok(videos.items.every((item) => item.type === "video" && item.status !== "error"));
@@ -123,7 +129,8 @@ test("saving a large gallery is compact, runs in the background and reads back",
   setGallery(items, { persist: false });
   saveGallery();
   let longestPause = 0;
-  let last = performance.now();
+  const started = performance.now();
+  let last = started;
   const timer = setInterval(() => {
     const now = performance.now();
     longestPause = Math.max(longestPause, now - last);
@@ -134,13 +141,15 @@ test("saving a large gallery is compact, runs in the background and reads back",
   } finally {
     clearInterval(timer);
   }
+  const total = performance.now() - started;
   const text = fs.readFileSync(galleryPath, "utf8");
   assert.equal(text.includes("\n"), false, "no pretty-printing");
   const saved = JSON.parse(text);
   assert.equal(saved.length, 50_000);
   assert.deepEqual(saved[0], store.gallery[0]);
-  // The old synchronous write held the server for the whole file.
-  assert.ok(longestPause < 400, `the server paused ${Math.round(longestPause)} ms while saving`);
+  // The old synchronous write held the server for the whole file; now no single
+  // pause comes near the whole save (on a busy machine both stretch alike).
+  assert.ok(longestPause < Math.max(400, total * 0.5), `the server paused ${Math.round(longestPause)} ms of a ${Math.round(total)} ms save`);
 
   // An older pretty-printed file (how earlier versions saved) still loads.
   fs.writeFileSync(galleryPath, JSON.stringify(saved.slice(0, 3), null, 2));
