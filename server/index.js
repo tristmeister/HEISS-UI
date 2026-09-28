@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, outputMediaPattern, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
 import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
 import { limitedCheck, registerAccessRoutes } from './access-routes.js';
 import { requestGuard } from './request-guard.js';
@@ -1806,6 +1806,8 @@ app.get("/comfy/thumb", async (req, res) => {
   const subfolder = String(req.query.subfolder || "");
   const type = String(req.query.type || "output");
   if (!filename) { res.status(400).json({ error: "filename is required." }); return; }
+  // The same outputs /comfy/view serves, and nothing else.
+  if (!["output", "input", "temp"].includes(type) || !outputMediaPattern.test(filename)) { res.status(404).json({ error: "Not an output." }); return; }
   try {
     const thumbnail = await getThumbnail(filename, subfolder, type);
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
@@ -1865,9 +1867,9 @@ app.get("/comfy/*path", async (req, res) => {
   try {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
     const proxyPath = Array.isArray(req.params.path) ? req.params.path.join("/") : req.params.path;
-    // Only ComfyUI's image route, for outputs, inputs and previews. Its other GET routes
-    // (settings, logs, Manager's) are not for the studio's visitors.
-    if (proxyPath !== "view" || !["output", "input", "temp"].includes(String(req.query.type || "output"))) {
+    // Only ComfyUI's image route, for images, videos and sound among its outputs, inputs
+    // and previews. Its other GET routes (settings, logs, Manager's) are not for the studio's visitors.
+    if (proxyPath !== "view" || !["output", "input", "temp"].includes(String(req.query.type || "output")) || !outputMediaPattern.test(String(req.query.filename || ""))) {
       res.status(404).json({ ok: false, error: "Not an output." });
       return;
     }
