@@ -170,41 +170,75 @@
 }
 .stage-inline-link:hover { text-decoration-color: currentColor; }
 
-/* Prompts to start from: tap one and it waits in the prompt box. */
-.stage-prompts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+/* Prompts to start from: frosted pills floating just above the prompt box
+   while the gallery is empty. Tap one and it waits in the prompt. */
+.prompt-ideas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)) auto;
   gap: 8px;
-  width: min(760px, 100%);
-  margin-top: 14px;
+  pointer-events: none;
 }
-.stage-prompt,
-.stage-surprise {
-  max-width: 100%;
-  padding: 9px 14px;
-  border: 0;
-  border-radius: var(--r-item);
-  background: var(--control-fill);
-  color: hsl(var(--foreground) / .86);
+.prompt-idea {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 58px;
+  padding: 10px 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: 16px;
+  background: var(--surface-grain), var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: 0 10px 30px rgb(0 0 0 / .34), inset 0 1px 0 rgb(255 255 255 / .045);
+  color: hsl(var(--foreground) / .8);
+  font: inherit;
   font-size: 12.5px;
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  pointer-events: auto;
+  /* Opacity lives on the glass itself; on a parent it would kill the blur. */
+  animation: prompt-idea-in 440ms var(--ease-out) both;
+  animation-delay: calc(var(--i, 0) * 50ms + 80ms);
+  transition: color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), translate var(--dur-fast) var(--ease-out);
 }
-.stage-prompt:hover,
-.stage-surprise:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
-.stage-prompt:focus-visible,
-.stage-surprise:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.stage-surprise {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border-radius: var(--r-pill);
-  background: transparent;
+.prompt-idea > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-wrap: pretty;
+}
+.prompt-idea:hover { color: hsl(var(--foreground)); border-color: rgb(255 255 255 / .16); translate: 0 -2px; }
+.prompt-idea:active { translate: 0 0; }
+.prompt-idea:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.prompt-idea.is-surprise {
+  justify-content: center;
+  width: 58px;
+  padding: 0;
+  border-radius: 50%;
   color: hsl(var(--muted-foreground));
 }
+.prompt-idea.is-surprise:hover { color: hsl(var(--foreground)); }
+.prompt-idea.is-surprise svg { flex: none; transition: rotate 360ms var(--ease-out); }
+.prompt-idea.is-surprise:hover svg { rotate: -20deg; }
+/* Below 1040px the docks rise to sit on the prompt box (17-deck.css); the ideas go above them. */
+@media (max-width: 1040px) {
+  .prompt-ideas { bottom: calc(100% + var(--deck-gap, 18px) + var(--deck-h, 44px) + 10px); }
+}
+/* Narrow windows: the ideas stack, one line each, the dice beside the last. */
+@media (max-width: 760px) {
+  .prompt-ideas { grid-template-columns: minmax(0, 1fr) auto; }
+  .prompt-idea { grid-column: 1; min-height: 40px; }
+  .prompt-idea > span { -webkit-line-clamp: 1; }
+  .prompt-idea.is-surprise { grid-column: 2; grid-row: var(--n, 3); width: 40px; min-height: 40px; }
+}
+@keyframes prompt-idea-in { from { opacity: 0; translate: 0 6px; } }
 
 /* --------------------------------------------------------- No ComfyUI yet */
 
@@ -269,5 +303,6 @@
 .about-value { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12px; font-variant-numeric: tabular-nums; }
 
 @media (prefers-reduced-motion: reduce) {
-  .starter-version, .stage-prompt, .stage-surprise { transition: none; }
+  .starter-version { transition: none; }
+  .prompt-idea, .prompt-idea.is-surprise svg { animation: none; transition: none; }
 }

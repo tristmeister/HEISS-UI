@@ -3,6 +3,7 @@ import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, Shuffle, C
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit, settingsText } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
+import { PromptIdeas } from './PromptIdeas';
 import { useHorizontalWheel, useWheelRef } from './wheel';
 import { AnimatedNumber } from './AnimatedNumber';
 import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
@@ -263,6 +264,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     </AnimatePresence>
   );
   const comfyOffline = comfyStatus && !comfyStatus.connected && !comfyStatus.checking;
+  // Prompts to start from, above the prompt box, until the first image or the first word.
+  const showIdeas = galleryLoaded && !renderedGallery.length && !searchOn && !hiddenSpace && !phone && !comfyOffline && Boolean(currentProfile) && !prompt.trim() && !historyOpen;
+  const promptIdeas = showIdeas ? <PromptIdeas prompts={view.starterPrompts} onPick={view.fillPrompt} onSurprise={view.surprise} /> : null;
   // Back closes the viewer and the workflow gallery rather than leaving the app.
   useHistoryDismiss(Boolean(active), () => setActive(null));
   const viewerRef = React.useRef<HTMLDivElement | null>(null);
@@ -517,9 +521,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               noModels={Boolean(models) && !modelProfiles?.length}
               onFindModels={modelFolders?.openDialog}
               starter={mode === "image" ? starterModels : undefined}
-              prompts={hiddenSpace || phone ? [] : view.starterPrompts}
-              onPrompt={view.fillPrompt}
-              onSurprise={view.surprise}
             />
           )}
             {hiddenLockScreen}
@@ -704,6 +705,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               historyOpen={historyOpen}
             />
             {historyPopover}
+            {promptIdeas}
           </section>
           {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
             <div data-open-surface className="zen-gallery-wrap">
@@ -809,6 +811,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               historyOpen={historyOpen}
             />
             {historyPopover}
+            {promptIdeas}
           </section>
         </>
       )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, Dices, ExternalLink, FolderSearch, Plug, RefreshCw } from 'lucide-react';
+import { Check, ExternalLink, FolderSearch, Plug, RefreshCw } from 'lucide-react';
 import { githubUrl } from './constants';
 import { EmptyMark } from './EmptyMark';
 import { CONNECT_MS, OfflineMark } from './OfflineMark';
@@ -28,7 +28,7 @@ const MORPH_AT = 420;
 /** "Connected" stays readable a little longer than the scene takes. */
 const CONNECTED_COPY_MS = 1500;
 
-export function EmptyStage({ known, offline, restarting = false, device, retrying, onRetry, onOpenConnection, comfyUrl, nearby = [], onNoComfy, noModels = false, onFindModels, starter, prompts = [], onPrompt, onSurprise }: {
+export function EmptyStage({ known, offline, restarting = false, device, retrying, onRetry, onOpenConnection, comfyUrl, nearby = [], onNoComfy, noModels = false, onFindModels, starter }: {
   known: boolean;
   offline: boolean;
   /** ComfyUI is down because it was asked to restart: the same scene, calmer words. */
@@ -48,10 +48,6 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
   onFindModels?: () => void;
   /** The "pick a first model" cards, shown when ComfyUI has no model HEISS UI can run. */
   starter?: React.ReactNode;
-  /** A few prompts to start from on an empty gallery, and what tapping one does. */
-  prompts?: string[];
-  onPrompt?: (text: string) => void;
-  onSurprise?: () => void;
 }) {
   const thisComputer = useThisComputer();
   const [phase, setPhase] = useState<Phase>(!known ? 'waiting' : offline ? 'offline' : 'empty');
@@ -158,13 +154,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
           ) : copy === 'empty' ? (
             <>
               <h2>No outputs yet</h2>
-              <p>{prompts.length && onPrompt ? 'Write a prompt below, or start from one of these.' : 'Write a prompt to get started.'}</p>
-              {prompts.length && onPrompt ? (
-                <div className="stage-prompts">
-                  {prompts.map((text) => <button key={text} type="button" className="stage-prompt" onClick={() => onPrompt(text)}>{text}</button>)}
-                  {onSurprise ? <button type="button" className="stage-surprise" onClick={onSurprise}><Dices size={13} /> Surprise me</button> : null}
-                </div>
-              ) : null}
+              <p>Write a prompt below to get started.</p>
             </>
           ) : null}
         </div>
