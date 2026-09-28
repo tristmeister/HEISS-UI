@@ -356,7 +356,8 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
               <em>{defaultSize}</em>
             </button></Tip>
           {options.map((option) => (
-            <Tip key={option.value} content={`${option.label} ${option.value}`}><button
+            <button
+                key={option.value}
                 type="button"
                 className={cn("aspect-option", option.value === value && "active")}
                 role="option"
@@ -369,7 +370,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
                 <span className="aspect-shape" style={aspectIconStyle(option)} />
                 <span>{option.label}</span>
                 <em>{option.value}</em>
-              </button></Tip>
+              </button>
           ))}
           {value === "free" ? <div className="aspect-option active is-readonly"><span className="aspect-shape custom" /><span>Free</span><em>{currentSize}</em></div> : null}
         </div>
