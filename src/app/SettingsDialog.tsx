@@ -16,6 +16,7 @@ import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstal
 import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
+import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
@@ -734,7 +735,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 ["Enter", "Generate (when “Enter to generate” is on)"],
                 ["⌘/Ctrl + Enter", "Generate, always"],
                 ["Shift + Enter", "New line in the prompt"],
+                ["↑", "Recent prompts (in an empty prompt)"],
                 ["Any letter", "Jump to the prompt and start typing"],
+                ["/  or  ⌘/Ctrl + F", "Search the gallery"],
+                ["F", "Star the open image (viewer)"],
                 ["← →", "Previous or next image (viewer and zen)"],
                 ["Arrow keys", "Move between gallery tiles, newest to oldest"],
                 ["+  −  0", "Zoom in, out, reset (viewer)"],
@@ -773,6 +777,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Run variants as" description={prefs.variationQueueMode === 'separate' ? 'One job per variant. Easier to cancel one at a time.' : 'One ComfyUI prompt with a larger batch. Usually faster.'}>
                 <Segmented label="Run variants as" value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: 'One batch' }, { value: 'separate', label: 'Separate jobs' }]} />
               </Row>
+              <PromptHistoryRow Row={Row} showToast={showToast} confirmAction={confirmAction} />
             </Group>
             <Group title="Previews">
               <Row label="While generating" description={prefs.generationPreviewMode === 'simple' ? 'Each sampler step as it arrives. Lighter on the GPU.' : 'Early steps resolve through an animated pixel mosaic. Reduced motion always uses simple.'}>
@@ -861,6 +866,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
             </Group>
+            {thisComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
+            <CivitaiGroup Group={Group} Row={Row} Switch={Switch} showToast={showToast} canChange={thisComputer} />
           </>
         ) : null}
 
