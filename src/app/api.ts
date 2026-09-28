@@ -1,6 +1,7 @@
 import type { GalleryItem, Preferences, ReferenceAsset } from './types';
 import { defaultPrefs } from './constants';
 import { fullGenerationText } from './format';
+import { sharesWithoutSettings } from './shareSettings';
 
 export async function copyText(text: string) {
   try {
@@ -30,13 +31,16 @@ export async function copyImage(item: GalleryItem) {
   try {
     // Clipboards take PNG everywhere, and only PNG in some browsers, so a JPEG
     // or WebP is turned into one first. The promise keeps Safari's permission,
-    // which only lasts while the click is still being handled.
+    // which only lasts while the click is still being handled. With "Share
+    // without settings" a PNG is redrawn too, which leaves its prompt and
+    // workflow behind, as a download would.
+    const clean = sharesWithoutSettings(item);
     const png = fetch(item.url)
       .then((response) => {
         if (!response.ok) throw new Error("fetch failed");
         return response.blob();
       })
-      .then((blob) => (blob.type === "image/png" ? blob : asPng(blob)));
+      .then((blob) => (blob.type === "image/png" && !clean ? blob : asPng(blob)));
     await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
     return true;
   } catch {
