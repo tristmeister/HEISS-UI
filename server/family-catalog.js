@@ -49,7 +49,11 @@ export const encoderDownloads = {
     { file: "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors", url: hf("ethanfel/Qwen2.5-VL-7B-Huihui-Abliterated-ComfyUI-ConvRot-INT8", "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors"), bytes: 10_064_106_602 },
     { file: "qwen_2.5_vl_7b_fp8_scaled.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"), bytes: 9_384_670_680 }
   ],
-  mistral3_24b: [{ file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447 }],
+  // fp8 first: half the size of bf16, and what fits next to Flux.2 Dev on most machines.
+  mistral3_24b: [
+    { file: "mistral_3_small_flux2_fp8.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors"), bytes: 18_034_640_095 },
+    { file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447 }
+  ],
   llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors"), bytes: 9_081_258_056 }],
   ministral3_3b: [{ file: "ministral-3-3b.safetensors", url: hf("Comfy-Org/ERNIE-Image", "text_encoders/ministral-3-3b.safetensors"), bytes: 7_717_637_511 }],
   gemma2_2b: [{ file: "gemma_2_2b_fp16.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/text_encoders/gemma_2_2b_fp16.safetensors"), bytes: 5_232_958_283 }],
