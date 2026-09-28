@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowUp, Dices, EyeOff, ChevronUp, CircleDotDashed, Images, Layers, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
+import { ArrowUp, Dices, EyeOff, ChevronUp, CircleDotDashed, History, Images, Layers, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
@@ -246,6 +246,9 @@ export type ComposerBarProps = {
   /** What Generate would take here, once the server trusts its estimate for this model. */
   generationEstimate?: GenerationEstimate | null;
   onRandomSeed?: () => void;
+  /** Recent prompts: the clock beside Negative, shown once there is a history. */
+  onToggleHistory?: () => void;
+  historyOpen?: boolean;
 };
 
 export function ComposerBar(props: ComposerBarProps) {
@@ -258,13 +261,13 @@ export function ComposerBar(props: ComposerBarProps) {
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
     referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
-    pinnedSeed = "", onRandomSeed, generationEstimate = null
+    pinnedSeed = "", onRandomSeed, generationEstimate = null, onToggleHistory, historyOpen = false
   } = props;
 
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
   const displayCount = showVariants ? count : 1;
   const workflowName = currentProfile?.displayName || currentProfile?.label || "";
-  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, hiddenSpace, canUseNegativePrompt, Boolean(models), pinnedSeed.trim()].join("|");
+  const contentKey = [workflowName, mode, customSize ? "custom" : "preset", aspectLocked ? "locked" : "free", loraActiveCount, hiddenSpace, canUseNegativePrompt, Boolean(models), pinnedSeed.trim(), Boolean(onToggleHistory)].join("|");
   const { rowRef, plan, level } = useDensityLevel(contentKey);
   useComposerHeightVar(rowRef);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
@@ -370,6 +373,22 @@ export function ComposerBar(props: ComposerBarProps) {
               {plan.negative.density === "full" ? "Negative" : null}
             </button>
           </Tip>
+          {onToggleHistory ? (
+            // Styled as the Negative toggle at its icon-only size: one family of composer controls.
+            <Tip content="Recent prompts (↑ in an empty prompt)">
+              <button
+                data-history-trigger
+                type="button"
+                className={cn("negative-toggle is-density-mini history-toggle", historyOpen && "active")}
+                aria-label="Recent prompts"
+                aria-expanded={historyOpen}
+                aria-haspopup="dialog"
+                onClick={onToggleHistory}
+              >
+                <History size={14} />
+              </button>
+            </Tip>
+          ) : null}
           {inline("private", privateToggle)}
           {pinnedSeed.trim() && onRandomSeed ? (
             <Tip content={`Every run uses seed ${pinnedSeed.trim()}. Click for a random seed.`}>

@@ -14,7 +14,8 @@ export function upscaleDisplayThumbnail(item: GalleryItem) {
 }
 
 export function canUpscaleItem(item: GalleryItem) {
-  return item.status === "done" && item.type === "image" && !item.vaultLocked && Boolean(item.url);
+  // Images added from another folder stay where they are, so there is nothing to upscale into.
+  return item.status === "done" && item.type === "image" && !item.vaultLocked && !item.library && Boolean(item.url);
 }
 
 /** Decimal units, like the Finder and every model setup panel, so one file never shows two sizes. */

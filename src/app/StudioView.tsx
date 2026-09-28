@@ -1,7 +1,7 @@
 import React from 'react';
-import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { cn, nearTextLimit } from './format';
+import { cn, nearTextLimit, settingsText } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
 import { useHorizontalWheel, useWheelRef } from './wheel';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -37,6 +37,10 @@ import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import { useHistoryDismiss } from './useHistoryDismiss';
 import { useFocusTrap } from './useFocusTrap';
+import { PromptHistoryPopover } from './PromptHistory';
+import { GallerySearchBar, GallerySearchButton, SearchEmpty, useGallerySearchKeys } from './GallerySearch';
+import { canStar, emptySearch, FavoriteContext, searchActive, type GallerySearch } from './favorites';
+import { refreshPrompts, usePromptHistory } from './recentPrompts';
 import type { GalleryItem } from './types';
 import type { HiddenState } from './useHidden';
 import { memoLatest } from '@/lib/memo-latest';
@@ -103,6 +107,11 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const strayModelCount = modelFolders?.strayCount || 0;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
   const { confirmAction, referenceAssets, referenceInputs, referenceStrength, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
+  const gallerySearch = (view.gallerySearch || emptySearch) as GallerySearch;
+  const setGallerySearch = view.setGallerySearch as (next: GallerySearch) => void;
+  const toggleFavorite = view.toggleFavorite as (items: GalleryItem[], favorite: boolean) => void;
+  const searchOn = searchActive(gallerySearch);
+  const [searchOpen, setSearchOpen] = React.useState(false);
   const hidden = view.hidden as HiddenState;
   // Hidden, locked (or mid-unlock): the lock takes the gallery's place.
   const hiddenLocked = hiddenSpace && (!hidden.unlocked || hidden.unlockStage === "opening");
@@ -142,6 +151,47 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   // Phones get the simplified phone studio, unless someone chose the full one.
   const phoneDevice = usePhone();
   const phone = phoneDevice && !prefs.fullStudioOnPhone;
+  // Recent prompts: ↑ in an empty prompt or the clock in the composer opens them.
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const hasPromptHistory = usePromptHistory(!phone).prompts.length > 0;
+  // The very first prompt is recorded as it runs; the clock shows up then, not after a reload.
+  React.useEffect(() => {
+    if (phone || !runningCount || hasPromptHistory) return;
+    const timer = window.setTimeout(() => refreshPrompts(), 1500);
+    return () => window.clearTimeout(timer);
+  }, [runningCount > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  const toggleHistory = React.useCallback(() => setHistoryOpen((value) => !value), []);
+  const insertPrompt = (text: string) => {
+    const previous = String(prompt || "");
+    setPrompt(clampText(text, promptLimit));
+    setHistoryOpen(false);
+    window.requestAnimationFrame(() => {
+      const field = zenPromptRef.current as HTMLTextAreaElement | null;
+      if (!field) return;
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    });
+    // Only a prompt that was really there is worth an undo.
+    if (previous.trim() && previous.trim() !== text.trim()) showToast("Prompt replaced", "default", { group: "prompt-replaced", action: { label: "Undo", onClick: () => setPrompt(previous) } });
+  };
+  const promptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const plain = !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey;
+    if (event.key === "ArrowUp" && plain && !String(prompt || "").trim() && hasPromptHistory && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      setHistoryOpen(true);
+      return;
+    }
+    submitZenPrompt(event);
+  };
+  const historyPopover = (
+    <PromptHistoryPopover
+      open={historyOpen && !phone}
+      onClose={(reason) => { setHistoryOpen(false); if (reason === "escape") (zenPromptRef.current as HTMLTextAreaElement | null)?.focus(); }}
+      onPick={insertPrompt}
+      hiddenSpace={Boolean(hiddenSpace)}
+      onError={(message) => showToast(message, "error")}
+    />
+  );
   const [phoneCreate, setPhoneCreate] = React.useState(false);
   const [phoneActionsFor, setPhoneActionsFor] = React.useState<GalleryItem | null>(null);
   const openTileActions = React.useCallback((item: GalleryItem) => { haptic('press'); setPhoneActionsFor(item); }, []);
@@ -164,7 +214,33 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     selected: phoneSelection || new Set<string>(),
     toggle: toggleSelected
   } : null, [phone, openTileActions, phoneSelection, toggleSelected]);
+  // Zen shows one image at a time: a search there would narrow a strip with nothing to say so.
+  React.useEffect(() => {
+    if (!prefs.zenMode) return;
+    setSearchOpen(false);
+    if (searchActive(gallerySearch)) setGallerySearch(emptySearch);
+  }, [prefs.zenMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  const openSearch = React.useCallback(() => {
+    setSearchOpen(true);
+    document.querySelector<HTMLInputElement>('.gallery-search input, .phone-searchbar input')?.focus();
+  }, []);
+  useGallerySearchKeys(!prefs.zenMode && !hiddenLocked, openSearch);
+  // The viewer stars with F, as the tile's star and the dock's do.
+  React.useEffect(() => {
+    if (!active || !canStar(active)) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "f" || event.metaKey || event.ctrlKey || event.altKey || event.defaultPrevented) return;
+      const target = event.target instanceof HTMLElement ? event.target : null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (document.querySelector('[role="dialog"]:not([data-focus-trap]), [role="alertdialog"]')) return;
+      event.preventDefault();
+      toggleFavorite([active], !active.favorite);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [active, toggleFavorite]);
   const phoneItemActions: PhoneItemActions = {
+    star: (item) => toggleFavorite([item], !item.favorite),
     showToast,
     smartUpscale: prefs.smartUpscale !== false,
     upscaleBusy: (item) => Boolean(upscaleBusyIds?.has(item.id)),
@@ -390,6 +466,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               onDismissUpscaleNotice={dismissUpscaleNotice}
               titleFromPrompt={titleFromPrompt}
             />
+          ) : searchOn ? (
+            <SearchEmpty search={gallerySearch} hiddenSpace={Boolean(hiddenSpace)} onClear={() => { setGallerySearch(emptySearch); setSearchOpen(false); }} />
           ) : hiddenSpace && !comfyOffline ? (
             <section className="gallery"><div className="empty stage-empty hidden-empty">
               <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
@@ -426,6 +504,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     <GenerationPreviewMode.Provider value={prefs.generationPreviewMode}>
     <HiddenActionsContext.Provider value={hiddenActions}>
     <TileLongPressContext.Provider value={phoneTiles}>
+    <FavoriteContext.Provider value={toggleFavorite}>
     <div className={cn(phone ? "phone-shell" : prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && canUseNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
       {phone ? (
         <PhoneShell
@@ -524,7 +603,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately…" : "Describe what to make…"} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately…" : "Describe what to make…"} onKeyDown={promptKeyDown} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
@@ -587,7 +666,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
               generationEstimate={view.generationEstimate}
+              onToggleHistory={hasPromptHistory ? toggleHistory : undefined}
+              historyOpen={historyOpen}
             />
+            {historyPopover}
           </section>
           {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
             <div data-open-surface className="zen-gallery-wrap">
@@ -614,15 +696,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </main>
           {studioDock}
           {hiddenBar}
+          {hiddenLocked ? null : <GallerySearchBar search={gallerySearch} setSearch={setGallerySearch} count={hiddenSpace ? renderedGallery.length : view.galleryTotalApprox} open={searchOpen} setOpen={setSearchOpen} hiddenSpace={Boolean(hiddenSpace)} />}
           <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
+          {hiddenLocked ? null : <GallerySearchButton search={gallerySearch} open={searchOpen} setOpen={setSearchOpen} />}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
           <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately…" : "Describe what to make…"} onKeyDown={submitZenPrompt} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={hiddenSpace ? "Describe what to make, privately…" : "Describe what to make…"} onKeyDown={promptKeyDown} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
@@ -685,7 +769,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
               generationEstimate={view.generationEstimate}
+              onToggleHistory={hasPromptHistory ? toggleHistory : undefined}
+              historyOpen={historyOpen}
             />
+            {historyPopover}
           </section>
         </>
       )}
@@ -783,8 +870,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         </div>
                       ) : null}
                       <Tip content="Load this output's prompt and settings into the composer (you can undo)"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Apply these settings</button></Tip>
+                      <Tip content="The prompt, model, steps, seed and size as plain text"><button className="copy-all-settings" onClick={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}><CopyIcon copied={viewerCopy.copied === "settings"} size={13} /> {viewerCopy.copied === "settings" ? "Copied" : "Copy settings"}</button></Tip>
                       <Tip content="Load this output's LoRA stack into the composer"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Apply its LoRAs</button></Tip>
-                      {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? (
+                      {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? (
                         <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
                       ) : null}
                       {generationDetailEntries(active).length ? (
@@ -823,7 +911,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <Tip content="Zoom in (+)"><button className="icon-button is-zoom-control" aria-label="Zoom in" onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
                   <span className="viewer-divider is-zoom-control" />
                   <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => viewerCopy.copyWith(() => copyItemToClipboard(active), "item")}><CopyIcon copied={viewerCopy.copied === "item"} size={15} /></button></Tip>
-                  {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
+                  {canStar(active) ? (
+                    <Tip content={active.favorite ? "Unstar (F)" : "Star (F)"}>
+                      <button className={cn("icon-button viewer-star", active.favorite && "is-on")} aria-label={active.favorite ? "Unstar" : "Star"} aria-pressed={Boolean(active.favorite)} onClick={() => toggleFavorite([active], !active.favorite)}>
+                        <Star size={15} fill={active.favorite ? "currentColor" : "none"} />
+                      </button>
+                    </Tip>
+                  ) : null}
+                  {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">
                     {upscaleNotices?.get(active.id) ? <UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /> : null}
@@ -852,7 +947,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       </button>
                     </Tip>
                   ) : null}
-                  {active.status === "done" && active.url ? (
+                  {active.status === "done" && active.url && !active.library ? (
                     active.privateVault
                       ? <Tip content="Move to gallery"><button className="icon-button" aria-label="Move to gallery" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
                       : <Tip content="Move to Hidden"><button className="icon-button" aria-label="Move to Hidden" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
@@ -877,6 +972,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       {/* Portaled to <body>: inside the fixed shell it would sit under every dialog's scrim. */}
       <Toaster offset={islandsHeight ? islandsHeight + 8 : 0} />
     </div>
+    </FavoriteContext.Provider>
     </TileLongPressContext.Provider>
     </HiddenActionsContext.Provider>
     </GenerationPreviewMode.Provider>

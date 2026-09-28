@@ -388,7 +388,9 @@ export function useGenerationActions(view: any) {
   async function deleteItem(item: GalleryItem, confirmed = false) {
     if (!confirmed && !await confirmAction(item.privateVault
       ? {"title": "Delete from Hidden?", "description": "This image and its upscale are erased. There’s no other copy.", "action": "Delete", "destructive": true}
-      : {"title": "Delete this image?", "description": "The file is deleted from disk, not only from the gallery.", "action": "Delete", "destructive": true})) return;
+      : item.library
+        ? {"title": "Remove from the gallery?", "description": "The file stays in its folder; it just stops showing here.", "action": "Remove"}
+        : {"title": "Delete this image?", "description": "The file is deleted from disk, not only from the gallery.", "action": "Delete", "destructive": true})) return;
     // In the viewer, step to the next image rather than closing, so culling a batch stays in place.
     if (active?.id === item.id) {
       const items = ((visibleGallery || []) as GalleryItem[]).filter((entry) => entry.status === "pending" || entry.status === "done" || entry.status === "error");

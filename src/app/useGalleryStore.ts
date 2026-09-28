@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import { apiJson } from './api';
 import { sortGalleryItems } from './gallery';
 import type { GalleryItem, Mode } from './types';
+import { emptySearch, searchActive, type GallerySearch } from './favorites';
 
 type GalleryPage = {
   items?: GalleryItem[];
@@ -218,10 +219,35 @@ function galleryReducer(state: GalleryState, action: GalleryAction): GalleryStat
 
 export type GallerySpace = "gallery" | "hidden";
 
-export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLocked }: { mode: Mode; showFailedItems: boolean; space?: GallerySpace; onLocked?: () => void }) {
+/** The same test the server runs (galleryFilter in server/gallery-store.js), for Hidden, which is searched in memory only. */
+function matchesSearch(item: GalleryItem, search: GallerySearch) {
+  if (item.status === "pending") return true;
+  if (search.favorites && !item.favorite) return false;
+  const terms = search.q.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!terms.length) return true;
+  const settings = item.settings || {};
+  const loras = Array.isArray(settings.loras) ? settings.loras.map((lora) => lora?.name || "") : [];
+  const text = [item.prompt, item.negative, item.model, settings.modelName, settings.profileId, settings.workflow, item.outputName, ...loras]
+    .filter((value): value is string => typeof value === "string" && Boolean(value)).join("\n").toLowerCase();
+  return terms.every((term) => text.includes(term));
+}
+
+export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLocked, search = emptySearch }: { mode: Mode; showFailedItems: boolean; space?: GallerySpace; onLocked?: () => void; search?: GallerySearch }) {
   const [state, dispatch] = useReducer(galleryReducer, initialState);
   const includeFailed = showFailedItems ? "1" : "0";
   const hidden = space === "hidden";
+  // The gallery is searched on the server, which holds all of it; the page only
+  // has what it loaded. Hidden never goes there: it is searched here, in memory.
+  const searchRef = useRef(search);
+  searchRef.current = search;
+  const searchQuery = () => {
+    const current = searchRef.current;
+    if (hidden || !searchActive(current)) return "";
+    const q = current.q.trim();
+    return `${q ? `&q=${encodeURIComponent(q)}` : ""}${current.favorites ? "&favorites=1" : ""}`;
+  };
+  // A slower answer to an earlier search must not replace a newer one.
+  const loadSeq = useRef(0);
   // Moving between the gallery and Hidden swaps the list, and a page still on
   // its way from the space just left is dropped when it lands. The gallery is
   // kept aside while in Hidden so coming back shows it at once and only syncs;
@@ -239,17 +265,32 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
   }, [space]);
 
   const gallery = useMemo(() => state.sortedIds.map((id) => state.itemsById[id]).filter(Boolean), [state.itemsById, state.sortedIds]);
-  const visibleGallery = gallery;
+  const hiddenSearch = hidden && searchActive(search) ? search : null;
+  const visibleGallery = useMemo(() => (hiddenSearch ? gallery.filter((item) => matchesSearch(item, hiddenSearch)) : gallery), [gallery, hiddenSearch?.q, hiddenSearch?.favorites]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadGallery = useCallback(async () => {
+    const seq = ++loadSeq.current;
     // Hidden is its own list; a locked session gets nothing back and shows the lock instead.
     const page = hidden
       ? await apiJson<GalleryPage>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`).catch(() => { onLocked?.(); return { items: [], revision: 0 }; })
-      : await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}`);
-    if (spaceRef.current !== space) return page;
+      : await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}${searchQuery()}`);
+    if (spaceRef.current !== space || seq !== loadSeq.current) return page;
     dispatch({ type: "reset", page });
     return page;
-  }, [hidden, includeFailed, mode, onLocked, space]);
+  }, [hidden, includeFailed, mode, onLocked, space]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A new search (or leaving one) reloads the first page; typing waits a beat.
+  const searchKey = hidden || !searchActive(search) ? "" : `${search.q.trim()}\n${search.favorites}`;
+  const loadRef = useRef(loadGallery);
+  loadRef.current = loadGallery;
+  const lastSearchKey = useRef(searchKey);
+  useEffect(() => {
+    if (lastSearchKey.current === searchKey) return;
+    const typed = lastSearchKey.current.split("\n")[1] === searchKey.split("\n")[1];
+    lastSearchKey.current = searchKey;
+    const timer = window.setTimeout(() => { loadRef.current().catch(() => null); }, typed ? 140 : 0);
+    return () => window.clearTimeout(timer);
+  }, [searchKey]);
 
   // Scroll fires many times near the bottom; one request per cursor at a time.
   const loadingMoreRef = useRef("");
@@ -257,7 +298,7 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
     if (!state.hasMore || !state.nextCursor || loadingMoreRef.current === state.nextCursor) return;
     loadingMoreRef.current = state.nextCursor;
     try {
-      const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&cursor=${encodeURIComponent(state.nextCursor)}&includeFailed=${includeFailed}`);
+      const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&cursor=${encodeURIComponent(state.nextCursor)}&includeFailed=${includeFailed}${searchQuery()}`);
       dispatch({ type: "append", page });
     } catch {
       // Leave the cursor as it was, so the next scroll or the button tries again.
@@ -274,7 +315,7 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
       if (page && !page.unchanged && spaceRef.current === space) dispatch({ type: "reset", page });
       return page;
     }
-    const delta = await apiJson<GalleryDelta>(`/api/gallery/delta?since=${state.revision}&type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`);
+    const delta = await apiJson<GalleryDelta>(`/api/gallery/delta?since=${state.revision}&type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}${searchQuery()}`);
     if (spaceRef.current !== space) return delta;
     if (delta.reset) return loadGallery();
     if (delta.removes?.length) dispatch({ type: "remove", keys: delta.removes, revision: delta.revision });

@@ -96,6 +96,34 @@ export function fullGenerationText(item: GalleryItem) {
   return lines.join("\n");
 }
 
+function fileStem(name: unknown) {
+  return String(name || "").split(/[\\/]/).pop()!.replace(/\.(safetensors|ckpt|pt|pth|bin|gguf|sft)$/i, "");
+}
+
+/**
+ * "Copy settings": the prompt and what made the picture, as plain text to
+ * paste into a note, a chat or another tool. Only what matters, no internals.
+ */
+export function settingsText(item: GalleryItem) {
+  const settings = item.settings || {};
+  const lines = [String(item.prompt || "").trim()];
+  if (String(item.negative || "").trim()) lines.push(`Negative prompt: ${String(item.negative).trim()}`);
+  const model = settings.modelName || (String(item.model || "").startsWith("custom:") ? "" : item.model);
+  const parts = [
+    model ? `Model: ${fileStem(model)}` : "",
+    Number(settings.steps) ? `Steps: ${settings.steps}` : "",
+    Number(settings.cfg) ? `CFG: ${settings.cfg}` : "",
+    settings.sampler ? `Sampler: ${settings.sampler}${settings.scheduler ? ` (${settings.scheduler})` : ""}` : "",
+    /^\d+$/.test(String(settings.seed ?? "")) ? `Seed: ${settings.seed}` : "",
+    item.width && item.height ? `Size: ${item.width}×${item.height}` : "",
+    settings.denoise && (item.referenceImage || settings.referenceImageName) ? `Denoise: ${settings.denoise}` : ""
+  ].filter(Boolean);
+  if (parts.length) lines.push(parts.join(" · "));
+  const loras = activeLoras(settings.loras);
+  if (loras.length) lines.push(`LoRAs: ${loras.map((lora) => `${fileStem(lora.name)} ${Number(lora.strength ?? 0.7).toFixed(2)}`).join(", ")}`);
+  return lines.filter(Boolean).join("\n");
+}
+
 export function generationDetailEntries(item: GalleryItem) {
   const settings = item.settings || {};
   const rows: Array<[string, string]> = [];
