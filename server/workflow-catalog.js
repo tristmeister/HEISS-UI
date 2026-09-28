@@ -4,6 +4,7 @@ import { dataDir, gallery } from './gallery-store.js';
 import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph, workflowMissingFiles, workflowOptionIssues } from './custom-workflows.js';
 import { catalogDownloadsForFile } from './family-profiles.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
+import { workflowRisks } from "./workflow-risk.js";
 
 const preferencesPath = path.join(dataDir, "workflow-preferences.json");
 let preferencesCache = null;
@@ -263,6 +264,8 @@ export function previewWorkflowImport(raw, filename = "", info = {}) {
     detected,
     format,
     hasHeissUi: Boolean(raw?.heissUi || raw?.heiss_ui || raw?.jAiStudio || raw?.j_ai_studio),
-    validation
+    validation,
+    // Nodes that run code, touch files elsewhere or go online: the review says so before saving.
+    risks: workflowRisks(graph)
   };
 }

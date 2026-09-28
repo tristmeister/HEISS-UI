@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Bot, Check, ClipboardPaste, FileJson, Heart, Minus, RefreshCw, Search, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { ArrowLeft, Bot, Check, ClipboardPaste, FileJson, Heart, Minus, RefreshCw, Search, ShieldAlert, Trash2, Upload, Wand2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import type { ConfirmAction } from './useConfirmation';
 import { apiJson, copyText } from './api';
@@ -10,7 +10,7 @@ import { workflowState } from './workflowStatus';
 import { ModelSetup } from './ModelSetup';
 import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
-import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowSummary } from './types';
+import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowRisk, WorkflowSummary } from './types';
 import { useThisComputer } from './device';
 import type { ShowToast } from './toast';
 import { CopyIcon, useCopyFeedback } from "./CopyFeedback";
@@ -98,6 +98,27 @@ function ImportFit({ item }: { item: ImportDraft }) {
         <li>Everything else in the workflow runs exactly as saved.</li>
       </ul>
     </section>
+  );
+}
+
+/**
+ * Nodes in an imported workflow that do more than make images: they run code,
+ * read or write files outside ComfyUI's folders, or go online. Said plainly,
+ * node by node, before the workflow is saved.
+ */
+function ImportRisks({ risks }: { risks: WorkflowRisk[] }) {
+  return (
+    <div className="wf-caution" role="note">
+      <strong><ShieldAlert size={14} aria-hidden="true" /> This workflow can do more than make images</strong>
+      <ul>
+        {risks.map((risk) => (
+          <li key={risk.node}>
+            <code>{risk.title || risk.classType}</code> {risk.reason}{risk.detail ? <span> ({risk.detail})</span> : null}.
+          </li>
+        ))}
+      </ul>
+      <p>A workflow runs every node in it, with the same access to this computer as ComfyUI. Import it only if you trust where it came from.</p>
+    </div>
   );
 }
 
@@ -505,6 +526,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                     <button type="button" className="modal-close" aria-label="Remove from import" onClick={() => setImports((current) => current.filter((_, i) => i !== index))}><X size={14} /></button>
                   </div>
                   {status.state === "missing-nodes" ? <p className="wf-issue">Imports fine, but it won't run until ComfyUI has: {item.preview.validation.missingNodes?.join(", ")}</p> : null}
+                  {item.preview.risks?.length ? <ImportRisks risks={item.preview.risks} /> : null}
                   <Field label="Name"><input className="modal-input" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
                   <div className="wf-review-row">
                     <div className="field"><span>Kind</span><Segmented label="Kind" value={item.metadata.kind} onChange={(next) => updateImport(index, { kind: next })} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} /></div>

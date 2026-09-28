@@ -226,7 +226,11 @@ export type WorkflowImportPreview = {
     nodes: Array<{ id: string; classType: string; title?: string; inputs: string[]; suggestedInputs: string[] }>;
   };
   validation: WorkflowValidation;
+  /** Nodes that run code, read or write files elsewhere, or go online (server/workflow-risk.js). */
+  risks?: WorkflowRisk[];
 };
+
+export type WorkflowRisk = { node: string; classType: string; title?: string; kind: "code" | "files" | "network"; reason: string; detail?: string };
 
 export type Preferences = {
   defaultImageCount: number;
