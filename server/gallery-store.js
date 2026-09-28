@@ -168,16 +168,86 @@ export function filterVisibleGallery(items) {
     if (item.privateVault) return false;
     if (isGalleryHidden(item)) return false;
     if (isComfyOutputItem(item)) return hasExistingOutputFile(item);
+    if (item.library) return libraryFileCheck ? libraryFileCheck(item) : true;
     return !isGalleryHidden(item);
   });
 }
 
-function visibleItems({ type = "", includeFailed = true } = {}) {
+// Images added from another folder (server/library.js) show while their file is there.
+let libraryFileCheck = null;
+export function setLibraryFileCheck(check) {
+  libraryFileCheck = check;
+}
+
+/** Whether a file is in a folder, from that folder's cached listing. */
+export function listedInFolder(file) {
+  return Boolean(folderListing(path.dirname(file))?.has(listedName(path.basename(file))));
+}
+
+function visibleItems({ type = "", includeFailed = true, filter = null } = {}) {
   return sortGallery(filterVisibleGallery(gallery)).filter((item) => {
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
+    if (filter && !filter(item)) return false;
     return item.status !== "canceled";
   });
+}
+
+/* ---------------------------------------------------------------- Search */
+
+const searchTexts = new WeakMap();
+
+/** What a gallery search looks through: the prompts, the model and LoRAs, and the file's name. */
+export function gallerySearchText(item) {
+  if (!item || typeof item !== "object") return "";
+  let text = searchTexts.get(item);
+  if (text === undefined) {
+    const settings = item.settings || {};
+    const loras = Array.isArray(settings.loras) ? settings.loras.map((lora) => lora?.name || "") : [];
+    text = [item.prompt, item.negative, item.model, settings.modelName, settings.profileId, settings.workflow, item.outputName, ...loras]
+      .filter((value) => typeof value === "string" && value)
+      .join("\n")
+      .toLowerCase();
+    searchTexts.set(item, text);
+  }
+  return text;
+}
+
+/**
+ * A gallery filter for a search: every word must appear somewhere, and
+ * `favorites` keeps starred images only. Runs still generating always pass,
+ * so a search never hides the progress of what is being made right now.
+ * Null when there is nothing to filter by.
+ */
+export function galleryFilter({ q = "", favorites = false } = {}) {
+  const terms = String(q || "").toLowerCase().split(/\s+/).filter(Boolean).slice(0, 12);
+  if (!terms.length && !favorites) return null;
+  return (item) => {
+    if (item.status === "pending") return true;
+    if (favorites && !item.favorite) return false;
+    if (!terms.length) return true;
+    const text = gallerySearchText(item);
+    return terms.every((term) => text.includes(term));
+  };
+}
+
+/** Stars (or unstars) finished gallery items. Returns the items that changed. */
+export function setGalleryFavorites(keys, favorite) {
+  const wanted = new Set(keys.map(String).filter(Boolean));
+  const upserts = [];
+  gallery = gallery.map((item) => {
+    if (!wanted.has(item.id) && !wanted.has(item.url) && !wanted.has(galleryKey(item))) return item;
+    if (item.status !== "done" || Boolean(item.favorite) === Boolean(favorite)) return item;
+    const { favorite: _favorite, ...rest } = item;
+    const next = favorite ? { ...rest, favorite: true } : rest;
+    upserts.push(next);
+    return next;
+  });
+  if (upserts.length) {
+    bumpRevision({ upserts });
+    saveGallery();
+  }
+  return upserts;
 }
 
 function cursorFor(item) {
@@ -196,9 +266,9 @@ function afterCursor(item, cursor = "") {
   return String(item.id || item.url || "").localeCompare(cursorId) > 0;
 }
 
-export function pageGallery({ type = "", limit = 200, cursor = "", includeFailed = true } = {}) {
+export function pageGallery({ type = "", limit = 200, cursor = "", includeFailed = true, filter = null } = {}) {
   const safeLimit = Math.max(1, Math.min(500, Number(limit || 200)));
-  const all = visibleItems({ type, includeFailed });
+  const all = visibleItems({ type, includeFailed, filter });
   const start = cursor ? all.findIndex((item) => afterCursor(item, cursor)) : 0;
   const pageStart = Math.max(0, start);
   const items = all.slice(pageStart, pageStart + safeLimit);
@@ -206,7 +276,7 @@ export function pageGallery({ type = "", limit = 200, cursor = "", includeFailed
   return { items, nextCursor, hasMore: Boolean(nextCursor), revision: galleryRevision, totalApprox: all.length };
 }
 
-export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}) {
+export function galleryDelta({ since = 0, type = "", includeFailed = true, filter = null } = {}) {
   const numericSince = Number(since || 0);
   const earliest = galleryChanges[0]?.revision || galleryRevision;
   if (!numericSince || numericSince < earliest - 1) {
@@ -231,7 +301,14 @@ export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}
   const upserts = [...upsertMap.values()].filter((item) => {
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
-    return item.status !== "canceled" && !item.privateVault && !isGalleryHidden(item);
+    if (item.status === "canceled" || item.privateVault || isGalleryHidden(item)) return false;
+    // With a search on, what no longer matches (unstarred, or a run that
+    // finished with another prompt) leaves the results instead of going stale.
+    if (filter && !filter(item)) {
+      removes.add(galleryKey(item));
+      return false;
+    }
+    return true;
   }).map((item) => {
     if (item.status !== "pending" && item.status !== "running") return item;
     const key = galleryKey(item);
@@ -242,7 +319,8 @@ export function galleryDelta({ since = 0, type = "", includeFailed = true } = {}
 }
 
 export function outputFileCandidates(item, baseDir = comfyOutputDir) {
-  if (!baseDir) return [];
+  // An image added from another folder is never in the output folder, whatever its name.
+  if (!baseDir || item?.library) return [];
   const keys = [item?.url, item?.id, item?.outputName, item?.filename].filter(Boolean);
   const candidates = [];
   for (const key of keys) {
@@ -279,6 +357,8 @@ export function deleteGalleryFiles(items) {
   let deleted = 0;
   let skipped = 0;
   for (const item of items) {
+    // An image added from another folder is only shown here; its file is not ours to delete.
+    if (item.library) continue;
     for (const file of outputFileCandidates(item)) {
       const resolved = path.resolve(file);
       if (!isInside(base, resolved, { orSame: true })) {
@@ -491,6 +571,28 @@ export function outputsFrom(history) {
     }
   }
   return urls;
+}
+
+/**
+ * What a ComfyUI API graph made: its prompts, size, model and LoRAs, as far as
+ * the common nodes tell. The graph comes from ComfyUI's history or from the
+ * "prompt" text chunk ComfyUI writes into every PNG it saves.
+ */
+export function describeComfyGraph(graph = {}) {
+  const textNodes = Object.values(graph || {}).filter((node) => node?.class_type === "CLIPTextEncode");
+  const prompt = textNodes[0]?.inputs?.text || "";
+  const negative = textNodes[1]?.inputs?.text || "";
+  const latentNode = Object.values(graph || {}).find((node) => /Latent/i.test(node?.class_type || "") && (node?.inputs?.width || node?.inputs?.height));
+  const latent = latentNode?.inputs || {};
+  const modelLoader = Object.values(graph || {}).find((node) => node?.inputs?.unet_name || node?.inputs?.ckpt_name);
+  const model = modelLoader?.inputs?.unet_name || modelLoader?.inputs?.ckpt_name || "";
+  return {
+    prompt: typeof prompt === "string" ? prompt : "",
+    negative: typeof negative === "string" ? negative : "",
+    width: Number(latent.width || 0),
+    height: Number(latent.height || 0),
+    model: typeof model === "string" ? model : ""
+  };
 }
 
 export function recordsFromComfyHistory(history) {

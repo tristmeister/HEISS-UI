@@ -17,7 +17,11 @@ import { catalogDownload } from './family-profiles.js';
 import { cancelDownload, discardDownload, downloadState, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
-import { getThumbnail, resizeInMemory } from './thumbnails.js';
+import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
+import { getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
+import { clearPromptHistory, forgetPrompts, listPrompts, promptKey, recordPrompt, setPromptPinned } from './prompt-history.js';
+import { addLibraryFolder, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
+import { civitaiPrefs, saveCivitaiPrefs } from './civitai.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
@@ -400,6 +404,10 @@ app.post("/api/hidden/hide", async (req, res) => {
   if (!key) return;
   const ids = new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
   const items = filterVisibleGallery(gallery).filter((item) => item.status === "done" && (ids.has(item.id) || ids.has(item.url)));
+  if (items.some((item) => item.library)) {
+    res.status(400).json({ ok: false, error: "Images added from another folder stay in that folder, so they can’t move into Hidden." });
+    return;
+  }
   if (!items.length) {
     res.status(404).json({ ok: false, error: "Those images are no longer in the gallery." });
     return;
@@ -413,6 +421,9 @@ app.post("/api/hidden/hide", async (req, res) => {
     // A marker keeps them from coming back out of ComfyUI's history if a copy stayed behind.
     hideGalleryItems(result.movedFrom || []);
     removeGalleryItems(result.movedFrom || []);
+    // A prompt that now only belongs to Hidden leaves the prompt history too.
+    const stillShown = new Set(filterVisibleGallery(gallery).map((item) => promptKey(item.prompt)));
+    forgetPrompts((result.movedFrom || []).map((item) => item.prompt || ""), stillShown);
     await forgetComfyRun({ promptIds: result.promptIds });
     res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), hiddenIds: result.moved.map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
   } catch (error) {
@@ -878,18 +889,25 @@ app.delete("/api/workflows/:id", (req, res) => {
   }
 });
 
+/** A gallery search from the query string (q, favorites=1), or null. Search results are never stacked. */
+function searchFilter(req) {
+  return galleryFilter({ q: String(req.query.q || "").slice(0, 200), favorites: req.query.favorites === "1" });
+}
+
 /** The gallery with its runs collapsed; a run can straddle a page, so it collapses first. */
 function bundledPage(req) {
   const type = String(req.query.type || "");
   const limit = Math.max(1, Math.min(500, Number(req.query.limit || 200)));
   const cursor = String(req.query.cursor || "");
   const includeFailed = req.query.includeFailed !== "0";
+  const filter = searchFilter(req);
   const merged = sortGallery(filterVisibleGallery(gallery)).filter((item) => {
     if (type && item.type !== type) return false;
     if (!includeFailed && item.status === "error") return false;
+    if (filter && !filter(item)) return false;
     return item.status !== "canceled";
   });
-  const collapsed = applyBundles(merged, { enabled: req.query.bundles !== "0" });
+  const collapsed = applyBundles(merged, { enabled: req.query.bundles !== "0" && !filter });
   const start = cursor ? Math.max(0, collapsed.findIndex((item) => String(item.id) === cursor) + 1) : 0;
   const items = collapsed.slice(start, start + limit);
   const nextCursor = start + limit < collapsed.length ? String(items.at(-1)?.id || "") : "";
@@ -904,7 +922,7 @@ app.get("/api/gallery", (req, res) => {
   const includeFailed = req.query.includeFailed !== "0";
   const page = listBundles().length
     ? bundledPage(req)
-    : pageGallery({ type, limit: limit || 200, cursor, includeFailed });
+    : pageGallery({ type, limit: limit || 200, cursor, includeFailed, filter: searchFilter(req) });
   res.json({
     ...page,
     items: revealGalleryItemsForRequest(page.items).map((item) => item.bundle
@@ -926,7 +944,7 @@ app.get("/api/gallery/delta", (req, res) => {
   }
   const type = String(req.query.type || "");
   const includeFailed = req.query.includeFailed !== "0";
-  const delta = galleryDelta({ since, type, includeFailed });
+  const delta = galleryDelta({ since, type, includeFailed, filter: searchFilter(req) });
   res.json({ ...delta, upserts: revealGalleryItemsForRequest(delta.upserts || []) });
 });
 
@@ -1029,6 +1047,121 @@ app.post("/api/gallery/recover", async (req, res) => {
   if (!requireLocal(req, res)) return;
   await recoverGalleryFromHistory();
   res.json({ ok: true, revision: galleryRevisionValue() });
+});
+
+/* ------------------------------------------ Favourites, prompts, earlier work */
+
+app.post("/api/gallery/favorite", (req, res) => {
+  const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String).slice(0, 500);
+  const changed = setGalleryFavorites(ids, Boolean(req.body?.favorite));
+  res.json({ ok: true, items: revealGalleryItemsForRequest(changed), revision: galleryRevisionValue() });
+});
+
+// A Hidden image keeps its star inside Hidden's encrypted list.
+app.post("/api/hidden/favorite", (req, res) => {
+  const key = requireHiddenKey(req, res);
+  if (!key) return;
+  const favorite = Boolean(req.body?.favorite);
+  const items = (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String).slice(0, 500)
+    .map((id) => patchVaultItem(key, id, (item) => (favorite ? { favorite: true } : { favorite: undefined })))
+    .filter(Boolean);
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.json({ ok: true, items, revision: vaultRevision() });
+});
+
+app.get("/api/prompts", (_req, res) => {
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.json({ prompts: listPrompts() });
+});
+
+app.post("/api/prompts/pin", (req, res) => {
+  res.json({ ok: true, prompts: setPromptPinned(String(req.body?.text || ""), Boolean(req.body?.pinned)) });
+});
+
+app.post("/api/prompts/forget", (req, res) => {
+  res.json({ ok: true, prompts: forgetPrompts([String(req.body?.text || "")]) });
+});
+
+app.post("/api/prompts/clear", (req, res) => {
+  res.json({ ok: true, prompts: clearPromptHistory({ keepPinned: req.body?.keepPinned !== false }) });
+});
+
+app.get("/api/civitai", (_req, res) => {
+  res.json(civitaiPrefs());
+});
+
+app.post("/api/civitai", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ ok: true, ...saveCivitaiPrefs({ enabled: req.body?.enabled === true }) });
+});
+
+// Adding folders of earlier images happens at the computer: it reads that computer's disks.
+app.get("/api/library/folders", (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  res.json({ folders: libraryFolders() });
+});
+
+app.post("/api/library/folders", async (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  try {
+    let dir = String(req.body?.path || "");
+    if (!dir) {
+      dir = await pickFolder(req.body?.start || "", "Choose a folder of earlier images");
+      if (!dir) { res.json({ ok: true, canceled: true, folders: libraryFolders() }); return; }
+    }
+    const result = await addLibraryFolder(dir);
+    res.json({ ok: true, ...result, folders: libraryFolders(), revision: galleryRevisionValue() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message, folders: libraryFolders() });
+  }
+});
+
+app.post("/api/library/folders/:id/scan", async (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  try {
+    res.json({ ok: true, ...(await scanLibraryFolder(req.params.id)), folders: libraryFolders(), revision: galleryRevisionValue() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message, folders: libraryFolders() });
+  }
+});
+
+app.delete("/api/library/folders/:id", (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  res.json({ ok: true, ...removeLibraryFolder(req.params.id), folders: libraryFolders(), revision: galleryRevisionValue() });
+});
+
+app.post("/api/library/output", async (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  try {
+    await autoDetectOutputDir();
+    res.json({ ok: true, output: true, ...(await importOutputFolder()), revision: galleryRevisionValue() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/library/file", (req, res) => {
+  const file = libraryFile(req.query.folder, req.query.path);
+  if (!file) { res.status(404).json({ ok: false, error: "That image is not there any more." }); return; }
+  const disposition = req.query.download === "1" ? "attachment" : "inline";
+  res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate", "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(path.basename(file))}` } });
+});
+
+app.get("/api/library/thumb", async (req, res) => {
+  const file = libraryFile(req.query.folder, req.query.path);
+  if (!file || !/\.(png|jpe?g|webp|gif|avif)$/i.test(file)) { res.status(404).end(); return; }
+  try {
+    const thumbnail = await getFileThumbnail(file);
+    if (!thumbnail) { res.status(404).end(); return; }
+    if (thumbnail.original) { res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } }); return; }
+    if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
+    if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
+    res.setHeader("Cache-Control", "private, no-cache");
+    res.type("image/webp");
+    await pipeline(fs.createReadStream(thumbnail.file), res);
+  } catch (error) {
+    if (!res.headersSent) res.status(502).json({ error: error.message }); else res.destroy();
+  }
 });
 
 app.post("/api/start-image", (req, res) => {
@@ -1191,6 +1324,8 @@ app.post("/api/generate", async (req, res) => {
     return;
   }
   body.privateVault = hidden || fromHidden;
+  // Recent prompts are the gallery's: nothing made for Hidden is ever written there.
+  if (!body.privateVault) try { recordPrompt(body.prompt); } catch { /* a run matters more than its history */ }
   // An older page (or a draft restored from before the reference library) can
   // send only the image's id; treat it as the reference instead of losing it.
   if (!isMockJob && !body.referenceAssets?.length && body.startImageId && !body.startImage) {
@@ -1322,6 +1457,10 @@ app.post("/api/upscale", async (req, res) => {
   }
   if (item.type !== "image") {
     res.status(400).json({ ok: false, reason: "video", error: "Only images can be upscaled. Video upscaling is not built in yet." });
+    return;
+  }
+  if (item.library) {
+    res.status(400).json({ ok: false, reason: "library", error: "Images added from another folder open here but stay where they are, so they can’t be upscaled." });
     return;
   }
   if (item.status !== "done") {
@@ -1787,7 +1926,7 @@ if (fs.existsSync(dist)) {
   app.get("*splat", (_req, res) => res.sendFile(path.join(dist, "index.html")));
 }
 
-setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
+setTimeout(() => recoverGalleryFromHistory().catch(() => null).then(() => rescanLibraryFolders()).catch(() => null), 1200);
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }
 
