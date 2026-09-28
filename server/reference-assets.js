@@ -9,6 +9,7 @@ import { readVaultAsset, vaultGalleryItemsForRequest } from "./vault.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
 import { loadSharp } from "./sharp-loader.js";
+import { mimeExtension, referenceInputName } from "./reference-names.js";
 
 const assetsDir = path.join(dataDir, "reference-assets");
 const filesDir = path.join(assetsDir, "files");
@@ -22,11 +23,6 @@ function safeName(value = "reference-image") {
   return path.basename(String(value || "reference-image")).replace(/[^\w.() -]+/g, "-").slice(0, 180) || "reference-image";
 }
 
-function mimeExtension(mime = "") {
-  if (mime === "image/jpeg") return "jpg";
-  if (mime === "image/webp") return "webp";
-  return "png";
-}
 
 function mimeFromName(name = "") {
   if (/\.jpe?g$/i.test(name)) return "image/jpeg";
@@ -338,10 +334,9 @@ export async function bytesForReference(req, id) {
 
 async function uploadBufferToComfy({ buffer, mime, name }, { unique = false } = {}) {
   await inspectImage(buffer, mime);
-  const hash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 32);
   // Content-named files are shared between runs; a Hidden run gets its own copy,
   // so removing it afterwards can never pull an input out from under another job.
-  const filename = unique ? `heiss-ui-${crypto.randomUUID()}.${mimeExtension(mime)}` : `heiss-ui-reference-${hash}.${mimeExtension(mime)}`;
+  const filename = unique ? `heiss-ui-${crypto.randomUUID()}.${mimeExtension(mime)}` : referenceInputName(buffer, mime);
   const form = new FormData();
   form.append("image", new Blob([buffer], { type: mime }), filename);
   form.append("type", "input");

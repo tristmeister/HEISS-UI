@@ -6,6 +6,7 @@ import { dataDir, generationSettings, outputFileCandidates, promptTitle } from "
 import { encryptionKeyFromRequest, passwordWrapForBackup } from "./privacy.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
+import { referenceInputName } from "./reference-names.js";
 import {
   applyBundlesToItems,
   createBundleRecords,
@@ -443,6 +444,8 @@ export async function hideItems(key, items) {
   return {
     moved: moved.map(viewItem),
     movedFrom: prepared.map(({ item }) => item),
+    // Copies an earlier run left in ComfyUI's input folder when it used these as a reference.
+    inputNames: prepared.flatMap(({ original, upscale }) => [original, upscale].filter(Boolean).map((bytes) => referenceInputName(bytes.buffer, bytes.mime))),
     failed,
     leftBehind,
     // Items recovered from ComfyUI's history carry its prompt id as their job id; for the rest it is harmless.

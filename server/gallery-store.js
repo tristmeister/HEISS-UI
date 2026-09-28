@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { comfyOutputDir, root } from './comfy.js';
@@ -35,20 +36,71 @@ function loadGallery() {
 }
 
 export let gallery = loadGallery();
+
+/*
+ * Markers for outputs that were deleted, cleared or hidden, so they never come
+ * back out of ComfyUI's history. Their keys are output names, and a list of
+ * what was hidden should not say what was hidden: each marker is stored as a
+ * keyed digest (HMAC-SHA256 under data/.gallery-marker-key), which can be
+ * checked against a name but never read back into one. Lists from before are
+ * turned into digests the first time they are read.
+ */
+const markerKeyPath = path.join(dataDir, ".gallery-marker-key");
+const markerPrefix = "h:";
+let markerKey = null;
+const markerCache = new Map();
+
+function loadMarkerKey() {
+  if (markerKey) return markerKey;
+  try {
+    const saved = Buffer.from(fs.readFileSync(markerKeyPath, "utf8").trim(), "base64url");
+    if (saved.length === 32) return (markerKey = saved);
+  } catch {
+    // None yet.
+  }
+  markerKey = crypto.randomBytes(32);
+  fs.mkdirSync(dataDir, { recursive: true });
+  fs.writeFileSync(markerKeyPath, markerKey.toString("base64url"), { mode: 0o600 });
+  return markerKey;
+}
+
+/** The stored form of a gallery key's marker. */
+export function markerOf(key) {
+  const text = String(key || "");
+  if (!text) return "";
+  let marker = markerCache.get(text);
+  if (!marker) {
+    marker = `${markerPrefix}${crypto.createHmac("sha256", loadMarkerKey()).update(text).digest("base64url")}`;
+    if (markerCache.size > 200000) markerCache.clear();
+    markerCache.set(text, marker);
+  }
+  return marker;
+}
+
 export let hiddenGalleryIds = loadHiddenGalleryIds();
 
 function loadHiddenGalleryIds() {
+  let raw;
   try {
-    const raw = readJsonFile(hiddenGalleryPath);
-    if (Array.isArray(raw)) {
-      const migrated = new Map(raw.filter((key) => !String(key).startsWith("/comfy/view?")).map((key) => [key, Date.now()]));
-      writeJsonFile(hiddenGalleryPath, Object.fromEntries(migrated));
-      return migrated;
-    }
-    return new Map(Object.entries(raw).map(([key, value]) => [key, Number(value) || 0]));
+    raw = readJsonFile(hiddenGalleryPath);
   } catch {
     return new Map();
   }
+  const entries = Array.isArray(raw)
+    ? raw.filter((key) => !String(key).startsWith("/comfy/view?")).map((key) => [key, Date.now()])
+    : Object.entries(raw || {}).map(([key, value]) => [key, Number(value) || 0]);
+  const plain = entries.filter(([key]) => !String(key).startsWith(markerPrefix));
+  const markers = new Map(entries.map(([key, value]) => [String(key).startsWith(markerPrefix) ? key : markerOf(key), value]));
+  if (plain.length || Array.isArray(raw)) {
+    try {
+      // Twice, so the store's .bak copy of the readable list is replaced too.
+      writeJsonFile(hiddenGalleryPath, Object.fromEntries(markers));
+      writeJsonFile(hiddenGalleryPath, Object.fromEntries(markers));
+    } catch {
+      // Stays as it was until the next save.
+    }
+  }
+  return markers;
 }
 
 // Sorting parses createdAt inside the comparator; items are replaced rather than
@@ -144,7 +196,7 @@ export function hideGalleryItems(items) {
   for (const item of items) {
     const key = galleryKey(item);
     if (key) {
-      hiddenGalleryIds.set(key, hiddenAt);
+      hiddenGalleryIds.set(markerOf(key), hiddenAt);
       removes.push(key);
     }
   }
@@ -154,8 +206,10 @@ export function hideGalleryItems(items) {
 
 export function isGalleryHidden(item) {
   const key = galleryKey(item);
-  if (!key || !hiddenGalleryIds.has(key)) return false;
-  const hiddenAt = Number(hiddenGalleryIds.get(key) || 0);
+  if (!key || !hiddenGalleryIds.size) return false;
+  const marker = markerOf(key);
+  if (!hiddenGalleryIds.has(marker)) return false;
+  const hiddenAt = Number(hiddenGalleryIds.get(marker) || 0);
   const createdAt = Date.parse(item?.createdAt || "");
   if (hiddenAt && Number.isFinite(createdAt) && createdAt > hiddenAt) return false;
   return true;
@@ -455,7 +509,7 @@ export function removeGalleryItems(items) {
 export function addGalleryItems(items) {
   // A name ComfyUI reused may carry a delete marker from an older image; this one is wanted.
   let cleared = false;
-  for (const item of items) cleared = hiddenGalleryIds.delete(galleryKey(item)) || cleared;
+  for (const item of items) cleared = hiddenGalleryIds.delete(markerOf(galleryKey(item))) || cleared;
   if (cleared) saveHiddenGalleryIds();
   // Just written, so a folder listing that has not caught up yet must not hide them.
   markFreshOutputs(items);
@@ -713,7 +767,7 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
   if (status === "done") {
     markFreshOutputs(completed);
     let cleared = false;
-    for (const item of completed) cleared = hiddenGalleryIds.delete(galleryKey(item)) || cleared;
+    for (const item of completed) cleared = hiddenGalleryIds.delete(markerOf(galleryKey(item))) || cleared;
     if (cleared) saveHiddenGalleryIds();
   }
   setGallery(dedupeGallery(replaced).slice(0, galleryLimit));

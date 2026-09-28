@@ -22,8 +22,8 @@ import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
 import { cancelDownload, discardDownload, downloadState, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
-import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
-import { getThumbnail, resizeInMemory } from './thumbnails.js';
+import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
+import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
@@ -174,10 +174,30 @@ async function hiddenReadiness() {
   return { outputDir: Boolean(outputDir), outputPath: outputDir || "" };
 }
 
+/**
+ * Images hidden before hiding cleaned up after itself left cached thumbnails
+ * behind; the first unlock after the update finds and removes them, once.
+ */
+let oldHiddenThumbnailsChecked = false;
+function forgetOldHiddenThumbnails(key) {
+  if (oldHiddenThumbnailsChecked) return;
+  oldHiddenThumbnailsChecked = true;
+  try {
+    const names = vaultItems(key, { bundles: false }).flatMap((item) => [item.outputName, item.upscale?.outputName]);
+    const removed = forgetLegacyHiddenThumbnails(names);
+    if (removed) console.log(`[HEISS] Removed ${removed} thumbnail${removed === 1 ? "" : "s"} left behind by images hidden before.`);
+  } catch {
+    oldHiddenThumbnailsChecked = false;
+  }
+}
+
 async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
   const status = privacyStatusFor(req);
   const unlocked = Boolean(key);
-  if (unlocked) migrateLegacyPrompts(key);
+  if (unlocked) {
+    migrateLegacyPrompts(key);
+    forgetOldHiddenThumbnails(key);
+  }
   return {
     ...status,
     unlocked,
@@ -442,7 +462,12 @@ app.post("/api/hidden/hide", async (req, res) => {
     // A marker keeps them from coming back out of ComfyUI's history if a copy stayed behind.
     hideGalleryItems(result.movedFrom || []);
     removeGalleryItems(result.movedFrom || []);
-    await forgetComfyRun({ promptIds: result.promptIds });
+    // Nothing of them stays in the open: the gallery's copy of their prompts (and its
+    // backup), their cached thumbnails, and what ComfyUI kept of them.
+    writeGalleryNow();
+    writeGalleryNow();
+    for (const item of result.movedFrom || []) await forgetItemThumbnails(item).catch(() => 0);
+    await forgetComfyRun({ promptIds: result.promptIds, inputNames: result.inputNames });
     res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), hiddenIds: result.moved.map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
   } catch (error) {
     res.status(500).json({ ok: false, error: error.message });

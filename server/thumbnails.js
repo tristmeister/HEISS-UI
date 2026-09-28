@@ -166,6 +166,35 @@ export function forgetThumbnail(filename, subfolder = "", type = "output") {
 }
 
 /**
+ * Once, for images hidden before hiding cleaned up after itself: their
+ * records keep only the output's file name, so every folder HEISS saves
+ * into is tried. One pass over the cache, however many there are.
+ */
+export function forgetLegacyHiddenThumbnails(names = []) {
+  const flag = path.join(thumbnailDir, ".hidden-purged-v1");
+  if (fs.existsSync(flag)) return 0;
+  const keys = new Set();
+  for (const name of names.filter(Boolean)) {
+    for (const subfolder of ["heiss-ui", ""]) keys.add(cacheKey(String(name), subfolder, "output"));
+  }
+  let removed = 0;
+  let entries = [];
+  try { entries = fs.readdirSync(thumbnailDir); } catch { entries = []; }
+  for (const entry of entries) {
+    const dash = entry.lastIndexOf("-");
+    if (dash < 0 || !keys.has(entry.slice(0, dash))) continue;
+    try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); removed += 1; } catch { /* next time */ }
+  }
+  try {
+    fs.mkdirSync(thumbnailDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(flag, new Date().toISOString());
+  } catch {
+    // Runs again next time; harmless.
+  }
+  return removed;
+}
+
+/**
  * Forgets the thumbnails of a gallery item: its original, its thumbnail URL
  * and its upscale. A thumbnail still being made for it is waited for first,
  * so it cannot land on disk just after.
