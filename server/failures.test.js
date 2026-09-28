@@ -5,7 +5,8 @@ import { describeFailure, failureTitles, troubleshootingAnchor } from "./failure
 
 test("every failure headline has its own section in TROUBLESHOOTING.md, which the card links to", () => {
   const doc = fs.readFileSync(new URL("../TROUBLESHOOTING.md", import.meta.url), "utf8");
-  const headings = doc.split("\n").filter((line) => line.startsWith("#")).map((line) => line.replace(/^#+\s*/, ""));
+  // Windows checkouts can bring the file with \r\n line ends.
+  const headings = doc.split(/\r?\n/).filter((line) => line.startsWith("#")).map((line) => line.replace(/^#+\s*/, ""));
   for (const title of failureTitles) assert.ok(headings.includes(title), `TROUBLESHOOTING.md has no "### ${title}"`);
   assert.equal(describeFailure({ message: "CUDA error: out of memory" }).help, "the-gpu-ran-out-of-memory");
   assert.equal(describeFailure({ message: "Error while deserializing header: header is too large", nodeType: "VAELoader" }).help, "a-model-file-is-damaged-or-incomplete");
