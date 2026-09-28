@@ -1,6 +1,7 @@
 import path from "node:path";
 import { dataDir, gallery } from "./gallery-store.js";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
+import { hasLegacyPrompt } from "./privacy.js";
 
 /**
  * Prompts you generated with, newest first, kept on this computer so every
@@ -81,7 +82,8 @@ export function loadPromptHistory(seedItems = gallery) {
   } catch {
     let entries = [];
     const seeds = seedItems
-      .filter((item) => item?.prompt && !item.privateVault && !item.promptProtected && item.status === "done")
+      // Prompts still sealed by the old privacy scheme are not readable text, so they stay out.
+      .filter((item) => item?.prompt && !item.privateVault && !item.promptProtected && !hasLegacyPrompt(item) && item.status === "done")
       .sort((a, b) => Date.parse(a.createdAt || 0) - Date.parse(b.createdAt || 0));
     for (const item of seeds) entries = addPrompt(entries, item.prompt, Date.parse(item.createdAt || "") || Date.now());
     cache = entries;
@@ -90,8 +92,13 @@ export function loadPromptHistory(seedItems = gallery) {
   return cache;
 }
 
-function save() {
+/**
+ * `forget`: the store keeps the previous copy as .bak, and a prompt taken out
+ * (forgotten, cleared, or hidden along with its image) must not stay in it.
+ */
+function save({ forget = false } = {}) {
   writeJsonFile(promptHistoryPath, { version: 1, entries: cache || [] });
+  if (forget) writeJsonFile(promptHistoryPath, { version: 1, entries: cache || [] });
 }
 
 export function listPrompts() {
@@ -133,13 +140,13 @@ export function forgetPrompts(texts, keep = new Set()) {
   const next = entries.filter((entry) => !keys.has(promptKey(entry.text)));
   if (next.length === entries.length) return entries;
   cache = next;
-  save();
+  save({ forget: true });
   return cache;
 }
 
 export function clearPromptHistory({ keepPinned = true } = {}) {
   cache = keepPinned ? loadPromptHistory().filter((entry) => entry.pinned) : [];
-  save();
+  save({ forget: true });
   return cache;
 }
 
