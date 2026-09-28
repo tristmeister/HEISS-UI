@@ -4,6 +4,7 @@ import { ComfyRestart, managerMajor, useComfyManager } from './ComfyRestart';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { apiJson, copyText } from './api';
 import { BetaTag } from './components';
+import { useThisComputer } from './device';
 import { cn } from './format';
 import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
 import type { ShowToast } from './toast';
@@ -137,8 +138,9 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
     decided.current = true;
     setRoute(manager.available ? 'manager' : 'terminal');
   }, [manager]);
-  // One click where HEISS can do it; the manual routes stay one tap away.
-  const canQuick = Boolean(pack.id && autoInstall && (autoInstall.local || (autoInstall.manager && hasManager)));
+  // One click where HEISS can do it, for whoever may install; the manual routes stay one tap away.
+  const admin = useThisComputer();
+  const canQuick = Boolean(admin && pack.id && autoInstall && (autoInstall.local || (autoInstall.manager && hasManager)));
   const [manual, setManual] = useState(false);
   const [quickError, setQuickError] = useState('');
   const [installed, setInstalled] = useState(false);

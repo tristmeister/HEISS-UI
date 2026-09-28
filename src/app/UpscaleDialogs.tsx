@@ -3,6 +3,7 @@ import { Check, ExternalLink, FolderOpen, RefreshCw } from 'lucide-react';
 import { Modal } from './Modal';
 import { NodeInstall } from './NodeInstall';
 import { UpscaleHero } from './UpscaleHero';
+import { useThisComputer } from './device';
 import { cn } from './format';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
@@ -120,6 +121,8 @@ export function UpscaleSetupDialog({
   showToast: ShowToast;
 }) {
   const { stage, pending } = setup;
+  // Downloads land on the computer HEISS UI runs on, so only it (or a device trusted with admin) starts them.
+  const admin = useThisComputer();
   const progress = install?.totalBytes ? (install.receivedBytes || 0) / install.totalBytes : 0;
   const fallback = status?.substituting ? status.fallbackFile || "another installed SeedVR2 weight" : "";
   const { title, description } = copyFor(stage, quality, Boolean(pending), fallback);
@@ -173,7 +176,12 @@ export function UpscaleSetupDialog({
       </>
     );
   } else if (stage === "models") {
-    body = !status?.canDownload ? (
+    body = !admin ? (
+      <div className="upscale-callout">
+        <strong>The upscale model downloads on the computer running HEISS UI.</strong>
+        <span>Open smart upscale there once, and it works here too.</span>
+      </div>
+    ) : !status?.canDownload ? (
       <div className="upscale-callout">
         <strong>HEISS UI does not know where ComfyUI keeps its models yet.</strong>
         <span>Set the ComfyUI output folder under Library and the models folder next to it is found automatically.</span>
@@ -216,7 +224,7 @@ export function UpscaleSetupDialog({
         {setup.startError ? <p className="upscale-fine is-warn">{setup.startError}</p> : null}
       </>
     );
-    footer = status?.canDownload ? (
+    footer = !admin ? later : status?.canDownload ? (
       <>
         {later}
         <button className="btn is-primary" onClick={setup.startDownload} disabled={tooBig || !missingModels.length}>
@@ -261,7 +269,7 @@ export function UpscaleSetupDialog({
     );
     footer = stage === "downloading" ? (
       <>
-        <button className="btn is-ghost" onClick={setup.cancelInstall}>Cancel</button>
+        {admin ? <button className="btn is-ghost" onClick={setup.cancelInstall}>Cancel</button> : null}
         <button className="btn is-primary" onClick={close}>Continue in background</button>
       </>
     ) : null;
@@ -280,7 +288,7 @@ export function UpscaleSetupDialog({
         <span>Its own weights are not downloaded, so it borrows the SeedVR2 weight you already have. Upscales still work, but can look different from what {upscaleQualityLabel(quality)} is tuned for.</span>
       </div>
     ) : null;
-    footer = pending ? null : fallback ? (
+    footer = pending ? null : fallback && admin ? (
       <>
         <button className="btn is-ghost" onClick={close}>Keep the fallback</button>
         <button className="btn is-primary" onClick={setup.downloadOwnModel}>Download {upscaleQualityLabel(quality)} · {formatBytes(status?.downloadBytes)}</button>
@@ -288,7 +296,7 @@ export function UpscaleSetupDialog({
     ) : <button className="btn is-primary" onClick={close}>Done</button>;
   } else if (stage === "error") {
     body = <div className="upscale-callout is-danger"><strong>{install?.error || "The download failed."}</strong></div>;
-    footer = <>{later}<button className="btn is-primary" onClick={setup.startDownload}>Try again</button></>;
+    footer = admin ? <>{later}<button className="btn is-primary" onClick={setup.startDownload}>Try again</button></> : later;
   }
 
   return (
