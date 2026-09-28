@@ -184,7 +184,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   );
 }
 
-/** The same picks later on, from the model menu's "Get more models". */
+/** The same picks as a sheet, from the empty model menu's "Get a model". */
 export function GetModelsSheet({ open, onOpenChange, showToast, onStarted, onUse, onFindModels }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;

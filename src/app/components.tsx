@@ -423,8 +423,9 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * The model menu. With a handful of models it is a plain list; past that it
  * gets a search field, and it always splits into Favorites (starred), Recent,
  * the rest by family and, last, "Your workflows" (imported graphs), scrolling
- * inside a capped height with "Get more models" and "Find models" pinned
- * below. Arrow keys move, Enter picks, typing searches.
+ * inside a capped height with "Find models" pinned below. With no model at
+ * all it offers "Get a model" instead. Arrow keys move, Enter picks, typing
+ * searches.
  */
 export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const hardware = useHardware();
@@ -582,12 +583,6 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
               ))}
               {query && !flat.length ? <div className="model-menu-none">Nothing matches “{query.trim()}”.</div> : null}
             </div>
-          ) : null}
-          {onGetModels && profiles.length ? (
-            <button type="button" className="model-menu-find" onClick={() => { close(); onGetModels(); }}>
-              <span>Get more models</span>
-              <em>Krea 2, Flux.2, SDXL</em>
-            </button>
           ) : null}
           {onFindModels && profiles.length ? (
             // Always one tap from where people notice a model is missing.

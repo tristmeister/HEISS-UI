@@ -99,7 +99,7 @@ HEISS UI looks on port 8188 (a manual or portable install) and 8000 (ComfyUI Des
 
 ### Your first model
 
-With no model yet, the studio offers three to start with: **Krea 2**, **Flux.2** and **SDXL**, each in three sizes. The one that suits your computer is picked and marked; the others are a tap away. One tap downloads the model with its text encoder and VAE, then selects it with a prompt ready to try. More later from the model menu's **Get more models**. [Sizes ↓](#what-runs-where)
+With no model yet, the studio offers three to start with: **Krea 2**, **Flux.2** and **SDXL**, each in three sizes. The one that suits your computer is picked and marked; the others are a tap away. One tap downloads the model with its text encoder and VAE, then selects it with a prompt ready to try. [Sizes ↓](#what-runs-where)
 
 ### Paste into an agent
 

@@ -12,6 +12,8 @@ version opens with a `> ` summary line, which the update pill shows.
 ## [Unreleased]
 
 ### Changed
+- **The model menu offers starter models only while there are none.** Once a
+  model is installed, "Get more models" no longer shows.
 - **LoRAs come right after Basics** in the sidebar, and right after the model
   in the phone's Advanced settings, where they're easier to reach.
 
