@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> An easy first run, prompt history, search and safer sharing
+
 ### What changes when you update
 - **Phones and other computers sign in once more.** Set a studio password in
   Settings › Connection; until you do, the Hidden password still works.
