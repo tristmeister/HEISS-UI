@@ -1121,7 +1121,7 @@ function App() {
   const estimateCount = mode === "image" && currentProfile?.capabilities?.variations === false ? 1 : count;
   const separateRuns = mode === "image" && prefs.variationQueueMode === "separate";
   const generationEstimate = useGenerationEstimate({
-    mode, model: currentProfile?.model || model, profileId: currentProfile?.id || model, width, height, steps,
+    mode, model: currentProfile?.model || model, profileId: currentProfile?.id || model, family: currentProfile?.family || '', width, height, steps,
     count: separateRuns ? 1 : estimateCount, runs: separateRuns ? estimateCount : 1, frames: mode === "video" ? frames : 0, revision: runningCount
   });
   // Every Restart ComfyUI button asks first when it would stop running work.

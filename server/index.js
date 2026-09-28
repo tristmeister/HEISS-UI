@@ -481,6 +481,7 @@ app.get("/api/estimate", (req, res) => {
     kind: query.kind === "video" ? "video" : "image",
     model: String(query.model || ""),
     profileId: String(query.profileId || ""),
+    family: String(query.family || ""),
     width: Number(query.width) || 0,
     height: Number(query.height) || 0,
     count: Number(query.count) || 1,
