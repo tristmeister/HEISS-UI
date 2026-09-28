@@ -189,7 +189,7 @@ export function classifyEncoder(name) {
 }
 
 const vaeNameHints = [
-  ["mage_flow", /mage/i],
+  ["mage_flow", /mage[-_ ]?flow/i],
   ["qwen_image_21", /qwen[-_ ]?image[-_ ]?2[._]?1/i],
   ["qwen_image", /qwen/i],
   ["wan22", /wan[-_ ]?2[._]?2/i],
