@@ -43,6 +43,14 @@ export const nodePacks = {
     manager: "comfyui-impact-subpack",
     nodes: ["UltralyticsDetectorProvider"]
   },
+  gguf: {
+    name: "ComfyUI-GGUF",
+    repository: "https://github.com/city96/ComfyUI-GGUF.git",
+    folder: "ComfyUI-GGUF",
+    search: "ComfyUI-GGUF",
+    manager: "comfyui-gguf",
+    nodes: ["UnetLoaderGGUF", "CLIPLoaderGGUF", "DualCLIPLoaderGGUF", "TripleCLIPLoaderGGUF", "QuadrupleCLIPLoaderGGUF"]
+  },
   comfyui_sana: {
     name: "ComfyUI-SANA",
     repository: "https://github.com/geoffitect/ComfyUI-SANA.git",

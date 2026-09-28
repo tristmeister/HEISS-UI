@@ -3,6 +3,7 @@ import path from "node:path";
 import { comfy, modelFolders } from './comfy.js';
 import { dataDir } from './gallery-store.js';
 import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, variantFor } from './family-catalog.js';
+import { isGguf, readGgufHeader } from './gguf.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 
 /**
@@ -129,7 +130,7 @@ export function readSafetensorsHeader(file) {
 }
 
 function localModelFile(source, name) {
-  if (!sourceFolders[source] || !/\.safetensors$/i.test(name)) return "";
+  if (!sourceFolders[source] || !/\.(safetensors|gguf)$/i.test(name)) return "";
   const parts = String(name).split(/[\\/]/).filter(Boolean);
   if (parts.some((part) => part === "..")) return "";
   for (const dir of modelFolders(...sourceFolders[source])) {
@@ -154,7 +155,7 @@ export function modelHeader(source, name) {
   const key = `${file}:${stat.size}:${stat.mtimeMs}`;
   if (!headerCache.has(key)) {
     let header = null;
-    try { header = readSafetensorsHeader(file); } catch { header = null; }
+    try { header = isGguf(file) ? readGgufHeader(file) : readSafetensorsHeader(file); } catch { header = null; }
     headerCache.set(key, header);
   }
   return headerCache.get(key);

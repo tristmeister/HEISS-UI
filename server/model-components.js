@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { modelFolders } from './comfy.js';
+import { isGguf, readGgufHeader } from './gguf.js';
 import { readSafetensorsHeader } from './model-families.js';
 
 /**
@@ -143,7 +144,7 @@ export function vaeLayoutFromHeader(header) {
 const headerCache = new Map();
 
 function localFile(kind, subfolders, name) {
-  if (!/\.safetensors$/i.test(name)) return "";
+  if (!/\.(safetensors|gguf)$/i.test(name)) return "";
   const parts = String(name).split(/[\\/]/).filter(Boolean);
   if (parts.some((part) => part === "..")) return "";
   for (const dir of modelFolders(kind, subfolders)) {
@@ -159,7 +160,7 @@ function cachedHeader(file) {
   const key = `${file}:${stat.size}:${stat.mtimeMs}`;
   if (!headerCache.has(key)) {
     let header = null;
-    try { header = readSafetensorsHeader(file); } catch { header = null; }
+    try { header = isGguf(file) ? readGgufHeader(file) : readSafetensorsHeader(file); } catch { header = null; }
     headerCache.set(key, header);
   }
   return headerCache.get(key);
