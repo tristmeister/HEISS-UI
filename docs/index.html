@@ -479,7 +479,7 @@
         <div class="section-head" data-reveal>
           <p class="label">Install</p>
           <h2 id="install-title">Running in a few minutes.</h2>
-          <p class="section-lead">You need a working <strong>ComfyUI</strong> install. The Windows download from Releases brings everything else; from source you also need <strong>Node.js 20.9+</strong>. Your models stay in ComfyUI.</p>
+          <p class="section-lead">You need <strong>ComfyUI</strong>. The download brings everything else, Node.js included, on Windows, macOS and Linux. Your models stay in ComfyUI.</p>
         </div>
 
         <div class="section-body" data-reveal>
@@ -496,13 +496,15 @@
                   <span class="step-n" aria-hidden="true">1</span>
                   <div>
                     <h3>Start ComfyUI</h3>
-                    <p>HEISS UI looks for it at <code>127.0.0.1:8188</code>. If yours lives somewhere else, you'll set that in a second.</p>
+                    <p>HEISS UI finds it on this computer by itself, including ComfyUI Desktop. No ComfyUI yet? <a class="inline" href="https://www.comfy.org/download">Get ComfyUI Desktop</a>; the app tells you more if you need it.</p>
                   </div>
                 </li>
                 <li>
                   <span class="step-n" aria-hidden="true">2</span>
                   <div>
-                    <h3>Clone, build, start</h3>
+                    <h3>Download and start</h3>
+                    <p>Get the zip for your system from <a class="inline" href="https://github.com/tristmeister/HEISS-UI/releases/latest">Releases</a>, unpack it and double-click <strong>Start HEISS UI</strong>. It updates itself from then on.</p>
+                    <p class="note">Or from source, to follow <code>main</code> (needs Node.js 20.9+):</p>
                     <div class="code">
                       <div class="code-head">
                         <span>Terminal</span>
@@ -520,14 +522,14 @@
 <span class="ln">npm run build</span>
 <span class="ln">npm start</span></pre>
                     </div>
-                    <p class="note">ComfyUI on another port or machine? Copy <code>.env.example</code> to <code>.env</code> and set <code>COMFY_URL</code>.</p>
+                    <p class="note">ComfyUI on another machine? Set its address in <strong>Settings › Connection</strong>.</p>
                   </div>
                 </li>
                 <li>
                   <span class="step-n" aria-hidden="true">3</span>
                   <div>
                     <h3>Open it</h3>
-                    <p>Go to <a class="inline" href="http://127.0.0.1:8787">127.0.0.1:8787</a>. Your models, samplers and VAEs are already there. Import your own workflows from the <strong>Workflows</strong> panel.</p>
+                    <p>Your browser opens <a class="inline" href="http://localhost:8787">localhost:8787</a> by itself. Your models are already there; with none yet, pick a first one and HEISS UI downloads everything it needs.</p>
                   </div>
                 </li>
               </ol>
@@ -597,11 +599,11 @@ Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN 
           </details>
           <details name="faq">
             <summary>Do I still need ComfyUI installed?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>Yes. HEISS UI doesn't ship its own runtime or models. It reads what your ComfyUI has installed (checkpoints, samplers, schedulers, text encoders, VAEs) and builds its controls from that.</p></div>
+            <div class="answer"><p>Yes. ComfyUI runs every job; HEISS UI reads what it has installed (checkpoints, samplers, schedulers, text encoders, VAEs) and builds its controls from that. If you don't have it yet, the app says which ComfyUI to get and finds it once it runs.</p></div>
           </details>
           <details name="faq">
             <summary>Which models work?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>The common image, checkpoint and video setups work out of the box. For a model that needs custom nodes or special wiring, get it running in ComfyUI first and bring it over as your own workflow.</p></div>
+            <div class="answer"><p>28 image and video families work out of the box, GGUF files included, and missing text encoders, VAEs and nodes download with one click. For a model that needs special wiring, get it running in ComfyUI first and bring it over as your own workflow.</p></div>
           </details>
           <details name="faq">
             <summary>Does it do video?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>

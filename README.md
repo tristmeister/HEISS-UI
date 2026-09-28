@@ -9,7 +9,7 @@
 
 <p align="center">
   A calm, local front end for ComfyUI.<br />
-  26 model families work out of the box. Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
+  28 model families work out of the box. Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
 </p>
 
 <p align="center">
@@ -42,7 +42,7 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Features
 
-- **26 model families out of the box, and they look right.** 21 image and 5 video families, from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2, Wan 2.2 and MiniMax H3. HEISS reads each model file to tell what it is and runs it with the settings from its makers' own templates, Turbo, Lightning and base variants included. No workflow needed for good results. [The full list ↓](#supported-models)
+- **28 model families out of the box, and they look right.** 21 image and 7 video families, from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2, Wan 2.2 and MiniMax H3. HEISS reads each model file to tell what it is and runs it with the settings from its makers' own templates, Turbo, Lightning and base variants included. No workflow needed for good results. [The full list ↓](#supported-models)
 - **Bring your own workflow.** Import any ComfyUI workflow (API or visual JSON) and it turns into a clean set of controls with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
 - **Missing parts download themselves.** Pick a model and HEISS checks everything it needs: text encoders, VAE, companion files and custom nodes. Anything missing gets a Download or Install button, or one **Get all**. [What it takes care of ↓](#auto-downloads)
 - **Full reference image and start image support.** Edit models like Flux.2 and Qwen-Image 2.1 take reference images; every other image model takes a start image with a slider for how much it may change. [More ↓](#reference-and-start-images)
