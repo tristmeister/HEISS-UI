@@ -182,6 +182,15 @@ export function WorkflowGallery({ view }: { view: any }) {
   }, [filter, ofKind, query]);
   const selected = filtered.find((item) => item.id === selectedId) || filtered[0] || null;
   const selectedStatus = selected ? workflowState(selected.validation, comfyRestarting) : null;
+  // An import's family, from the ones installed here: it shares their LoRA stacks. "Its own" keeps it apart.
+  const familyOptions = (current = "") => {
+    const known = new Map<string, string>();
+    for (const profile of models?.profiles || []) {
+      if (profile.family && profile.family !== "custom" && !profile.id.startsWith("custom:")) known.set(profile.family, profile.familyName || profile.family);
+    }
+    if (current && current !== "custom" && !known.has(current)) known.set(current, current);
+    return [{ label: "Its own", value: "custom" }, ...[...known].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ label, value }))];
+  };
   // The same setup panel as the sidebar, for the model this workflow runs.
   const selectedProfile = selected ? models?.profiles.find((profile) => profile.id === selected.profileId) : undefined;
   // What the setup panel is about: the model's profile, or an imported workflow and the files its loaders name.
@@ -508,7 +517,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                   <Field label="Name"><input className="modal-input" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
                   <div className="wf-review-row">
                     <div className="field"><span>Kind</span><Segmented label="Kind" value={item.metadata.kind} onChange={(next) => updateImport(index, { kind: next })} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} /></div>
-                    <Field label="Family"><input className="modal-input" value={item.metadata.family} onChange={(event) => updateImport(index, { family: event.target.value })} /></Field>
+                    <Field label="Family"><Select value={item.metadata.family || "custom"} onChange={(value) => updateImport(index, { family: value })} options={familyOptions(item.metadata.family)} /></Field>
                   </div>
                   <ImportFit item={item} />
                   <details className="wf-mapping">
