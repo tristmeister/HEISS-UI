@@ -39,7 +39,7 @@ export function useModelDownloadActivity({ onDone, hidden, onOpen }: { onDone: (
     : mode === 'ready' ? `${flash?.label || 'File'} is in place`
     : `${failed?.label || 'Download'} stopped`;
   const meta = mode === 'downloading'
-    ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', speed > 0 ? `${formatBytes(speed)}/s` : active?.reconnecting ? 'connection dropped, reconnecting' : 'connecting', speed > 0 ? formatEta((total - received) / speed) : '', queued ? `${queued} more after` : ''].filter(Boolean).join(' · ')
+    ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', active?.verifying ? 'checking the file' : speed > 0 ? `${formatBytes(speed)}/s` : active?.reconnecting ? 'connection dropped, reconnecting' : 'connecting', speed > 0 ? formatEta((total - received) / speed) : '', queued ? `${queued} more after` : ''].filter(Boolean).join(' · ')
     : mode === 'ready' ? 'Ready to use'
     : failed?.needsBrowser ? 'Needs your browser; open the model setup'
     : failed?.retryable === false ? (failed.error || 'Trying again won’t help; see the model setup for why')

@@ -134,7 +134,7 @@ export type MissingPart = {
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
-export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number; /** All there, being checked against its published SHA-256. */ verifying?: boolean };
 export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */

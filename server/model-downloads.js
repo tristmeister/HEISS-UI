@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -13,6 +14,12 @@ import { freeBytesAt } from "./paths.js";
  * or path. One file downloads at a time; the rest wait in order. A stopped
  * download keeps its .part file plus a small .part.json note, so it resumes
  * where it left off, even after HEISS restarts.
+ *
+ * Resuming asks for the rest only if the file is still the one it started
+ * (If-Range with the ETag or Last-Modified it saw), so a file changed on
+ * Hugging Face in between starts over instead of being glued onto the old
+ * half. A finished file is checked against its catalog SHA-256 before it is
+ * put where ComfyUI reads it.
  */
 
 const allowedFolders = new Set(["text_encoders", "vae", "diffusion_models", "checkpoints", "loras"]);
@@ -166,6 +173,7 @@ export function startDownload(spec) {
     folder: spec.folder,
     label: spec.label || spec.file,
     url: spec.url,
+    sha256: /^[0-9a-f]{64}$/i.test(String(spec.sha256 || "")) ? String(spec.sha256).toLowerCase() : "",
     dir,
     status: "queued",
     receivedBytes: 0,
@@ -240,23 +248,33 @@ async function fetchInto(entry, signal) {
   fs.mkdirSync(dir, { recursive: true });
   let offset = fileSize(partial);
   entry.receivedBytes = offset;
+  const saved = readNote(note);
   // A whole .part left by a rename that failed last time: asking for the bytes after
   // its end would only get HTTP 416, so finish it without a request.
-  const known = knownLength(note);
+  const known = saved.exact ? Number(saved.totalBytes || 0) : 0;
   if (offset && known && offset >= known) {
-    if (offset === known) return finishDownload(entry, partial, target, note);
+    if (offset === known) return verifyAndFinish(entry, partial, target, note);
     offset = 0; // Longer than the file itself: start over.
   }
-  let response = await fetch(entry.url, { redirect: "follow", signal, headers: offset ? { range: `bytes=${offset}-` } : {} });
+  const validator = resumeValidator(saved);
+  const rangeHeaders = () => (offset ? { range: `bytes=${offset}-`, ...(validator ? { "if-range": validator } : {}) } : {});
+  let response = await fetch(entry.url, { redirect: "follow", signal, headers: rangeHeaders() });
   if (offset && response.status === 416) {
     // Nothing left past the end: complete if the server's size matches, else the part is not this file.
     const total = Number(/\/(\d+)\s*$/.exec(response.headers.get("content-range") || "")?.[1] || 0);
-    if (total && total === offset) return finishDownload(entry, partial, target, note);
+    if (total && total === offset && sameFile(saved, response)) return verifyAndFinish(entry, partial, target, note);
     await response.body?.cancel().catch(() => {});
     offset = 0;
     response = await fetch(entry.url, { redirect: "follow", signal });
   }
-  if (offset && response.status === 200) offset = 0; // Range ignored: start over.
+  // Range ignored, or the file changed since the part was saved (If-Range answered with all of it): start over.
+  if (offset && response.status === 200) offset = 0;
+  // A server that ignores If-Range still says which file it sent: a different one is not glued on either.
+  if (offset && response.status === 206 && !sameFile(saved, response)) {
+    await response.body?.cancel().catch(() => {});
+    offset = 0;
+    response = await fetch(entry.url, { redirect: "follow", signal });
+  }
   if (!response.ok || !response.body) {
     await response.body?.cancel().catch(() => {});
     if (response.status === 401 || response.status === 403) {
@@ -278,8 +296,11 @@ async function fetchInto(entry, signal) {
   if (expected) entry.totalBytes = expected;
   entry.receivedBytes = offset;
   try {
-    // `exact` marks a length the server sent, not the catalog's estimate.
-    fs.writeFileSync(note, JSON.stringify({ id: entry.id, label: entry.label, totalBytes: entry.totalBytes, exact: Boolean(expected) }));
+    // `exact` marks a length the server sent, not the catalog's estimate; etag and
+    // lastModified say which version of the file the part holds, for the next resume.
+    const etag = offset ? saved.etag || "" : response.headers.get("etag") || "";
+    const lastModified = offset ? saved.lastModified || "" : response.headers.get("last-modified") || "";
+    fs.writeFileSync(note, JSON.stringify({ id: entry.id, label: entry.label, totalBytes: entry.totalBytes, exact: Boolean(expected), etag, lastModified }));
   } catch {
     // Without the note it still resumes this session; only a restart forgets it.
   }
@@ -309,6 +330,54 @@ async function fetchInto(entry, signal) {
   if (expected && fileSize(partial) !== expected) {
     throw new Error(`${entry.file} arrived incomplete. Try again to resume it.`);
   }
+  await verifyAndFinish(entry, partial, target, note);
+}
+
+/** What If-Range needs: a strong ETag, else the Last-Modified date. Nothing for notes from before. */
+export function resumeValidator(saved = {}) {
+  const etag = String(saved.etag || "");
+  if (etag && !/^W\//.test(etag)) return etag;
+  return String(saved.lastModified || "");
+}
+
+/** Whether a response is for the same file the saved part came from, as far as the server says. */
+function sameFile(saved, response) {
+  const etag = response.headers.get("etag");
+  if (saved.etag && etag) return saved.etag === etag;
+  const lastModified = response.headers.get("last-modified");
+  if (saved.lastModified && lastModified) return saved.lastModified === lastModified;
+  return true;
+}
+
+function readNote(note) {
+  try { return JSON.parse(fs.readFileSync(note, "utf8")) || {}; } catch { return {}; }
+}
+
+async function sha256Of(file, signal) {
+  const hash = crypto.createHash("sha256");
+  await pipeline(fs.createReadStream(file), new Transform({ transform(chunk, _encoding, done) { hash.update(chunk); done(); } }), { signal });
+  return hash.digest("hex");
+}
+
+/**
+ * The last step: a file with a catalog SHA-256 is checked before it becomes
+ * a model. A mismatch is thrown away, so trying again downloads it fresh.
+ */
+async function verifyAndFinish(entry, partial, target, note) {
+  if (entry.sha256) {
+    entry.verifying = true;
+    entry.bytesPerSecond = 0;
+    try {
+      const actual = await sha256Of(partial, entry.controller?.signal);
+      if (actual !== entry.sha256) {
+        fs.rmSync(partial, { force: true });
+        fs.rmSync(note, { force: true });
+        throw new Error(`${entry.file} didn’t match its published checksum, so it was deleted. Try again to download it fresh.`);
+      }
+    } finally {
+      delete entry.verifying;
+    }
+  }
   finishDownload(entry, partial, target, note);
 }
 
@@ -319,15 +388,6 @@ function finishDownload(entry, partial, target, note) {
   fs.rmSync(note, { force: true });
 }
 
-/** The file's length as the server reported it on an earlier try, or 0 when unknown. */
-function knownLength(note) {
-  try {
-    const saved = JSON.parse(fs.readFileSync(note, "utf8"));
-    return saved.exact ? Number(saved.totalBytes || 0) : 0;
-  } catch {
-    return 0;
-  }
-}
 
 /** Throws away a stopped download's partial file. */
 export function discardDownload(spec) {
