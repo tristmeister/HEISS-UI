@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronDown, ChevronRight, Download, LifeBuoy, Minimize2
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl, withDiagnostics } from './diagnostics';
 import { NodeInstall } from './NodeInstall';
+import { useThisComputer } from './device';
 import { cn } from './format';
 import type { RetryOptions } from './retry';
 import type { ShowToast } from './toast';
@@ -57,18 +58,22 @@ export type FailureFixes = {
 
 type FixButton = { label: string; icon: React.ReactNode; run: () => unknown };
 
-/** The buttons a failure earns: only fixes HEISS can actually carry out, the likeliest first. */
-function fixButtons(item: GalleryItem, failure: GenerationFailure, fixes?: FailureFixes): FixButton[] {
+/**
+ * The buttons a failure earns: only fixes HEISS can actually carry out, the
+ * likeliest first. Freeing ComfyUI's memory and downloading are for the
+ * computer itself (`admin`); another device gets what it may run.
+ */
+function fixButtons(item: GalleryItem, failure: GenerationFailure, fixes: FailureFixes | undefined, admin: boolean): FixButton[] {
   if (!fixes) return [];
   // An item from before fixes existed (or a Hidden one still locked) has nothing to rerun from.
   const canRerun = Boolean(item.prompt && item.model && item.settings);
   if (failure.fix === 'memory' && canRerun) {
     return [
-      { label: failure.retry?.tiledDecode ? 'Free memory, decode in tiles' : 'Free memory and retry', icon: <RotateCw size={14} />, run: () => fixes.freeMemoryAndRetry(item) },
+      ...(admin ? [{ label: failure.retry?.tiledDecode ? 'Free memory, decode in tiles' : 'Free memory and retry', icon: <RotateCw size={14} />, run: () => fixes.freeMemoryAndRetry(item) }] : []),
       { label: 'Retry smaller', icon: <Minimize2 size={14} />, run: () => fixes.retry(item, { smaller: true }) }
     ];
   }
-  if (failure.fix === 'redownload' && failure.redownload) return [{ label: 'Download again', icon: <Download size={14} />, run: () => fixes.redownload(item) }];
+  if (failure.fix === 'redownload' && failure.redownload && admin) return [{ label: 'Download again', icon: <Download size={14} />, run: () => fixes.redownload(item) }];
   if (failure.fix === 'rescan') return [{ label: 'Rescan models', icon: <RefreshCw size={14} />, run: fixes.rescan }];
   if (failure.fix === 'retry' && canRerun) return [{ label: 'Try again', icon: <RotateCw size={14} />, run: () => fixes.retry(item) }];
   return [];
@@ -93,7 +98,8 @@ export function FailurePanel({ item, onCopy, onReuse, fixes, showToast, onNodesI
   React.useEffect(() => { void loadDiagnostics(); }, []);
   const copyReport = async () => onCopy(withDiagnostics(reportFor(item, failure), knownDiagnostics() || await loadDiagnostics()));
   const [busy, setBusy] = React.useState(false);
-  const buttons = fixButtons(item, failure, fixes);
+  const admin = useThisComputer();
+  const buttons = fixButtons(item, failure, fixes, admin);
   const run = async (action: () => unknown) => {
     setBusy(true);
     try { await action(); } finally { setBusy(false); }
