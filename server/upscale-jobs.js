@@ -1,4 +1,5 @@
 import { comfy, comfyUrl, normalizeComfyError } from "./comfy.js";
+import { cancelPrompt, promptTracker } from "./comfy-queue.js";
 import { gallery, outputsFrom, updateGalleryJob } from "./gallery-store.js";
 import { jobs, setTerminalJob } from "./jobs.js";
 import { upscaleGraph } from "./upscale.js";
@@ -81,7 +82,7 @@ export function hiddenTarget(itemId, key, inputNames = []) {
   };
 }
 
-function watchUpscaleProgress(clientId, target, promptId) {
+function watchUpscaleProgress(clientId, target, promptId, alive = () => {}) {
   let socket;
   try {
     socket = new WebSocket(`${comfyUrl.replace(/^http/i, "ws")}/ws?clientId=${encodeURIComponent(clientId)}`);
@@ -94,6 +95,7 @@ function watchUpscaleProgress(clientId, target, promptId) {
       const message = JSON.parse(event.data);
       const data = message.data || {};
       if (data.prompt_id && data.prompt_id !== promptId) return;
+      alive();
       if (message.type === "progress") {
         target.patch({ status: "running", progress: { value: Number(data.value || 0), max: Number(data.max || 0) } }, { persist: false });
       }
@@ -122,26 +124,32 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
     });
     // Canceled while ComfyUI was taking the prompt: take it back out instead of running it.
     if (jobs.get(jobId)?.terminalAt) {
-      await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ delete: [queued.prompt_id] }) }).catch(() => null);
-      await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt_id: queued.prompt_id }) }).catch(() => null);
+      await cancelPrompt(queued.prompt_id).catch(() => null);
       target.setPromptId?.(queued.prompt_id);
       target.patch({ status: "canceled", progress: null });
       return;
     }
     jobs.set(jobId, { ...jobs.get(jobId), status: "running", promptId: queued.prompt_id });
     target.setPromptId?.(queued.prompt_id);
-    socket = watchUpscaleProgress(jobId, target, queued.prompt_id);
+    const tracker = promptTracker(queued.prompt_id);
+    socket = watchUpscaleProgress(jobId, target, queued.prompt_id, tracker.alive);
     while (true) {
       const state = jobs.get(jobId)?.status;
       if (state === "canceling" || state === "canceled") {
+        await cancelPrompt(queued.prompt_id).catch(() => null);
         target.patch({ status: "canceled", progress: null });
         setTerminalJob(jobId, { status: "canceled" });
         socket?.close();
         return;
       }
-      const history = await comfy(`/history/${queued.prompt_id}`);
-      if (history[queued.prompt_id]) {
-        const outputs = outputsFrom(history[queued.prompt_id]);
+      // A blip in the connection is waited out; a minute of silence or a dropped run ends it.
+      const checked = await tracker.check();
+      if (checked.state === "reconnecting") {
+        await new Promise((resolve) => setTimeout(resolve, checked.delayMs));
+        continue;
+      }
+      if (checked.state === "done") {
+        const outputs = outputsFrom(checked.entry);
         const output = outputs.find((item) => item.type === "image");
         if (!output) throw new Error("The upscale finished without producing an image.");
         await target.finish(output, plan);

@@ -14,11 +14,12 @@ import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, co
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
-import { cancelDownload, discardDownload, downloadState, startDownload } from './model-downloads.js';
+import { cancelDownload, discardDownload, downloadState, replaceDownload, startDownload } from './model-downloads.js';
 import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
+import { cancelPrompt, cancelPrompts } from './comfy-queue.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
@@ -666,6 +667,21 @@ app.post("/api/models/downloads/cancel", (req, res) => {
   if (spec) discardDownload(spec);
   else cancelDownload(id);
   res.json({ ok: true, ...downloadState() });
+});
+
+// "Download again" for a catalog file a run found damaged: the broken copy goes first.
+app.post("/api/models/downloads/replace", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const spec = catalogDownload(req.body?.id);
+  if (!spec) {
+    res.status(400).json({ ok: false, error: "Unknown file." });
+    return;
+  }
+  try {
+    res.json({ ok: true, download: replaceDownload(spec), ...downloadState() });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
 });
 
 app.get("/api/paths", async (_req, res) => {
@@ -1377,10 +1393,7 @@ app.post("/api/upscale/cancel", async (req, res) => {
   }
   const [jobId, job] = entry;
   setTerminalJob(jobId, { status: "canceled" });
-  if (job.promptId) {
-    await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ delete: [job.promptId] }) }).catch(() => null);
-    await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt_id: job.promptId }) }).catch(() => null);
-  }
+  if (job.promptId) await cancelPrompt(job.promptId).catch(() => null);
   res.json({ ok: true });
 });
 
@@ -1421,43 +1434,25 @@ app.get("/api/jobs/:id", (req, res) => {
 app.post("/api/jobs/:id/cancel", async (req, res) => {
   const job = jobs.get(req.params.id);
   if (!job) {
+    // Nothing here runs it any more (HEISS restarted): only the tile is left to settle.
+    // Its prompt id went with the job, so ComfyUI is left alone rather than interrupted blindly.
     const changed = updateGalleryJob(req.params.id, { status: "canceled" });
-    await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
     res.json({ ok: true, stale: true, changed });
     return;
   }
   jobs.set(req.params.id, { ...job, status: "canceling" });
   updateGalleryJob(req.params.id, { status: "canceled" });
-  try {
-    if (job.promptId) {
-      await comfy("/queue", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ delete: [job.promptId] })
-      });
-      await comfy("/interrupt", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt_id: job.promptId })
-      });
-    }
-  } catch {
-    await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
-  }
+  // Without a prompt id yet, runJob takes it back out of ComfyUI as soon as /prompt answers.
+  if (job.promptId) await cancelPrompt(job.promptId).catch(() => null);
   res.json({ ok: true });
 });
 
 app.post("/api/queue/cancel", async (_req, res) => {
-  for (const [id, job] of jobs) {
-    if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
-      setTerminalJob(id, { status: "canceled" });
-      updateGalleryJob(id, { status: "canceled" });
-    }
-  }
+  const promptIds = cancelOwnJobs();
   setGallery(gallery.map((item) => (item.status === "pending" ? { ...item, status: "canceled" } : item)));
   saveGallery();
-  await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clear: true }) }).catch(() => null);
-  await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
+  // Only HEISS's own prompts: ComfyUI's queue also holds runs from its own UI and other apps.
+  await cancelPrompts(promptIds);
   res.json({ ok: true });
 });
 
@@ -1482,19 +1477,41 @@ app.post("/api/gallery/errors/clear", (_req, res) => {
 
 app.post("/api/cache/clear", async (req, res) => {
   if (!requireAdmin(req, res)) return;
+  const promptIds = cancelOwnJobs();
+  setGallery(gallery.filter((item) => item.status === "done").map(({ preview, progress, ...item }) => item).slice(0, galleryLimit));
+  saveGallery();
+  await cancelPrompts(promptIds);
+  await freeComfyMemory().catch(() => null);
+  res.json({ ok: true, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
+});
+
+// Unloads models and frees what ComfyUI caches, without touching any run: ComfyUI does it between prompts.
+app.post("/api/comfy/free", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    await freeComfyMemory();
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(503).json({ ok: false, error: comfyDownMessage(error?.message) });
+  }
+});
+
+/** Marks every HEISS job still waiting or running as canceled, and returns the prompt ids ComfyUI knows them by. */
+function cancelOwnJobs() {
+  const promptIds = [];
   for (const [id, job] of jobs) {
     if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
+      if (job.promptId) promptIds.push(job.promptId);
       setTerminalJob(id, { status: "canceled" });
       updateGalleryJob(id, { status: "canceled" });
     }
   }
-  setGallery(gallery.filter((item) => item.status === "done").map(({ preview, progress, ...item }) => item).slice(0, galleryLimit));
-  saveGallery();
-  await comfy("/queue", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ clear: true }) }).catch(() => null);
-  await comfy("/interrupt", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }).catch(() => null);
-  await comfy("/free", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }) }).catch(() => null);
-  res.json({ ok: true, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
-});
+  return promptIds;
+}
+
+function freeComfyMemory() {
+  return comfy("/free", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ unload_models: true, free_memory: true }), timeout: 15_000 });
+}
 
 // Model folders ComfyUI is not reading, and adding them to its extra_model_paths.yaml.
 // HEISS can only look at (and change) the machine it runs on, so a remote ComfyUI gets none of this.

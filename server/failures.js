@@ -8,17 +8,20 @@ const hints = [
   {
     test: /header is too large|incomplete metadata|MetadataIncompleteBuffer|invalid header|Error while deserializing header/i,
     title: "A model file is damaged or incomplete",
-    hint: "This usually means a download stopped early, or a web page was saved under a model's name. Delete the file and download it again."
+    hint: "This usually means a download stopped early, or a web page was saved under a model's name. Delete the file and download it again.",
+    fix: "redownload"
   },
   {
-    test: /out of memory|CUDA error: out of memory|OutOfMemoryError|MPS backend out of memory|Allocation on device/i,
+    test: /out of memory|OutOfMemoryError|Allocation on device/i,
     title: "The GPU ran out of memory",
-    hint: "Try a smaller size, fewer images per run, or a lighter model. Clear cache in Settings frees what ComfyUI still holds."
+    hint: "Free the memory ComfyUI still holds and try again, or try a smaller size, fewer images per run, or a lighter model.",
+    fix: "memory"
   },
   {
     test: /Value not in list/i,
     title: "ComfyUI does not have a file this run asked for",
-    hint: "A model, LoRA, text encoder or VAE picked here is not in ComfyUI's folders (anymore). Rescan models, or pick another one."
+    hint: "A model, LoRA, text encoder or VAE picked here is not in ComfyUI's folders (anymore). Rescan models, or pick another one.",
+    fix: "rescan"
   },
   {
     test: /mat1 and mat2 shapes cannot be multiplied|size mismatch|shape .* is invalid for input|Error\(s\) in loading state_dict/i,
@@ -28,17 +31,26 @@ const hints = [
   {
     test: /No such file or directory|FileNotFoundError|could not find/i,
     title: "A file went missing",
-    hint: "Something this run needs was moved or deleted after ComfyUI listed it. Rescan models and try again."
+    hint: "Something this run needs was moved or deleted after ComfyUI listed it. Rescan models and try again.",
+    fix: "rescan"
   },
   {
-    test: /Node .* does not exist|missing_node_type|Cannot execute because a node is missing/i,
+    test: /Node .* does not exist|missing_node_type|Cannot execute because a node is missing|The custom node may not be installed/i,
     title: "A node is missing in ComfyUI",
-    hint: "The workflow uses a custom node ComfyUI does not have. Install it, restart ComfyUI, and try again."
+    hint: "The workflow uses a custom node ComfyUI does not have. Install it, restart ComfyUI, and try again.",
+    fix: "node"
   },
   {
-    test: /ECONNREFUSED|fetch failed|socket hang up|ETIMEDOUT/i,
+    test: /no longer has this run/i,
+    title: "ComfyUI dropped this run",
+    hint: "It is neither queued nor finished in ComfyUI anymore, so nothing will come of it. Generate again once ComfyUI is running.",
+    fix: "retry"
+  },
+  {
+    test: /ECONNREFUSED|fetch failed|socket hang up|ETIMEDOUT|TimeoutError|aborted due to timeout|stopped answering/i,
     title: "Lost the connection to ComfyUI",
-    hint: "ComfyUI stopped answering mid-run. Check that it is still running, then try again."
+    hint: "ComfyUI stopped answering mid-run. Check that it is still running, then try again.",
+    fix: "retry"
   }
 ];
 
@@ -63,13 +75,26 @@ function fileIn(text) {
   return match ? match[1] : "";
 }
 
+/** The node class a "missing node" error names, from ComfyUI's validation answer or its message. */
+function missingNodeIn(text) {
+  const value = String(text || "");
+  const match = value.match(/"class_type":\s*"([^"]+)"/) || value.match(/Node '([^']+)' not found/) || value.match(/Node (?:type )?'?([\w.-]+)'? does not exist/);
+  return match ? match[1] : "";
+}
+
 /** The first line that says something, without Python's "Exception:" noise. */
 function headline(text) {
   const line = String(text || "").split(/\r?\n/).map((item) => item.trim()).find(Boolean) || "";
   return line.replace(/^(\w+(Error|Exception)):\s*/, "").slice(0, 240);
 }
 
-export function describeFailure({ message = "", nodeType = "", nodeId = "", exceptionType = "", traceback = [], learned = "", noOutput = false } = {}) {
+/**
+ * `message` is ComfyUI's own text, kept whole as `detail`; `friendly`, when
+ * given, is the plain version shown instead of its first line. `fix` names
+ * the one-click way out the viewer offers (memory, redownload, rescan, node,
+ * retry), and `missingNode` the class a missing-node error is about.
+ */
+export function describeFailure({ message = "", friendly = "", nodeType = "", nodeId = "", exceptionType = "", traceback = [], learned = "", noOutput = false } = {}) {
   const raw = String(message || "ComfyUI execution failed");
   if (noOutput) {
     return {
@@ -86,8 +111,10 @@ export function describeFailure({ message = "", nodeType = "", nodeId = "", exce
   const file = fileIn(`${raw}\n${trace}`);
   return {
     title: learned ? "Needs a separate part" : damaged && part ? `The ${part} file is damaged` : match?.title || "Generation failed",
-    summary: learned || (damaged ? `${file || "A model file"} could not be read. It may not have finished downloading.` : headline(raw)) || "ComfyUI execution failed",
+    summary: learned || (damaged ? `${file || "A model file"} could not be read. It may not have finished downloading.` : headline(friendly || raw)) || "ComfyUI execution failed",
     hint: learned ? "" : match?.hint || "",
+    fix: learned ? "rescan" : match?.fix || "",
+    ...(match?.fix === "node" && missingNodeIn(raw) ? { missingNode: missingNodeIn(raw) } : {}),
     nodeType: String(nodeType || ""),
     nodeId: String(nodeId || ""),
     file,

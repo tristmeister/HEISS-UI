@@ -168,10 +168,29 @@ export function noteComfyFetchError(error) {
   if (error?.name !== "AbortError") comfyUnreachableUntil = Date.now() + 5000;
 }
 
+/**
+ * How long one request to ComfyUI may take before it counts as unanswered.
+ * Uploads and file reads move whole images or videos; everything else is a
+ * small JSON answer, and a ComfyUI that takes a minute for one is hung.
+ */
+export function comfyTimeoutFor(pathname = "") {
+  if (/^\/(upload\/|view\b)/.test(pathname)) return 5 * 60_000;
+  if (/^\/object_info\b/.test(pathname)) return 2 * 60_000;
+  return 60_000;
+}
+
+/**
+ * One request to ComfyUI. `timeout` (ms) overrides the default for the path;
+ * a caller's own `signal` still cancels it early. A failed answer throws with
+ * `status` and the untouched `raw` text next to the friendly message.
+ */
 export async function comfy(pathname, options = {}) {
+  const { timeout, ...init } = options;
+  const limit = AbortSignal.timeout(Number(timeout) > 0 ? Number(timeout) : comfyTimeoutFor(pathname));
+  init.signal = init.signal ? AbortSignal.any([init.signal, limit]) : limit;
   let response;
   try {
-    response = await fetch(`${comfyUrl}${pathname}`, options);
+    response = await fetch(`${comfyUrl}${pathname}`, init);
   } catch (error) {
     noteComfyFetchError(error);
     throw error;
@@ -179,7 +198,8 @@ export async function comfy(pathname, options = {}) {
   noteComfyReachable();
   if (!response.ok) {
     const text = await response.text().catch(() => "");
-    throw new Error(normalizeComfyError(`Comfy ${response.status}: ${text || response.statusText}`));
+    const raw = `Comfy ${response.status}: ${text || response.statusText}`;
+    throw Object.assign(new Error(normalizeComfyError(raw)), { status: response.status, raw });
   }
   const type = response.headers.get("content-type") || "";
   return type.includes("application/json") ? response.json() : response.arrayBuffer();
@@ -209,7 +229,9 @@ export function normalizeComfyError(message = "") {
   if (/float4_e2m1fn_x2/i.test(text)) {
     return "This NVFP4 model needs a newer PyTorch build. Use a non-NVFP4 model or update ComfyUI's PyTorch.";
   }
-  if (/out of memory|cuda.*memory|allocation/i.test(text)) {
+  // Only ComfyUI's own out-of-memory wording: "illegal memory access" or an
+  // "allocation" in some other message is a different failure.
+  if (/out of memory|OutOfMemoryError|Allocation on device/i.test(text)) {
     return "ComfyUI ran out of GPU memory. Try a smaller size, fewer steps, or a lighter model.";
   }
   if (/cannot import|no module named|module .* has no attribute|attributeerror/i.test(text)) {

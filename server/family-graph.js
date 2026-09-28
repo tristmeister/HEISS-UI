@@ -41,6 +41,15 @@ function chainLoras(add, body, model, clip) {
   return { model: currentModel, clip: currentClip };
 }
 
+/**
+ * VAE decode, or ComfyUI's tiled decode for a retry after the GPU ran out of
+ * memory there: its default tiles, and for video 64 frames at a time.
+ */
+function decode(add, samples, vae, body) {
+  if (body.tiledDecode) return add("VAEDecodeTiled", { samples, vae, tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 });
+  return add("VAEDecode", { samples, vae });
+}
+
 function modelSamplingPatch(add, spec, model, body) {
   if (!spec) return model;
   if (spec.node === "ModelSamplingFlux") {
@@ -130,7 +139,7 @@ export function familyGraph(body) {
       sigmas: add("BasicScheduler", { model, scheduler: body.scheduler || "simple", steps: Number(body.steps || 20), denoise: 1 }),
       latent: [h3, 1]
     });
-    const images = add("VAEDecode", { samples: sampled, vae });
+    const images = decode(add, sampled, vae, body);
     const audio = add("VAEDecodeAudio", { samples: sampled, vae: audioVae });
     const video = add("CreateVideo", { images: [images, 0], audio: [audio, 0], fps: Number(body.fps || family.fps || 24) });
     add("SaveVideo", { video: [video, 0], filename_prefix: "heiss-ui/video", format: "mp4", codec: "h264" });
@@ -149,7 +158,7 @@ export function familyGraph(body) {
     const sigmas = add("Ideogram4Scheduler", { steps, width, height, mu: preset.mu, std: preset.std });
     const latent = [add("EmptyFlux2LatentImage", { width, height, batch_size: count }), 0];
     const samples = customSampler(add, { seed, sampler: body.sampler || "euler", guider, sigmas, latent });
-    add("SaveImage", { images: [add("VAEDecode", { samples, vae }), 0], filename_prefix: "heiss-ui/image" });
+    add("SaveImage", { images: [decode(add, samples, vae, body), 0], filename_prefix: "heiss-ui/image" });
     return graph;
   }
 
@@ -161,7 +170,7 @@ export function familyGraph(body) {
       sampler_name: body.sampler || "euler", scheduler: body.scheduler || "simple",
       positive: [encoded, 0], negative: [encoded, 1], latent_image: [encoded, 2], denoise: 1
     }), 0];
-    add("SaveImage", { images: [add("VAEDecode", { samples, vae }), 0], filename_prefix: "heiss-ui/image" });
+    add("SaveImage", { images: [decode(add, samples, vae, body), 0], filename_prefix: "heiss-ui/image" });
     return graph;
   }
 
@@ -253,7 +262,7 @@ export function familyGraph(body) {
   }
 
   // ---- Decode and save
-  const images = [add("VAEDecode", { samples, vae }), 0];
+  const images = [decode(add, samples, vae, body), 0];
   if (family.kind === "video") {
     const video = add("CreateVideo", { images, fps: Number(body.fps || family.fps || 16) });
     add("SaveVideo", { video: [video, 0], filename_prefix: "heiss-ui/video", format: "mp4", codec: "h264" });

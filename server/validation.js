@@ -132,6 +132,8 @@ function sanitizeFamilyBody(input, info, stats) {
     referenceAssets,
     promptPolicy: null,
     loras: sanitizeLoras(input, info, profile, kind, 8),
+    // A retry after the GPU ran out of memory while decoding; only where this ComfyUI has the node.
+    tiledDecode: Boolean(input.tiledDecode) && Boolean(info.VAEDecodeTiled) && profile.family !== "sana",
     profileLabel: profile.displayName
   };
 }
