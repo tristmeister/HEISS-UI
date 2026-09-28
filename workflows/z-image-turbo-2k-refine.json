@@ -1,0 +1,72 @@
+{
+  "heissUi": {
+    "id": "z-image-turbo-2k-refine",
+    "name": "Z-Image Turbo 2K Refine",
+    "description": "Doubles a picture with RealESRGAN, then lets Z-Image Turbo redraw its fine detail. From Comfy-Org's Z-Image Turbo 2K upscaler template.",
+    "kind": "image",
+    "family": "zimage",
+    "controls": {
+      "prompt": { "node": "9", "input": "text" },
+      "startImage": { "node": "1", "input": "image" },
+      "model": { "node": "6", "input": "unet_name" },
+      "weightDtype": { "node": "6", "input": "weight_dtype" },
+      "textEncoder": { "node": "8", "input": "clip_name" },
+      "vae": { "node": "11", "input": "vae_name" },
+      "seed": { "node": "13", "input": "seed" },
+      "steps": { "node": "13", "input": "steps" },
+      "cfg": { "node": "13", "input": "cfg" },
+      "sampler": { "node": "13", "input": "sampler_name" },
+      "scheduler": { "node": "13", "input": "scheduler" },
+      "denoise": { "node": "13", "input": "denoise" }
+    },
+    "mediaInputs": [
+      {
+        "id": "reference",
+        "kind": "image",
+        "label": "Picture to refine",
+        "required": true,
+        "min": 1,
+        "max": 1,
+        "control": { "node": "1", "input": "image" }
+      }
+    ],
+    "capabilities": {
+      "imageToImage": true,
+      "startImage": true,
+      "startImageRequired": true,
+      "negativePrompt": false,
+      "variations": false,
+      "denoise": true,
+      "textEncoder": true,
+      "vae": true,
+      "weightDtype": true
+    },
+    "defaults": {
+      "model": "z_image_turbo_bf16.safetensors",
+      "textEncoder": "qwen_3_4b.safetensors",
+      "vae": "ae.safetensors",
+      "weightDtype": "default",
+      "steps": 5,
+      "cfg": 1,
+      "sampler": "dpmpp_2m_sde",
+      "scheduler": "beta",
+      "denoise": 0.33
+    },
+    "aspectPolicy": "reference"
+  },
+  "1": { "class_type": "LoadImage", "inputs": { "image": "example.png" } },
+  "2": { "class_type": "ImageScaleToTotalPixels", "inputs": { "image": ["1", 0], "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 1 } },
+  "3": { "class_type": "UpscaleModelLoader", "inputs": { "model_name": "RealESRGAN_x4plus.safetensors" } },
+  "4": { "class_type": "ImageUpscaleWithModel", "inputs": { "upscale_model": ["3", 0], "image": ["2", 0] } },
+  "5": { "class_type": "ImageScaleBy", "inputs": { "image": ["4", 0], "upscale_method": "lanczos", "scale_by": 0.5 } },
+  "6": { "class_type": "UNETLoader", "inputs": { "unet_name": "z_image_turbo_bf16.safetensors", "weight_dtype": "default" } },
+  "7": { "class_type": "ModelSamplingAuraFlow", "inputs": { "model": ["6", 0], "shift": 3 } },
+  "8": { "class_type": "CLIPLoader", "inputs": { "clip_name": "qwen_3_4b.safetensors", "type": "lumina2", "device": "default" } },
+  "9": { "class_type": "CLIPTextEncode", "inputs": { "clip": ["8", 0], "text": "masterpiece, 8k" } },
+  "10": { "class_type": "CLIPTextEncode", "inputs": { "clip": ["8", 0], "text": "" } },
+  "11": { "class_type": "VAELoader", "inputs": { "vae_name": "ae.safetensors" } },
+  "12": { "class_type": "VAEEncode", "inputs": { "pixels": ["5", 0], "vae": ["11", 0] } },
+  "13": { "class_type": "KSampler", "inputs": { "model": ["7", 0], "positive": ["9", 0], "negative": ["10", 0], "latent_image": ["12", 0], "seed": 824287194145573, "steps": 5, "cfg": 1, "sampler_name": "dpmpp_2m_sde", "scheduler": "beta", "denoise": 0.33 } },
+  "14": { "class_type": "VAEDecode", "inputs": { "samples": ["13", 0], "vae": ["11", 0] } },
+  "15": { "class_type": "SaveImage", "inputs": { "images": ["14", 0], "filename_prefix": "heiss-ui/refine" } }
+}
