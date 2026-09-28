@@ -1,6 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { describeFailure } from "./failures.js";
+import fs from "node:fs";
+import { describeFailure, failureTitles, troubleshootingAnchor } from "./failures.js";
+
+test("every failure headline has its own section in TROUBLESHOOTING.md, which the card links to", () => {
+  const doc = fs.readFileSync(new URL("../TROUBLESHOOTING.md", import.meta.url), "utf8");
+  const headings = doc.split("\n").filter((line) => line.startsWith("#")).map((line) => line.replace(/^#+\s*/, ""));
+  for (const title of failureTitles) assert.ok(headings.includes(title), `TROUBLESHOOTING.md has no "### ${title}"`);
+  assert.equal(describeFailure({ message: "CUDA error: out of memory" }).help, "the-gpu-ran-out-of-memory");
+  assert.equal(describeFailure({ message: "Error while deserializing header: header is too large", nodeType: "VAELoader" }).help, "a-model-file-is-damaged-or-incomplete");
+  assert.equal(describeFailure({ message: "saved nothing", noOutput: true }).help, "no-image-was-saved");
+  assert.equal(describeFailure({ message: "RuntimeError: odd" }).help, "generation-failed");
+  // Links inside the document point at headings that exist.
+  const anchors = new Set(headings.map(troubleshootingAnchor));
+  for (const [, anchor] of doc.matchAll(/\]\(#([^)]+)\)/g)) assert.ok(anchors.has(anchor), `#${anchor} has no heading`);
+});
 
 test("a damaged safetensors file gets a plain title and hint, with the raw text kept", () => {
   const failure = describeFailure({ message: "Error while deserializing header: header is too large. File path: D:\\ComfyUI\\models\\vae\\x.safetensors", nodeType: "VAELoader", nodeId: "8" });

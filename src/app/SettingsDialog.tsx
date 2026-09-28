@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LifeBuoy, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
 import { cn } from './format';
 import { BetaTag, NumberPicker, Skeleton, StudioSelect } from './components';
@@ -18,6 +18,7 @@ import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
 import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
+import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
@@ -366,6 +367,26 @@ type NetworkInfo = {
  * Opening the studio on phones and other computers: one switch that restarts
  * HEISS UI into (or out of) LAN mode, then the addresses to open.
  */
+/** About › Help: where the common fixes are, and the setup lines a bug report needs. */
+function HelpGroup({ copyToClipboard }: { copyToClipboard: (text: string) => Promise<boolean> }) {
+  const copy = useCopyFeedback();
+  React.useEffect(() => { void loadDiagnostics(); }, []);
+  const copyDiagnostics = async () => {
+    const text = knownDiagnostics() || await loadDiagnostics();
+    return text ? copyToClipboard(text) : false;
+  };
+  return (
+    <Group title="Help">
+      <Row label="Troubleshooting" description="What the common errors mean, and how to get past them.">
+        <a className="btn is-ghost" href={troubleshootingUrl()} target="_blank" rel="noreferrer"><LifeBuoy size={13} /> Open</a>
+      </Row>
+      <Row label="Copy diagnostics" description="Your HEISS UI, Node.js and ComfyUI versions, system and GPU, to paste into a bug report. No prompts, images or file names.">
+        <button className="btn" onClick={() => copy.copyWith(copyDiagnostics)}><CopyIcon copied={Boolean(copy.copied)} /> {copy.copied ? 'Copied' : 'Copy'}</button>
+      </Row>
+    </Group>
+  );
+}
+
 function OtherDevicesGroup({ canChange, hiddenEnabled, confirmAction, restartHeiss, restarting, copyToClipboard, showToast, onSetUpHidden }: {
   canChange: boolean;
   hiddenEnabled: boolean;
@@ -999,6 +1020,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 />
               ) : null}
             </Group> : null}
+
+            <HelpGroup copyToClipboard={copyToClipboard} />
 
             <Group title="Links">
               <div className="about-links">

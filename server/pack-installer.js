@@ -31,6 +31,9 @@ export function setPackInstallTransport(fn) {
 const tailLimit = 4000;
 const stepTimeoutMs = 15 * 60 * 1000;
 
+// What to do about it, since Manager itself only says "not allowed" (TROUBLESHOOTING.md has the steps).
+export const managerRefusedMessage = "ComfyUI-Manager refused the install: its security level doesn’t allow it. Set security_level = normal in Manager’s config.ini (ComfyUI/user/__manager/config.ini, or user/default/ComfyUI-Manager/config.ini in older versions), restart ComfyUI and try again, or use the terminal command instead.";
+
 function snapshot(state) {
   if (!state) return null;
   const { child, ...rest } = state;
@@ -123,7 +126,8 @@ async function installWithManager(state, pack) {
     if (!item) continue;
     if (item.status?.status_str === "success" || item.result === "success") return;
     const message = [item.result, ...(item.status?.messages || [])].filter((text) => text && text !== "failed").join(" ");
-    throw new Error(message || "ComfyUI-Manager could not install it. Its security level may be too strict.");
+    // An empty or "not allowed" answer is Manager's security level at work.
+    throw new Error(!message || /security|not allowed/i.test(message) ? managerRefusedMessage : message);
   }
   throw new Error("ComfyUI-Manager did not finish in time.");
 }
@@ -145,7 +149,7 @@ async function installWithManager3(state, pack) {
       })
     });
   } catch (error) {
-    throw new Error(/\b(403|404)\b/.test(error.message) ? "ComfyUI-Manager refused the install. Its security level may be too strict." : error.message);
+    throw new Error(/\b(403|404)\b/.test(error.message) ? managerRefusedMessage : error.message);
   }
   // Bodyless POST: Manager rejects form content types here. Older versions took a GET.
   await comfy("/manager/queue/start", { method: "POST" }).catch(() => comfy("/manager/queue/start").catch(() => null));

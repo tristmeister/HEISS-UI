@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfyOutputDir, root } from './comfy.js';
 import { hasLegacyPrompt, openLegacyPrompt } from './privacy.js';
-import { readJsonFile, writeJsonFile } from './json-store.js';
+import { readJsonFile, removeStaleTemporaries, writeJsonFile, writeJsonFileAsync } from './json-store.js';
 import { isInside } from './paths.js';
 
 export const dataDir = process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR ? path.resolve(process.env.HEISS_DATA_DIR || process.env.JAI_DATA_DIR) : path.join(root, "data");
@@ -12,11 +12,13 @@ export const galleryLimit = Number(process.env.HEISS_GALLERY_LIMIT || process.en
 
 const changeLogLimit = Number(process.env.HEISS_GALLERY_CHANGELOG_LIMIT || process.env.JAI_GALLERY_CHANGELOG_LIMIT || 10000);
 let galleryRevision = Date.now();
-let saveTimer = null;
 const galleryChanges = [];
+// Bumped whenever the hide markers change, so a cached page list knows to rebuild.
+let hiddenVersion = 0;
 
 function loadGallery() {
   try {
+    removeStaleTemporaries(galleryPath);
     const staleAfter = 30 * 60 * 1000;
     return readJsonFile(galleryPath).map((item) => {
       let next = item;
@@ -184,13 +186,49 @@ export function listedInFolder(file) {
   return Boolean(folderListing(path.dirname(file))?.has(listedName(path.basename(file))));
 }
 
+/**
+ * The visible list a page is cut from, kept between requests. Scrolling a
+ * large gallery asks for page after page; filtering and sorting all of it for
+ * each one made every page cost as much as the whole. The list is rebuilt when
+ * anything it depends on changes: the gallery (its revision), hide markers,
+ * the output folder, or a folder listing (a file added or deleted outside).
+ */
+let visibleCache = { key: "", lists: new Map() };
+
+/** Drops the cached page lists, e.g. when a library folder is added or removed. */
+export function invalidateVisibleCache() {
+  visibleCache = { key: "", lists: new Map() };
+}
+
 function visibleItems({ type = "", includeFailed = true, filter = null } = {}) {
-  return sortGallery(filterVisibleGallery(gallery)).filter((item) => {
-    if (type && item.type !== type) return false;
-    if (!includeFailed && item.status === "error") return false;
-    if (filter && !filter(item)) return false;
-    return item.status !== "canceled";
-  });
+  refreshFolderListings();
+  const trusted = comfyOutputDir ? outputFolderTrusted() : true;
+  const key = `${galleryRevision}|${hiddenVersion}|${listingGeneration}|${comfyOutputDir}|${trusted}`;
+  if (visibleCache.key !== key) visibleCache = { key, lists: new Map() };
+  const listKey = `${type}|${includeFailed}`;
+  let entry = visibleCache.lists.get(listKey);
+  if (!entry) {
+    // The gallery is kept sorted, so this sort only confirms the order (linear on sorted input).
+    const items = sortGallery(filterVisibleGallery(gallery)).filter((item) => {
+      if (type && item.type !== type) return false;
+      if (!includeFailed && item.status === "error") return false;
+      return item.status !== "canceled";
+    });
+    entry = { items, positions: null };
+    visibleCache.lists.set(listKey, entry);
+  }
+  // A search filters the cached list; its positions are its own, so it is not kept.
+  return filter ? { items: entry.items.filter(filter), positions: null } : entry;
+}
+
+/** Where the page after `cursor` starts: right after the cursor's own item while it is listed, else the first one past its time. */
+function pageStart(entry, cursor) {
+  if (!cursor) return 0;
+  if (!entry.positions) entry.positions = new Map(entry.items.map((item, index) => [cursorFor(item), index]));
+  const exact = entry.positions.get(String(cursor));
+  if (exact !== undefined) return exact + 1;
+  const found = entry.items.findIndex((item) => afterCursor(item, cursor));
+  return found < 0 ? entry.items.length : found;
 }
 
 /* ---------------------------------------------------------------- Search */
@@ -268,11 +306,11 @@ function afterCursor(item, cursor = "") {
 
 export function pageGallery({ type = "", limit = 200, cursor = "", includeFailed = true, filter = null } = {}) {
   const safeLimit = Math.max(1, Math.min(500, Number(limit || 200)));
-  const all = visibleItems({ type, includeFailed, filter });
-  const start = cursor ? all.findIndex((item) => afterCursor(item, cursor)) : 0;
-  const pageStart = Math.max(0, start);
-  const items = all.slice(pageStart, pageStart + safeLimit);
-  const nextCursor = pageStart + safeLimit < all.length ? cursorFor(items[items.length - 1]) : "";
+  const entry = visibleItems({ type, includeFailed, filter });
+  const all = entry.items;
+  const start = pageStart(entry, cursor);
+  const items = all.slice(start, start + safeLimit);
+  const nextCursor = start + safeLimit < all.length ? cursorFor(items[items.length - 1]) : "";
   return { items, nextCursor, hasMore: Boolean(nextCursor), revision: galleryRevision, totalApprox: all.length };
 }
 
@@ -420,6 +458,21 @@ function outputFolderTrusted() {
   return trusted;
 }
 
+// Counts listing changes, so the cached page list notices a file added or deleted outside the app.
+let listingGeneration = 0;
+
+function sameNames(a, b) {
+  if (a === b) return true;
+  if (!a || !b || a.size !== b.size) return false;
+  for (const name of a) if (!b.has(name)) return false;
+  return true;
+}
+
+/** Re-checks every folder a page depends on: a stat each, at most once a second. */
+function refreshFolderListings() {
+  for (const dir of [...folderListings.keys()]) folderListing(dir);
+}
+
 // Every gallery page checks every output still exists, so a stat per item
 // would mean thousands of blocking calls per request. Each folder's listing is
 // read once instead, and read again when the folder's modified time changes
@@ -437,6 +490,7 @@ function folderListing(dir) {
   let stat;
   try { stat = fs.statSync(dir); } catch { stat = null; }
   if (!stat?.isDirectory()) {
+    if (cached?.names) listingGeneration += 1;
     folderListings.set(dir, { statAt: now, readAt: now, mtimeMs: -1, names: null });
     return null;
   }
@@ -448,6 +502,7 @@ function folderListing(dir) {
   }
   let names = null;
   try { names = new Set(fs.readdirSync(dir).map(listedName)); } catch { names = null; }
+  if (!cached || !sameNames(cached.names, names)) listingGeneration += 1;
   if (folderListings.size > 500) folderListings.clear();
   folderListings.set(dir, { statAt: now, readAt: now, mtimeMs: stat.mtimeMs, names });
   return names;
@@ -490,21 +545,99 @@ export function hasExistingOutputFile(item) {
   return Boolean(freshAt && Date.now() - freshAt < freshOutputMs && paths.some(({ file }) => fs.existsSync(file)));
 }
 
-export function saveGallery() {
-  if (saveTimer) return;
-  saveTimer = setTimeout(writeGalleryNow, 250);
+/**
+ * Saving. A large gallery is tens of megabytes of JSON, so changes are
+ * gathered for a moment and written compact and in the background (see
+ * writeJsonFileAsync): the server keeps answering while it saves. The file is
+ * still replaced whole, with the previous copy kept as .bak, and a save that
+ * is due when the server stops is written before it exits.
+ */
+const saveDelayMs = Math.max(0, Number(process.env.HEISS_GALLERY_SAVE_MS ?? 1000));
+let saveTimer = null;
+let dirty = false;
+let writing = null;
+// Which save is newest, so a slow background write never replaces a newer one.
+let writeSequence = 0;
+let committedSequence = 0;
+
+// Private-vault jobs exist only while Comfy is rendering. Their finished records
+// live in the encrypted vault manifest, never in the ordinary gallery JSON.
+function persistableGallery() {
+  const items = [];
+  for (const item of gallery) {
+    if (item.privateVault) continue;
+    items.push(item.preview ? withoutPreview(item) : item);
+    if (items.length >= galleryLimit) break;
+  }
+  return items;
 }
 
+export function saveGallery() {
+  dirty = true;
+  if (saveTimer || writing) return;
+  saveTimer = setTimeout(() => { flushGallery().catch(() => {}); }, saveDelayMs);
+  saveTimer.unref?.();
+}
+
+/** Writes pending changes now, in the background. Resolves once they are on disk. */
+export async function flushGallery() {
+  if (saveTimer) {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+  }
+  if (writing) {
+    await writing.catch(() => {});
+    return dirty ? flushGallery() : undefined;
+  }
+  if (!dirty) return undefined;
+  dirty = false;
+  const sequence = (writeSequence += 1);
+  writing = writeJsonFileAsync(galleryPath, persistableGallery(), { shouldCommit: () => sequence > committedSequence })
+    .then((replaced) => { if (replaced) committedSequence = sequence; })
+    .catch((error) => {
+      // Try again shortly; the old file (and its backup) are still whole.
+      dirty = true;
+      console.warn(`[HEISS] Could not save the gallery: ${error.message}`);
+    })
+    .finally(() => {
+      writing = null;
+      if (dirty && !saveTimer) {
+        saveTimer = setTimeout(() => { flushGallery().catch(() => {}); }, Math.max(saveDelayMs, 1000));
+        saveTimer.unref?.();
+      }
+    });
+  return writing;
+}
+
+/** Writes the gallery at once, blocking: for when the process is about to exit. */
 export function writeGalleryNow() {
   if (saveTimer) {
     clearTimeout(saveTimer);
     saveTimer = null;
   }
-  fs.mkdirSync(dataDir, { recursive: true });
-  // Private-vault jobs exist only while Comfy is rendering. Their finished records
-  // live in the encrypted vault manifest, never in the ordinary gallery JSON.
-  const persistable = gallery.filter((item) => !item.privateVault).slice(0, galleryLimit).map(({ preview, ...rest }) => rest);
-  writeJsonFile(galleryPath, persistable);
+  dirty = false;
+  const sequence = (writeSequence += 1);
+  writeJsonFile(galleryPath, persistableGallery(), { compact: true });
+  committedSequence = sequence;
+}
+
+function flushBeforeExit() {
+  if (!dirty && !writing) return;
+  try {
+    writeGalleryNow();
+  } catch (error) {
+    console.warn(`[HEISS] Could not save the gallery before stopping: ${error.message}`);
+  }
+}
+
+// Ctrl+C, a stop from the launcher or process.exit() (restart, shutdown):
+// the save that was waiting still lands. A signal is then passed on as before.
+process.on("exit", flushBeforeExit);
+for (const signal of process.platform === "win32" ? ["SIGINT", "SIGTERM"] : ["SIGINT", "SIGTERM", "SIGHUP"]) {
+  process.once(signal, () => {
+    flushBeforeExit();
+    process.kill(process.pid, signal);
+  });
 }
 
 /**
@@ -543,6 +676,7 @@ export function addGalleryItems(items) {
 }
 
 export function saveHiddenGalleryIds() {
+  hiddenVersion += 1;
   fs.mkdirSync(dataDir, { recursive: true });
   const entries = [...hiddenGalleryIds.entries()].slice(-galleryLimit * 2);
   writeJsonFile(hiddenGalleryPath, Object.fromEntries(entries));

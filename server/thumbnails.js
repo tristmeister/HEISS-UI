@@ -13,6 +13,87 @@ const longestEdge = 768;
 const quality = 72;
 const pending = new Map();
 
+/*
+ * The cache is capped (2 GB unless HEISS_THUMBNAIL_CACHE_MB says otherwise).
+ * When it grows past that, the thumbnails used longest ago go first, down to
+ * 80%, so a sweep does not run again for the next few images. Anything served
+ * in the last 15 minutes counts as in use (an open gallery page) and stays;
+ * a removed thumbnail is simply made again when it is next asked for.
+ */
+const cacheLimitBytes = Math.max(16, Number(process.env.HEISS_THUMBNAIL_CACHE_MB) || 2048) * 1024 * 1024;
+const inUseMs = 15 * 60 * 1000;
+const sweepEveryMs = 10 * 60 * 1000;
+// When each thumbnail was last served by this server. The file's access time
+// (set now and then, see noteUsed) carries that over a restart.
+const lastUsed = new Map();
+const touchEveryMs = 60 * 60 * 1000;
+let lastSweepAt = 0;
+let sweeping = null;
+
+function noteUsed(file) {
+  const now = Date.now();
+  const previous = lastUsed.get(file) || 0;
+  lastUsed.set(file, now);
+  if (now - previous < touchEveryMs) return;
+  // Keep the modified time: it tells a newer thumbnail of the same image from an older one.
+  fs.promises.stat(file).then((stat) => fs.promises.utimes(file, new Date(now), stat.mtime)).catch(() => {});
+}
+
+/**
+ * Trims the cache to `limitBytes` if it is over, oldest use first, never a
+ * thumbnail used within `recentMs`. Resolves to what it removed.
+ */
+export async function sweepThumbnails({ dir = thumbnailDir, limitBytes = cacheLimitBytes, now = Date.now(), recentMs = inUseMs } = {}) {
+  let names = [];
+  try { names = await fs.promises.readdir(dir); } catch { return { removed: 0, freedBytes: 0, totalBytes: 0 }; }
+  const entries = [];
+  let totalBytes = 0;
+  for (const name of names) {
+    if (!name.endsWith(".webp")) continue;
+    const file = path.join(dir, name);
+    try {
+      const stat = await fs.promises.stat(file);
+      totalBytes += stat.size;
+      entries.push({ file, size: stat.size, usedAt: Math.max(stat.atimeMs, stat.mtimeMs, lastUsed.get(file) || 0) });
+    } catch {
+      // Removed meanwhile.
+    }
+  }
+  if (totalBytes <= limitBytes) return { removed: 0, freedBytes: 0, totalBytes };
+  const target = limitBytes * 0.8;
+  let removed = 0;
+  let freedBytes = 0;
+  entries.sort((a, b) => a.usedAt - b.usedAt);
+  for (const entry of entries) {
+    if (totalBytes - freedBytes <= target || now - entry.usedAt < recentMs) break;
+    try {
+      await fs.promises.rm(entry.file, { force: true });
+      lastUsed.delete(entry.file);
+      removed += 1;
+      freedBytes += entry.size;
+    } catch {
+      // Open elsewhere (Windows): the next sweep tries again.
+    }
+  }
+  return { removed, freedBytes, totalBytes: totalBytes - freedBytes };
+}
+
+/** Starts a sweep unless one ran in the last few minutes. */
+function maybeSweep() {
+  const now = Date.now();
+  if (sweeping || now - lastSweepAt < sweepEveryMs) return;
+  lastSweepAt = now;
+  sweeping = sweepThumbnails()
+    .then(({ removed, freedBytes }) => {
+      if (removed) console.log(`[HEISS] Thumbnail cache: removed ${removed} older thumbnails (${Math.round(freedBytes / 1e6)} MB).`);
+    })
+    .catch(() => {})
+    .finally(() => { sweeping = null; });
+}
+
+// A cache that grew past the cap before there was one is trimmed soon after start.
+setTimeout(maybeSweep, 60_000).unref?.();
+
 // Folding the resize settings into the key means changing longestEdge/quality
 // naturally starts a fresh cache generation instead of serving stale-sized files.
 function cacheKey(filename, subfolder, type) {
@@ -118,6 +199,8 @@ async function writeThumbnail(key, sourceHash, source) {
       try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); } catch { /* in use (Windows); next build retries */ }
     }
   }
+  lastUsed.set(file, Date.now());
+  maybeSweep();
   return { file, etag: `\"${sourceHash}\"` };
 }
 
@@ -125,6 +208,12 @@ async function writeThumbnail(key, sourceHash, source) {
 // each downloading and resizing the source independently. Without sharp there is
 // nothing to build: an earlier thumbnail, else `{ original: true }` (serve the full image).
 export async function getThumbnail(filename, subfolder, type) {
+  const result = await findOrBuild(filename, subfolder, type);
+  if (result?.file) noteUsed(result.file);
+  return result;
+}
+
+async function findOrBuild(filename, subfolder, type) {
   if (!(await loadSharp())) return cachedThumbnail(cacheKey(filename, subfolder, type)) || { original: true };
   const dedupeKey = `${type}:${subfolder}:${filename}`;
   if (pending.has(dedupeKey)) return pending.get(dedupeKey);

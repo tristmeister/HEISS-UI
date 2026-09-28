@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, requestedPort, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, setListeningPort } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -47,9 +47,15 @@ import { packInstallRoutes, packInstallState, startPackInstall } from './pack-in
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
+import { compressJson, serveApp } from './http-assets.js';
+import { listenWithFallback } from './launch.js';
+import { describeGitError, updateCheckout } from './git-update.js';
+import { diagnostics, diagnosticsText } from './diagnostics.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
+// Gallery pages and model lists travel compressed to phones and tablets; this computer skips the work.
+app.use(compressJson({ skip: (req) => isLocalClient(req.socket.remoteAddress || "") }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -152,12 +158,14 @@ async function updateStatus({ fresh = false, auto = false } = {}) {
   }
   // A checkout updates by hand with git: the automatic check leaves it alone.
   if (auto) return { ok: true, available: false, release: false };
-  const branch = (await runRepoCommand("git", ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
-  const current = (await runRepoCommand("git", ["rev-parse", "--short", "HEAD"])).trim();
-  await runRepoCommand("git", ["fetch", "--quiet", "origin"]);
+  // git's own output (spawn ENOENT, "Could not resolve host") becomes plain words.
+  const git = (args, step = "fetch") => runRepoCommand("git", args).catch((error) => { throw new Error(describeGitError(error, step)); });
+  const branch = (await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+  const current = (await git(["rev-parse", "--short", "HEAD"])).trim();
+  await git(["fetch", "--quiet", "origin"]);
   const upstreamRef = branch && branch !== "HEAD" ? `origin/${branch}` : "origin/main";
-  const latest = (await runRepoCommand("git", ["rev-parse", "--short", upstreamRef])).trim();
-  const behindText = await runRepoCommand("git", ["rev-list", "--count", `${current}..${upstreamRef}`]);
+  const latest = (await git(["rev-parse", "--short", upstreamRef])).trim();
+  const behindText = await git(["rev-list", "--count", `${current}..${upstreamRef}`]);
   const behind = Number(behindText.trim() || 0);
   return { ok: true, available: behind > 0, current, latest, branch, behind };
 }
@@ -461,6 +469,9 @@ const appVersion = (() => {
   try { return JSON.parse(fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")).version || ""; } catch { return ""; }
 })();
 
+// How a second start finds out HEISS UI already holds the port (see launch.js).
+app.get("/api/ping", (_req, res) => res.json({ ok: true, app: "heiss-ui", version: appVersion }));
+
 /**
  * How far a source checkout is past its release tag, so About can tell
  * "v0.2.0" from "v0.2.0 + 3". Release copies have no git and are exactly
@@ -518,6 +529,17 @@ app.get("/api/stats", async (_req, res) => {
 app.get("/api/hardware", async (_req, res) => {
   const stats = comfyCache.stats?.devices ? comfyCache.stats : await comfy("/system_stats", { signal: AbortSignal.timeout(3000) }).catch(() => null);
   res.json({ ok: true, hardware: await describeHardware({ stats, comfyUrl }) });
+});
+
+// Versions, system and GPU for a bug report (Settings › About, and a failed card's Copy report).
+app.get("/api/diagnostics", async (_req, res) => {
+  const since = await commitsSinceRelease();
+  const install = fs.existsSync(path.join(root, ".git"))
+    ? `Git checkout${since?.commits ? `, ${since.tag} + ${since.commits}` : ""}`
+    : fs.existsSync(path.join(root, "release.json")) ? "release" : "";
+  const stats = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => (response.ok ? response.json() : null), () => null);
+  const report = diagnostics({ version: appVersion, install, stats, comfyLocal: comfyIsLocal() });
+  res.json({ ok: true, ...report, text: diagnosticsText(report) });
 });
 
 // When this server process started, so the app can tell a restart (e.g. after an update) happened.
@@ -1857,13 +1879,12 @@ app.post("/api/update/install", async (req, res) => {
       return;
     }
     const branch = before.branch && before.branch !== "HEAD" ? before.branch : "main";
-    const pull = await runRepoCommand("git", ["pull", "--ff-only", "origin", branch]);
-    const install = await runRepoCommand(npmCommand, ["install"]);
-    const build = await runRepoCommand(npmCommand, ["run", "build"]);
+    // Refuses local changes, and goes back to this commit if the new one will not install or build.
+    const { pull, install, build } = await updateCheckout({ run: runRepoCommand, npm: npmCommand, branch, log: (message) => console.warn(`[HEISS] ${message}`) });
     const after = await updateStatus();
     res.json({ ...after, updated: true, restartRequired: true, logs: { pull, install, build } });
   } catch (error) {
-    res.status(500).json({ ok: false, updated: false, error: error.message });
+    res.status(500).json({ ok: false, updated: false, error: error.message, ...(error.rolledBack ? { rolledBack: true } : {}), ...(error.localChanges ? { localChanges: error.localChanges } : {}) });
   }
 });
 
@@ -1957,29 +1978,21 @@ const dist = path.join(root, "dist");
 // An unknown API route must fail as JSON, never fall through to the app page.
 app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "Unknown API route. Restart HEISS UI if it was just updated." }));
 
-if (fs.existsSync(dist)) {
-  app.use(express.static(dist));
-  app.get("*splat", (_req, res) => res.sendFile(path.join(dist, "index.html")));
-}
+if (fs.existsSync(dist)) serveApp(app, dist);
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null).then(() => rescanLibraryFolders()).catch(() => null), 1200);
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }
 
-app.listen(port, host, (error) => {
-  // Express 5 hands a failed listen to this callback instead of throwing.
-  if (error) {
-    console.error(error.code === "EADDRINUSE"
-      ? `\n  Port ${port} is already in use. HEISS UI may already be running: http://localhost:${port}\n`
-      : `\n  HEISS UI could not start: ${error.message}\n`);
-    // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
-    process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
-  }
+// Under `npm run dev*` the page comes from Vite, which forwards to this exact port, so it stays put there.
+const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
+listenWithFallback(app, { port, host, fallback: !dev }).then(({ port: listening, moved }) => {
+  // From here on everything that names the address (banner, phone links in Settings) uses this one.
+  setListeningPort(listening);
+  if (moved) console.log(`\n  Port ${requestedPort} is taken by another program, so HEISS UI uses ${listening} this time.`);
   // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
   // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
   const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
-  // Under `npm run dev*` the page comes from Vite; this server only answers the API.
-  const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
   const pagePort = dev ? 5173 : port;
   Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
     // Listening beyond this computer: say where a phone can open it.
@@ -1995,6 +2008,18 @@ app.listen(port, host, (error) => {
     const found = answering || demoMode ? "" : await findComfy({ current: comfyUrl });
     if (!(found && adoptFoundComfy(found)) && !answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
   }).catch(() => {});
-  // Tells scripts/start.mjs this version runs, so a fresh update is kept.
-  process.send?.({ type: "ready", version: appVersion });
+  // Tells scripts/start.mjs this version runs, so a fresh update is kept, and where to open it.
+  process.send?.({ type: "ready", version: appVersion, url: `http://${shownHost}:${pagePort}` });
+}, (error) => {
+  let message = `\n  HEISS UI could not start: ${error.message}\n`;
+  if (error.heissRunning) message = `\n  HEISS UI is already running: http://localhost:${error.port}\n`;
+  else if (error.code === "EADDRINUSE") message = dev
+    ? `\n  Port ${port} is already in use. Stop what uses it, or set another PORT in .env.\n`
+    : `\n  Ports ${port} to ${port + 9} are all in use. Set another PORT in .env.\n`;
+  console.error(message);
+  // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
+  const exit = () => process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
+  // The launcher opens the copy that is already running instead.
+  if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://localhost:${error.port}` }, exit);
+  else exit();
 });

@@ -62,11 +62,13 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Quick start
 
-You need **ComfyUI** ([no ComfyUI yet?](#no-comfyui-yet)), and on macOS, Linux or from source **Node.js 20.9+** (22 LTS or newer recommended). The Windows download brings its own Node.js. HEISS UI finds ComfyUI by itself on this computer, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000.
+You need **ComfyUI** ([no ComfyUI yet?](#no-comfyui-yet)), and from source **Node.js 20.9+** (22 LTS or newer recommended). The downloads bring their own Node.js. HEISS UI finds ComfyUI by itself on this computer, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000.
 
-**Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS, `.sh` on Linux), or run `npm start` in the folder. Its packages are inside, and the Windows zip brings Node.js too, so on Windows there is nothing else to install; on macOS and Linux, install Node.js first. The plain `heiss-ui-*.zip` (no system in its name) is what installed copies download to update themselves; you don't need it.
+**Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS, `.desktop` on Linux), or run `npm start` in the folder. Its packages and Node.js are inside, so there is nothing else to install, and the studio opens in your browser. The plain `heiss-ui-*.zip` (no system in its name) is what installed copies download to update themselves; you don't need it.
 
-On macOS, the first time you open `Start HEISS UI.command` macOS may say it can’t check the file: right-click it › **Open**, then **Open** again (or allow it under System Settings › Privacy & Security). It needs Node.js 20.9 or newer.
+On macOS, the first time you open `Start HEISS UI.command` macOS may say it can’t check the file: right-click it › **Open**, then **Open** again (or allow it under System Settings › Privacy & Security).
+
+On Linux, file managers open a `.sh` in a text editor: right-click `Start HEISS UI.desktop` › **Allow Launching**, then double-click it (it runs in a terminal), or run `./"Start HEISS UI.sh"`.
 
 On Windows, unpack with **Extract All** first; the launcher does not run from inside the zip. If Windows asks whether to run a downloaded file, right-click the zip › Properties › **Unblock** before unpacking. A plain folder such as `C:\HEISS-UI` works better than a Desktop or Documents folder synced by OneDrive, which can lock files during installs and updates.
 
@@ -79,7 +81,7 @@ npm install
 npm start
 ```
 
-`npm start` builds the app the first time. Then open **http://localhost:8787**. Your models, samplers and VAEs show up on their own.
+`npm start` builds the app the first time, then opens **http://localhost:8787** in your browser (if another program has that port, the next free one). Your models, samplers and VAEs show up on their own.
 
 ComfyUI on another machine or port? Set its address in **Settings › Connection**, or copy `.env.example` to `.env` and set `COMFY_URL`.
 
@@ -265,6 +267,8 @@ COMFY_OUTPUT_DIR=
 
 `COMFY_OUTPUT_DIR` is optional; HEISS UI usually finds the folder. It lets HEISS delete files with their cards and remove ComfyUI's copies of what goes into Hidden.
 
+Also optional: `HEISS_NO_BROWSER=1` keeps the launcher from opening the browser, and `HEISS_THUMBNAIL_CACHE_MB` caps the gallery's thumbnail cache (2048 by default; the least recently shown go first).
+
 <details>
 <summary><b>Windows shortcut</b></summary>
 
@@ -306,8 +310,11 @@ Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own
 
 ## Troubleshooting
 
+[TROUBLESHOOTING.md](./TROUBLESHOOTING.md) explains the common problems in plain words: ComfyUI not found, the port, Node.js, each kind of failed generation, downloads and node packs, updates and phones. A failed card links to its section.
+
 - **No models showing up?** Make sure ComfyUI is running. On this computer HEISS UI finds it on port 8188 or 8000; anywhere else, set its address in Settings › Connection. With no model at all, the studio offers [a first one](#your-first-model).
-- **A generation fails?** Check that the model works in ComfyUI itself and that any custom nodes it needs are installed.
+- **A generation fails?** Open the card: it says what went wrong and how to fix it. **Copy report** includes your versions and GPU for an issue.
+- **Asking for help?** **Settings › About › Copy diagnostics** copies your versions, system and GPU, with no prompts or images.
 - **No video option?** Your ComfyUI needs video generation nodes and a matching workflow.
 
 ## Development

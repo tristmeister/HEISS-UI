@@ -42,6 +42,18 @@ const hints = [
   }
 ];
 
+const noOutputTitle = "No image was saved";
+const learnedTitle = "Needs a separate part";
+const genericTitle = "Generation failed";
+
+/** Every headline a failure can have, each a section of TROUBLESHOOTING.md. */
+export const failureTitles = [...hints.map((item) => item.title), noOutputTitle, learnedTitle, genericTitle];
+
+/** The TROUBLESHOOTING.md anchor for a headline, the way GitHub makes it from the heading. */
+export function troubleshootingAnchor(title = "") {
+  return String(title).trim().toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-");
+}
+
 /** Which part a loader node reads, so a broken file can be named by what it is. */
 const parts = [
   [/^VAELoader/i, "VAE"],
@@ -73,7 +85,8 @@ export function describeFailure({ message = "", nodeType = "", nodeId = "", exce
   const raw = String(message || "ComfyUI execution failed");
   if (noOutput) {
     return {
-      title: "No image was saved",
+      title: noOutputTitle,
+      help: troubleshootingAnchor(noOutputTitle),
       summary: raw,
       hint: "The run ended without an image HEISS UI can show. The workflow may end in a preview node instead of Save Image, or ComfyUI skipped a step. Check the workflow's output, or run it once in ComfyUI to see what it does.",
       nodeType: "", nodeId: "", exceptionType: "", detail: raw, traceback: "", at: Date.now()
@@ -85,7 +98,9 @@ export function describeFailure({ message = "", nodeType = "", nodeId = "", exce
   const part = partOf(nodeType);
   const file = fileIn(`${raw}\n${trace}`);
   return {
-    title: learned ? "Needs a separate part" : damaged && part ? `The ${part} file is damaged` : match?.title || "Generation failed",
+    title: learned ? learnedTitle : damaged && part ? `The ${part} file is damaged` : match?.title || genericTitle,
+    // "The VAE file is damaged" is explained under the general damaged-file heading.
+    help: troubleshootingAnchor(learned ? learnedTitle : match?.title || genericTitle),
     summary: learned || (damaged ? `${file || "A model file"} could not be read. It may not have finished downloading.` : headline(raw)) || "ComfyUI execution failed",
     hint: learned ? "" : match?.hint || "",
     nodeType: String(nodeType || ""),

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { comfyOutputDir, normalizeFolderInput, root } from "./comfy.js";
-import { dataDir, dedupeGallery, describeComfyGraph, gallery, galleryKey, galleryLimit, isGalleryHidden, listedInFolder, markGalleryReset, promptTitle, setGallery, setLibraryFileCheck } from "./gallery-store.js";
+import { dataDir, dedupeGallery, describeComfyGraph, gallery, galleryKey, galleryLimit, isGalleryHidden, listedInFolder, markGalleryReset, promptTitle, setGallery, setLibraryFileCheck, invalidateVisibleCache } from "./gallery-store.js";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
 import { isInside, samePath } from "./paths.js";
 import { parseA1111Parameters, readPngInfo } from "./png-text.js";
@@ -49,6 +49,7 @@ function loadFolders() {
 }
 
 function saveFolders() {
+  invalidateVisibleCache();
   writeJsonFile(foldersPath, { version: 1, folders });
 }
 

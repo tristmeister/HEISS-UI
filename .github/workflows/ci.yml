@@ -18,6 +18,58 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # The macOS (Apple Silicon) and Linux downloads, the same way as Windows
+  # below: package, unpack into a path with spaces, & and parentheses, and
+  # start it through its launcher with no Node.js on PATH, so it has to run on
+  # the Node.js it brings and must not need an npm install either.
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            bundle: macos-arm64
+            launcher: Start HEISS UI.command
+          - os: ubuntu-latest
+            bundle: linux-x64
+            launcher: Start HEISS UI.sh
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run package
+      - name: Start the release from a hard path
+        shell: bash
+        env:
+          BUNDLE: ${{ matrix.bundle }}
+          LAUNCHER: ${{ matrix.launcher }}
+        run: |
+          dir="$RUNNER_TEMP/Jane & Co (1)"
+          mkdir -p "$dir"
+          unzip -q release/*-"$BUNDLE".zip -d "$dir"
+          app=$(find "$dir" -mindepth 1 -maxdepth 1 -type d | head -n 1)
+          test -x "$app/$LAUNCHER" || { echo "The launcher lost its executable bit"; exit 1; }
+          # Like a computer without Node.js: drop every PATH entry that has one.
+          PATH=$(printf '%s' "$PATH" | tr ':' '\n' | while read -r entry; do if [ -n "$entry" ] && [ ! -x "$entry/node" ]; then printf '%s:' "$entry"; fi; done)
+          export PATH="${PATH%:}"
+          if command -v node >/dev/null; then echo "node is still on PATH"; exit 1; fi
+          (cd "$app" && "./$LAUNCHER" > "$RUNNER_TEMP/heiss.log" 2>&1) &
+          ok=false
+          for i in $(seq 1 90); do
+            sleep 2
+            if curl -fsS -o /dev/null http://127.0.0.1:8787/; then ok=true; break; fi
+          done
+          cat "$RUNNER_TEMP/heiss.log"
+          pkill -f "scripts/start.mjs" || true
+          pkill -f "server/index.js" || true
+          if [ "$ok" != true ]; then echo "HEISS UI did not answer on port 8787"; exit 1; fi
+          if grep -qE "Missing dependencies|installed for another system" "$RUNNER_TEMP/heiss.log"; then echo "The download installed packages on first start"; exit 1; fi
+
   # Most users run HEISS UI on Windows. Package a release, unpack the Windows
   # download into a path with spaces, & and parentheses, and start it through
   # the .bat launcher the way a user would, with no Node.js on PATH; it must
