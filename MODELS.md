@@ -98,7 +98,13 @@ catalog, so a family that is described correctly needs no UI work.
 9. **Tests** in `server/model-families.test.js`. Cover detection from a
    header, each variant's defaults, what a missing part or pack reports, and
    the graph's nodes and inputs. The fixtures write tiny fake safetensors
-   headers, so no weights are needed.
+   headers, so no weights are needed. `server/contract.test.js` then builds
+   every variant's graph and checks it against the recorded `/object_info`
+   snapshots in `server/fixtures/`: known nodes and inputs, values in their
+   lists and ranges, links of the right type, and any node that ComfyUI
+   lacks listed in the family's nodes (so it shows "Newer ComfyUI"). When a
+   family needs nodes from a newer ComfyUI, record that version too with
+   `node scripts/record-object-info.mjs` while it runs.
 
 10. **Check it against a real ComfyUI.** Save `/object_info` and
     `/system_stats`, feed them to `inferModels`, build the graph through
