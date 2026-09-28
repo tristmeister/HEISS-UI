@@ -1,4 +1,4 @@
-import { ChevronRight, GalleryHorizontalEnd, Wand2 } from 'lucide-react';
+import { ChevronRight, GalleryHorizontalEnd, RotateCcw, Wand2 } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
 import { maxLoras } from './loras';
@@ -18,8 +18,8 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
     <button type="button" className="workflow-card" onClick={onOpen}>
       <div className="workflow-card-thumb"><GalleryHorizontalEnd size={18} /></div>
       <div className="workflow-card-info">
-        <strong>No workflow selected</strong>
-        <span>Browse workflows</span>
+        <strong>No model selected</strong>
+        <span>Browse models</span>
       </div>
       <ChevronRight size={15} className="workflow-card-arrow" />
     </button>
@@ -27,7 +27,7 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
 
   const status = workflowState(workflow.validation, comfyRestarting);
   return (
-    <Tip content="Change workflow">
+    <Tip content="Change model">
       <button type="button" className={cn("workflow-card", status.state !== "ready" && "has-issues")} onClick={onOpen}>
         <div className="workflow-card-thumb">
           <SafeImg src={workflow.thumbnail} fallback={<Wand2 size={18} />} />
@@ -174,10 +174,16 @@ export function SidebarControls({ view }: { view: any }) {
     setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
     width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
     textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast, modelFolders,
-    sidebarTab: tab, setSidebarTab: setTab
-  } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void };
+    sidebarTab: tab, setSidebarTab: setTab, recommended
+  } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void; recommended?: { differs: boolean; restore: () => void; family: string } };
 
   const { loraOptions, loraLimit, loraUnavailable } = loraSetup(view);
+  // What the model's makers ship, one tap away once anything has moved from it.
+  const backToRecommended = recommended?.differs ? (
+    <button type="button" className="btn is-ghost sidebar-recommended" onClick={recommended.restore} title={`Steps, prompt strength, sampler and scheduler as ${recommended.family || "this model"} ships them`}>
+      <RotateCcw size={13} /> Back to recommended
+    </button>
+  ) : null;
 
   return (
     <>
@@ -216,10 +222,11 @@ export function SidebarControls({ view }: { view: any }) {
             <div className="number-row">
               <NumberPicker label="Steps" value={steps} onChange={setSteps} min={stepsMeta.min || 1} max={stepsMeta.max ?? 150} step={stepsMeta.step || 1} fill />
               {mode === "image" ? (
-                <NumberPicker label="Variants" value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} fill />
+                <NumberPicker label="Images" value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} fill />
               ) : null}
             </div>
             <Field label="Seed"><input inputMode="numeric" value={seed} placeholder="Random" onChange={(event) => setSeed(event.target.value.replace(/[^0-9]/g, ""))} /></Field>
+            <p className="sidebar-hint">{String(seed || "").trim() ? "The same picture every time." : "A new picture every time."}</p>
             {customSize && !aspectLocked ? (
               <div className="number-row">
                 <NumberPicker label="Width" value={width} onChange={setWidth} min={widthMeta.min ?? 64} max={widthMeta.max ?? 4096} step={widthMeta.step || (mode === "video" ? 32 : 64)} fill />
@@ -229,8 +236,7 @@ export function SidebarControls({ view }: { view: any }) {
             {aspectLocked ? (
               <p className="sidebar-hint">Output size follows the reference image ({width}&times;{height}).</p>
             ) : null}
-            <Field label="Sampler"><Select value={sampler} onChange={setSampler} options={profileOptions.samplers?.length ? profileOptions.samplers : models?.samplers?.length ? models.samplers : fallbackSamplers} /></Field>
-            <Field label="Scheduler"><Select value={scheduler} onChange={setScheduler} options={profileOptions.schedulers?.length ? profileOptions.schedulers : models?.schedulers?.length ? models.schedulers : fallbackSchedulers} /></Field>
+            {backToRecommended}
           </>
         ) : null}
 
@@ -264,12 +270,23 @@ export function SidebarControls({ view }: { view: any }) {
                   />
                 </Field>
               ) : null}
-              {currentProfile?.capabilities.weightDtype ? <Field label="Weight dtype"><Select value={weightDtype} onChange={setWeightDtype} options={profileOptions.weightDtypes || models?.weightDtypes || []} /></Field> : null}
-              <NumberPicker label="CFG" value={cfg} onChange={setCfg} min={cfgMeta.min ?? 0} max={cfgMeta.max ?? 30} step={cfgMeta.step || 0.5} precision={1} fill />
+              {currentProfile?.capabilities.weightDtype ? <Field label="Weight type"><Select value={weightDtype} onChange={setWeightDtype} options={profileOptions.weightDtypes || models?.weightDtypes || []} /></Field> : null}
             </div>
+            <NumberPicker label="Prompt strength (CFG)" value={cfg} onChange={setCfg} min={cfgMeta.min ?? 0} max={cfgMeta.max ?? 30} step={cfgMeta.step || 0.5} precision={1} fill />
+            <div className="sidebar-scale-hint" aria-hidden="true"><span>Looser</span><span>Follows the prompt closely</span></div>
             {canUseStartImage && currentProfile?.capabilities.denoise ? (
-              <NumberPicker label="Denoise" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
+              <>
+                <NumberPicker label="Change from the reference" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
+                <div className="sidebar-scale-hint" aria-hidden="true"><span>Keep it close</span><span>Change a lot</span></div>
+              </>
             ) : null}
+            {currentProfile?.capabilities.sampler !== false ? (
+              <div className="advanced-grid">
+                <Field label="Sampler"><Select value={sampler} onChange={setSampler} options={profileOptions.samplers?.length ? profileOptions.samplers : models?.samplers?.length ? models.samplers : fallbackSamplers} /></Field>
+                <Field label="Scheduler"><Select value={scheduler} onChange={setScheduler} options={profileOptions.schedulers?.length ? profileOptions.schedulers : models?.schedulers?.length ? models.schedulers : fallbackSchedulers} /></Field>
+              </div>
+            ) : null}
+            {backToRecommended}
           </>
         ) : null}
 
