@@ -771,6 +771,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>
               </Row>
+              <SwitchRow label="Share without settings" description="Downloads and shares leave out the prompt, seed and workflow saved inside PNG, WebP, JPEG and MP4 files. The files in your gallery keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
               <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
@@ -780,7 +781,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         ) : null}
 
         {section === 'privacy' ? (
-          <HiddenSettings hidden={hidden} prefs={prefs} setPrefs={setPrefs} showToast={showToast} confirmAction={confirmAction} Group={Group} Row={Row} Status={Status} />
+          <HiddenSettings hidden={hidden} prefs={prefs} setPrefs={setPrefs} showToast={showToast} confirmAction={confirmAction} Group={Group} Row={Row} Status={Status} Switch={Switch} />
         ) : null}
 
         {section === 'connection' ? (

@@ -15,6 +15,7 @@ import { useHiddenActions } from './hiddenContext';
 import type { UpscaleNotice } from './useUpscale';
 import { useDismiss } from './useDismiss';
 import { HapticTarget } from './phoneControls';
+import { sharesWithoutSettings } from './shareSettings';
 
 /**
  * The phone studio's tiles: no corner buttons, a long press opens the tile's
@@ -49,10 +50,15 @@ type GalleryTileProps = {
   onDismissUpscaleNotice?: (id: string) => void;
 };
 
-/** Hidden files are served inline; asking for an attachment gets them a real file name. */
+/**
+ * Hidden files are served inline; asking for an attachment gets them a real
+ * file name. "Share without settings" asks the server for the file without
+ * the prompt and workflow inside it.
+ */
 export function downloadUrl(item: GalleryItem) {
   const url = upscaleDisplayUrl(item) || "";
-  return item.privateVault ? `${url}${url.includes("?") ? "&" : "?"}download=1` : url;
+  const params = [item.privateVault ? "download=1" : "", url && sharesWithoutSettings(item) ? "clean=1" : ""].filter(Boolean).join("&");
+  return params ? `${url}${url.includes("?") ? "&" : "?"}${params}` : url;
 }
 
 function upscaleTooltip(item: GalleryItem) {

@@ -14,6 +14,7 @@ import { deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks,
 import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
 import { DeviceGate } from './app/DeviceGate';
+import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
 import { useViewerControls } from './app/useViewerControls';
@@ -81,6 +82,8 @@ function App() {
   // The version this page just came back on after an update, for the "Updated" pill.
   const [justUpdated, setJustUpdated] = useState("");
   const [prefs, setPrefsState] = useState<Preferences>(() => loadPrefs());
+  // Read by every download link and share as it is made (shareSettings.ts); kept in step here.
+  setShareSettings(prefs);
   const hidden = useHidden({ autoLockMinutes: prefs.hiddenAutoLockMinutes ?? 15, showToast });
   const hiddenSpace = hidden.space === "hidden";
   const [prompt, setPrompt] = useState(String(initialDraft.prompt || ""));

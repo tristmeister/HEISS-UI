@@ -14,6 +14,7 @@ import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, co
 import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
 import { limitedCheck, registerAccessRoutes } from './access-routes.js';
 import { requestGuard } from './request-guard.js';
+import { stripMetadata } from './metadata-strip.js';
 import { httpsListening, startServers } from './listen.js';
 import { httpsPort, inspectTls, startupTls, tlsHostNames, tlsSummary } from './tls.js';
 import { envFileKeys, writeLocalEnvValue } from './env.js';
@@ -1007,7 +1008,8 @@ app.get("/api/vault/media/:id", (req, res) => {
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
   const name = encodeURIComponent(hiddenDownloadName(asset, variant));
   res.setHeader("Content-Disposition", `${req.query.download === "1" ? "attachment" : "inline"}; filename*=UTF-8''${name}`);
-  res.send(asset.buffer);
+  // Shared without its settings: the prompt and workflow inside the file stay in Hidden.
+  res.send(req.query.clean === "1" ? stripMetadata(asset.buffer).buffer : asset.buffer);
 });
 
 app.get("/api/vault/thumbnail/:id", async (req, res) => {
@@ -1821,6 +1823,44 @@ app.get("/comfy/thumb", async (req, res) => {
   }
 });
 
+/**
+ * "Share without settings" for an output: the whole file, with the prompt and
+ * workflow ComfyUI wrote into it taken out (metadata-strip.js). Buffered, since
+ * the file changes; never cached, since the plain one lives at the same address.
+ */
+async function sendWithoutSettings(req, res, localFile) {
+  const params = new URLSearchParams(Object.entries(req.query).filter(([key]) => key !== "clean").map(([key, value]) => [key, String(value)]));
+  let bytes = null;
+  let type = "";
+  const known = comfyRecentlyUnreachable() ? localFile() : null;
+  if (!known) {
+    try {
+      const response = await fetch(`${comfyUrl}/view?${params}`, { signal: AbortSignal.timeout(120000) });
+      noteComfyReachable();
+      if (!response.ok) {
+        res.status(response.status).json({ ok: false, error: "ComfyUI doesn’t have this file." });
+        return;
+      }
+      bytes = Buffer.from(await response.arrayBuffer());
+      type = response.headers.get("content-type") || "";
+    } catch (error) {
+      noteComfyFetchError(error);
+    }
+  }
+  if (!bytes) {
+    const file = known || localFile();
+    if (!file) {
+      res.status(502).json({ ok: false, error: "ComfyUI isn’t answering and the file isn’t in the output folder." });
+      return;
+    }
+    bytes = fs.readFileSync(file);
+    type = "";
+  }
+  res.setHeader("Cache-Control", "private, no-store, max-age=0");
+  res.type(type || path.extname(String(req.query.filename || "")) || "application/octet-stream");
+  res.send(stripMetadata(bytes).buffer);
+}
+
 app.get("/comfy/*path", async (req, res) => {
   try {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
@@ -1841,6 +1881,10 @@ app.get("/comfy/*path", async (req, res) => {
     // ComfyUI is stopped or restarting: outputs still open from the output folder.
     const localFile = () => (proxyPath === "view" ? localOutputFile(String(req.query.filename || ""), String(req.query.subfolder || ""), String(req.query.type || "output")) : null);
     const sendLocal = (file) => res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } });
+    if (req.query.clean === "1") {
+      await sendWithoutSettings(req, res, localFile);
+      return;
+    }
     // It just failed to answer: go straight to disk instead of waiting ~2 s for another refusal (Windows).
     const known = comfyRecentlyUnreachable() ? localFile() : null;
     if (known) { sendLocal(known); return; }

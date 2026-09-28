@@ -20,15 +20,16 @@ function when(value?: string) {
  * Settings › Hidden. Built from the same Group / Row pieces as every other
  * section; passed in so this file does not re-implement them.
  */
-export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmAction, Group, Row, Status }: {
+export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmAction, Group, Row, Status, Switch }: {
   hidden: HiddenState;
-  prefs: { hiddenAutoLockMinutes?: number };
-  setPrefs: (next: { hiddenAutoLockMinutes: number }) => void;
+  prefs: { hiddenAutoLockMinutes?: number; hiddenShareWithoutSettings?: boolean };
+  setPrefs: (next: { hiddenAutoLockMinutes?: number; hiddenShareWithoutSettings?: boolean }) => void;
   showToast: ShowToast;
   confirmAction: ConfirmAction;
   Group: React.ComponentType<React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>>;
   Row: React.ComponentType<React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>>;
   Status: React.ComponentType<React.PropsWithChildren<{ tone?: 'ok' | 'bad' | 'warn' }>>;
+  Switch: React.ComponentType<{ checked: boolean; onChange: (next: boolean) => void; disabled?: boolean; label: string }>;
 }) {
   const { status, support, enabled, unlocked } = hidden;
   const label = support?.label || "Touch ID";
@@ -143,6 +144,12 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
             <button key={choice.value} type="button" role="radio" aria-checked={autoLock === choice.value} className={cn(autoLock === choice.value && 'active')} onClick={() => setPrefs({ hiddenAutoLockMinutes: choice.value })}>{choice.label}</button>
           ))}
         </div>
+      </Group>
+
+      <Group title="Sharing">
+        <Row label="Share without settings" description="Downloads and shares from Hidden leave out the prompt, seed and workflow saved inside PNG, WebP, JPEG and MP4 files.">
+          <Switch label="Share without settings" checked={prefs.hiddenShareWithoutSettings !== false} onChange={(next) => setPrefs({ hiddenShareWithoutSettings: next })} />
+        </Row>
       </Group>
 
       <Group title="Export">

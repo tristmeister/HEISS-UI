@@ -254,6 +254,10 @@ export type Preferences = {
   mobileZenDefaulted?: boolean;
   /** On a phone, show the full studio instead of the simplified phone one. */
   fullStudioOnPhone?: boolean;
+  /** Downloads and shares from the gallery leave out the prompt and workflow saved in the file. */
+  shareWithoutSettings?: boolean;
+  /** The same for Hidden; on unless turned off. */
+  hiddenShareWithoutSettings?: boolean;
 };
 
 export type UpscaleModelInfo = { key: string; file: string; label: string; detail?: string; bytes: number; present: boolean; partialBytes: number };
