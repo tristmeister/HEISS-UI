@@ -16,7 +16,7 @@ const dirs = Object.fromEntries(["diffusion_models", "checkpoints", "text_encode
 test.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
 const { classifyModel } = await import("./model-families.js");
-const { isKleinDistilled, isZImageTurbo, speedVariantFor, variantFor } = await import("./family-catalog.js");
+const { isKleinDistilled, isKrea2Turbo, isZImageTurbo, speedVariantFor, variantFor } = await import("./family-catalog.js");
 const { inferModels } = await import("./models.js");
 const { familyGraph } = await import("./family-graph.js");
 const { sanitizeGenerateBody } = await import("./validation.js");
@@ -57,8 +57,15 @@ test("renamed Z-Image and Klein files run at their full-step settings unless the
   assert.equal(variantFor("flux2_klein_4b", "flux-2-klein-4b-fp8.safetensors").id, "distilled", "BFL's distilled release has no 'distilled' in its name");
   assert.equal(variantFor("flux2_klein_4b", "flux-2-klein-base-4b.safetensors").id, "base");
   assert.equal(variantFor("flux2_klein_9b", "myKleinMerge.safetensors").id, "base");
-  assert.equal(variantFor("krea2", "myKreaFinetune.safetensors").id, "raw");
+});
+
+test("a Krea 2 fine-tune runs as Turbo unless its name or metadata says Raw", () => {
+  assert.equal(variantFor("krea2", "MuseByStableYogi_V35Int8Extended.safetensors").id, "turbo", "most Krea 2 fine-tunes are built on Turbo");
+  assert.equal(variantFor("krea2", "myKreaFinetune.safetensors").id, "turbo");
   assert.equal(variantFor("krea2", "krea2_turbo_bf16.safetensors").id, "turbo");
+  assert.equal(variantFor("krea2", "krea2_raw_bf16.safetensors").id, "raw");
+  assert.equal(variantFor("krea2", "myKrea_base_merge.safetensors").id, "raw");
+  assert.equal(isKrea2Turbo("renamed.safetensors", { __metadata__: { "modelspec.title": "Krea 2 Raw base" } }), false, "metadata that says base wins");
 });
 
 test("a file's own metadata outranks its name when it says base or distilled", () => {

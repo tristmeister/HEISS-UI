@@ -707,13 +707,16 @@ export function distillationFromMetadata(header) {
   return "";
 }
 
-/** Krea 2 Turbo (TDM-distilled), by what the file says of itself; Raw otherwise. */
+/**
+ * Krea 2 Turbo (TDM-distilled) unless the file says it is Raw, by its
+ * metadata or its name. Turbo is the default because most Krea 2 fine-tunes
+ * are built on it, and Raw's settings (28 steps, CFG 4.5) spoil a Turbo model
+ * as badly as Turbo's spoil a Raw one, so neither side is the safe fallback.
+ */
 export function isKrea2Turbo(name = "", header = null) {
   const said = distillationFromMetadata(header);
   if (said) return said === "distilled";
-  const base = String(name).split(/[\\/]/).pop() || "";
-  if (isKrea2Raw(base)) return false;
-  return /turbo|tdm|distill|lightning|(^|[^0-9])\d{1,2}[-_ ]?steps?/i.test(base);
+  return !isKrea2Raw(name);
 }
 
 /** Z-Image Turbo, or a fine-tune of it ("ZIT"), by what the file says of itself; Base otherwise. */
