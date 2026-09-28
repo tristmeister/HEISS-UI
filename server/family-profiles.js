@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, speedVariantFor, vaeDownloads, visionDownloads, visionKinds } from './family-catalog.js';
+import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { ggufEncoderNames, ggufModelNames, isGguf } from './gguf.js';
 import { missingPackPart } from './node-install.js';
@@ -175,7 +175,7 @@ function sanaSettings(info, name, variant, detail, cuda) {
  * @param helpers { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda }
  */
 export function familyProfiles(info, helpers) {
-  const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false, loraAbout = null } = helpers;
+  const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false } = helpers;
   // GGUF files load through ComfyUI-GGUF's twins of the core loaders (see gguf.js).
   const unets = [...optionsFor(info, "UNETLoader", "unet_name"), ...ggufModelNames(info)];
   const checkpoints = optionsFor(info, "CheckpointLoaderSimple", "ckpt_name");
@@ -341,23 +341,6 @@ export function familyProfiles(info, helpers) {
     if (missing.length) fileEntry.reason = `Needs ${missing.map((item) => item.label).join(", ")}.`;
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
-    const settingsOf = (item) => ({
-      steps: item.defaults.steps, cfg: item.defaults.cfg,
-      sampler: pick(samplers, item.defaults.sampler, samplers.includes("euler") ? "euler" : ""),
-      scheduler: pick(schedulers, item.defaults.scheduler, schedulers.includes("simple") ? "simple" : "")
-    });
-    // Speed LoRAs this full-step model would run with: each switches it to a few-step variant.
-    const speedLoras = {};
-    if (!variant.fast && canUseLoras && !family.ownLoaders) {
-      for (const lora of loras) {
-        const fast = speedVariantFor(info2.family, lora, loraAbout?.(lora));
-        if (fast) speedLoras[lora] = fast.id;
-      }
-    }
-    const speedVariants = Object.fromEntries([...new Set(Object.values(speedLoras))].map((id) => {
-      const fast = family.variants.find((item) => item.id === id);
-      return [id, { label: fast.label, ...settingsOf(fast) }];
-    }));
     const references = canReference(family, info) ? family.references : 0;
     // Image-to-video runs from a picture: one start image, and no run without it.
     const startSlot = family.startImage === "required"
@@ -386,7 +369,7 @@ export function familyProfiles(info, helpers) {
         vae: bundled.vae ? "" : vaeOptions[0] || "",
         clipType: family.clipType || "",
         weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default",
-        denoise: family.img2img ? variant.denoise ?? family.denoise ?? 0.65 : 1,
+        denoise: family.img2img ? 0.65 : 1,
         ...(family.kind === "video" ? { frames: family.frames, fps: family.fps } : {})
       },
       aspects: aspectSet({ width, height }, family.aspects, { width: widthRange, height: heightRange }),
@@ -427,7 +410,6 @@ export function familyProfiles(info, helpers) {
       clipVision,
       vpredPatch,
       ...(quantLoader ? { quant: info2.quant, checkpointLoader: quantLoader } : {}),
-      ...(Object.keys(speedLoras).length ? { speedLoras, speedVariants } : {}),
       detectedBy: info2.via,
       missing,
       ready: missing.length === 0,

@@ -181,24 +181,17 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
  * with the same layout, which is `as` (a knownFamilies id) instead.
  * pack: a node-packs.js id when the family runs on custom nodes. ownLoaders:
  * the pack loads encoder and VAE itself (no pickers, no LoRAs).
- * variants: first whose `match` passes wins; the last one is the fallback, so
- * it should be the full-step one: a few-step setting on a model that is not
- * distilled ruins every image, the other way round only costs time. `fast`
- * marks a few-step variant, which a stacked speed LoRA (Lightning, Hyper,
- * lightx2v, …) switches a base model to (see speedVariantFor).
- * denoise: how much of a start image img2img redraws by default: 0.75 for
- * the SD UNets (A1111's default), 0.6 for flow models (the makers' diffusers
- * img2img default); a variant may set its own (SDXL Turbo's model card: 0.5).
+ * variants: first whose `match` passes wins; the last one is the fallback.
  * MODELS.md walks through adding a family.
  */
 export const families = {
   sd15: {
     label: "SD 1.5", kind: "image", sources: ["checkpoint", "unet"],
     slots: [{ slot: "clip", label: "CLIP-L", kinds: ["clip_l"] }], clipType: "stable_diffusion",
-    vae: ["sd15"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, denoise: 0.75,
+    vae: ["sd15"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true,
     aspects: portraitFirst, clipSkip: (name) => (/anything|nai|counterfeit|meina|abyss|anime/i.test(name) ? -2 : 0),
     variants: [
-      { id: "fast", label: "Fast (LCM/Lightning)", fast: true, match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
+      { id: "fast", label: "Fast (LCM/Lightning)", match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
       { id: "standard", label: "SD 1.5", defaults: { steps: 25, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras" } }
     ],
     size: [512, 512]
@@ -206,23 +199,23 @@ export const families = {
   sd2: {
     label: "SD 2.x", kind: "image", sources: ["checkpoint"],
     slots: [{ slot: "clip", label: "CLIP-H", kinds: ["clip_h"] }], clipType: "stable_diffusion",
-    vae: ["sd15"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, denoise: 0.75, aspects: square,
+    vae: ["sd15"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, aspects: square,
     variants: [{ id: "standard", label: "SD 2.x", defaults: { steps: 25, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras" } }],
     size: [768, 768]
   },
   sdxl: {
     label: "SDXL", kind: "image", sources: ["checkpoint", "unet"],
     slots: [{ slot: "clip_l", label: "CLIP-L", kinds: ["clip_l"] }, { slot: "clip_g", label: "CLIP-G", kinds: ["clip_g"] }], clipType: "sdxl",
-    vae: ["sdxl"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, denoise: 0.75, aspects: portraitFirst,
+    vae: ["sdxl"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, aspects: portraitFirst,
     // Pony, Illustrious and NoobAI descend from NovelAI-style training on the
     // penultimate CLIP layer; speed merges of them keep that need.
     clipSkip: (name) => (/pony|pdxl|autismmix|illustrious|noob|ilxl/i.test(name) ? -2 : 0),
     variants: [
-      { id: "turbo", label: "SDXL Turbo", fast: true, match: (name) => /sd_?xl_?turbo|sdxlturbo/i.test(name), size: [512, 512], denoise: 0.5, defaults: { steps: 1, cfg: 1, sampler: "euler_ancestral", scheduler: "normal" } },
-      { id: "hyper", label: "Hyper", fast: true, match: (name) => /hyper/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "ddim", scheduler: "sgm_uniform" } },
-      { id: "dmd2", label: "DMD2", fast: true, match: (name) => /dmd/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "lcm", scheduler: "sgm_uniform" } },
-      { id: "lcm", label: "LCM", fast: true, match: (name) => /lcm|pcm|tcd/i.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
-      { id: "lightning", label: "Lightning", fast: true, match: (name) => /lightning|turbo|\d+[-_ ]?steps?/i.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "sgm_uniform" } },
+      { id: "turbo", label: "SDXL Turbo", match: (name) => /sd_?xl_?turbo|sdxlturbo/i.test(name), size: [512, 512], defaults: { steps: 1, cfg: 1, sampler: "euler_ancestral", scheduler: "normal" } },
+      { id: "hyper", label: "Hyper", match: (name) => /hyper/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "ddim", scheduler: "sgm_uniform" } },
+      { id: "dmd2", label: "DMD2", match: (name) => /dmd/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "lcm", scheduler: "sgm_uniform" } },
+      { id: "lcm", label: "LCM", match: (name) => /lcm|pcm|tcd/i.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
+      { id: "lightning", label: "Lightning", match: (name) => /lightning|turbo|\d+[-_ ]?steps?/i.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "sgm_uniform" } },
       // NoobAI v-pred merges often lack the v_pred key ComfyUI looks for, so HEISS sets the mode itself.
       { id: "vpred", label: "V-prediction", match: (name, header) => Boolean(header && "v_pred" in header) || /v[-_ ]?pred/i.test(name), vpred: true, defaults: { steps: 30, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
       { id: "pony", label: "Pony", match: (name) => /pony|pdxl|autismmix/i.test(name), defaults: { steps: 25, cfg: 7, sampler: "euler_ancestral", scheduler: "normal" } },
@@ -234,7 +227,7 @@ export const families = {
   auraflow: {
     label: "Pony V7 / AuraFlow", kind: "image", sources: ["checkpoint", "unet"],
     slots: [{ slot: "t5", label: "Pile T5-XL", kinds: ["t5xl"] }], clipType: "stable_diffusion",
-    vae: ["aura", "sdxl"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: portraitFirst,
+    vae: ["aura", "sdxl"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: portraitFirst,
     variants: [{ id: "standard", label: "Pony V7", defaults: { steps: 30, cfg: 3.5, sampler: "euler", scheduler: "simple" } }],
     size: [1024, 1024]
   },
@@ -245,9 +238,9 @@ export const families = {
       { slot: "clip_g", label: "CLIP-G", kinds: ["clip_g"] },
       { slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }
     ], clipType: null,
-    vae: ["sd3"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: square,
+    vae: ["sd3"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     variants: [
-      { id: "turbo", label: "Turbo", fast: true, match: (name) => /turbo/i.test(name), defaults: { steps: 4, cfg: 1.2, sampler: "euler", scheduler: "sgm_uniform" } },
+      { id: "turbo", label: "Turbo", match: (name) => /turbo/i.test(name), defaults: { steps: 4, cfg: 1.2, sampler: "euler", scheduler: "sgm_uniform" } },
       { id: "standard", label: "SD 3.5", defaults: { steps: 20, cfg: 4, sampler: "euler", scheduler: "sgm_uniform" } }
     ],
     size: [1024, 1024]
@@ -255,12 +248,12 @@ export const families = {
   flux1: {
     label: "Flux.1", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "clip_l", label: "CLIP-L", kinds: ["clip_l"] }, { slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }], clipType: "flux",
-    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "zero", img2img: true, denoise: 0.6, aspects: square,
+    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "zero", img2img: true, aspects: square,
     variants: [
       { id: "schnell", label: "Schnell", match: (name, header, detail) => detail?.schnell === true || (detail?.schnell === undefined && /schnell/i.test(name)), defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
       // De-distilled fine-tunes trade Flux guidance back for real CFG, so the negative prompt works again.
       { id: "dedistilled", label: "De-distilled", match: (name) => /de[-_ ]?distill/i.test(name), negative: "text", defaults: { steps: 28, cfg: 3, sampler: "euler", scheduler: "simple" } },
-      { id: "fast", label: "Dev, fast", fast: true, match: (name) => speedName.test(name), guidance: 3.5, defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Dev, fast", match: (name) => speedName.test(name), guidance: 3.5, defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "dev", label: "Dev", guidance: 3.5, defaults: { steps: 20, cfg: 1, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
@@ -272,7 +265,7 @@ export const families = {
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "BasicGuider", "FluxGuidance"],
     references: 3,
     variants: [
-      { id: "fast", label: "Fast", fast: true, match: (name) => speedName.test(name), guidance: 4, defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Fast", match: (name) => speedName.test(name), guidance: 4, defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "dev", label: "Dev", guidance: 4, defaults: { steps: 28, cfg: 1, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
@@ -283,10 +276,9 @@ export const families = {
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "CFGGuider"],
     references: 3,
-    // Distilled only when the file says so (metadata, name): a renamed base run at 4 steps comes out mush.
     variants: [
-      { id: "distilled", label: "Distilled", fast: true, match: (name, header) => isKleinDistilled(name, header), negative: "zero", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "base", label: "Base", negative: "text", defaults: { steps: 20, cfg: 5, sampler: "euler", scheduler: "simple" } }
+      { id: "base", label: "Base", match: (name) => /base/i.test(name) && !speedName.test(name), negative: "text", defaults: { steps: 20, cfg: 5, sampler: "euler", scheduler: "simple" } },
+      { id: "distilled", label: "Distilled", negative: "zero", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
   },
@@ -297,18 +289,18 @@ export const families = {
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "CFGGuider"],
     references: 3,
     variants: [
-      { id: "distilled", label: "Distilled", fast: true, match: (name, header) => isKleinDistilled(name, header), negative: "zero", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "base", label: "Base", negative: "text", defaults: { steps: 20, cfg: 5, sampler: "euler", scheduler: "simple" } }
+      { id: "base", label: "Base", match: (name) => /base/i.test(name) && !speedName.test(name), negative: "text", defaults: { steps: 20, cfg: 5, sampler: "euler", scheduler: "simple" } },
+      { id: "distilled", label: "Distilled", negative: "zero", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
   },
   chroma: {
     label: "Chroma", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }], clipType: "chroma", t5Padding: true,
-    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: square,
+    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     modelSampling: { node: "ModelSamplingAuraFlow", shift: 1 },
     variants: [
-      { id: "fast", label: "Fast", fast: true, match: (name) => speedName.test(name), defaults: { steps: 10, cfg: 1, sampler: "euler", scheduler: "beta" } },
+      { id: "fast", label: "Fast", match: (name) => speedName.test(name), defaults: { steps: 10, cfg: 1, sampler: "euler", scheduler: "beta" } },
       { id: "standard", label: "Chroma", defaults: { steps: 26, cfg: 3.5, sampler: "euler", scheduler: "beta" } }
     ],
     size: [1024, 1024]
@@ -321,9 +313,9 @@ export const families = {
       { slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] },
       { slot: "llama", label: "Llama 3.1 8B", kinds: ["llama31_8b"] }
     ], clipType: null,
-    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, denoise: 0.6, aspects: square,
+    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, aspects: square,
     variants: [
-      { id: "fast", label: "Fast", fast: true, match: (name) => /fast/i.test(name), negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 3 }, defaults: { steps: 16, cfg: 1, sampler: "lcm", scheduler: "normal" } },
+      { id: "fast", label: "Fast", match: (name) => /fast/i.test(name), negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 3 }, defaults: { steps: 16, cfg: 1, sampler: "lcm", scheduler: "normal" } },
       { id: "dev", label: "Dev", match: (name) => /dev/i.test(name), negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 6 }, defaults: { steps: 28, cfg: 1, sampler: "lcm", scheduler: "normal" } },
       { id: "full", label: "Full", negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 3 }, defaults: { steps: 50, cfg: 5, sampler: "uni_pc", scheduler: "simple" } }
     ],
@@ -332,10 +324,10 @@ export const families = {
   qwen_image: {
     label: "Qwen-Image", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "encoder", label: "Qwen2.5-VL 7B", kinds: ["qwen25vl_7b"] }], clipType: "qwen_image",
-    vae: ["qwen_image", "wan21"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, denoise: 0.6, aspects: square,
+    vae: ["qwen_image", "wan21"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, aspects: square,
     modelSampling: { node: "ModelSamplingAuraFlow", shift: 3.1 },
     variants: [
-      { id: "fast", label: "Lightning", fast: true, match: (name) => speedName.test(name), negative: "text", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Lightning", match: (name) => speedName.test(name), negative: "text", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "2512", label: "Qwen-Image 2512", match: (name) => /2512/.test(name), negative: "text", defaults: { steps: 50, cfg: 4, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Qwen-Image", negative: "text", defaults: { steps: 20, cfg: 2.5, sampler: "euler", scheduler: "simple" } }
     ],
@@ -354,28 +346,27 @@ export const families = {
   zimage: {
     label: "Z-Image", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "encoder", label: "Qwen3 4B", kinds: ["qwen3_4b"] }], clipType: "lumina2",
-    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: square,
-    // Turbo only when the file says so; anything else runs at Base's steps rather than as mush.
+    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     variants: [
-      { id: "turbo", label: "Turbo", fast: true, match: (name, header) => isZImageTurbo(name, header), defaults: { steps: 8, cfg: 1, sampler: "res_multistep", scheduler: "simple" } },
-      { id: "base", label: "Base", defaults: { steps: 30, cfg: 4, sampler: "res_multistep", scheduler: "simple" } }
+      { id: "base", label: "Base", match: (name) => isZImageBase(name), defaults: { steps: 30, cfg: 4, sampler: "res_multistep", scheduler: "simple" } },
+      { id: "turbo", label: "Turbo", defaults: { steps: 8, cfg: 1, sampler: "res_multistep", scheduler: "simple" } }
     ],
     size: [1024, 1024]
   },
   krea2: {
     label: "Krea 2", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "encoder", label: "Qwen3-VL 4B", kinds: ["qwen3vl_4b"] }], clipType: "krea2",
-    vae: ["qwen_image"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: square, enhancer: true,
+    vae: ["qwen_image"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square, enhancer: true,
     variants: [
-      { id: "turbo", label: "Turbo", fast: true, match: (name, header) => isKrea2Turbo(name, header), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "raw", label: "Raw", rawShift: true, defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "simple" } }
+      { id: "raw", label: "Raw", match: (name) => isKrea2Raw(name), rawShift: true, defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "simple" } },
+      { id: "turbo", label: "Turbo", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
   },
   anima: {
     label: "Anima", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "encoder", label: "Qwen3 0.6B", kinds: ["qwen3_06b"] }], clipType: "stable_diffusion",
-    vae: ["qwen_image", "wan21"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: portraitFirst,
+    vae: ["qwen_image", "wan21"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: portraitFirst,
     variants: [{ id: "standard", label: "Anima", defaults: { steps: 30, cfg: 4, sampler: "euler", scheduler: "simple" } }],
     size: [1024, 1024]
   },
@@ -385,7 +376,7 @@ export const families = {
     vae: ["wan21"], latent: "EmptyHunyuanLatentVideo", sizeStep: 16, frameStep: 4, negative: "text", aspects: wide,
     modelSampling: { node: "ModelSamplingSD3", shift: 8 },
     variants: [
-      { id: "fast", label: "Fast", fast: true, match: (name) => speedName.test(name) || /causvid|lightx2v|self[-_]?forcing/i.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Fast", match: (name) => speedName.test(name) || /causvid|lightx2v|self[-_]?forcing/i.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Wan 2.1", defaults: { steps: 30, cfg: 6, sampler: "uni_pc", scheduler: "simple" } }
     ],
     size: [832, 480], frames: 33, fps: 16
@@ -396,7 +387,7 @@ export const families = {
     vae: ["wan22"], latent: "Wan22ImageToVideoLatent", sizeStep: 32, frameStep: 4, negative: "text", startImage: true, aspects: wide,
     modelSampling: { node: "ModelSamplingSD3", shift: 8 },
     variants: [
-      { id: "fast", label: "Fast", fast: true, match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Fast", match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Wan 2.2 5B", defaults: { steps: 20, cfg: 5, sampler: "uni_pc", scheduler: "simple" } }
     ],
     size: [1280, 704], frames: 121, fps: 24
@@ -417,7 +408,7 @@ export const families = {
     vae: ["wan21"], latent: "EmptyHunyuanLatentVideo", sizeStep: 16, frameStep: 4, negative: "text", sampling: "pair", aspects: wide,
     modelSampling: { node: "ModelSamplingSD3", shift: 8 },
     variants: [
-      { id: "fast", label: "Fast (4-step)", fast: true, match: (name) => speedName.test(name) || /lightx2v|rapid/i.test(name), modelSampling: { node: "ModelSamplingSD3", shift: 5 }, defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Fast (4-step)", match: (name) => speedName.test(name) || /lightx2v|rapid/i.test(name), modelSampling: { node: "ModelSamplingSD3", shift: 5 }, defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Wan 2.2 14B", defaults: { steps: 20, cfg: 3.5, sampler: "euler", scheduler: "simple" } }
     ],
     size: [832, 480], frames: 81, fps: 16
@@ -445,7 +436,7 @@ export const families = {
     modelSampling: { node: "ModelSamplingSD3", shift: 5 },
     requiredNodes: ["WanImageToVideo", "LoadImage"],
     variants: [
-      { id: "fast", label: "Fast (4-step)", fast: true, match: (name) => speedName.test(name) || /lightx2v|rapid/i.test(name), defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "fast", label: "Fast (4-step)", match: (name) => speedName.test(name) || /lightx2v|rapid/i.test(name), defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Wan 2.2 14B I2V", defaults: { steps: 20, cfg: 3.5, sampler: "euler", scheduler: "simple" } }
     ],
     // The template's 640×640 is the area; the aspect follows the picture you pick.
@@ -461,7 +452,7 @@ export const families = {
     modelSampling: { node: "ModelSamplingSD3", shift: 7 },
     requiredNodes: ["EmptyHunyuanVideo15Latent"],
     variants: [
-      { id: "step_distilled", label: "Step-distilled", fast: true, match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "step_distilled", label: "Step-distilled", match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 20, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "HunyuanVideo 1.5", defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } }
@@ -484,7 +475,7 @@ export const families = {
     modelSampling: { node: "ModelSamplingSD3", shift: 7 },
     requiredNodes: ["HunyuanVideo15ImageToVideo", "CLIPVisionLoader", "CLIPVisionEncode", "LoadImage"],
     variants: [
-      { id: "step_distilled", label: "Step-distilled", fast: true, match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "step_distilled", label: "Step-distilled", match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 20, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "HunyuanVideo 1.5 I2V", defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } }
@@ -497,7 +488,7 @@ export const families = {
     vae: ["h3_video"], audioVae: ["h3_audio"], latent: "MiniMaxH3ImageToVideo", sizeStep: 32, negative: "none", sampling: "h3", aspects: wide,
     requiredNodes: ["MiniMaxH3ImageToVideo", "SamplerCustomAdvanced", "BasicGuider", "VAEDecodeAudio", "CreateVideo"],
     variants: [
-      { id: "fast", label: "Turbo", fast: true, match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1, sampler: "res_multistep", scheduler: "simple" } },
+      { id: "fast", label: "Turbo", match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1, sampler: "res_multistep", scheduler: "simple" } },
       { id: "standard", label: "MiniMax H3", defaults: { steps: 20, cfg: 1, sampler: "res_multistep", scheduler: "simple" } }
     ],
     size: [1344, 768], frames: 56, fps: 24
@@ -508,7 +499,7 @@ export const families = {
   lumina2: {
     label: "Lumina Image 2.0", kind: "image", sources: ["checkpoint", "unet"],
     slots: [{ slot: "encoder", label: "Gemma 2 2B", kinds: ["gemma2_2b"] }], clipType: "lumina2",
-    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: portraitFirst,
+    vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: portraitFirst,
     variants: [
       {
         id: "neta", label: "Neta Lumina / NetaYume", match: (name) => /neta|yume/i.test(name),
@@ -552,7 +543,7 @@ export const families = {
     vae: ["mage_flow"], latent: "TextEncodeMageFlowEdit", sizeStep: 16, negative: "text", sampling: "mage", aspects: square,
     requiredNodes: ["TextEncodeMageFlowEdit"],
     variants: [
-      { id: "turbo", label: "Turbo", fast: true, match: (name) => speedName.test(name), negative: "none", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "turbo", label: "Turbo", match: (name) => speedName.test(name), negative: "none", defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "MageFlow", defaults: { steps: 30, cfg: 5, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
@@ -561,10 +552,10 @@ export const families = {
   ernie: {
     label: "ERNIE-Image", kind: "image", sources: ["unet"],
     slots: [{ slot: "encoder", label: "Ministral 3 3B", kinds: ["ministral3_3b"] }], clipType: "flux2",
-    vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, negative: "text", img2img: true, denoise: 0.6, aspects: square,
+    vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage"],
     variants: [
-      { id: "turbo", label: "Turbo", fast: true, match: (name) => speedName.test(name), negative: "zero", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "turbo", label: "Turbo", match: (name) => speedName.test(name), negative: "zero", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "ERNIE-Image", defaults: { steps: 20, cfg: 4, sampler: "euler", scheduler: "simple" } }
     ],
     size: [1024, 1024]
@@ -690,56 +681,6 @@ export function isZImageBase(name = "") {
   if (/turbo|distill|lightning|\d+[-_ ]?steps?/i.test(base)) return false;
   if (/base|raw/i.test(base)) return true;
   return /^z[-_ ]?image(?:[-_](?:bf16|fp16|fp32|fp8\w*|nvfp4|int8\w*|scaled|e4m3fn))*\.safetensors$/i.test(base);
-}
-
-/**
- * Whether a file's own metadata says it is a distilled few-step build or the
- * base model ("distilled", "base", or "" when it says nothing). Distillation
- * leaves the tensor layout alone, so this is as close to the weights as it gets.
- */
-export function distillationFromMetadata(header) {
-  const meta = header?.__metadata__;
-  if (!meta || typeof meta !== "object") return "";
-  const text = ["modelspec.title", "modelspec.description", "modelspec.architecture", "name", "model_name", "title"]
-    .map((key) => meta[key]).filter((value) => typeof value === "string").join(" ");
-  if (/\bbase\b|undistilled|non[-_ ]?distilled/i.test(text)) return "base";
-  if (/turbo|distill|lightning|few[-_ ]?step|\b\d{1,2}[-_ ]?steps?\b/i.test(text)) return "distilled";
-  return "";
-}
-
-/**
- * Krea 2 Turbo (TDM-distilled) unless the file says it is Raw, by its
- * metadata or its name. Turbo is the default because most Krea 2 fine-tunes
- * are built on it, and Raw's settings (28 steps, CFG 4.5) spoil a Turbo model
- * as badly as Turbo's spoil a Raw one, so neither side is the safe fallback.
- */
-export function isKrea2Turbo(name = "", header = null) {
-  const said = distillationFromMetadata(header);
-  if (said) return said === "distilled";
-  return !isKrea2Raw(name);
-}
-
-/** Z-Image Turbo, or a fine-tune of it ("ZIT"), by what the file says of itself; Base otherwise. */
-export function isZImageTurbo(name = "", header = null) {
-  const said = distillationFromMetadata(header);
-  if (said) return said === "distilled";
-  const base = String(name).split(/[\\/]/).pop() || "";
-  if (isZImageBase(base)) return false;
-  return /turbo|distill|lightning|(^|[^a-z0-9])zit([^a-z0-9]|$)|(^|[^0-9])\d{1,2}[-_ ]?steps?/i.test(base);
-}
-
-/**
- * Flux.2 Klein distilled (the 4-step release), by what the file says of
- * itself; Base otherwise. Black Forest Labs name the distilled release plain
- * "flux-2-klein-4b"/"-9b" and the other one "...-klein-base-...", and
- * fine-tunes tend to keep that naming.
- */
-export function isKleinDistilled(name = "", header = null) {
-  const said = distillationFromMetadata(header);
-  if (said) return said === "distilled";
-  const base = String(name).split(/[\\/]/).pop() || "";
-  if (/base|undistill/i.test(base) && !speedName.test(base)) return false;
-  return speedName.test(base) || /distill/i.test(base) || /klein[-_ ]?[49][-_ ]?b(?![a-z])/i.test(base);
 }
 
 /** Filename guesses, for when the weights are out of reach (a remote ComfyUI). */
@@ -970,29 +911,6 @@ export function refinedFamily(familyId = "", name = "", weightsRead = false) {
 }
 
 /* ------------------------------------------------------------ Speed LoRAs */
-
-// A few-step distillation shipped as a LoRA says so in its name: a step count
-// ("8steps"), or one of the known methods. A bare "turbo", "hyper" or
-// "lightning" is not enough: LoRAs trained on Turbo models and "hyperreal"
-// styles carry those words too.
-const speedLoraName = /lightx2v|causvid|self[-_]?forcing|(^|[^a-z])(lcm|pcm|tcd|dmd2?)([^a-z]|$)|turbo[-_ ]?alpha|(step|cfg)[-_ ]?distill|(^|[^0-9])\d{1,2}[-_ ]?steps?(?![a-z])/i;
-
-/**
- * The few-step variant a stacked speed LoRA switches a family to: the fast
- * variant whose own pattern the LoRA's name matches (SDXL's Hyper, LCM, DMD2
- * and Lightning each have their own settings), else the family's most general
- * fast one (the last: SDXL's Lightning rather than its 1-step Turbo). `about`
- * adds what the LoRA's metadata says of itself. null when it is not a speed
- * LoRA, or the family has no few-step way to run.
- */
-export function speedVariantFor(familyId, loraName = "", about = "") {
-  const family = families[familyId];
-  if (!family) return null;
-  const base = String(loraName).split(/[\\/]/).pop() || "";
-  if (!speedLoraName.test(base) && !speedLoraName.test(String(about || ""))) return null;
-  const fast = family.variants.filter((variant) => variant.fast);
-  return fast.find((variant) => variant.match?.(base, null, {})) || fast.at(-1) || null;
-}
 
 /** The variant of a family a file is, by name (and header where it can tell). */
 export function variantFor(familyId, name = "", header = null, detail = null) {
