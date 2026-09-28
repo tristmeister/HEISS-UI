@@ -51,6 +51,9 @@
       <symbol id="i-check" viewBox="0 0 16 16">
         <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m3.25 8.5 3 3 6.5-7" />
       </symbol>
+      <symbol id="i-download" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 2.5v7.75M4.75 7 8 10.25 11.25 7M3.25 13.25h9.5" />
+      </symbol>
       <symbol id="i-plus" viewBox="0 0 16 16">
         <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 3.25v9.5M3.25 8h9.5" />
       </symbol>
@@ -683,32 +686,90 @@
         <div class="section-head" data-reveal>
           <p class="label">Install</p>
           <h2 id="install-title">Running in a few minutes.</h2>
-          <p class="section-lead">You need <strong>ComfyUI</strong>. The download brings everything else, Node.js included, on Windows, macOS and Linux. Your models stay in ComfyUI.</p>
+          <p class="section-lead">You need <strong>ComfyUI</strong>. The download brings everything else, Node.js included. Your models stay in ComfyUI.</p>
         </div>
 
         <div class="section-body" data-reveal>
-          <div class="seg" role="tablist" aria-label="Install method" style="--i: 0">
-            <span class="seg-thumb" aria-hidden="true"></span>
-            <button class="seg-btn" role="tab" id="tab-human" aria-controls="panel-human" aria-selected="true">Quickstart</button>
-            <button class="seg-btn" role="tab" id="tab-agent" aria-controls="panel-agent" aria-selected="false" tabindex="-1">Paste into an agent</button>
+          <div class="dl" data-dl data-os="all">
+            <div class="dl-main" data-dl-main></div>
+            <div class="dl-opts" data-dl-opts>
+              <a class="dl-opt" data-platform="macos-arm64" data-bytes="59527327" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.13.0/heiss-ui-0.13.0-macos-arm64.zip">
+                <span class="dl-icon" aria-hidden="true"><svg class="icon"><use href="#i-download" /></svg></span>
+                <span class="dl-text">
+                  <span class="dl-name"><span class="dl-verb">Download for </span>macOS</span>
+                  <span class="dl-sub">Apple Silicon · <span data-dl-size>60 MB</span></span>
+                </span>
+              </a>
+              <a class="dl-opt" data-platform="windows-x64" data-bytes="55152678" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.13.0/heiss-ui-0.13.0-windows-x64.zip">
+                <span class="dl-icon" aria-hidden="true"><svg class="icon"><use href="#i-download" /></svg></span>
+                <span class="dl-text">
+                  <span class="dl-name"><span class="dl-verb">Download for </span>Windows</span>
+                  <span class="dl-sub">x64 · <span data-dl-size>55 MB</span></span>
+                </span>
+              </a>
+              <a class="dl-opt" data-platform="linux-x64" data-bytes="73045635" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.13.0/heiss-ui-0.13.0-linux-x64.zip">
+                <span class="dl-icon" aria-hidden="true"><svg class="icon"><use href="#i-download" /></svg></span>
+                <span class="dl-text">
+                  <span class="dl-name"><span class="dl-verb">Download for </span>Linux</span>
+                  <span class="dl-sub">x64 · <span data-dl-size>73 MB</span></span>
+                </span>
+              </a>
+            </div>
+            <div class="dl-meta">
+              <p class="dl-version"><span data-dl-version>0.13.0</span><span class="dl-main-size"> · <span data-dl-main-size></span></span></p>
+              <p class="dl-others" data-dl-others>Also for</p>
+            </div>
+            <p class="dl-intel">The macOS download is for Apple Silicon. Intel Macs can <a class="inline" href="#install-more" data-open-source>run it from source</a>.</p>
+            <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           </div>
 
-          <div class="panels">
-            <div class="panel" id="panel-human" role="tabpanel" aria-labelledby="tab-human" tabindex="0">
-              <ol class="steps">
-                <li>
-                  <span class="step-n" aria-hidden="true">1</span>
-                  <div>
-                    <h3>Start ComfyUI</h3>
-                    <p>ComfyUI on this computer connects on its own, ComfyUI Desktop included. No ComfyUI yet? <a class="inline" href="https://www.comfy.org/download">Get ComfyUI Desktop</a>, or start HEISS UI first and <strong>No ComfyUI yet?</strong> says which one fits your system.</p>
-                  </div>
-                </li>
-                <li>
-                  <span class="step-n" aria-hidden="true">2</span>
-                  <div>
-                    <h3>Download and start</h3>
-                    <p>Get the zip for your system from <a class="inline" href="https://github.com/tristmeister/HEISS-UI/releases/latest">Releases</a>, unpack it and double-click <strong>Start HEISS UI</strong>. It updates itself from then on.</p>
-                    <p class="note">Or from source, to follow <code>main</code> (needs Node.js 20.9+):</p>
+          <ol class="steps">
+            <li>
+              <span class="step-n" aria-hidden="true">1</span>
+              <div>
+                <h3>Start ComfyUI</h3>
+                <p>It connects on its own when it runs on this computer, ComfyUI Desktop included. <a class="inline" href="https://www.comfy.org/download">No ComfyUI yet?</a></p>
+                <p class="note">ComfyUI on another machine? Set its address in <strong>Settings › Connection</strong>.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">2</span>
+              <div>
+                <h3>Unzip and start</h3>
+                <p>Unzip the download and double-click <strong>Start HEISS UI</strong>.</p>
+                <ul class="os-notes">
+                  <li data-for="macos-arm64"><span class="os-name">macOS</span><span>The first time, right-click it › Open.</span></li>
+                  <li data-for="windows-x64"><span class="os-name">Windows</span><span>Extract All first, into a plain folder rather than one synced by OneDrive.</span></li>
+                  <li data-for="linux-x64"><span class="os-name">Linux</span><span>Right-click the <code>.desktop</code> file › Allow Launching, or run the <code>.sh</code>.</span></li>
+                </ul>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">3</span>
+              <div>
+                <h3>Open the studio</h3>
+                <p>It opens in the browser at <a class="inline" href="http://localhost:8787">localhost:8787</a>. With no model yet, pick a first one and it downloads with everything it needs.</p>
+              </div>
+            </li>
+          </ol>
+
+          <p class="update-note">
+            <span>Updating later:</span> <strong>Settings › About</strong> in the app.
+          </p>
+
+          <div class="faq more">
+            <details id="install-more">
+              <summary>Other ways to install<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer">
+                <div class="seg" role="tablist" aria-label="Install method" style="--i: 0">
+                  <span class="seg-thumb" aria-hidden="true"></span>
+                  <button class="seg-btn" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true">From source</button>
+                  <button class="seg-btn" role="tab" id="tab-agent" aria-controls="panel-agent" aria-selected="false" tabindex="-1">Paste into an agent</button>
+                </div>
+
+                <div class="panels">
+                  <div class="panel" id="panel-source" role="tabpanel" aria-labelledby="tab-source" tabindex="0">
+                    <p class="panel-intro">To follow <code>main</code>, or on an Intel Mac. Needs Node.js 20.9 or newer.</p>
                     <div class="code">
                       <div class="code-head">
                         <span>Terminal</span>
@@ -725,34 +786,23 @@
 <span class="ln">npm install</span>
 <span class="ln">npm start</span></pre>
                     </div>
-                    <p class="note">ComfyUI on another machine? Set its address in <strong>Settings › Connection</strong>.</p>
+                    <p class="note">To update, <code>git pull</code>, <code>npm install</code>, <code>npm run build</code>.</p>
                   </div>
-                </li>
-                <li>
-                  <span class="step-n" aria-hidden="true">3</span>
-                  <div>
-                    <h3>Open it</h3>
-                    <p>The studio opens in your browser at <a class="inline" href="http://localhost:8787">localhost:8787</a>, or the next free port if that one’s taken. Your models are already there. With none yet, pick a first one and it downloads with everything it needs.</p>
-                  </div>
-                </li>
-              </ol>
-            </div>
-
-            <div class="panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" tabindex="0" hidden>
-              <p class="panel-intro">
-                Paste this into <strong>Claude Code</strong>, <strong>Codex</strong> or another coding agent that can use your terminal. It gets the right download, starts the app and checks that it reaches ComfyUI. Models only download if you ask.
-              </p>
-              <div class="code code-prompt">
-                <div class="code-head">
-                  <span>Prompt</span>
-                  <button class="copy copy-strong" type="button" data-copy="agent-prompt" aria-label="Copy prompt">
-                    <span class="copy-icons" aria-hidden="true">
-                      <svg class="icon i-copy"><use href="#i-copy" /></svg>
-                      <svg class="icon i-check"><use href="#i-check" /></svg>
-                    </span>
-                    <span class="copy-label">Copy prompt</span>
-                  </button>
-                </div>
+                  <div class="panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" tabindex="0" hidden>
+                    <p class="panel-intro">
+                      Paste this into <strong>Claude Code</strong>, <strong>Codex</strong> or another coding agent that can use your terminal. It gets the right download, starts the app and checks that it reaches ComfyUI. Models only download if you ask.
+                    </p>
+                    <div class="code code-prompt">
+                      <div class="code-head">
+                        <span>Prompt</span>
+                        <button class="copy copy-strong" type="button" data-copy="agent-prompt" aria-label="Copy prompt">
+                          <span class="copy-icons" aria-hidden="true">
+                            <svg class="icon i-copy"><use href="#i-copy" /></svg>
+                            <svg class="icon i-check"><use href="#i-check" /></svg>
+                          </span>
+                          <span class="copy-label">Copy prompt</span>
+                        </button>
+                      </div>
 <pre id="agent-prompt" class="prompt" tabindex="0">Set up HEISS UI on this computer: https://github.com/tristmeister/HEISS-UI
 
 1. Check my operating system and CPU. From https://github.com/tristmeister/HEISS-UI/releases/latest, download the matching zip: heiss-ui-&lt;version&gt;-windows-x64.zip, -macos-arm64.zip or -linux-x64.zip. Skip the plain heiss-ui-&lt;version&gt;.zip; that one is for in-app updates.
@@ -765,13 +815,12 @@ Only if I ask to run from source: check for Node.js 20.9 or newer, clone the rep
 Only if ComfyUI runs on another machine: set its address in Settings › Connection, or COMFY_URL in .env.
 
 Don't download models unless I ask. Keep it on this computer: opening it to a phone or other devices is a switch in Settings › Connection, and only if I ask for it. If something fails, read the error and check ComfyUI's /system_stats and /object_info before changing anything.</pre>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            </details>
           </div>
-
-          <p class="update-note">
-            <span>Updating later:</span> <strong>Settings › About</strong> in the app. From source, <code>git pull</code>, <code>npm install</code>, <code>npm run build</code>.
-          </p>
         </div>
       </section>
 

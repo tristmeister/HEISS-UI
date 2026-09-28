@@ -39,6 +39,105 @@
     })
     .catch(() => {});
 
+  /* ── Download: the zip for this system ────────────────────────────── */
+
+  // The HTML links the v0.13.0 zips, so it works without JS or the API.
+  // The latest release's asset names carry its version, so the API fills in
+  // the current links, version and sizes when it answers.
+  const dl = $("[data-dl]");
+  if (dl) {
+    const opts = $$("[data-platform]", dl);
+    const byId = Object.fromEntries(opts.map((a) => [a.dataset.platform, a]));
+    const mb = (bytes) => `${Math.max(1, Math.round(bytes / 1e6))} MB`;
+    let os = "";
+
+    const detect = () => {
+      const uad = navigator.userAgentData;
+      const ua = navigator.userAgent || "";
+      if (uad?.mobile || /Android|iPhone|iPad|iPod|Mobi/i.test(ua)) return "";
+      const platform = (uad?.platform || navigator.platform || ua).toLowerCase();
+      if (/android|cros|chrome os|iphone|ipad/.test(platform)) return "";
+      // iPadOS asks for the desktop site and reports a Mac with a touchscreen.
+      if (platform.includes("mac")) return navigator.maxTouchPoints > 1 ? "" : "macos-arm64";
+      if (platform.includes("win")) return "windows-x64";
+      if (platform.includes("linux") || platform.includes("x11")) {
+        return /aarch64|arm/i.test(`${navigator.platform} ${ua}`) ? "" : "linux-x64";
+      }
+      return "";
+    };
+
+    const render = () => {
+      dl.dataset.os = os || "all";
+      const main = $("[data-dl-main]", dl);
+      const list = $("[data-dl-opts]", dl);
+      const others = $("[data-dl-others]", dl);
+      if (os && byId[os]) {
+        main.append(byId[os]);
+        opts.filter((a) => a !== byId[os]).forEach((a) => others.append(a));
+        $("[data-dl-main-size]", dl).textContent = mb(+byId[os].dataset.bytes);
+      } else {
+        opts.forEach((a) => list.append(a));
+      }
+      $$(".os-notes [data-for]").forEach((li) => li.classList.toggle("is-mine", li.dataset.for === os));
+    };
+
+    const fill = (release) => {
+      let version = "";
+      for (const asset of release?.assets || []) {
+        const m = /^heiss-ui-(.+)-(macos-arm64|windows-x64|linux-x64)\.zip$/.exec(asset.name || "");
+        const link = m && byId[m[2]];
+        if (!link || !/^https:\/\/github\.com\/tristmeister\/HEISS-UI\/releases\/download\//.test(asset.browser_download_url || "")) continue;
+        link.href = asset.browser_download_url;
+        if (asset.size > 0) {
+          link.dataset.bytes = asset.size;
+          $("[data-dl-size]", link).textContent = mb(asset.size);
+        }
+        version = m[1];
+      }
+      if (!version) return;
+      $$("[data-dl-version]", dl).forEach((n) => (n.textContent = version));
+      render();
+    };
+
+    os = detect();
+    render();
+
+    // Chromium says whether a Mac is Intel; its zip won't run there.
+    if (os === "macos-arm64") {
+      navigator.userAgentData
+        ?.getHighEntropyValues?.(["architecture"])
+        .then(({ architecture }) => {
+          if (architecture !== "x86") return;
+          os = "";
+          dl.classList.add("is-intel");
+          render();
+        })
+        .catch(() => {});
+    }
+
+    const KEY = "heiss-release";
+    let cached = null;
+    try {
+      cached = JSON.parse(sessionStorage.getItem(KEY));
+    } catch {}
+    if (cached) fill(cached);
+    else {
+      fetch("https://api.github.com/repos/tristmeister/HEISS-UI/releases/latest")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((release) => {
+          if (!release?.assets) return;
+          const slim = {
+            assets: release.assets.map(({ name, size, browser_download_url }) => ({ name, size, browser_download_url })),
+          };
+          try {
+            sessionStorage.setItem(KEY, JSON.stringify(slim));
+          } catch {}
+          fill(slim);
+        })
+        .catch(() => {});
+    }
+  }
+
   /* ── Install tabs ─────────────────────────────────────────────────── */
 
   const seg = $(".seg");
@@ -63,6 +162,15 @@
         select(tabs[(i + dir + tabs.length) % tabs.length], true);
       });
     });
+
+    // "Run it from source" opens the fold on the source tab.
+    $$("[data-open-source]").forEach((link) =>
+      link.addEventListener("click", () => {
+        const more = document.getElementById("install-more");
+        if (more) more.open = true;
+        select(tabs[0]);
+      })
+    );
   }
 
   /* ── Copy buttons ─────────────────────────────────────────────────── */
