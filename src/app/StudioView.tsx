@@ -748,7 +748,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   onClick={clickViewer}
                   onDoubleClick={(event) => { event.stopPropagation(); zoomViewer(viewerZoom > 1 ? 1 : 2.5); }}
                 >
-                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
+                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} fixes={view.failureFixes} showToast={showToast} onNodesInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
                   <GenerationMedia item={active} fit="contain">
                   {active.status === "pending" ? <GenerationProgress item={active} formatElapsed={formatElapsed} /> : null}
                   </GenerationMedia>

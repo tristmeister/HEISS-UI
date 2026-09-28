@@ -644,6 +644,9 @@
 .failure-hint { margin: 8px 0 0; font-size: 13px; line-height: 1.5; color: hsl(var(--muted-foreground)); text-wrap: pretty; }
 .failure-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .failure-actions .btn { flex: 1 1 140px; gap: 6px; }
+/* A fix leads; reusing the settings and the report sit quietly under it. */
+.failure-actions + .failure-actions.is-secondary { margin-top: 6px; }
+.failure-install { margin-top: 18px; text-align: left; }
 .failure-detail { display: grid; gap: 10px; margin-top: 14px; text-align: left; }
 .failure-toggle { justify-self: center; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 0; border-radius: var(--r-pill); background: none; font: inherit; font-size: 12px; font-weight: 500; color: hsl(var(--muted-foreground)); cursor: pointer; transition: color var(--dur-fast), background var(--dur-fast); }
 .failure-toggle:hover { color: hsl(var(--foreground)); background: var(--control-hover); }

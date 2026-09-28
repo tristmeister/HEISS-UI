@@ -1,7 +1,10 @@
 import React from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, Download, Minimize2, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
+import { NodeInstall } from './NodeInstall';
 import { cn } from './format';
+import type { RetryOptions } from './retry';
+import type { ShowToast } from './toast';
 import type { GalleryItem, GenerationFailure } from './types';
 
 /** The failure a gallery item carries; older items only kept the message in their name. */
@@ -18,6 +21,7 @@ function reportFor(item: GalleryItem, failure: GenerationFailure) {
     failure.file ? `File: ${failure.file}` : '',
     failure.nodeType ? `Node: ${failure.nodeType}${failure.nodeId ? ` (#${failure.nodeId})` : ''}` : '',
     failure.exceptionType ? `Exception: ${failure.exceptionType}` : '',
+    failure.missingNode ? `Missing node: ${failure.missingNode}` : '',
     item.model ? `Model: ${item.model}` : '',
     item.width && item.height ? `Size: ${item.width}×${item.height}` : '',
     '',
@@ -42,22 +46,75 @@ export function FailureTile({ item }: { item: GalleryItem }) {
   );
 }
 
+/** What the viewer can do about a failure, wired to the studio's own actions. */
+export type FailureFixes = {
+  retry: (item: GalleryItem, options?: RetryOptions) => Promise<void>;
+  freeMemoryAndRetry: (item: GalleryItem) => Promise<void>;
+  redownload: (item: GalleryItem) => Promise<void>;
+  rescan: () => void;
+};
+
+type FixButton = { label: string; icon: React.ReactNode; run: () => unknown };
+
+/** The buttons a failure earns: only fixes HEISS can actually carry out, the likeliest first. */
+function fixButtons(item: GalleryItem, failure: GenerationFailure, fixes?: FailureFixes): FixButton[] {
+  if (!fixes) return [];
+  // An item from before fixes existed (or a Hidden one still locked) has nothing to rerun from.
+  const canRerun = Boolean(item.prompt && item.model && item.settings);
+  if (failure.fix === 'memory' && canRerun) {
+    return [
+      { label: failure.retry?.tiledDecode ? 'Free memory, decode in tiles' : 'Free memory and retry', icon: <RotateCw size={14} />, run: () => fixes.freeMemoryAndRetry(item) },
+      { label: 'Retry smaller', icon: <Minimize2 size={14} />, run: () => fixes.retry(item, { smaller: true }) }
+    ];
+  }
+  if (failure.fix === 'redownload' && failure.redownload) return [{ label: 'Download again', icon: <Download size={14} />, run: () => fixes.redownload(item) }];
+  if (failure.fix === 'rescan') return [{ label: 'Rescan models', icon: <RefreshCw size={14} />, run: fixes.rescan }];
+  if (failure.fix === 'retry' && canRerun) return [{ label: 'Try again', icon: <RotateCw size={14} />, run: () => fixes.retry(item) }];
+  return [];
+}
+
 /** The viewer's side of a failure: what went wrong, what to do, and the whole error one click away. */
-export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onCopy: (text: string) => Promise<boolean>; onReuse?: () => void }) {
+export function FailurePanel({ item, onCopy, onReuse, fixes, showToast, onNodesInstalled }: {
+  item: GalleryItem;
+  onCopy: (text: string) => Promise<boolean>;
+  onReuse?: () => void;
+  fixes?: FailureFixes;
+  showToast?: ShowToast;
+  /** After a missing node pack is installed and ComfyUI restarted. */
+  onNodesInstalled?: () => void;
+}) {
   const { copied, copyWith } = useCopyFeedback();
   const failure = failureOf(item);
   const raw = [failure.detail !== failure.summary ? failure.detail : '', failure.traceback].filter(Boolean).join('\n\n');
   const hasDetail = Boolean(raw || failure.nodeType || failure.exceptionType);
   const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const buttons = fixButtons(item, failure, fixes);
+  const run = async (action: () => unknown) => {
+    setBusy(true);
+    try { await action(); } finally { setBusy(false); }
+  };
   return (
     <div className="failure-panel" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
       <div className="failure-icon is-large" aria-hidden="true"><AlertTriangle size={22} strokeWidth={2} /></div>
       <h3>{failure.title}</h3>
       <p className="failure-summary">{failure.summary}</p>
       {failure.hint ? <p className="failure-hint">{failure.hint}</p> : null}
-      <div className="failure-actions">
-        {onReuse ? <button type="button" className="btn is-primary" onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
-        <button type="button" className="btn" onClick={() => copyWith(() => onCopy(reportFor(item, failure)))}><CopyIcon copied={Boolean(copied)} /> {copied ? 'Copied' : 'Copy report'}</button>
+      {failure.nodePack && showToast ? (
+        <div className="failure-install">
+          <NodeInstall pack={failure.nodePack} plan={failure.install} autoInstall={failure.autoInstall} showToast={showToast} onRestarted={() => onNodesInstalled?.()} afterRestart="Then run it again." />
+        </div>
+      ) : null}
+      {buttons.length ? (
+        <div className="failure-actions">
+          {buttons.map((button, index) => (
+            <button key={button.label} type="button" className={cn('btn', index === 0 && 'is-primary')} disabled={busy} onClick={() => run(button.run)}>{button.icon} {button.label}</button>
+          ))}
+        </div>
+      ) : null}
+      <div className={cn('failure-actions', buttons.length > 0 && 'is-secondary')}>
+        {onReuse ? <button type="button" className={cn('btn', !buttons.length && 'is-primary', buttons.length > 0 && 'is-ghost')} onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
+        <button type="button" className={cn('btn', buttons.length > 0 && 'is-ghost')} onClick={() => copyWith(() => onCopy(reportFor(item, failure)))}><CopyIcon copied={Boolean(copied)} /> {copied ? 'Copied' : 'Copy report'}</button>
       </div>
       {hasDetail ? (
         <div className={cn('failure-detail', open && 'is-open')}>
