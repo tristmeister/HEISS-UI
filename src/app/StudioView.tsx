@@ -438,7 +438,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               noModels={Boolean(models) && !modelProfiles?.length}
               onFindModels={modelFolders?.openDialog}
               starter={mode === "image" ? starterModels : undefined}
-              prompts={hiddenSpace ? [] : view.starterPrompts}
+              prompts={hiddenSpace || phone ? [] : view.starterPrompts}
               onPrompt={view.fillPrompt}
               onSurprise={view.surprise}
             />
