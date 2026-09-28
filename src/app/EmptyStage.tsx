@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Check, ExternalLink, FolderSearch, Plug, RefreshCw } from 'lucide-react';
+import { Check, Dices, ExternalLink, FolderSearch, Plug, RefreshCw } from 'lucide-react';
 import { githubUrl } from './constants';
 import { EmptyMark } from './EmptyMark';
 import { CONNECT_MS, OfflineMark } from './OfflineMark';
@@ -11,6 +11,7 @@ import { RestartEtaText } from './ComfyRestart';
  * What an empty gallery shows, and how it moves between states:
  *
  *   waiting     nothing yet: the first ComfyUI check has not answered
+ *               (past a moment, "Looking for ComfyUI…")
  *   offline     the plug that keeps trying
  *   connecting  ComfyUI answered: the plug snaps in and the socket warms up
  *   morph       the offline scene dissolves while the empty canvas develops
@@ -27,7 +28,7 @@ const MORPH_AT = 420;
 /** "Connected" stays readable a little longer than the scene takes. */
 const CONNECTED_COPY_MS = 1500;
 
-export function EmptyStage({ known, offline, restarting = false, device, retrying, onRetry, onOpenConnection, comfyUrl, noModels = false, onFindModels }: {
+export function EmptyStage({ known, offline, restarting = false, device, retrying, onRetry, onOpenConnection, comfyUrl, nearby = [], onNoComfy, noModels = false, onFindModels, starter, prompts = [], onPrompt, onSurprise }: {
   known: boolean;
   offline: boolean;
   /** ComfyUI is down because it was asked to restart: the same scene, calmer words. */
@@ -38,9 +39,19 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
   onOpenConnection: () => void;
   /** Shown when offline, so it is clear where HEISS UI is looking. */
   comfyUrl?: string;
+  /** Other addresses on this computer HEISS UI tries by itself (ComfyUI Desktop's port). */
+  nearby?: string[];
+  /** Opens the "No ComfyUI yet?" sheet. */
+  onNoComfy?: () => void;
   /** Connected, but nothing HEISS UI can run: the next step is a model, not a prompt. */
   noModels?: boolean;
   onFindModels?: () => void;
+  /** The "pick a first model" cards, shown when ComfyUI has no model HEISS UI can run. */
+  starter?: React.ReactNode;
+  /** A few prompts to start from on an empty gallery, and what tapping one does. */
+  prompts?: string[];
+  onPrompt?: (text: string) => void;
+  onSurprise?: () => void;
 }) {
   const thisComputer = useThisComputer();
   const [phase, setPhase] = useState<Phase>(!known ? 'waiting' : offline ? 'offline' : 'empty');
@@ -82,7 +93,17 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
 
   const showPlug = phase === 'offline' || phase === 'connecting' || phase === 'morph';
   const showCanvas = phase === 'morph' || phase === 'empty';
-  const copy = phase === 'offline' ? 'offline' : sayConnected ? 'connected' : phase === 'empty' ? 'empty' : '';
+  // The first check usually answers at once; only a slow one says it is looking.
+  const [slowFirstCheck, setSlowFirstCheck] = useState(false);
+  useEffect(() => {
+    if (phase !== 'waiting') return;
+    const timer = window.setTimeout(() => setSlowFirstCheck(true), 700);
+    return () => window.clearTimeout(timer);
+  }, [phase]);
+  const copy = phase === 'offline' ? 'offline' : sayConnected ? 'connected' : phase === 'empty' ? 'empty' : phase === 'waiting' && slowFirstCheck ? 'looking' : '';
+  const where = comfyUrl ? comfyUrl.replace(/^https?:\/\//, '') : '';
+  // The other usual ports HEISS UI tries on its own, as ":8000".
+  const ports = nearby.map((address) => /:(\d+)$/.exec(address)?.[1]).filter(Boolean);
 
   return (
     <section className="gallery">
@@ -97,20 +118,33 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
               <h2>Restarting ComfyUI</h2>
               <p>It reads new nodes and model folders as it starts, and the studio reconnects by itself. <RestartEtaText fallback="Usually a few seconds." /></p>
             </>
+          ) : copy === 'looking' ? (
+            <>
+              <h2>Looking for ComfyUI…</h2>
+              {where ? <p>Checking <code className="stage-code">{where}</code>{ports.length ? <> and port {ports.join(', ')}</> : null}.</p> : null}
+            </>
           ) : copy === 'offline' ? (
             <>
-              <h2>ComfyUI is offline</h2>
-              <p>Start ComfyUI to connect your studio.{comfyUrl ? <> Looking for it at <code className="stage-code">{comfyUrl.replace(/^https?:\/\//, '')}</code>.</> : null}</p>
+              <h2>{retrying ? 'Looking for ComfyUI…' : 'ComfyUI is offline'}</h2>
+              <p>Start ComfyUI to connect your studio.{where ? <> HEISS UI looks for it at <code className="stage-code">{where}</code>{ports.length ? <> and on port {ports.join(', ')}</> : null}, and connects by itself.</> : null}</p>
               <div className="empty-actions">
                 <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? 'Checking…' : 'Check again'}</button>
                 {thisComputer ? <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} /> Change address</button> : null}
               </div>
-              <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">Don’t have ComfyUI yet? <ExternalLink size={11} /></a>
+              {onNoComfy
+                ? <button type="button" className="stage-link" onClick={onNoComfy}>No ComfyUI yet?</button>
+                : <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">Don’t have ComfyUI yet? <ExternalLink size={11} /></a>}
             </>
           ) : copy === 'connected' ? (
             <>
               <h2 className="stage-connected"><span><Check size={12} strokeWidth={3} /></span> Connected</h2>
               <p>{device ? `ComfyUI on ${device}` : 'ComfyUI is ready.'}</p>
+            </>
+          ) : copy === 'empty' && noModels && starter && thisComputer ? (
+            <>
+              <h2>Pick a first model</h2>
+              <p>One tap gets it with everything it needs.{onFindModels ? <> Already have models on this computer? <button type="button" className="stage-inline-link" onClick={onFindModels}>Find them</button>.</> : null}</p>
+              {starter}
             </>
           ) : copy === 'empty' && noModels ? (
             <>
@@ -118,13 +152,19 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
               <p>{thisComputer ? 'HEISS UI runs the checkpoints and diffusion models in ComfyUI’s models folder. Put one there, or let HEISS UI look for models elsewhere on this computer.' : 'Add a checkpoint or diffusion model to ComfyUI on the computer running HEISS UI, and it shows up here.'}</p>
               <div className="empty-actions">
                 {onFindModels && thisComputer ? <button className="reconnect-btn primary" onClick={onFindModels}><FolderSearch size={13} /> Find models</button> : null}
-                <a className="reconnect-btn" href={`${githubUrl}/blob/main/MODELS.md`} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Which models work</a>
+                <a className="reconnect-btn" href={`${githubUrl}#supported-models`} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Which models work</a>
               </div>
             </>
           ) : copy === 'empty' ? (
             <>
               <h2>No outputs yet</h2>
-              <p>Write a prompt to get started.</p>
+              <p>{prompts.length && onPrompt ? 'Write a prompt below, or start from one of these.' : 'Write a prompt to get started.'}</p>
+              {prompts.length && onPrompt ? (
+                <div className="stage-prompts">
+                  {prompts.map((text) => <button key={text} type="button" className="stage-prompt" onClick={() => onPrompt(text)}>{text}</button>)}
+                  {onSurprise ? <button type="button" className="stage-surprise" onClick={onSurprise}><Dices size={13} /> Surprise me</button> : null}
+                </div>
+              ) : null}
             </>
           ) : null}
         </div>

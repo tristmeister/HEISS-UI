@@ -1,0 +1,273 @@
+/* ---------------------------------------------------------------------------
+   First runs: the starter models, the "No ComfyUI yet?" sheet, prompts to
+   start from, the shortcuts overlay and the sidebar's plain-language hints.
+   Calm by design: facts in muted type, the one warm dot for what suits this
+   computer, nothing red and nothing that blocks.
+--------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------- Starter models */
+
+.starter-models {
+  display: grid;
+  gap: 14px;
+  width: min(980px, 100%);
+  margin-top: 18px;
+  text-align: left;
+}
+.starter-models.is-compact { width: 100%; margin: 0 0 20px; }
+.starter-models.is-loading { min-height: 280px; }
+.starter-note {
+  margin: 0;
+  text-align: center;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.stage-empty .stage-copy .starter-note { max-width: none; font-size: 12.5px; }
+.starter-models.is-compact .starter-note { text-align: left; }
+
+.starter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(252px, 1fr));
+  gap: 12px;
+}
+
+.starter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-menu);
+  background: rgb(255 255 255 / .03);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .04);
+}
+.starter-card-head h3 {
+  margin: 0;
+  color: hsl(var(--foreground));
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -.02em;
+}
+.starter-card-head p,
+.stage-empty .stage-copy .starter-card-head p {
+  margin: 4px 0 0;
+  max-width: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* Three versions, small to large: a quiet list of choices, like picking a size. */
+.starter-versions {
+  display: grid;
+  gap: 2px;
+  padding: 3px;
+  border-radius: calc(var(--r-item) + 3px);
+  background: var(--well);
+}
+.starter-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 46px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: var(--r-item);
+  background: transparent;
+  color: hsl(var(--foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.starter-version:hover { background: var(--control-hover); }
+.starter-version.is-selected {
+  background: var(--selected);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .06);
+}
+.starter-version:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.starter-version-name { display: grid; gap: 1px; min-width: 0; }
+.starter-version-name strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  font-weight: 550;
+}
+.starter-version-name small {
+  overflow: hidden;
+  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.starter-version-memory {
+  flex: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+}
+.starter-version.is-selected .starter-version-memory { color: hsl(var(--foreground)); }
+/* The version that suits this computer: the one warm note, small. */
+.starter-best-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ember);
+  box-shadow: var(--ember-glow);
+}
+
+.starter-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin: -2px 2px 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.stage-empty .stage-copy p.starter-caption { max-width: none; margin: -2px 2px 0; font-size: 12px; }
+.starter-fit { display: inline-flex; align-items: center; gap: 6px; color: hsl(var(--foreground)); }
+.starter-fit i { width: 6px; height: 6px; border-radius: 50%; background: var(--ember); }
+
+.starter-card-foot { margin-top: auto; }
+.starter-card-foot > .btn { width: 100%; }
+.starter-progress { display: grid; gap: 8px; }
+.starter-progress .cell-bar { height: 5px; }
+.starter-progress-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 30px; }
+.starter-progress-row small { color: hsl(var(--muted-foreground)); font-size: 12px; font-variant-numeric: tabular-nums; }
+.starter-progress .btn.is-icon { width: 30px; height: 30px; min-height: 30px; padding: 0; flex: none; }
+.starter-error,
+.starter-remote,
+.stage-empty .stage-copy p.starter-error,
+.stage-empty .stage-copy p.starter-remote {
+  margin: 0;
+  max-width: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.modal.starter-sheet { width: min(940px, 100%); }
+
+/* ------------------------------------------------- The empty stage, more */
+
+.stage-link { border: 0; background: none; cursor: pointer; font: inherit; font-size: 12px; }
+.stage-inline-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: hsl(var(--foreground));
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / .3);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.stage-inline-link:hover { text-decoration-color: currentColor; }
+
+/* Prompts to start from: tap one and it waits in the prompt box. */
+.stage-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: min(760px, 100%);
+  margin-top: 14px;
+}
+.stage-prompt,
+.stage-surprise {
+  max-width: 100%;
+  padding: 9px 14px;
+  border: 0;
+  border-radius: var(--r-item);
+  background: var(--control-fill);
+  color: hsl(var(--foreground) / .86);
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.stage-prompt:hover,
+.stage-surprise:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+.stage-prompt:focus-visible,
+.stage-surprise:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.stage-surprise {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+/* --------------------------------------------------------- No ComfyUI yet */
+
+.no-comfy-routes { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.no-comfy-route {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: var(--r-item);
+  background: rgb(255 255 255 / .03);
+}
+.no-comfy-route.is-here { background: var(--control-fill); }
+.no-comfy-route-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.no-comfy-route-head strong { font-size: 13.5px; font-weight: 600; }
+.no-comfy-here {
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--ember-soft);
+  color: var(--ember);
+  font-size: 11px;
+  font-weight: 550;
+}
+.no-comfy-route p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12.5px; line-height: 1.5; }
+.no-comfy-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.no-comfy-links .btn { height: 34px; min-height: 34px; padding: 0 14px; font-size: 12.5px; text-decoration: none; }
+.no-comfy-notes { margin: 18px 0 4px; }
+.no-comfy-notes h3 { margin: 14px 0 4px; font-size: 13px; font-weight: 600; }
+.no-comfy-notes h3:first-child { margin-top: 0; }
+.no-comfy-notes p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12.5px; line-height: 1.55; }
+.no-comfy-notes strong { color: hsl(var(--foreground)); font-weight: 550; }
+
+/* -------------------------------------------------------------- Shortcuts */
+
+.shortcuts-list { display: grid; gap: 2px; margin: 0 0 6px; }
+.shortcuts-row {
+  display: grid;
+  grid-template-columns: minmax(118px, auto) 1fr;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgb(255 255 255 / .05);
+}
+.shortcuts-row:last-child { border-bottom: 0; }
+.shortcuts-row dt { margin: 0; }
+.shortcuts-row dd { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12.5px; }
+
+/* ------------------------------------------------------ Sidebar, in words */
+
+.sidebar-scale-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -6px 2px 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px;
+  opacity: .8;
+}
+.btn.sidebar-recommended { align-self: flex-start; height: 34px; min-height: 34px; padding: 0 12px; font-size: 12.5px; }
+
+/* The model menu's quiet size note, and About's line about staying local. */
+.model-size { font-variant-numeric: tabular-nums; }
+.about-value { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .starter-version, .stage-prompt, .stage-surprise { transition: none; }
+}

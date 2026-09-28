@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
@@ -35,6 +35,9 @@ import { ConnectedCard } from './ConnectedCard';
 import { Toaster } from './Toaster';
 import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
+import { GetModelsSheet, StarterModels } from './StarterModels';
+import { NoComfySheet } from './NoComfySheet';
+import { ShortcutsSheet } from './shortcuts';
 import { useHistoryDismiss } from './useHistoryDismiss';
 import { useFocusTrap } from './useFocusTrap';
 import type { GalleryItem } from './types';
@@ -195,6 +198,28 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     setSettings(true);
   }, [setSettings]);
   useHistoryDismiss(Boolean(settings), () => setSettings(false));
+  const [noComfyOpen, setNoComfyOpen] = React.useState(false);
+  const [getModelsOpen, setGetModelsOpen] = React.useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
+  // "?" anywhere outside a field lists the keyboard shortcuts.
+  React.useEffect(() => {
+    if (phone) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key !== "?" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (document.querySelector('[role="dialog"]:not([data-focus-trap]), [role="alertdialog"]')) return;
+      // Before the "any letter jumps to the prompt" listener, so no "?" lands in it.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setShortcutsOpen(true);
+    }
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [phone]);
+  const starterModels = (
+    <StarterModels showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} />
+  );
   // Leaving Hidden setup to pick the output folder comes back to setup afterwards.
   const resumeHiddenSetup = React.useRef(false);
   React.useEffect(() => {
@@ -407,9 +432,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               retrying={Boolean(comfyRetrying)}
               onRetry={retryComfyStatus}
               onOpenConnection={() => openSettings("connection")}
-              comfyUrl={health?.comfyUrl || comfyStatus?.url}
+              comfyUrl={comfyStatus?.url || health?.comfyUrl}
+              nearby={comfyStatus?.nearby}
+              onNoComfy={() => setNoComfyOpen(true)}
               noModels={Boolean(models) && !modelProfiles?.length}
               onFindModels={modelFolders?.openDialog}
+              starter={mode === "image" ? starterModels : undefined}
+              prompts={hiddenSpace ? [] : view.starterPrompts}
+              onPrompt={view.fillPrompt}
+              onSurprise={view.surprise}
             />
           )}
             {hiddenLockScreen}
@@ -544,6 +575,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               comfyOffline={Boolean(comfyOffline)}
               comfyRestarting={Boolean(comfyStatus?.restarting)}
               onFindModels={modelFolders?.openDialog}
+              onGetModels={() => setGetModelsOpen(true)}
               strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
@@ -587,6 +619,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
               generationEstimate={view.generationEstimate}
+              generateKey={view.generateKey}
             />
           </section>
           {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
@@ -642,6 +675,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               comfyOffline={Boolean(comfyOffline)}
               comfyRestarting={Boolean(comfyStatus?.restarting)}
               onFindModels={modelFolders?.openDialog}
+              onGetModels={() => setGetModelsOpen(true)}
               strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
@@ -685,11 +719,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
               generationEstimate={view.generationEstimate}
+              generateKey={view.generateKey}
             />
           </section>
         </>
       )}
       <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
+      <NoComfySheet open={noComfyOpen} onOpenChange={setNoComfyOpen} onChangeAddress={thisComputer ? () => openSettings("connection") : undefined} />
+      <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={modelFolders?.openDialog} />
+      <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {modelFolders ? <ModelFoldersDialog folders={modelFolders} runningCount={runningCount} /> : null}
       <UpscaleSetupDialog
         setup={upscaleSetup}
@@ -783,6 +821,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                         </div>
                       ) : null}
                       <Tip content="Load this output's prompt and settings into the composer (you can undo)"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Apply these settings</button></Tip>
+                      {active.status === "done" && !active.vaultLocked ? <Tip content="Same prompt and settings, a new seed"><button className="copy-all-settings" onClick={() => view.varyItem(active)}>Vary this</button></Tip> : null}
                       <Tip content="Load this output's LoRA stack into the composer"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Apply its LoRAs</button></Tip>
                       {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? (
                         <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
@@ -823,6 +862,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   <Tip content="Zoom in (+)"><button className="icon-button is-zoom-control" aria-label="Zoom in" onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
                   <span className="viewer-divider is-zoom-control" />
                   <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => viewerCopy.copyWith(() => copyItemToClipboard(active), "item")}><CopyIcon copied={viewerCopy.copied === "item"} size={15} /></button></Tip>
+                  {active.status === "done" && active.url && !active.vaultLocked ? <Tip content="Vary this: same prompt and settings, new seed"><button className="icon-button" aria-label="Vary this" onClick={() => view.varyItem(active)}><Shuffle size={15} /></button></Tip> : null}
                   {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">
