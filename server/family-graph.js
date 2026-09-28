@@ -78,7 +78,7 @@ export function familyGraph(body) {
   let clip = null;
   let vae = null;
   if (body.source === "checkpoint") {
-    const id = add("CheckpointLoaderSimple", { ckpt_name: body.model });
+    const id = add(body.checkpointLoader || "CheckpointLoaderSimple", { ckpt_name: body.model });
     model = [id, 0];
     if (bundled.encoder && !family.neverBundledEncoder) clip = [id, 1];
     if (bundled.vae && !body.vae) vae = [id, 2];

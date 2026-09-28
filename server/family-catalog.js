@@ -704,6 +704,59 @@ export function familyFromHeader(header) {
   return { family: "other", detail: { unrecognized: true } };
 }
 
+/* ------------------------------------------------------------ Quantized files */
+
+/**
+ * Quantized formats ComfyUI's own loaders cannot read. The family detection
+ * above still names the model (an NF4 Flux keeps Flux's keys), but the file
+ * only runs through its format's loader, so it is never "ready" without one.
+ * `loaders`: per model source, the node that loads it in place of ComfyUI's
+ * own (same inputs), from `pack`. No loader for a source: not runnable here,
+ * and `reason` says why.
+ */
+export const quantFormats = {
+  svdq: {
+    label: "Nunchaku SVDQuant",
+    loaders: {},
+    reason: "A Nunchaku (SVDQuant) file: it only runs through the ComfyUI-nunchaku loader nodes, which HEISS UI does not drive yet. Use a regular or GGUF build of this model."
+  },
+  nf4: {
+    label: "bitsandbytes NF4",
+    pack: "bnb_nf4",
+    loaders: { checkpoint: "CheckpointLoaderNF4" },
+    reason: "A bitsandbytes NF4 file outside checkpoints/: only the NF4 checkpoint loader reads these. Put the all-in-one NF4 checkpoint in checkpoints/, or use a regular build."
+  }
+};
+
+// Tensor suffixes each format adds next to (or instead of) the plain weights.
+const quantMarkers = [
+  ["svdq", /\.(qweight|wscales|wcscales|wtscale|smooth_factor|smooth_factor_orig)$/],
+  ["nf4", /\.(absmax|quant_map|nested_absmax|nested_quant_map|quant_state\.bitsandbytes__(nf4|fp4))$/]
+];
+
+/**
+ * Which quantized format a file is in, from its tensor keys, else its
+ * metadata; by name only when the weights are out of reach. "" for anything
+ * ComfyUI loads natively (fp8, int8 ConvRot, NVFP4 and the like).
+ */
+export function quantFromHeader(header, name = "") {
+  if (header) {
+    for (const key of Object.keys(header)) {
+      if (key === "__metadata__") continue;
+      const found = quantMarkers.find(([, pattern]) => pattern.test(key));
+      if (found) return found[0];
+    }
+    const metadata = JSON.stringify(header.__metadata__ || {});
+    if (/nunchaku|svdquant|svdq/i.test(metadata)) return "svdq";
+    if (/bitsandbytes|bnb[-_]?nf4/i.test(metadata)) return "nf4";
+    return "";
+  }
+  const base = String(name).split(/[\\/]/).pop() || "";
+  if (/svdq|nunchaku/i.test(base)) return "svdq";
+  if (/(^|[^a-z])(bnb[-_]?)?nf4([^a-z]|$)/i.test(base)) return "nf4";
+  return "";
+}
+
 /** The variant of a family a file is, by name (and header where it can tell). */
 export function variantFor(familyId, name = "", header = null, detail = null) {
   const family = families[familyId];

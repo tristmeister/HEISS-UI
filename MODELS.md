@@ -16,6 +16,7 @@ catalog, so a family that is described correctly needs no UI work.
 | Detection | `family-catalog.js` → `familyFromHeader`, `familyFromName`; `model-families.js` → `familyFromMetadata` | Tensor-key signatures (mirroring ComfyUI's `comfy/model_detection.py`), filename patterns, safetensors metadata |
 | Text encoders and VAEs | `server/model-components.js` → `encoderKinds`, `vaeKinds`, `encoderKindFromHeader`, `vaeLayoutFromHeader` | What each encoder or VAE file is, by shape first and name second |
 | Downloads | `family-catalog.js` → `encoderDownloads`, `vaeDownloads` | Hugging Face files the Download buttons fetch. Abliterated builds first wherever a ComfyUI-ready one exists |
+| Quantized files | `family-catalog.js` → `quantFormats`, `quantFromHeader` | Formats ComfyUI's own loaders cannot read (Nunchaku SVDQuant, bitsandbytes NF4): the loader node that reads each one instead, per model source, or why it cannot run |
 | Node packs | `server/node-packs.js` → `nodePacks` | Every custom node pack HEISS may ask for: name, Git URL, folder, the node classes that prove it loaded |
 | Graph | `server/family-graph.js` → `familyGraph` | One builder for every family; special sampling styles branch off it |
 | Profiles | `server/family-profiles.js` | Turns every model file into a runnable profile and lists exactly what is missing |

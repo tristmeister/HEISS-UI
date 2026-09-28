@@ -103,6 +103,8 @@ function sanitizeFamilyBody(input, info, stats) {
     source: profile.source,
     model: profile.model,
     bundled: profile.source === "checkpoint" ? { encoder: profile.encoderBuiltIn, vae: profile.vaeBuiltIn } : null,
+    // A quantized checkpoint (NF4) loads through its format's node, with the same inputs.
+    checkpointLoader: profile.checkpointLoader || "",
     encoders,
     textEncoder: encoders[0] || "",
     clipType: profile.defaults.clipType || "",

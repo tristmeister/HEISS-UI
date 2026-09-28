@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
+import { encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
@@ -202,11 +202,19 @@ export function familyProfiles(info, helpers) {
     if (!family || !family.sources.includes(source)) {
       fileEntry.reason = knownFamilies[info2.family] && info2.family !== "other"
         ? `${knownFamilies[info2.family]} can’t run in HEISS UI yet.`
-        : "Model type not recognized. Choose its type.";
+        : "Unknown type. Choose one to use it.";
       continue;
     }
     if (incompatible(name)) {
       fileEntry.reason = "Needs PyTorch 2.8 or newer (NVFP4).";
+      continue;
+    }
+    // A quantized format needs its own loader, whatever the family (or "Use as …") says.
+    const quant = info2.quant ? quantFormats[info2.quant] : null;
+    const quantLoader = quant?.loaders[source] || "";
+    if (quant && !quantLoader) {
+      fileEntry.quant = info2.quant;
+      fileEntry.reason = quant.reason;
       continue;
     }
 
@@ -267,9 +275,11 @@ export function familyProfiles(info, helpers) {
       missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`) : [] });
     }
     const nodes = runner ? [] : missingNodes(info, nodesFor(family, variant, !encoderBuiltIn, !bundled.vae));
-    // A family that runs on a custom node pack names it (family.pack, or its runner's).
+    // A family that runs on a custom node pack names it (family.pack, or its runner's); a
+    // quantized file, its format's loader pack.
     const needs = runner || family;
-    const packPart = needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note });
+    const packPart = (quant && missingPackPart(info, quant.pack, { detail: `This is a ${quant.label} file; ComfyUI reads it through these nodes.` }))
+      || (needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note }));
     if (packPart) {
       missing.push(packPart);
     } else if (!packPart && (nodes.length || !clipTypeAvailable(info, family))) {
@@ -362,6 +372,7 @@ export function familyProfiles(info, helpers) {
       audioVae,
       pairModel,
       vpredPatch,
+      ...(quantLoader ? { quant: info2.quant, checkpointLoader: quantLoader } : {}),
       detectedBy: info2.via,
       missing,
       ready: missing.length === 0,
