@@ -42,6 +42,7 @@ import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } fro
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
 import { listenWithFallback } from './launch.js';
+import { describeGitError, updateCheckout } from './git-update.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -149,12 +150,14 @@ async function updateStatus({ fresh = false, auto = false } = {}) {
   }
   // A checkout updates by hand with git: the automatic check leaves it alone.
   if (auto) return { ok: true, available: false, release: false };
-  const branch = (await runRepoCommand("git", ["rev-parse", "--abbrev-ref", "HEAD"])).trim();
-  const current = (await runRepoCommand("git", ["rev-parse", "--short", "HEAD"])).trim();
-  await runRepoCommand("git", ["fetch", "--quiet", "origin"]);
+  // git's own output (spawn ENOENT, "Could not resolve host") becomes plain words.
+  const git = (args, step = "fetch") => runRepoCommand("git", args).catch((error) => { throw new Error(describeGitError(error, step)); });
+  const branch = (await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
+  const current = (await git(["rev-parse", "--short", "HEAD"])).trim();
+  await git(["fetch", "--quiet", "origin"]);
   const upstreamRef = branch && branch !== "HEAD" ? `origin/${branch}` : "origin/main";
-  const latest = (await runRepoCommand("git", ["rev-parse", "--short", upstreamRef])).trim();
-  const behindText = await runRepoCommand("git", ["rev-list", "--count", `${current}..${upstreamRef}`]);
+  const latest = (await git(["rev-parse", "--short", upstreamRef])).trim();
+  const behindText = await git(["rev-list", "--count", `${current}..${upstreamRef}`]);
   const behind = Number(behindText.trim() || 0);
   return { ok: true, available: behind > 0, current, latest, branch, behind };
 }
@@ -1689,13 +1692,12 @@ app.post("/api/update/install", async (req, res) => {
       return;
     }
     const branch = before.branch && before.branch !== "HEAD" ? before.branch : "main";
-    const pull = await runRepoCommand("git", ["pull", "--ff-only", "origin", branch]);
-    const install = await runRepoCommand(npmCommand, ["install"]);
-    const build = await runRepoCommand(npmCommand, ["run", "build"]);
+    // Refuses local changes, and goes back to this commit if the new one will not install or build.
+    const { pull, install, build } = await updateCheckout({ run: runRepoCommand, npm: npmCommand, branch, log: (message) => console.warn(`[HEISS] ${message}`) });
     const after = await updateStatus();
     res.json({ ...after, updated: true, restartRequired: true, logs: { pull, install, build } });
   } catch (error) {
-    res.status(500).json({ ok: false, updated: false, error: error.message });
+    res.status(500).json({ ok: false, updated: false, error: error.message, ...(error.rolledBack ? { rolledBack: true } : {}), ...(error.localChanges ? { localChanges: error.localChanges } : {}) });
   }
 });
 
