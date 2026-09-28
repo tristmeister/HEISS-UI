@@ -79,7 +79,7 @@ Every release zip is signed in CI (`<zip>.sig` beside it), and copies that know 
 
 ```bash
 node scripts/release-keygen.mjs   # writes ~/.config/heiss-ui/release-signing-key.pem (mode 600), prints the public key
-gh secret set HEISS_RELEASE_SIGNING_KEY < ~/.config/heiss-ui/release-signing-key.pem
+gh secret set HEISS_RELEASE_SIGNING_KEY -R tristmeister/HEISS-UI < ~/.config/heiss-ui/release-signing-key.pem
 ```
 
 Then paste the printed public key into `RELEASE_PUBLIC_KEY` in `server/release-signing.js` and release as usual. Until that constant is filled in, updates are checked by SHA-256 alone. Once it is, a tag build without the secret fails, `npm run release` checks the secret exists, and an unsigned release tells people to download it by hand instead of installing itself. Keep a backup of the private key offline: installed copies trust only that key.

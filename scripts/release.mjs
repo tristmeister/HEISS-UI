@@ -63,9 +63,12 @@ if (git("rev-list", "--count", "HEAD..origin/main") !== "0") fail("origin/main h
 // Once installed copies trust a release key, CI must be able to sign with it,
 // or the release it publishes would be refused by every one of them.
 if (releasePublicKey()) {
+  // The repository origin points at: a checkout with more remotes leaves gh guessing otherwise.
+  const repo = /github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?$/.exec(git("remote", "get-url", "origin"))?.[1] || "";
+  const repoArgs = repo ? ["-R", repo] : [];
   let secrets = null;
-  try { secrets = run("gh", ["secret", "list", "--json", "name", "--jq", ".[].name"], { quiet: true }).split(/\s+/); } catch { secrets = null; }
-  if (secrets && !secrets.includes("HEISS_RELEASE_SIGNING_KEY")) fail("server/release-signing.js trusts a release key, but the repository has no HEISS_RELEASE_SIGNING_KEY secret. Run: gh secret set HEISS_RELEASE_SIGNING_KEY < ~/.config/heiss-ui/release-signing-key.pem");
+  try { secrets = run("gh", ["secret", "list", ...repoArgs, "--json", "name", "--jq", ".[].name"], { quiet: true }).split(/\s+/); } catch { secrets = null; }
+  if (secrets && !secrets.includes("HEISS_RELEASE_SIGNING_KEY")) fail(`server/release-signing.js trusts a release key, but the repository has no HEISS_RELEASE_SIGNING_KEY secret. Run: gh secret set HEISS_RELEASE_SIGNING_KEY ${repo ? `-R ${repo} ` : ""}< ~/.config/heiss-ui/release-signing-key.pem`);
   if (!secrets) console.warn("Could not ask GitHub whether HEISS_RELEASE_SIGNING_KEY is set (is gh signed in?). The release workflow stops if it isn't.");
 }
 

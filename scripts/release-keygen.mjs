@@ -51,7 +51,7 @@ Finish the setup:
 
   2. Give the private key to the release workflow as a secret:
 
-       gh secret set HEISS_RELEASE_SIGNING_KEY < "${out}"
+       gh secret set HEISS_RELEASE_SIGNING_KEY -R <owner>/<repo> < "${out}"   (the repository the release workflow runs in)
 
   From the next release on, CI signs every zip, and copies that have the
   public key refuse any release that isn't signed with it.
