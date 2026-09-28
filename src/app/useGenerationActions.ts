@@ -4,6 +4,8 @@ import { apiJson, serverClockOffset } from './api';
 import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
+import { retryRequest, type RetryOptions, type RetryRequest } from './retry';
+import { downloadActions } from './useModelDownloads';
 import type { GalleryItem, Job } from './types';
 
 type GalleryPayload = { items?: GalleryItem[]; outputs?: GalleryItem[] };
@@ -18,7 +20,7 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus
+    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus, refreshModels
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -73,7 +75,17 @@ export function useGenerationActions(view: any) {
     return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   }
 
-  async function generate() {
+  /** Runs what the composer holds. Takes no argument, so it can be a click handler as is. */
+  function generate() {
+    return runGeneration();
+  }
+
+  /**
+   * Runs the composer's settings, or with `retry` a failed item's own
+   * settings again (see retry.ts), past the composer's checks: the server
+   * validates that run the same way.
+   */
+  async function runGeneration(retry?: RetryRequest) {
     if (generatePostingRef.current) return;
     if (comfyRestarting) {
       showToast("ComfyUI is restarting. Generate again once it’s back, in a few seconds.", "warning");
@@ -83,40 +95,44 @@ export function useGenerationActions(view: any) {
       showToast("ComfyUI isn’t reachable, so nothing was sent. Start it, then try again.", "error", retryComfyStatus ? { action: { label: "Check again", onClick: retryComfyStatus } } : undefined);
       return;
     }
-    if (!prompt.trim()) {
+    if (!retry && !prompt.trim()) {
       showToast("Enter a prompt to generate", "error");
       return;
     }
-    if (!currentProfile) {
+    if (!retry && !currentProfile) {
       showToast(generateDisabledReason || "Choose a model first", "error", openModelSetup ? { action: { label: "Models", onClick: openModelSetup } } : undefined);
       return;
     }
-    if (missingRequiredReference) {
+    if (!retry && missingRequiredReference) {
       showToast("Add the required reference image", "error");
       return;
     }
-    if (generateDisabled) {
+    if (!retry && generateDisabled) {
       // Straight to the setup panel for this model, instead of a hint to go find it.
       showToast(`${currentProfile.displayName || currentProfile.label} isn’t ready yet. ${generateDisabledReason || "It needs files first"}.`, "error");
       openModelSetup?.();
       return;
     }
+    const runMode: "image" | "video" = retry ? retry.kind : mode;
+    const toHidden = retry ? Boolean(retry.body.privateVault) : Boolean(hiddenSpace);
     // Asked before anything is sent, so a Hidden prompt never runs in the open.
-    if (hiddenSpace && !hidden.ensureReady({ kind: "generate" })) return;
+    if (toHidden && !hidden.ensureReady({ kind: "generate" })) return;
     generatePostingRef.current = true;
     const optimisticJobIds: string[] = [];
     try {
-      const effectiveCount = mode === "image" && currentProfile?.capabilities?.variations === false ? 1 : count;
-      const imageRuns = mode === "image" && prefs.variationQueueMode === "separate" ? effectiveCount : 1;
-      const requestCount = mode === "image" && prefs.variationQueueMode === "separate" ? 1 : effectiveCount;
-      const startMessage = mode === "image"
-        ? prefs.variationQueueMode === "separate" && effectiveCount > 1
+      const effectiveCount = retry ? Math.max(1, Number(retry.body.count) || 1) : mode === "image" && currentProfile?.capabilities?.variations === false ? 1 : count;
+      const separate = !retry && runMode === "image" && prefs.variationQueueMode === "separate";
+      const imageRuns = separate ? effectiveCount : 1;
+      const requestCount = separate ? 1 : effectiveCount;
+      const startMessage = retry ? retry.label
+        : runMode === "image"
+        ? separate && effectiveCount > 1
           ? `Started ${effectiveCount} separate generations`
           : `Started ${effectiveCount} image${effectiveCount === 1 ? "" : "s"}`
         : "Started video";
       setStatus(startMessage);
 
-      const requestBody = {
+      const requestBody: Record<string, any> = retry ? retry.body : {
         kind: mode,
         prompt,
         negative,
@@ -152,8 +168,9 @@ export function useGenerationActions(view: any) {
         const clientJobId = clientJobUuid();
         optimisticJobIds.push(clientJobId);
         // Separate runs from one pinned seed would all be the same picture; step it per run.
-        const runSeed = imageRuns > 1 && /^\d+$/.test(String(seed || "").trim()) ? String(Number(seed) + index) : seed;
-        const optimisticBody = { ...requestBody, seed: runSeed, count: requestCount, startImageId: canUseStartImage ? startImageId : "" };
+        const baseSeed = retry ? String(requestBody.seed || "") : seed;
+        const runSeed = imageRuns > 1 && /^\d+$/.test(String(baseSeed || "").trim()) ? String(Number(baseSeed) + index) : baseSeed;
+        const optimisticBody = { ...requestBody, seed: runSeed, count: requestCount, startImageId: retry ? requestBody.startImageId : canUseStartImage ? startImageId : "" };
         const optimisticItems = pendingItemsFor(clientJobId, optimisticBody);
         galleryUpsert(optimisticItems);
         if (prefs.zenMode) setZenSelectedId(optimisticItems[0].id);
@@ -161,11 +178,11 @@ export function useGenerationActions(view: any) {
         const { jobId, items, hidden: wentHidden } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number }>("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: canUseStartImage && !startImageId ? startImage : "" })
+          body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: !retry && canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
         firstItemOf.set(jobId, items?.[0] || optimisticItems[0]);
-        if (wentHidden && !hiddenSpace) {
+        if (wentHidden && !toHidden) {
           // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.
           galleryRemove([clientJobId, jobId]);
           if (index === 0) showToast("Made from a Hidden image, so it’s saved in Hidden", "default");
@@ -232,16 +249,16 @@ export function useGenerationActions(view: any) {
         }
       }));
       await (loadGalleryDelta ? loadGalleryDelta() : loadGallery());
-      if (prefs.zenMode && prefs.followLatest && !hiddenSpace) {
-        const data = await apiJson<GalleryPayload>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=80`).catch(() => null);
+      if (prefs.zenMode && prefs.followLatest && !toHidden) {
+        const data = await apiJson<GalleryPayload>(`/api/gallery?type=${encodeURIComponent(runMode)}&limit=80`).catch(() => null);
         const outputs = payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled");
-        const latest = outputs.find((item: GalleryItem) => item.type === mode && item.status === "done");
+        const latest = outputs.find((item: GalleryItem) => item.type === runMode && item.status === "done");
         if (latest) {
           galleryUpsert(outputs);
           setZenSelectedId(latest.id);
         }
       }
-      setStatus(mode === "image" ? "Finished. Your images are in the gallery." : "Finished. Your video is in the gallery.");
+      setStatus(runMode === "image" ? "Finished. Your images are in the gallery." : "Finished. Your video is in the gallery.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Generation failed";
       galleryPatch((item: GalleryItem) => {
@@ -445,5 +462,43 @@ export function useGenerationActions(view: any) {
     offerUndo(targets);
   }
 
-  return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems };
+  /* ------------------------------------------------ Fixes on a failed run */
+
+  /** The failed run again, as it was (or smaller, or decoding in tiles); the viewer closes onto the new tile. */
+  async function retryFailed(item: GalleryItem, options: RetryOptions = {}) {
+    setActive(null);
+    await runGeneration(retryRequest(item, options));
+  }
+
+  /** Out of memory: let ComfyUI unload what it holds (it does so between runs), then run it again. */
+  async function freeMemoryAndRetry(item: GalleryItem) {
+    const response = await fetch("/api/comfy/free", { method: "POST" }).catch(() => null);
+    if (!response?.ok) {
+      showToast("Couldn’t reach ComfyUI to free its memory", "error", { action: { label: "Try again", onClick: () => freeMemoryAndRetry(item) } });
+      return;
+    }
+    await retryFailed(item, { tiledDecode: Boolean(item.failure?.retry?.tiledDecode) });
+  }
+
+  /** A damaged catalog file: fetch it again, and say where to watch it. */
+  async function redownloadDamaged(item: GalleryItem) {
+    const download = item.failure?.redownload;
+    if (!download) return;
+    try {
+      await downloadActions.replace(download.id);
+      showToast(`Downloading ${download.label} again. Generate once it’s in place.`, "default");
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Couldn’t start the download", "error");
+    }
+  }
+
+  /** A file ComfyUI no longer lists: look again, so the pickers show what is really there. */
+  function rescanModels() {
+    refreshModels?.(true);
+    showToast("Looking for models again", "default");
+  }
+
+  const failureFixes = { retry: retryFailed, freeMemoryAndRetry, redownload: redownloadDamaged, rescan: rescanModels };
+
+  return { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems, failureFixes };
 }

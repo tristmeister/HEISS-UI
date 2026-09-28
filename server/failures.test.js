@@ -40,6 +40,31 @@ test("a run with no saved image becomes a visible failure", () => {
   assert.match(failure.hint, /Save Image/);
 });
 
+test("each fixable failure names its one-click fix", () => {
+  assert.equal(describeFailure({ message: "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2 GiB" }).fix, "memory");
+  assert.equal(describeFailure({ message: "Error while deserializing header: invalid header", nodeType: "VAELoader" }).fix, "redownload");
+  assert.equal(describeFailure({ message: "Prompt outputs failed validation: Value not in list: ckpt_name" }).fix, "rescan");
+  assert.equal(describeFailure({ message: "ComfyUI no longer has this run. It may have restarted." }).title, "ComfyUI dropped this run");
+  assert.equal(describeFailure({ message: "The operation was aborted due to timeout" }).title, "Lost the connection to ComfyUI");
+});
+
+test("an unrelated memory message is not called out of memory", () => {
+  assert.notEqual(describeFailure({ message: "CUDA error: an illegal memory access was encountered" }).fix, "memory");
+});
+
+test("a missing node names its class from ComfyUI's validation answer", () => {
+  const raw = `Comfy 400: {"error": {"type": "missing_node_type", "message": "Node 'Face fix' not found. The custom node may not be installed.", "extra_info": {"node_id": "4", "class_type": "FaceDetailer", "node_title": "Face fix"}}, "node_errors": {}}`;
+  const failure = describeFailure({ message: raw });
+  assert.equal(failure.fix, "node");
+  assert.equal(failure.missingNode, "FaceDetailer");
+});
+
+test("the plain summary leads while ComfyUI's own words stay in the detail", () => {
+  const failure = describeFailure({ message: "ModuleNotFoundError: No module named 'sageattention'", friendly: "ComfyUI failed inside Python. Check that the selected model, custom nodes, and PyTorch version are compatible." });
+  assert.match(failure.summary, /^ComfyUI failed inside Python/);
+  assert.match(failure.detail, /sageattention/);
+});
+
 test("a damaged file from a node that is not a loader keeps the general title", () => {
   const failure = describeFailure({ message: "safetensors_rust.SafetensorError: Error while deserializing header: header is too large", nodeType: "KSampler" });
   assert.equal(failure.title, "A model file is damaged or incomplete");

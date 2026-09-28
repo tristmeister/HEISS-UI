@@ -73,7 +73,9 @@ async function post(url: string, body: Record<string, unknown>) {
 export const downloadActions = {
   start: (id: string) => post('/api/models/downloads', { id }),
   pause: (id: string) => post('/api/models/downloads/cancel', { id }),
-  discard: (id: string) => post('/api/models/downloads/cancel', { id, discard: true })
+  discard: (id: string) => post('/api/models/downloads/cancel', { id, discard: true }),
+  /** A damaged catalog file: the broken copy is removed and a fresh one fetched. */
+  replace: (id: string) => post('/api/models/downloads/replace', { id })
 };
 
 /** Where one catalog file stands right now. */

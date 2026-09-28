@@ -6,7 +6,7 @@ import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDen
 import { AnimatedNumber } from './AnimatedNumber';
 import { ReferenceSlots, type ReferenceStrength } from './ReferenceMediaPicker';
 import type { AspectPreset, MediaInput, Profile, ReferenceAsset, SelectedReferenceAsset } from './types';
-import { estimatePhrase, type GenerationEstimate } from './useGenerationEstimate';
+import { estimatePhrase, formatAbout, type GenerationEstimate } from './useGenerationEstimate';
 
 /* ---------------------------------------------------------------------------
    The density ladder
@@ -400,6 +400,12 @@ export function ComposerBar(props: ComposerBarProps) {
                 <Dices size={14} />
                 <span>{pinnedSeed.trim()}</span>
               </button>
+            </Tip>
+          ) : null}
+          {/* A video takes minutes; once this machine has run one like it, say how long, before it starts. */}
+          {mode === "video" && generationEstimate?.ms && generationEstimate.ms >= 60_000 ? (
+            <Tip content={`From your last runs of this model at this size${generationEstimate.queueMs && generationEstimate.queueMs > 5000 ? `, after ${formatAbout(generationEstimate.queueMs)} of queue` : ""}`}>
+              <span className="composer-estimate">Usually {formatAbout(generationEstimate.ms)} here</span>
             </Tip>
           ) : null}
         </div>

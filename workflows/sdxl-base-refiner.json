@@ -1,0 +1,57 @@
+{
+  "heissUi": {
+    "id": "sdxl-base-refiner",
+    "name": "SDXL Base + Refiner",
+    "description": "SDXL 1.0 the way it shipped: the base model lays out the image, the refiner finishes the last fifth of the steps. From Comfy-Org's SDXL refiner template.",
+    "kind": "image",
+    "family": "sdxl",
+    "controls": {
+      "prompt": { "node": "20", "input": "value" },
+      "negative": { "node": "21", "input": "value" },
+      "model": { "node": "4", "input": "ckpt_name" },
+      "width": { "node": "5", "input": "width" },
+      "height": { "node": "5", "input": "height" },
+      "count": { "node": "5", "input": "batch_size" },
+      "steps": { "node": "22", "input": "value" },
+      "seed": { "node": "10", "input": "noise_seed" },
+      "cfg": { "node": "10", "input": "cfg" },
+      "sampler": { "node": "10", "input": "sampler_name" },
+      "scheduler": { "node": "10", "input": "scheduler" }
+    },
+    "capabilities": {
+      "negativePrompt": true,
+      "variations": true
+    },
+    "defaults": {
+      "model": "sd_xl_base_1.0.safetensors",
+      "width": 1024,
+      "height": 1024,
+      "count": 1,
+      "steps": 25,
+      "cfg": 8,
+      "sampler": "euler",
+      "scheduler": "normal"
+    },
+    "aspectRatios": [
+      ["1:1", 1, 1],
+      ["2:3", 2, 3],
+      ["3:2", 3, 2],
+      ["16:9", 16, 9],
+      ["9:16", 9, 16]
+    ]
+  },
+  "4": { "class_type": "CheckpointLoaderSimple", "inputs": { "ckpt_name": "sd_xl_base_1.0.safetensors" } },
+  "12": { "class_type": "CheckpointLoaderSimple", "inputs": { "ckpt_name": "sd_xl_refiner_1.0.safetensors" } },
+  "20": { "class_type": "PrimitiveString", "inputs": { "value": "daytime sky nature dark blue galaxy bottle" } },
+  "21": { "class_type": "PrimitiveString", "inputs": { "value": "text, watermark" } },
+  "22": { "class_type": "PrimitiveInt", "inputs": { "value": 25 } },
+  "6": { "class_type": "CLIPTextEncode", "inputs": { "clip": ["4", 1], "text": ["20", 0] } },
+  "7": { "class_type": "CLIPTextEncode", "inputs": { "clip": ["4", 1], "text": ["21", 0] } },
+  "15": { "class_type": "CLIPTextEncode", "inputs": { "clip": ["12", 1], "text": ["20", 0] } },
+  "16": { "class_type": "CLIPTextEncode", "inputs": { "clip": ["12", 1], "text": ["21", 0] } },
+  "5": { "class_type": "EmptyLatentImage", "inputs": { "width": 1024, "height": 1024, "batch_size": 1 } },
+  "10": { "class_type": "KSamplerAdvanced", "inputs": { "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["5", 0], "add_noise": "enable", "noise_seed": 6767725640732, "steps": ["22", 0], "cfg": 8, "sampler_name": "euler", "scheduler": "normal", "start_at_step": 0, "end_at_step": 20, "return_with_leftover_noise": "enable" } },
+  "11": { "class_type": "KSamplerAdvanced", "inputs": { "model": ["12", 0], "positive": ["15", 0], "negative": ["16", 0], "latent_image": ["10", 0], "add_noise": "disable", "noise_seed": 0, "steps": ["22", 0], "cfg": 8, "sampler_name": "euler", "scheduler": "normal", "start_at_step": 20, "end_at_step": 10000, "return_with_leftover_noise": "disable" } },
+  "17": { "class_type": "VAEDecode", "inputs": { "samples": ["11", 0], "vae": ["12", 2] } },
+  "19": { "class_type": "SaveImage", "inputs": { "images": ["17", 0], "filename_prefix": "heiss-ui/image" } }
+}

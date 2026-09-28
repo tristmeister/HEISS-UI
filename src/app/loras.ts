@@ -61,12 +61,17 @@ export function loraScore(name: string, profile: Profile | null) {
   return score;
 }
 
-export function rankedLoras(options: string[] = [], profile: Profile | null, query = "") {
+/** LoRAs whose files say they fit come first, then the ones that say nothing, then those made for another model. */
+export type FitOf = (name: string) => 'fits' | 'other' | 'unknown';
+const fitRank = { fits: 0, unknown: 1, other: 2 } as const;
+
+export function rankedLoras(options: string[] = [], profile: Profile | null, query = "", fitOf?: FitOf) {
   const q = query.trim().toLowerCase();
   const filtered = q ? options.filter((name) => name.toLowerCase().includes(q)) : options;
   return [...filtered].sort((a, b) => {
+    const fit = fitOf ? fitRank[fitOf(a)] - fitRank[fitOf(b)] : 0;
     const delta = loraScore(b, profile) - loraScore(a, profile);
-    return delta || a.localeCompare(b);
+    return fit || delta || a.localeCompare(b);
   });
 }
 
@@ -94,9 +99,9 @@ function folderLabel(path: string) {
  * (e.g. krea2/characters/woman). Deeper folders collapse into their level-3 ancestor so
  * they still list under the folder above. Root-level files stay in "All".
  */
-export function loraGroups(options: string[] = [], profile: Profile | null, query = ""): LoraGroup[] {
+export function loraGroups(options: string[] = [], profile: Profile | null, query = "", fitOf?: FitOf): LoraGroup[] {
   const groups = new Map<string, string[]>();
-  for (const name of rankedLoras(options, profile, query)) {
+  for (const name of rankedLoras(options, profile, query, fitOf)) {
     const folder = folderPath(name);
     const id = folder ? `folder:${folder}` : "root";
     const existing = groups.get(id) || [];
@@ -113,6 +118,10 @@ export function loraGroups(options: string[] = [], profile: Profile | null, quer
     .sort((a, b) => (a.id === "root" ? 1 : b.id === "root" ? -1 : a.label.localeCompare(b.label)));
 }
 
-export function recommendedLoras(options: string[] = [], profile: Profile | null, query = "") {
-  return rankedLoras(options, profile, query).filter((name) => loraScore(name, profile) > 0);
+/** Suggestions: what the files say fits this model, else what the names suggest; never one made for another model. */
+export function recommendedLoras(options: string[] = [], profile: Profile | null, query = "", fitOf?: FitOf) {
+  return rankedLoras(options, profile, query, fitOf).filter((name) => {
+    const fit = fitOf?.(name) || 'unknown';
+    return fit === 'fits' || (fit === 'unknown' && loraScore(name, profile) > 0);
+  });
 }

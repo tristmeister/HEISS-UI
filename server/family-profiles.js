@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
+import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, speedVariantFor, vaeDownloads, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { ggufEncoderNames, ggufModelNames, isGguf } from './gguf.js';
 import { missingPackPart } from './node-install.js';
@@ -21,12 +21,19 @@ const clipLoaderClass = [null, "CLIPLoader", "DualCLIPLoader", "TripleCLIPLoader
 function partLabel(kind, key, file) {
   if (kind === "encoder" && encoderKinds[key]) return `${encoderKinds[key].label} text encoder`;
   if (kind === "vae" && vaeKinds[key]) return vaeKinds[key].label;
+  if (kind === "vision" && visionKinds[key]) return `${visionKinds[key].label} encoder`;
   return file;
+}
+
+/** Who publishes a Hugging Face file: the repo's owner ("Comfy-Org", a community converter). */
+export function downloadSource(url = "") {
+  const match = /^https:\/\/huggingface\.co\/([^/]+)\/([^/]+)\//.exec(String(url));
+  return match ? { source: match[1], repo: `${match[1]}/${match[2]}` } : {};
 }
 
 function downloadsFor(list = [], folder, prefix) {
   const [kind, key] = prefix.split(":");
-  return list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...item }));
+  return list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...downloadSource(item.url), ...item }));
 }
 
 /** `onDisk`: fetched already (even before a restart), ComfyUI just has not listed it yet. */
@@ -38,7 +45,8 @@ const downloadSources = {
   encoder: [encoderDownloads, "text_encoders"],
   vae: [vaeDownloads, "vae"],
   model: [modelDownloads, "diffusion_models"],
-  checkpoint: [checkpointDownloads, "checkpoints"]
+  checkpoint: [checkpointDownloads, "checkpoints"],
+  vision: [visionDownloads, "clip_vision"]
 };
 
 /** Every catalog download HEISS will fetch, by id. The only files the download route accepts. */
@@ -67,12 +75,19 @@ export function referenceSlots(count = 0) {
   }));
 }
 
+/**
+ * One catalog download by id, with the builds listed after it for the same
+ * part as `alternatives`: tried in order if this one is gone or gated.
+ */
 export function catalogDownload(id = "") {
   const [kind, key, index] = String(id).split(":");
   const [source, folder] = downloadSources[kind] || [];
-  const entry = source && Object.hasOwn(source, key) ? source[key][Number(index)] : null;
+  const list = source && Object.hasOwn(source, key) ? source[key] : [];
+  const at = Number(index);
+  const entry = Number.isInteger(at) ? list[at] : null;
   if (!entry) return null;
-  return { id, folder, label: partLabel(kind, key, entry.file), ...entry };
+  const spec = (item, position) => ({ id: `${kind}:${key}:${position}`, folder, label: partLabel(kind, key, item.file), ...item });
+  return { ...spec(entry, at), alternatives: list.slice(at + 1).map((item, offset) => spec(item, at + 1 + offset)) };
 }
 
 /**
@@ -87,7 +102,7 @@ export function catalogDownloadsForFile(file = "", folder = "") {
     if (sourceFolder !== folder) continue;
     for (const [key, list] of Object.entries(source)) {
       list.forEach((entry, index) => {
-        if (entry.file === file) found.push(withDisk({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...entry }));
+        if (entry.file === file) found.push(withDisk({ id: `${kind}:${key}:${index}`, folder, label: partLabel(kind, key, entry.file), ...downloadSource(entry.url), ...entry }));
       });
     }
   }
@@ -160,7 +175,7 @@ function sanaSettings(info, name, variant, detail, cuda) {
  * @param helpers { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda }
  */
 export function familyProfiles(info, helpers) {
-  const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false } = helpers;
+  const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false, loraAbout = null } = helpers;
   // GGUF files load through ComfyUI-GGUF's twins of the core loaders (see gguf.js).
   const unets = [...optionsFor(info, "UNETLoader", "unet_name"), ...ggufModelNames(info)];
   const checkpoints = optionsFor(info, "CheckpointLoaderSimple", "ckpt_name");
@@ -168,6 +183,7 @@ export function familyProfiles(info, helpers) {
   const vaeFiles = optionsFor(info, "VAELoader", "vae_name")
     .filter((name) => !/^(pixel_space|taesd|taesdxl|taesd3|taef1)$/i.test(name))
     .map(classifyVae);
+  const visionFiles = optionsFor(info, "CLIPVisionLoader", "clip_name");
 
   const profiles = [];
   const modelFiles = [];
@@ -206,11 +222,19 @@ export function familyProfiles(info, helpers) {
     if (!family || !family.sources.includes(source)) {
       fileEntry.reason = knownFamilies[info2.family] && info2.family !== "other"
         ? `${knownFamilies[info2.family]} can’t run in HEISS UI yet.`
-        : "Model type not recognized. Choose its type.";
+        : "Unknown type. Choose one to use it.";
       continue;
     }
     if (incompatible(name)) {
       fileEntry.reason = "Needs PyTorch 2.8 or newer (NVFP4).";
+      continue;
+    }
+    // A quantized format needs its own loader, whatever the family (or "Use as …") says.
+    const quant = info2.quant ? quantFormats[info2.quant] : null;
+    const quantLoader = quant?.loaders[source] || "";
+    if (quant && !quantLoader) {
+      fileEntry.quant = info2.quant;
+      fileEntry.reason = quant.reason;
       continue;
     }
 
@@ -266,6 +290,15 @@ export function familyProfiles(info, helpers) {
         missing.push({ part: "vae", label: vaeKinds[key].label, kind: key, detail: "H3 decodes its sound with a separate VAE.", downloads: downloadsFor(vaeDownloads[key], "vae", `vae:${key}`) });
       }
     }
+    // An image-to-video model that also reads its start image with a vision encoder.
+    let clipVision = "";
+    if (family.clipVision) {
+      clipVision = visionFiles.find((file) => family.clipVision.some((kind) => visionKinds[kind]?.test.test(file))) || "";
+      if (!clipVision) {
+        const key = family.clipVision[0];
+        missing.push({ part: "vision", label: `${visionKinds[key].label} encoder`, kind: key, detail: `${family.label} reads the start image with it. Put it in ComfyUI/models/clip_vision.`, downloads: downloadsFor(visionDownloads[key], "clip_vision", `vision:${key}`) });
+      }
+    }
     if (family.pair && !pairModel) {
       const key = family.pair.download?.(base);
       missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`) : [] });
@@ -273,9 +306,11 @@ export function familyProfiles(info, helpers) {
     const ggufPart = isGguf(name) && missingPackPart(info, "gguf", { detail: "ComfyUI loads GGUF models through the ComfyUI-GGUF custom nodes." });
     if (ggufPart) missing.push(ggufPart);
     const nodes = runner ? [] : missingNodes(info, nodesFor(family, variant, !encoderBuiltIn, !bundled.vae));
-    // A family that runs on a custom node pack names it (family.pack, or its runner's).
+    // A family that runs on a custom node pack names it (family.pack, or its runner's); a
+    // quantized file, its format's loader pack.
     const needs = runner || family;
-    const packPart = needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note });
+    const packPart = (quant && missingPackPart(info, quant.pack, { detail: `This is a ${quant.label} file; ComfyUI reads it through these nodes.` }))
+      || (needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note }));
     if (packPart) {
       missing.push(packPart);
     } else if (!packPart && (nodes.length || !clipTypeAvailable(info, family))) {
@@ -306,9 +341,30 @@ export function familyProfiles(info, helpers) {
     if (missing.length) fileEntry.reason = `Needs ${missing.map((item) => item.label).join(", ")}.`;
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
+    const settingsOf = (item) => ({
+      steps: item.defaults.steps, cfg: item.defaults.cfg,
+      sampler: pick(samplers, item.defaults.sampler, samplers.includes("euler") ? "euler" : ""),
+      scheduler: pick(schedulers, item.defaults.scheduler, schedulers.includes("simple") ? "simple" : "")
+    });
+    // Speed LoRAs this full-step model would run with: each switches it to a few-step variant.
+    const speedLoras = {};
+    if (!variant.fast && canUseLoras && !family.ownLoaders) {
+      for (const lora of loras) {
+        const fast = speedVariantFor(info2.family, lora, loraAbout?.(lora));
+        if (fast) speedLoras[lora] = fast.id;
+      }
+    }
+    const speedVariants = Object.fromEntries([...new Set(Object.values(speedLoras))].map((id) => {
+      const fast = family.variants.find((item) => item.id === id);
+      return [id, { label: fast.label, ...settingsOf(fast) }];
+    }));
     const references = canReference(family, info) ? family.references : 0;
+    // Image-to-video runs from a picture: one start image, and no run without it.
+    const startSlot = family.startImage === "required"
+      ? [{ id: "reference", kind: "image", required: true, min: 1, max: 1, label: "Start image", role: "start" }]
+      : null;
     const profile = buildProfile({
-      mediaInputs: referenceSlots(references),
+      mediaInputs: startSlot || referenceSlots(references),
       aspectPolicy: references ? "reference" : "manual",
       id: legacyProfileId(info2.family, source, name) || `${family.kind}:${info2.family}:${source}:${name}`,
       kind: family.kind,
@@ -330,7 +386,7 @@ export function familyProfiles(info, helpers) {
         vae: bundled.vae ? "" : vaeOptions[0] || "",
         clipType: family.clipType || "",
         weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default",
-        denoise: family.img2img ? 0.65 : 1,
+        denoise: family.img2img ? variant.denoise ?? family.denoise ?? 0.65 : 1,
         ...(family.kind === "video" ? { frames: family.frames, fps: family.fps } : {})
       },
       aspects: aspectSet({ width, height }, family.aspects, { width: widthRange, height: heightRange }),
@@ -351,6 +407,7 @@ export function familyProfiles(info, helpers) {
         // ComfyUI's LoRA loader cannot patch a model it did not build.
         lora: canUseLoras && !family.ownLoaders,
         startImage: Boolean(family.img2img || family.startImage),
+        startImageRequired: family.startImage === "required",
         denoise: Boolean(family.img2img),
         frames: family.kind === "video",
         fps: family.kind === "video"
@@ -367,7 +424,10 @@ export function familyProfiles(info, helpers) {
       bundledKnown: bundled.known !== false,
       audioVae,
       pairModel,
+      clipVision,
       vpredPatch,
+      ...(quantLoader ? { quant: info2.quant, checkpointLoader: quantLoader } : {}),
+      ...(Object.keys(speedLoras).length ? { speedLoras, speedVariants } : {}),
       detectedBy: info2.via,
       missing,
       ready: missing.length === 0,

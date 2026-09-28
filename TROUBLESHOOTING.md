@@ -78,9 +78,13 @@ Something the run needs was moved or deleted after ComfyUI listed it. **Rescan**
 
 The workflow uses a custom node ComfyUI doesn't have. Install the node pack (HEISS UI offers it when it knows which one), restart ComfyUI, and try again. For a built-in model, HEISS UI says **Newer ComfyUI** instead when ComfyUI itself is too old: update ComfyUI.
 
+### ComfyUI dropped this run
+
+ComfyUI no longer has the run in its queue or its history, usually because it restarted or its queue was cleared from somewhere else. Nothing more will come of it. Generate again once ComfyUI is running.
+
 ### Lost the connection to ComfyUI
 
-ComfyUI stopped answering mid-run: it crashed (often from running out of memory), was closed, or restarted. Check its window or log, start it again if needed, then try again.
+ComfyUI stopped answering for about a minute mid-run: it crashed (often from running out of memory), was closed, or restarted. Check its window or log, start it again if needed, then try again.
 
 ### No image was saved
 
@@ -102,7 +106,7 @@ The link in this version of HEISS UI is out of date (HTTP 404). Update HEISS UI 
 
 ### A download needs a Hugging Face login
 
-Some models need you to sign in and accept a licence first (HTTP 401 or 403). Download the file in your browser from the page HEISS UI opens, put it in the named ComfyUI folder, and **Rescan** in Settings › Models.
+Some models need you to sign in and accept a licence first (HTTP 401 or 403). Accept it on the page HEISS UI opens, then either save a Hugging Face token in **Settings › Models** and download again, or download the file in your browser, put it in the named ComfyUI folder, and **Rescan** in Settings › Models.
 
 ### ComfyUI-Manager refuses to install a node pack
 

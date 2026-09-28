@@ -1,6 +1,6 @@
 export type Mode = "image" | "video";
 /** `steps` marks a sampler's count; other nodes report a `phase` ("Encoding image") instead. */
-export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean; /** When the run should be done, on the server's clock; only there when it can be said honestly. */ endsAt?: number; /** When ComfyUI started running it (not queued), on the server's clock. */ runStartedAt?: number };
+export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean; /** When the run should be done, on the server's clock; only there when it can be said honestly. */ endsAt?: number; /** When ComfyUI started running it (not queued), on the server's clock. */ runStartedAt?: number; /** ComfyUI is out of reach for now; the server keeps trying for about a minute. */ reconnecting?: boolean };
 /** How long a finished run took in ComfyUI itself, without waiting in its queue; `slow` when its steps ran far slower than this model's usual. */
 export type RunTiming = { runMs: number; stepMs?: number; slow?: boolean };
 export type Output = { url: string; filename: string; type: "image" | "video"; prompt?: string; negative?: string; outputName?: string };
@@ -55,7 +55,17 @@ export type UpscaleState = {
   leftBehind?: boolean;
 };
 /** Why a run failed: a headline, a plain hint, and the raw detail for bug reports. */
-export type GenerationFailure = { title: string; summary: string; hint?: string; help?: string; nodeType?: string; nodeId?: string; file?: string; exceptionType?: string; detail?: string; traceback?: string; at?: number };
+export type GenerationFailure = {
+  title: string; summary: string; hint?: string; help?: string; nodeType?: string; nodeId?: string; file?: string; exceptionType?: string; detail?: string; traceback?: string; at?: number;
+  /** The one-click way out the viewer offers. */
+  fix?: "memory" | "redownload" | "rescan" | "node" | "retry" | "";
+  /** A missing node's class, and the known pack that brings it. */
+  missingNode?: string; nodePack?: NodePackInfo & { id: string }; install?: NodeInstallPlan; autoInstall?: PackAutoInstall;
+  /** The catalog file that replaces a damaged one. */
+  redownload?: { id: string; file: string; folder: string; label: string; bytes?: number };
+  /** What a retry after running out of memory may change. */
+  retry?: { smaller?: boolean; tiledDecode?: boolean };
+};
 export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle; /** Starred. */ favorite?: boolean; /** Added from another folder and shown where it is (server/library.js). */ library?: { folder: string; path: string } };
 export type GalleryBundle = {
   id: string;
@@ -116,9 +126,14 @@ export type Profile = {
   ready?: boolean;
   /** The model file's size, when it sits on this computer. */
   weightBytes?: number;
+  /** Speed LoRAs that run this full-step model as one of its few-step variants, by LoRA file. */
+  speedLoras?: Record<string, string>;
+  /** Those variants' settings, by variant id. */
+  speedVariants?: Record<string, SpeedVariant>;
 };
+export type SpeedVariant = { label: string; steps: number; cfg: number; sampler: string; scheduler: string };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
-export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean };
+export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean; /** Who publishes it on Hugging Face (the repo owner), and the repo. */ source?: string; repo?: string };
 /** A ComfyUI custom node pack (server/node-packs.js). */
 export type NodePackInfo = { id?: string; name: string; repository: string; folder?: string; search?: string; note?: string };
 /** Which one-click routes HEISS has for a pack: Manager (the pack is in its list) and/or a local clone + pip. */
@@ -132,15 +147,15 @@ export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: stri
  * terminal `install`; a part fetched outside HEISS carries a `command`.
  */
 export type MissingPart = {
-  part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
+  part: "encoder" | "vae" | "model" | "vision" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };
-export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number };
-export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[] };
+export type ModelDownload = { id: string; file: string; folder?: string; label: string; status: "queued" | "downloading" | "done" | "error" | "canceled" | "paused"; receivedBytes: number; totalBytes: number; bytesPerSecond?: number; already?: boolean; error?: string; finishedAt?: number; /** false when trying again cannot help (full disk, gated file). */ retryable?: boolean; /** Gated: only the browser, logged in to Hugging Face, can fetch it. */ needsBrowser?: boolean; /** Which automatic reconnect this is, while the connection is down. */ reconnecting?: number; /** Gone or gated, and the next build of the same part the server tried instead. */ unavailable?: boolean; fellBackTo?: string; fallbackFrom?: string };
+export type DownloadState = { local?: boolean; active: ModelDownload | null; queued: ModelDownload[]; recent: ModelDownload[]; paused?: ModelDownload[]; /** Free bytes where each models folder lands, and which disk that is. */ space?: Record<string, { free: number; disk: string }> };
 export type ModelSource = "unet" | "checkpoint";
 /** A model file and what HEISS took it for: via says how (your choice, its weights, metadata, filename). */
-export type ModelFile = { name: string; source: ModelSource; family: string; choice: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string; missing?: string[] };
+export type ModelFile = { name: string; source: ModelSource; family: string; choice: string; via: "choice" | "file" | "metadata" | "name" | "default" | ""; label: string; supported: boolean; reason?: string; missing?: string[]; /** A quantized format ComfyUI cannot load natively (svdq, nf4). */ quant?: string };
 export type Models = {
   imageModels: SelectOption[];
   videoModels: SelectOption[];

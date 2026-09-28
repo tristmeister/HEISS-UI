@@ -86,8 +86,8 @@ export function GenerationProgress({ item, formatElapsed }: { item: GalleryItem;
   const timed = clock.ratio !== null;
   const ratio = timed ? clock.ratio : reading.kind === 'steps' ? reading.ratio : 0;
   return (
-    <div className="generation-progress" style={{ '--progress-ratio': ratio } as React.CSSProperties}>
-      <div className="generate-overlay">
+    <div className={cn('generation-progress', item.progress?.reconnecting && 'is-reconnecting')} style={{ '--progress-ratio': ratio } as React.CSSProperties}>
+      <div className="generate-overlay" title={item.progress?.reconnecting ? 'ComfyUI stopped answering for a moment. HEISS UI keeps asking for about a minute, and picks the result up once it is back.' : undefined}>
         <span className="generate-step">
           {reading.kind === 'steps' ? (
             <>

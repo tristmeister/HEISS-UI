@@ -1,5 +1,7 @@
 import { comfy, comfyUrl, normalizeComfyError } from './comfy.js';
+import { cancelPrompt, promptTracker } from './comfy-queue.js';
 import { describeFailure } from './failures.js';
+import { withFixes } from './failure-fixes.js';
 import { nextProgress } from './progress-phase.js';
 import { rememberMissingParts } from './model-families.js';
 import { imageGraph, videoGraph } from './graphs.js';
@@ -243,6 +245,8 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
       const message = JSON.parse(event.data);
       const data = message.data || {};
       if (data.prompt_id && run.promptId && data.prompt_id !== run.promptId) return;
+      // Anything ComfyUI says on this socket shows it is still there.
+      run.alive?.();
       const timing = runTimings.get(id);
       if (timing?.timer) {
         timing.timer.note(message);
@@ -273,7 +277,7 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
       }
       if (message.type === "execution_error") {
         const learned = learnFromFailure(jobBodies.get(id), data.exception_message);
-        const failure = describeFailure({ message: data.exception_message, nodeType: data.node_type, nodeId: data.node_id, exceptionType: data.exception_type, traceback: data.traceback, learned });
+        const failure = withFixes(describeFailure({ message: data.exception_message, nodeType: data.node_type, nodeId: data.node_id, exceptionType: data.exception_type, traceback: data.traceback, learned }), jobBodies.get(id));
         setTerminalJob(id, { status: "error", error: failure.summary, failure });
         updateGalleryJob(id, { status: "error", filename: failure.title, failure });
       }
@@ -309,6 +313,36 @@ function learnFromFailure(body, message = "") {
   return `This checkpoint has no ${part} built in. HEISS UI now uses a separate one: rescan models, pick it in Advanced (or download it), and generate again.`;
 }
 
+/** Waits before the next look at ComfyUI; a finished-run message on the socket ends the wait early. */
+async function pause(run, ms) {
+  await new Promise((resolve) => {
+    run.wake = resolve;
+    setTimeout(resolve, ms).unref?.();
+  });
+  run.wake = null;
+}
+
+/**
+ * While ComfyUI is out of reach the tile says so instead of freezing on its
+ * last step; the progress from before comes back with the connection (and the
+ * socket's next message replaces it anyway).
+ */
+function showReconnecting(id, run, on) {
+  const current = jobs.get(id);
+  if (!current || current.status === "canceling" || current.status === "canceled") return;
+  if (on === Boolean(current.progress?.reconnecting)) return;
+  let progress;
+  if (on) {
+    run.progressBefore = current.progress || null;
+    progress = { value: 0, max: 0, node: "", phase: "Reconnecting…", steps: false, reconnecting: true };
+  } else {
+    progress = run.progressBefore || { value: 0, max: 0 };
+    run.progressBefore = null;
+  }
+  jobs.set(id, { ...current, progress });
+  updateGalleryJob(id, { progress }, { persist: false });
+}
+
 async function runJob(id, body) {
   jobBodies.set(id, body);
   const timing = { timer: null, estimate: generationEstimate(body), warm: false };
@@ -321,7 +355,7 @@ async function runJob(id, body) {
     socket = openProgressSocket(id);
     await waitForSocketOpen(socket);
     sendSocketFeatureFlags(socket);
-    const run = { promptId: null, wake: null };
+    const run = { promptId: null, wake: null, alive: null };
     watchProgress(id, run, socket, prompt);
     const queued = await comfy("/prompt", {
       method: "POST",
@@ -329,19 +363,20 @@ async function runJob(id, body) {
       body: JSON.stringify({ prompt, client_id: id, extra_data: { preview_method: "auto" } })
     });
     if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
-      await comfy("/queue", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ delete: [queued.prompt_id] })
-      }).catch(() => null);
+      // It may already have started on an idle ComfyUI; this stops it either way, and only it.
+      await cancelPrompt(queued.prompt_id).catch(() => null);
       updateGalleryJob(id, { status: "canceled" });
       setTerminalJob(id, { status: "canceled", promptId: queued.prompt_id });
       return;
     }
     run.promptId = queued.prompt_id;
     jobs.set(id, { ...jobs.get(id), status: "running", promptId: queued.prompt_id });
+    const tracker = promptTracker(queued.prompt_id);
+    run.alive = tracker.alive;
     while (true) {
       if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
+        // The cancel route already asked; asking again covers a ComfyUI that was out of reach then.
+        await cancelPrompt(queued.prompt_id).catch(() => null);
         updateGalleryJob(id, { status: "canceled" });
         setTerminalJob(id, { status: "canceled" });
         socket?.close();
@@ -354,8 +389,23 @@ async function runJob(id, body) {
         forgetHiddenRun(body, queued.prompt_id);
         return;
       }
-      const history = await comfy(`/history/${queued.prompt_id}`);
-      const entry = history[queued.prompt_id];
+      const checked = await tracker.check();
+      if (checked.state === "reconnecting") {
+        showReconnecting(id, run, true);
+        await pause(run, checked.delayMs);
+        continue;
+      }
+      if (checked.reconnected) {
+        showReconnecting(id, run, false);
+        // A socket that dropped with the connection gets a fresh one, so progress and previews come back.
+        if (!socket || socket.readyState === WebSocket.CLOSING || socket.readyState === WebSocket.CLOSED) {
+          socket = openProgressSocket(id);
+          await waitForSocketOpen(socket);
+          sendSocketFeatureFlags(socket);
+          watchProgress(id, run, socket, prompt);
+        }
+      }
+      const entry = checked.state === "done" ? checked.entry : null;
       // A run that failed while the socket was down still says why in its history.
       if (entry?.status?.status_str === "error") {
         const failed = (entry.status.messages || []).find(([type]) => type === "execution_error")?.[1] || {};
@@ -363,7 +413,7 @@ async function runJob(id, body) {
       }
       if (entry) {
         recordTiming(id, body, timing);
-        const outputs = outputsFrom(history[queued.prompt_id]);
+        const outputs = outputsFrom(entry);
         // Replacing the placeholder with nothing would delete the tile; keep it as a failure that says why.
         if (!outputs.length) {
           throw Object.assign(new Error("ComfyUI finished the run but saved no image."), { noOutput: true });
@@ -387,18 +437,17 @@ async function runJob(id, body) {
         socket?.close();
         return;
       }
-      await new Promise((resolve) => {
-        run.wake = resolve;
-        setTimeout(resolve, 1600);
-      });
-      run.wake = null;
+      await pause(run, 1600);
     }
   } catch (error) {
     // The socket may already have recorded the richer failure for this job.
     const known = jobs.get(id)?.failure;
-    const learned = learnFromFailure(body, error.message);
+    // ComfyUI's own words stay in the detail (a missing module's name, say); the plain version leads.
+    const raw = error.raw || error.message;
+    const learned = learnFromFailure(body, raw);
+    const friendly = learned ? "" : normalizeComfyError(raw);
     const from = error.comfyFailure || {};
-    const failure = known || (error.noOutput ? describeFailure({ message: error.message, noOutput: true }) : null) || describeFailure({ message: learned ? error.message : normalizeComfyError(error.message), nodeType: from.node_type, nodeId: from.node_id, exceptionType: from.exception_type, traceback: from.traceback, learned });
+    const failure = known || (error.noOutput ? describeFailure({ message: error.message, noOutput: true }) : null) || withFixes(describeFailure({ message: raw, friendly: friendly !== raw ? friendly : "", nodeType: from.node_type, nodeId: from.node_id, exceptionType: from.exception_type, traceback: from.traceback, learned }), body);
     setTerminalJob(id, { status: "error", error: failure.summary, failure });
     updateGalleryJob(id, { status: "error", filename: failure.title, failure });
     socket?.close();

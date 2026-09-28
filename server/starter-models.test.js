@@ -46,7 +46,7 @@ test("a split model brings its encoder and VAE, model last; a checkpoint brings 
   assert.equal(realvis.downloads[0].folder, "checkpoints");
   const dev = version(result, "flux2_klein_4b", "dev");
   assert.equal(dev.family, "flux2_dev");
-  assert.equal(dev.downloads[0].id, "encoder:mistral3_24b:1", "Dev takes the fp8 text encoder, not the 35 GB one");
+  assert.equal(dev.downloads[0].id, "encoder:mistral3_24b:0", "Dev takes the fp8 text encoder, not the 35 GB one");
   assert.equal(dev.downloads[0].file, "mistral_3_small_flux2_fp8.safetensors");
 });
 

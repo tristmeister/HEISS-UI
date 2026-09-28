@@ -2,9 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, GripVertical, Layers, Plus, RotateCcw, Save, Search, Star, X } from 'lucide-react';
 import { cn } from './format';
-import { defaultLoraStrength, loraGroups, maxLoras, recommendedLoras, rankedLoras } from './loras';
+import { defaultLoraStrength, loraGroups, maxLoras, recommendedLoras, rankedLoras, type FitOf } from './loras';
 import { Switch } from './SettingsDialog';
 import { Tip } from './components';
+import { copyText } from './api';
+import { loraFit, useLoraInfo, type LoraInfo } from './useLoraInfo';
 import type { LoraSnapshot } from './lora-storage';
 import type { LoraSelection, Profile } from './types';
 
@@ -96,12 +98,36 @@ function StrengthControl({ value, onChange, disabled, label }: { value: number; 
  * one left edge. The grip and remove button stay out of the way until the
  * card is hovered or focused.
  */
-function LoraCard({ item, index, count, missing, overLimit, onChange, onRemove, onSwap, onMove }: {
+/** The words a LoRA was trained to answer to; a click copies one for the prompt. */
+function TriggerWords({ words }: { words: string[] }) {
+  const [copied, setCopied] = useState('');
+  if (!words.length) return null;
+  const copy = async (word: string) => {
+    if (!await copyText(word)) return;
+    setCopied(word);
+    window.setTimeout(() => setCopied((current) => (current === word ? '' : current)), 1400);
+  };
+  return (
+    <p className="lora-triggers">
+      <span>Trigger</span>
+      {words.map((word) => (
+        <Tip key={word} content={copied === word ? 'Copied' : 'Copy for your prompt'}>
+          <button type="button" className={cn('lora-trigger', copied === word && 'is-copied')} onClick={() => copy(word)}>{word}</button>
+        </Tip>
+      ))}
+    </p>
+  );
+}
+
+function LoraCard({ item, index, count, missing, overLimit, info, otherModel, onChange, onRemove, onSwap, onMove }: {
   item: LoraSelection;
   index: number;
   count: number;
   missing: boolean;
   overLimit: boolean;
+  info?: LoraInfo;
+  /** Made for another model than this one: its name for it, else empty. */
+  otherModel: string;
   onChange: (patch: Partial<LoraSelection>) => void;
   onRemove: () => void;
   onSwap: () => void;
@@ -134,8 +160,10 @@ function LoraCard({ item, index, count, missing, overLimit, onChange, onRemove, 
         <Switch size="sm" label={item.enabled ? `Turn off ${label}` : `Turn on ${label}`} checked={item.enabled} onChange={(enabled) => onChange({ enabled })} />
       </div>
       <StrengthControl label={label} value={item.strength} disabled={!item.enabled} onChange={(strength) => onChange({ strength })} />
+      {!missing && item.enabled && info?.triggers?.length ? <TriggerWords words={info.triggers} /> : null}
       {missing ? <p className="lora-warning"><AlertTriangle size={12} /> Not found in ComfyUI's LoRA folder</p> : null}
       {!missing && overLimit ? <p className="lora-warning"><AlertTriangle size={12} /> Over this workflow's limit, so it won't be used</p> : null}
+      {!missing && !overLimit && otherModel ? <p className="lora-warning is-soft"><AlertTriangle size={12} /> Made for {otherModel}; it may do nothing here</p> : null}
     </Reorder.Item>
   );
 }
@@ -145,9 +173,12 @@ function LoraCard({ item, index, count, missing, overLimit, onChange, onRemove, 
 type PickerRow = { key: string; name: string };
 type PickerSection = { id: string; label: string; rows: PickerRow[]; collapsible?: boolean };
 
-function LoraPicker({ options, profile, current, favorites, recents, remaining, swapping, onToggleFavorite, onAdd, onSwap, onClose }: {
+function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recents, remaining, swapping, onToggleFavorite, onAdd, onSwap, onClose }: {
   options: string[];
   profile: Profile | null;
+  fitOf: FitOf;
+  /** What a LoRA was made for, as people call it. */
+  baseOf: (name: string) => string;
   current: string[];
   favorites: string[];
   recents: string[];
@@ -169,19 +200,19 @@ function LoraPicker({ options, profile, current, favorites, recents, remaining, 
   const available = useMemo(() => new Set(options), [options]);
   const sections = useMemo<PickerSection[]>(() => {
     const q = query.trim().toLowerCase();
-    if (q) return [{ id: 'results', label: 'Results', rows: rankedLoras(options, profile, q).map((name) => ({ key: `q:${name}`, name })) }];
+    if (q) return [{ id: 'results', label: 'Results', rows: rankedLoras(options, profile, q, fitOf).map((name) => ({ key: `q:${name}`, name })) }];
     const out: PickerSection[] = [];
     const fav = favorites.filter((name) => available.has(name));
     const rec = recents.filter((name) => available.has(name) && !fav.includes(name)).slice(0, 5);
-    const suggested = recommendedLoras(options, profile).filter((name) => !fav.includes(name) && !rec.includes(name)).slice(0, 6);
+    const suggested = recommendedLoras(options, profile, '', fitOf).filter((name) => !fav.includes(name) && !rec.includes(name)).slice(0, 6);
     if (fav.length) out.push({ id: 'favorites', label: 'Favorites', rows: fav.map((name) => ({ key: `f:${name}`, name })) });
     if (rec.length) out.push({ id: 'recents', label: 'Recent', rows: rec.map((name) => ({ key: `r:${name}`, name })) });
-    if (suggested.length) out.push({ id: 'suggested', label: profile?.family ? `Suggested for ${profile.family}` : 'Suggested', rows: suggested.map((name) => ({ key: `s:${name}`, name })) });
-    for (const group of loraGroups(options, profile)) {
+    if (suggested.length) out.push({ id: 'suggested', label: profile?.familyName || profile?.family ? `Suggested for ${profile.familyName || profile.family}` : 'Suggested', rows: suggested.map((name) => ({ key: `s:${name}`, name })) });
+    for (const group of loraGroups(options, profile, '', fitOf)) {
       out.push({ id: group.id, label: group.label, collapsible: true, rows: group.loras.map((name) => ({ key: `${group.id}:${name}`, name })) });
     }
     return out;
-  }, [available, favorites, options, profile, query, recents]);
+  }, [available, favorites, fitOf, options, profile, query, recents]);
 
   const visibleRows = useMemo(() => sections.flatMap((section) => collapsed.has(section.id) ? [] : section.rows), [collapsed, sections]);
   useEffect(() => { setHighlight(0); }, [query]);
@@ -260,7 +291,7 @@ function LoraPicker({ options, profile, current, favorites, recents, remaining, 
                       <strong>{fileName(row.name)}</strong>
                       {folderOf(row.name) && (query || !section.collapsible) ? <span>{folderOf(row.name)}</span> : null}
                     </span>
-                    {added ? <em>Added</em> : null}
+                    {added ? <em>Added</em> : fitOf(row.name) === 'other' && baseOf(row.name) ? <em className="lora-fit" title={`Made for ${baseOf(row.name)}`}>{baseOf(row.name)}</em> : null}
                     <button
                       type="button"
                       className={cn('lora-option-star', favorite && 'active')}
@@ -434,6 +465,10 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
   useEffect(() => { setActiveStackId(''); }, [library.familyLabel]);
 
   const available = useMemo(() => new Set(options), [options]);
+  // What each LoRA file says it was made for, so ones that fit list first and the rest say so.
+  const infos = useLoraInfo(options);
+  const fitOf = useMemo<FitOf>(() => (name) => loraFit(infos[name], profile), [infos, profile]);
+  const baseOf = (name: string) => infos[name]?.base || '';
   const cap = Math.min(maxLoras, limit);
   const activeCount = loras.filter((item) => item.enabled).length;
 
@@ -482,6 +517,8 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
         <LoraPicker
           options={options}
           profile={profile}
+          fitOf={fitOf}
+          baseOf={baseOf}
           current={loras.map((item) => item.name)}
           favorites={library.favorites}
           recents={library.recents}
@@ -524,6 +561,8 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
               count={loras.length}
               missing={!available.has(item.name)}
               overLimit={index >= cap}
+              info={infos[item.name]}
+              otherModel={fitOf(item.name) === 'other' ? baseOf(item.name) : ''}
               onChange={(patch) => update(index, patch)}
               onRemove={() => remove(index)}
               onSwap={() => setPicker({ swap: item.name })}

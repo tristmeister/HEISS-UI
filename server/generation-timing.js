@@ -9,15 +9,17 @@
  * little faster than the pixel count at large sizes, so the exponent is
  * learned from the sizes you actually use.
  *
- * Estimates stay quiet until they have earned trust: three runs of the model,
- * sizes not far outside what it has seen, and recent predictions that landed
- * within about 30%.
+ * Estimates stay quiet until they have earned trust: three runs of the model
+ * (two for a video, which takes minutes; another file of the same family
+ * stands in until this one has its own), sizes not far outside what it has
+ * seen, and recent predictions that landed within about 30%.
  */
 import { isSampler } from "./progress-phase.js";
 
 const RUNS_PER_KEY = 40;
 const RUNS_TOTAL = 400;
 const MIN_RUNS = 3;
+const MIN_VIDEO_RUNS = 2;
 const TRUSTED_ERROR = 0.3;
 const DEFAULT_EXPONENT = 1.15;
 // A model used within this long is most likely still loaded.
@@ -156,8 +158,16 @@ export function estimateRun(history = [], body = {}, { now = Date.now(), warm: k
   const key = timingKey(body);
   const w = workUnits(body);
   if (!key || !w) return null;
-  const runs = history.filter((run) => run.key === key).slice(-RUNS_PER_KEY);
-  if (runs.length < MIN_RUNS) return null;
+  // A video takes minutes, so two runs already say more than nothing; images need three.
+  const need = body.kind === "video" ? MIN_VIDEO_RUNS : MIN_RUNS;
+  let runs = history.filter((run) => run.key === key).slice(-RUNS_PER_KEY);
+  // Too few runs of this file: other files of the same family here (an fp8 and an fp16 build) run alike.
+  if (runs.length < need && body.family) {
+    const kind = key.slice(0, key.indexOf(":") + 1);
+    const family = history.filter((run) => run.fam === body.family && run.key.startsWith(kind)).slice(-RUNS_PER_KEY);
+    if (family.length >= need) runs = family;
+  }
+  if (runs.length < need) return null;
   // Far outside the sizes this model has run at, the curve is a guess.
   const sizes = runs.map((run) => run.w);
   if (w > Math.max(...sizes) * 3 || w < Math.min(...sizes) / 3) return null;
@@ -169,7 +179,7 @@ export function estimateRun(history = [], body = {}, { now = Date.now(), warm: k
   const trusted = errors.length < 2 || median(errors) <= TRUSTED_ERROR;
 
   const stepped = runs.filter((run) => run.stepMs > 0);
-  if (stepped.length >= MIN_RUNS) {
+  if (stepped.length >= need) {
     const k = workExponent(stepped);
     const stepMs = median(stepped.map((run) => run.stepMs / run.w ** k)) * w ** k;
     // A two-pass workflow samples more steps than the steps setting; keep its ratio.
@@ -195,6 +205,8 @@ export function addRun(history = [], { body, result, predicted = null, warm = fa
   const w = workUnits(body);
   if (!key || !w || !result?.runMs) return history;
   const run = { key, at, w, asked: Number(body.steps) || 0, warm: Boolean(warm), runMs: Math.round(result.runMs) };
+  // The family, so another file of it can borrow these timings until it has its own.
+  if (body.family) run.fam = String(body.family);
   if (result.stepMs) Object.assign(run, { stepMs: Math.round(result.stepMs * 10) / 10, steps: result.steps, setupMs: Math.round(result.setupMs), tailMs: Math.round(result.tailMs) });
   if (predicted?.totalMs) run.error = Math.round((Math.abs(result.runMs - predicted.totalMs) / result.runMs) * 100) / 100;
   const next = [...history, run];

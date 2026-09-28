@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfy, modelFolders } from './comfy.js';
 import { dataDir } from './gallery-store.js';
-import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, variantFor } from './family-catalog.js';
+import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, quantFromHeader, refinedFamily, variantFor } from './family-catalog.js';
 import { isGguf, readGgufHeader } from './gguf.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 
@@ -16,7 +16,9 @@ import { readJsonFile, writeJsonFile } from './json-store.js';
  *   2. file     - tensor keys read from the local file (ComfyUI on this machine)
  *   3. metadata - modelspec fields via ComfyUI's /view_metadata (remote ComfyUI)
  *   4. name     - filename patterns
- *   5. default  - checkpoints fall back to the SD family, which loads itself
+ *   5. default  - checkpoints whose weights are out of reach fall back to the
+ *                 SD family, which loads itself; weights that were read and
+ *                 match nothing known ask for their type instead
  */
 
 export const modelSources = ["unet", "checkpoint"];
@@ -263,15 +265,16 @@ export function classifyModel(source, name) {
   const base = String(name).split(/[\\/]/).pop() || "";
   const header = modelHeader(source, name);
   const bundled = source === "checkpoint" ? bundledFor(name, header) : null;
+  // A quantized format rides along whatever family the file is: it decides the loader, not the settings.
+  const quant = quantFromHeader(header, header ? "" : name);
   const finish = (familyId, via, detail = null, variantId = "") => {
-    let id = familyId || "";
-    // Wan 2.1 14B and Wan 2.2 14B share every key; the high/low-noise pair shows in the name.
-    if (id === "wan21" && /(high|low)[-_ ]?noise/i.test(base)) id = "wan22_14b";
+    // Families the weights cannot tell apart (Wan 2.1 and 2.2 14B, HunyuanVideo 1.5 T2V and I2V) narrow by name; a choice stands as made.
+    const id = via === "choice" ? familyId || "" : refinedFamily(familyId || "", base, Boolean(header));
     const family = families[id];
     const variant = family
       ? (variantId && family.variants.find((item) => item.id === variantId)) || variantFor(id, base, header, detail)
       : null;
-    return { family: id, variant, via, bundled, detail, header };
+    return { family: id, variant, via, bundled, detail, header, quant };
   };
 
   const chosen = parseChoice(loadModelChoices()[choiceKey(source, name)], source);
@@ -282,11 +285,12 @@ export function classifyModel(source, name) {
     if (family && family !== "other") return finish(family, "file", detail);
     // Weights we cannot place yet (a newer architecture) let its metadata or name decide.
     if (family === "other" && detail?.unrecognized) {
-      const named = familyFromMetadata(metadataCache.get(choiceKey(source, name)) || {}) || familyFromName(name, source);
+      const named = familyFromMetadata(header.__metadata__ || metadataCache.get(choiceKey(source, name)) || {}) || familyFromName(name, source);
       if (families[named]?.sources.includes(source)) return finish(named, "name");
     }
-    // A checkpoint ComfyUI can load but we cannot place still runs as an SD-family file.
-    if (family === "other") return source === "checkpoint" ? finish("sdxl", "default") : finish("other", "file");
+    // Weights that were read and match nothing HEISS knows are not SD: running them as
+    // SDXL would only end in a shape error. The file asks for its type instead.
+    if (family === "other") return finish("other", "file", detail);
   }
 
   const fromMetadata = familyFromMetadata(metadataCache.get(choiceKey(source, name)) || {});

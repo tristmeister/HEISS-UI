@@ -19,6 +19,7 @@ import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
 import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
+import { HuggingFaceTokenSettings } from './HuggingFaceToken';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
@@ -90,7 +91,7 @@ function ComfyAddressRow({ current, showToast, onSaved }: { current: string; sho
   );
 }
 
-function Group({ title, note, tone, children }: React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>) {
+export function Group({ title, note, tone, children }: React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>) {
   return (
     <section className="set-group">
       {title ? <h4 className="set-group-title">{title}</h4> : null}
@@ -100,7 +101,7 @@ function Group({ title, note, tone, children }: React.PropsWithChildren<{ title?
   );
 }
 
-function Row({ label, description, children, stacked, disabled }: React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>) {
+export function Row({ label, description, children, stacked, disabled }: React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>) {
   return (
     <div className={cn('set-row', stacked && 'is-stacked', disabled && 'is-disabled')}>
       <div className="set-row-text">
@@ -924,6 +925,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
             </Group>
             {modelFolders ? <ModelFolderSettings folders={modelFolders} confirmAction={confirmAction} onOpen={() => { onClose(); modelFolders.openDialog(); }} hints={prefs.modelFolderHints !== false} onHintsChange={(next) => setPrefs({ modelFolderHints: next })} /> : null}
+            <HuggingFaceTokenSettings showToast={showToast} />
             {typedModels.length ? (
               <Group title="Model types" note="Set the type for models that weren’t recognized or were detected wrong.">
                 {typedModels.map((file) => {

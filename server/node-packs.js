@@ -56,6 +56,15 @@ export const nodePacks = {
     repository: "https://github.com/geoffitect/ComfyUI-SANA.git",
     folder: "ComfyUI-SANA",
     nodes: ["SanaModelLoader", "SanaGenerate"]
+  },
+  // Reads bitsandbytes NF4 checkpoints (Forge's Flux NF4 builds); same inputs as ComfyUI's checkpoint loader.
+  bnb_nf4: {
+    name: "ComfyUI_bitsandbytes_NF4",
+    repository: "https://github.com/comfyanonymous/ComfyUI_bitsandbytes_NF4.git",
+    folder: "ComfyUI_bitsandbytes_NF4",
+    search: "bitsandbytes NF4",
+    nodes: ["CheckpointLoaderNF4"],
+    note: "bitsandbytes runs on NVIDIA GPUs only."
   }
 };
 
