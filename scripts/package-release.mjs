@@ -9,7 +9,8 @@
 // Writes release/heiss-ui-<version>/ and these zips:
 //   heiss-ui-<version>.zip               what the in-app updater downloads (no packages)
 //   heiss-ui-<version>-<platform>.zip    the downloads, runtime packages and Node.js included
-// and, with a signing key, a <zip>.sig beside each (server/release-signing.js).
+// and, with a signing key, a .sig beside the updater's zip (server/release-signing.js).
+// The downloads carry no .sig: nothing checks one, and GitHub shows each file's SHA-256.
 // The key comes from HEISS_RELEASE_SIGNING_KEY (the PEM itself, as CI has it)
 // or HEISS_RELEASE_SIGNING_KEY_FILE (a path, for a local build).
 import { execFileSync, execSync } from "node:child_process";
@@ -201,7 +202,8 @@ for (const bundle of bundles) {
   runNpm(["ci", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts", `--os=${bundle.os}`, `--cpu=${bundle.cpu}`, ...(bundle.libc ? [`--libc=${bundle.libc}`] : [])], path.join(stage, name));
   await bundledNode(path.join(stage, name), bundle);
   const bundleZip = path.join(outDir, `${name}-${bundle.id}.zip`);
-  signZip(bundleZip, zipFolder(bundleZip, stage));
+  fs.rmSync(`${bundleZip}.sig`, { force: true });
+  zipFolder(bundleZip, stage);
   fs.rmSync(stage, { recursive: true, force: true });
   console.log(`Packaged ${path.relative(root, bundleZip)} (${(fs.statSync(bundleZip).size / 1e6).toFixed(1)} MB, packages and Node.js ${nodeVersion} included)`);
 }
