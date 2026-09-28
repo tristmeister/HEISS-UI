@@ -60,8 +60,6 @@ The node graph is great for building workflows and less great for the everyday l
 - **Live previews.** Each image resolves from a pixel mosaic into the final result while ComfyUI works, with a countdown to done. Queue the next one or cancel any time.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs come from ComfyUI. Only what the selected model uses shows up.
 - **Zen mode.** A fullscreen prompt and output view without the panels.
-- **Wide images take two columns.** Landscape images span two gallery columns (Settings › General › Layout, off by default).
-  <!-- MEDIA: PNG · wide images: gallery with landscape images spanning two columns between portrait tiles · still · 1100 px wide · save as docs/screenshots/wide-images.png -->
 - **Find it again.** Press ↑ in an empty prompt for recent prompts (star the ones to keep), `/` to search the gallery by prompt, model or LoRA, and star images to keep them close. Earlier images from other folders (old ComfyUI outputs, AUTOMATIC1111, Forge) join the gallery where they are, from Settings › Library. Recent prompts can be turned off in Settings › Generation, and prompts from Hidden aren't saved.
   <!-- MEDIA: GIF · find it again: ↑ in an empty prompt opens recent prompts → star one → / searches the gallery by a LoRA name · ~8 s loop · 1100 px wide · save as docs/screenshots/find-it-again.gif -->
 - **Civitai-ready images (beta).** With this on in Settings › Library, new PNGs also carry the prompt, LoRAs and settings the way AUTOMATIC1111 writes them, so Civitai fills in an upload.
