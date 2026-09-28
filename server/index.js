@@ -1271,6 +1271,8 @@ app.post("/api/library/folders", async (req, res) => {
       dir = await pickFolder(req.body?.start || "", "Choose a folder of earlier images");
       if (!dir) { res.json({ ok: true, canceled: true, folders: libraryFolders() }); return; }
     }
+    // Which folder is ComfyUI's output decides how a folder is read (library.js), so find it first.
+    await autoDetectOutputDir();
     const result = await addLibraryFolder(dir);
     res.json({ ok: true, ...result, folders: libraryFolders(), revision: galleryRevisionValue() });
   } catch (error) {
@@ -1281,6 +1283,7 @@ app.post("/api/library/folders", async (req, res) => {
 app.post("/api/library/folders/:id/scan", async (req, res) => {
   if (!requireThisComputer(req, res)) return;
   try {
+    await autoDetectOutputDir();
     res.json({ ok: true, ...(await scanLibraryFolder(req.params.id)), folders: libraryFolders(), revision: galleryRevisionValue() });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message, folders: libraryFolders() });
@@ -2170,7 +2173,10 @@ app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "
 
 if (fs.existsSync(dist)) serveApp(app, dist);
 
-setTimeout(() => recoverGalleryFromHistory().catch(() => null).then(() => rescanLibraryFolders()).catch(() => null), 1200);
+setTimeout(() => recoverGalleryFromHistory().catch(() => null)
+  // A library scan skips the output folder, so it has to be known before one runs.
+  .then(() => (libraryFolders().length ? autoDetectOutputDir() : null))
+  .then(() => rescanLibraryFolders()).catch(() => null), 1200);
 scheduleTrashPurge();
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }

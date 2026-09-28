@@ -31,7 +31,11 @@ export const videoPattern = /\.(mp4|webm|mov|mkv)$/i;
 const mediaPattern = /\.(png|jpe?g|webp|gif|avif|mp4|webm|mov|mkv)$/i;
 export const scanFileLimit = 20000;
 const scanDepth = 8;
-const skippedNames = new Set(["node_modules", "__pycache__", "$RECYCLE.BIN", "System Volume Information"]);
+// heiss-ui is where HEISS UI saves into an output folder. Wherever one turns
+// up (an output folder not known yet, or an old one), its files are either in
+// the gallery already, deleted on purpose, or a copy Hidden could not remove.
+const ownOutputName = "heiss-ui";
+const skippedNames = new Set(["node_modules", "__pycache__", "$RECYCLE.BIN", "System Volume Information", ownOutputName]);
 
 function realPath(dir) {
   try { return fs.realpathSync(dir); } catch { return path.resolve(dir); }
@@ -62,8 +66,12 @@ function isOwnFolder(dir) {
   return [dataDir, root].some((own) => own && isInside(realPath(own), dir, { orSame: true }));
 }
 
+// The output folder as its real path, worked out again only when the setting changes.
+let outputReal = { dir: null, real: "" };
 function isOutputFolder(dir) {
-  return Boolean(comfyOutputDir) && isInside(realPath(comfyOutputDir), dir, { orSame: true });
+  if (!comfyOutputDir) return false;
+  if (outputReal.dir !== comfyOutputDir) outputReal = { dir: comfyOutputDir, real: realPath(comfyOutputDir) };
+  return isInside(outputReal.real, dir, { orSame: true });
 }
 
 const availability = new Map();
@@ -312,7 +320,7 @@ export function libraryFile(folderId, rel) {
   const folder = folders.find((entry) => entry.id === String(folderId || ""));
   const relative = String(rel || "");
   if (!folder || !relative || !mediaPattern.test(relative)) return null;
-  if (relative.split(/[\\/]/).some((part) => !part || part.startsWith(".") || part === "..")) return null;
+  if (relative.split(/[\\/]/).some((part) => !part || part.startsWith(".") || part === ".." || part.toLowerCase() === ownOutputName)) return null;
   const candidate = path.resolve(folder.path, relative);
   if (!isInside(folder.path, candidate)) return null;
   let real;
@@ -327,5 +335,6 @@ setLibraryFileCheck((item) => {
   const folder = folders.find((entry) => entry.id === item.library?.folder);
   if (!folder || !folderAvailable(folder)) return false;
   const file = path.resolve(folder.path, String(item.library?.path || ""));
-  return isInside(folder.path, file) && listedInFolder(file);
+  // Not once the output folder is set to (or inside) it: libraryFile no longer serves it from there.
+  return isInside(folder.path, file) && !isOutputFolder(file) && listedInFolder(file);
 });
