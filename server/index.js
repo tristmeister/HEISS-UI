@@ -22,6 +22,7 @@ import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
+import { describeHardware } from './hardware.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
 import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
@@ -498,6 +499,12 @@ app.get("/api/estimate", (req, res) => {
 app.get("/api/stats", async (_req, res) => {
   const since = await commitsSinceRelease();
   res.json({ ok: true, version: appVersion, sinceRelease: since, stats: galleryStats(gallery) });
+});
+
+// What ComfyUI runs on (GPU, memory and the budget fit hints use). See server/hardware.js.
+app.get("/api/hardware", async (_req, res) => {
+  const stats = comfyCache.stats?.devices ? comfyCache.stats : await comfy("/system_stats", { signal: AbortSignal.timeout(3000) }).catch(() => null);
+  res.json({ ok: true, hardware: await describeHardware({ stats, comfyUrl }) });
 });
 
 // When this server process started, so the app can tell a restart (e.g. after an update) happened.
