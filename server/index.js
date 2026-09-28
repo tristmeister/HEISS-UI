@@ -40,9 +40,12 @@ import { packInstallRoutes, packInstallState, startPackInstall } from './pack-in
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } from './output-folder.js';
+import { compressJson, serveApp } from './http-assets.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
+// Gallery pages and model lists travel compressed to phones and tablets; this computer skips the work.
+app.use(compressJson({ skip: (req) => isLocalClient(req.socket.remoteAddress || "") }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -1782,10 +1785,7 @@ const dist = path.join(root, "dist");
 // An unknown API route must fail as JSON, never fall through to the app page.
 app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "Unknown API route. Restart HEISS UI if it was just updated." }));
 
-if (fs.existsSync(dist)) {
-  app.use(express.static(dist));
-  app.get("*splat", (_req, res) => res.sendFile(path.join(dist, "index.html")));
-}
+if (fs.existsSync(dist)) serveApp(app, dist);
 
 setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 warmReleaseCheck(root, dataDir);
