@@ -15,7 +15,81 @@ type NetworkInfo = {
   port: number;
   interfaces: Array<{ name: string; address: string; likelyVirtual: boolean }>;
   lan?: { saved: boolean; source: 'flag' | 'shell' | 'setting'; supervised: boolean; hiddenReady: boolean };
+  /** HTTPS as it runs now (server/tls.js), and `next`: what .env says for the next start. */
+  tls?: TlsInfo & { next: TlsInfo; fromShell: boolean };
 };
+
+type TlsInfo = { configured: boolean; ok: boolean; error: string; certPath: string; keyPath: string; names: string[]; validTo: string; expired: boolean; port: number; active: boolean };
+
+function day(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * HTTPS for other devices, with a certificate the person already has (for
+ * example from `tailscale cert`). Two paths, checked by the server before
+ * they are kept; used from the next start.
+ */
+function HttpsRows({ tls, supervised, restartHeiss, showToast, onSaved, Row, Status }: { tls: NonNullable<NetworkInfo['tls']>; supervised: boolean; restartHeiss: () => Promise<boolean>; showToast: ShowToast; onSaved: () => void } & Pick<Pieces, 'Row' | 'Status'>) {
+  const atComputer = useAtComputer();
+  const [editing, setEditing] = React.useState(false);
+  const [cert, setCert] = React.useState(tls.next.certPath || '');
+  const [key, setKey] = React.useState(tls.next.keyPath || '');
+  const [busy, setBusy] = React.useState(false);
+  const [problem, setProblem] = React.useState('');
+  const next = tls.next;
+  // What .env says differs from what runs: it takes effect after a restart.
+  const pending = next.configured !== tls.configured || next.certPath !== tls.certPath || next.keyPath !== tls.keyPath;
+  const save = async (off = false) => {
+    setBusy(true);
+    setProblem('');
+    try {
+      await apiJson('/api/network/tls', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(off ? {} : { cert, key }) });
+      setEditing(false);
+      onSaved();
+      showToast(off ? 'HTTPS turns off when HEISS UI restarts' : 'Saved. HTTPS starts when HEISS UI restarts.', 'success');
+    } catch (error) {
+      setProblem(error instanceof Error ? error.message : 'Those files can’t be used');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const names = tls.names.filter((name) => !name.startsWith('*.'));
+  const label = tls.active ? <Status tone="ok">HTTPS on</Status>
+    : tls.configured && !tls.ok ? <Status tone="bad">HTTPS can’t start</Status>
+    : tls.configured ? <Status tone="warn">HTTPS set up</Status>
+    : <Status>HTTPS off</Status>;
+  const description = tls.active ? `Other devices connect securely on port ${tls.port}${names.length ? ` as ${names.join(', ')}` : ''}. Certificate valid until ${day(tls.validTo)}.`
+    : tls.configured && !tls.ok ? `${tls.error} Other devices can’t connect until it’s fixed; this computer still works.`
+    : tls.configured ? 'Starts when other devices are let in (the switch above).'
+    : 'What devices send, the studio password included, crosses the network unencrypted. Fine at home; add a certificate for anything else.';
+  return (
+    <>
+      <Row label={label} description={description} stacked={editing}>
+        {editing ? (
+          <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (cert.trim() && key.trim() && !busy) save(); }}>
+            <input className="modal-input set-path-input" aria-label="Certificate file" placeholder="Certificate file (.crt or .pem)" value={cert} onChange={(event) => setCert(event.target.value)} spellCheck={false} autoComplete="off" autoFocus />
+            <input className="modal-input set-path-input" aria-label="Key file" placeholder="Key file (.key)" value={key} onChange={(event) => setKey(event.target.value)} spellCheck={false} autoComplete="off" />
+            <p className="set-inline-hint" aria-live="polite">{problem || 'Paths on this computer. For Tailscale: run tailscale cert with this computer’s name, then paste the two files it writes.'}</p>
+            <button type="button" className="btn is-ghost" onClick={() => { setEditing(false); setProblem(''); }}>Cancel</button>
+            <button type="submit" className="btn is-primary" disabled={!cert.trim() || !key.trim() || busy}>{busy ? 'Checking…' : 'Save'}</button>
+          </form>
+        ) : atComputer && !tls.fromShell ? (
+          <>
+            {next.configured ? <button className="btn is-ghost" disabled={busy} onClick={() => save(true)}>Turn off</button> : null}
+            <button className="btn" onClick={() => setEditing(true)}>{next.configured ? 'Change' : 'Add certificate'}</button>
+          </>
+        ) : null}
+      </Row>
+      {pending ? (
+        <Row label="Waiting for a restart" description={next.configured ? `HTTPS ${next.ok ? `for ${next.names.join(', ')}` : ''} starts when HEISS UI restarts.` : 'HTTPS turns off when HEISS UI restarts.'}>
+          {supervised && atComputer ? <button className="btn" onClick={() => { restartHeiss(); }}>Restart now</button> : null}
+        </Row>
+      ) : null}
+    </>
+  );
+}
 
 type DeviceSession = { id: string; label: string; createdAt: string; lastSeenAt: string; expiresAt: string; current: boolean };
 type AccessSettings = { adminFromDevices: boolean; studioPassword: { set: boolean; hidden: boolean }; devices: DeviceSession[] };
@@ -143,9 +217,14 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
   const forced = lan?.source === 'flag' || lan?.source === 'shell';
   // Saved one way, running the other: waiting for a restart.
   const pending = Boolean(lan && !forced && lan.saved !== on);
-  const addresses = network?.interfaces || [];
+  const tls = network?.tls;
+  // With HTTPS the certificate's names are the way in; without it, this computer's addresses.
+  const entries = tls?.active
+    ? tls.names.filter((name) => !name.startsWith('*.')).map((name) => ({ key: name, url: `https://${name.includes(':') ? `[${name}]` : name}:${tls.port}`, detail: 'HTTPS, from the certificate', virtual: false }))
+    : (network?.interfaces || []).map((item) => ({ key: `${item.name}-${item.address}`, url: lanUrl(item.address), detail: `${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`, virtual: item.likelyVirtual }));
   // One real address: show its code straight away, it's what people came for.
-  const shownCode = openCode || (addresses.filter((item) => !item.likelyVirtual).length === 1 ? addresses.find((item) => !item.likelyVirtual)!.address : '');
+  const real = entries.filter((item) => !item.virtual);
+  const shownCode = openCode || (real.length === 1 ? real[0].key : '');
 
   const restartNow = () => { restartHeiss(); };
   const toggle = async (next: boolean) => {
@@ -221,19 +300,25 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
         {(on || lan?.saved) && noPassword ? (
           <Row label={<Status tone="warn">Needs a studio password</Status>} description="Other devices sign in with it before they see anything. Set it below." />
         ) : null}
-        {on ? addresses.map((item) => (
+        {on ? entries.map((item) => (
           <AddressRow
-            key={`${item.name}-${item.address}`}
-            url={lanUrl(item.address)}
-            detail={`${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`}
-            open={shownCode === item.address}
-            onToggle={() => setOpenCode(shownCode === item.address ? '-' : item.address)}
+            key={item.key}
+            url={item.url}
+            detail={item.detail}
+            open={shownCode === item.key}
+            onToggle={() => setOpenCode(shownCode === item.key ? '-' : item.key)}
             copyToClipboard={copyToClipboard}
             Row={Row}
           />
         )) : null}
-        {on && network && !addresses.length ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
+        {on && network && !entries.length && !(tls?.configured && !tls.ok) ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
       </Group>
+
+      {tls ? (
+        <Group title="HTTPS" note={<>With a certificate browsers already trust, for example from <code>tailscale cert</code>. At this computer, keep using localhost.</>}>
+          <HttpsRows tls={tls} supervised={Boolean(lan?.supervised)} restartHeiss={restartHeiss} showToast={showToast} onSaved={load} Row={Row} Status={Status} />
+        </Group>
+      ) : null}
 
       <Group title="Signing in">
         <StudioPasswordRow access={access} onSaved={loadAccess} showToast={showToast} Row={Row} Status={Status} />

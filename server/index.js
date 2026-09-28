@@ -14,6 +14,9 @@ import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, co
 import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
 import { limitedCheck, registerAccessRoutes } from './access-routes.js';
 import { requestGuard } from './request-guard.js';
+import { httpsListening, startServers } from './listen.js';
+import { httpsPort, inspectTls, startupTls, tlsHostNames, tlsSummary } from './tls.js';
+import { envFileKeys, writeLocalEnvValue } from './env.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -46,7 +49,7 @@ import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } f
 
 const app = express();
 // Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
-app.use(requestGuard({ lan: () => allowLanActions }));
+app.use(requestGuard({ lan: () => allowLanActions, extraHosts: tlsHostNames }));
 app.use(express.json({ limit: "25mb" }));
 const execFileAsync = promisify(execFile);
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
@@ -200,8 +203,47 @@ app.get("/api/network", (req, res) => {
   res.json({
     addresses: interfaces.map((item) => item.address), interfaces, port, listening: lanListening,
     // saved: what the next start does. source: who decides it now (flag and shell outrank the switch).
-    lan: { saved: lan.saved, source: lan.source, supervised: typeof process.send === "function", hiddenReady: isPrivacyEnabled() }
+    lan: { saved: lan.saved, source: lan.source, supervised: typeof process.send === "function", hiddenReady: isPrivacyEnabled() },
+    // HTTPS for other devices (tls.js). `next`: what .env says now, used from the next start.
+    tls: networkTls(clientOf(req).thisComputer)
   });
+});
+
+// HTTPS set in the shell outranks Settings, like HOST does.
+const tlsFromShell = ["HEISS_TLS_CERT", "HEISS_TLS_KEY"].some((name) => process.env[name] && !envFileKeys.has(name));
+
+/** HTTPS as it runs, and as .env has it for the next start. File paths only for this computer. */
+function networkTls(thisComputer) {
+  const hidePaths = (summary) => (thisComputer ? summary : { ...summary, certPath: "", keyPath: "" });
+  const next = inspectTls(process.env.HEISS_TLS_CERT || "", process.env.HEISS_TLS_KEY || "");
+  return { ...hidePaths(tlsSummary(startupTls, { active: httpsListening })), next: hidePaths(tlsSummary(next)), fromShell: tlsFromShell };
+}
+
+/**
+ * Settings › Connection › HTTPS: check a certificate and key and keep them in
+ * .env, or clear them. Used from the next start. Only this computer can,
+ * since it decides how every other device connects.
+ */
+app.post("/api/network/tls", (req, res) => {
+  if (!requireThisComputer(req, res)) return;
+  if (tlsFromShell) {
+    res.status(409).json({ ok: false, error: "HTTPS is set where HEISS UI was started (HEISS_TLS_CERT and HEISS_TLS_KEY), so change it there." });
+    return;
+  }
+  const off = !req.body?.cert && !req.body?.key;
+  const report = off ? null : inspectTls(String(req.body?.cert || ""), String(req.body?.key || ""));
+  if (report && !report.ok) {
+    res.status(400).json({ ok: false, error: report.error, tls: tlsSummary(report) });
+    return;
+  }
+  try {
+    writeLocalEnvValue("HEISS_TLS_CERT", report ? report.certPath : "");
+    writeLocalEnvValue("HEISS_TLS_KEY", report ? report.keyPath : "");
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+    return;
+  }
+  res.json({ ok: true, tls: report ? tlsSummary(report) : null, restartNeeded: true });
 });
 
 // The Settings switch for other devices. It takes effect when HEISS UI starts again.
@@ -1777,36 +1819,41 @@ setTimeout(() => recoverGalleryFromHistory().catch(() => null), 1200);
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }
 
-app.listen(port, host, (error) => {
-  // Express 5 hands a failed listen to this callback instead of throwing.
-  if (error) {
+startServers(app, {
+  host,
+  port,
+  onFatal(error) {
     console.error(error.code === "EADDRINUSE"
       ? `\n  Port ${port} is already in use. HEISS UI may already be running: http://localhost:${port}\n`
       : `\n  HEISS UI could not start: ${error.message}\n`);
     // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
     process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
+  },
+  onListening({ plan }) {
+    // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
+    // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
+    const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
+    // Under `npm run dev*` the page comes from Vite; this server only answers the API.
+    const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
+    const pagePort = dev ? 5173 : port;
+    Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
+      // Listening beyond this computer: say where a phone can open it.
+      if ((host === "0.0.0.0" || host === "::") && !plan.tlsProblem) {
+        const addresses = plan.httpsHost
+          ? startupTls.names.filter((name) => !name.startsWith("*.")).map((name) => `https://${name.includes(":") ? `[${name}]` : name}:${httpsPort}`)
+          : Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal).map((entry) => `http://${entry.address}:${pagePort}`);
+        for (const address of addresses) console.log(`    ➜  Network   ${address}`);
+        if (addresses.length) console.log(studioPasswordSet()
+          ? "    Other devices sign in with the studio password.\n"
+          : isPrivacyEnabled()
+            ? "    Other devices sign in with your Hidden password until you set a studio password (Settings › Connection).\n"
+            : "    Other devices sign in with a studio password: set one in Settings › Connection first.\n");
+      }
+      // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
+      const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
+      if (!answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
+    }).catch(() => {});
+    // Tells scripts/start.mjs this version runs, so a fresh update is kept.
+    process.send?.({ type: "ready", version: appVersion });
   }
-  // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
-  // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
-  const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
-  // Under `npm run dev*` the page comes from Vite; this server only answers the API.
-  const dev = /^dev/.test(process.env.npm_lifecycle_event || "");
-  const pagePort = dev ? 5173 : port;
-  Promise.resolve(printBanner({ version: appVersion, url: `http://${shownHost}:${pagePort}`, comfyUrl })).then(async () => {
-    // Listening beyond this computer: say where a phone can open it.
-    if (host === "0.0.0.0" || host === "::") {
-      const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal);
-      for (const entry of addresses) console.log(`    ➜  Network   http://${entry.address}:${pagePort}`);
-      if (addresses.length) console.log(studioPasswordSet()
-        ? "    Other devices sign in with the studio password.\n"
-        : isPrivacyEnabled()
-          ? "    Other devices sign in with your Hidden password until you set a studio password (Settings › Connection).\n"
-          : "    Other devices sign in with a studio password: set one in Settings › Connection first.\n");
-    }
-    // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
-    const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
-    if (!answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
-  }).catch(() => {});
-  // Tells scripts/start.mjs this version runs, so a fresh update is kept.
-  process.send?.({ type: "ready", version: appVersion });
 });
