@@ -1280,7 +1280,7 @@ function App() {
 
   async function useOutputAsStartImage(item: GalleryItem) {
     if (!canUseStartImage || item.status !== "done" || item.type !== "image" || !item.url || item.vaultLocked) {
-      showToast("The selected workflow cannot use this image as a reference", "error");
+      showToast("This model can’t use this image as a reference", "error");
       return;
     }
     try {

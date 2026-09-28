@@ -26,7 +26,7 @@ import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
-  { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and the values new workflows start from.' },
+  { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and the values new models start from.' },
   { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'The arrow on finished images: one click makes a larger, sharper copy (SeedVR2, run in ComfyUI).' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where outputs live and what the gallery shows.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and opened with a password, Touch ID or Windows Hello.' },
@@ -712,7 +712,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <Segmented label="Generation previews" value={prefs.generationPreviewMode === 'simple' ? 'simple' : 'advanced'} onChange={(next) => setPrefs({ generationPreviewMode: next })} options={[{ value: 'advanced', label: 'Mosaic' }, { value: 'simple', label: 'Simple' }]} />
               </Row>
             </Group>
-            <Group title="Starting values" note="Used when a workflow doesn't define its own. Changing them doesn't touch the current draft.">
+            <Group title="Starting values" note="Used when a model doesn't set its own. Changing them doesn't touch the current draft.">
               <Row label="Variants"><NumberPicker label="Variants" value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
               <Row label="Image steps"><NumberPicker label="Steps" value={Number(prefs.defaultImageSteps)} onChange={(next) => setPrefs({ defaultImageSteps: next })} min={1} max={150} /></Row>
               <Row label="Video steps"><NumberPicker label="Steps" value={Number(prefs.defaultVideoSteps)} onChange={(next) => setPrefs({ defaultVideoSteps: next })} min={1} max={150} /></Row>

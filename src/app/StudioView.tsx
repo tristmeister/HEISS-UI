@@ -640,9 +640,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
-                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This model takes no negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
-              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
+              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this model"}</span>
             </div>
             <StableComposerBar
               models={models}
@@ -745,9 +745,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
-                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This model takes no negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
-              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
+              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this model"}</span>
             </div>
             <StableComposerBar
               models={models}
