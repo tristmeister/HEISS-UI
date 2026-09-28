@@ -1,12 +1,17 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Keep local setup plug-and-play without adding a runtime dependency. Explicit
 // shell environment variables always win over values in .env.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-// HEISS_ENV_FILE points at another file (tests use one of their own).
-const envPath = process.env.HEISS_ENV_FILE ? path.resolve(process.env.HEISS_ENV_FILE) : path.join(root, ".env");
+// HEISS_ENV_FILE points at another file (tests use one of their own). Under
+// `node --test` (NODE_TEST_CONTEXT) the developer's own .env is never read or
+// written: a test would otherwise see their ComfyUI, or save over their settings.
+const envPath = process.env.HEISS_ENV_FILE ? path.resolve(process.env.HEISS_ENV_FILE)
+  : process.env.NODE_TEST_CONTEXT ? path.join(os.tmpdir(), `heiss-test-env-${process.pid}`)
+  : path.join(root, ".env");
 
 /** Keys that came from .env rather than the shell, so a setting knows it may rewrite them. */
 export const envFileKeys = new Set();
