@@ -167,6 +167,11 @@ function fileSize(file) {
   try { return fs.statSync(file).size; } catch { return 0; }
 }
 
+/** The catalog's published SHA-256 for a file, lower case, or "" when it has none. */
+function catalogSha256(spec) {
+  return /^[0-9a-f]{64}$/i.test(String(spec?.sha256 || "")) ? String(spec.sha256).toLowerCase() : "";
+}
+
 /** Queue one catalog file. Returns the queued entry, or the running one if it is already going. */
 export function startDownload(spec) {
   const { dir } = targetFor(spec);
@@ -187,7 +192,7 @@ export function startDownload(spec) {
     folder: spec.folder,
     label: spec.label || spec.file,
     url: spec.url,
-    sha256: /^[0-9a-f]{64}$/i.test(String(spec.sha256 || "")) ? String(spec.sha256).toLowerCase() : "",
+    sha256: catalogSha256(spec),
     dir,
     status: "queued",
     receivedBytes: 0,
@@ -286,7 +291,8 @@ function fallbackFor(failed) {
     try { targetFor(spec); } catch { continue; }
     if (existingCopy(spec)) return null;
     return {
-      id: spec.id, file: spec.file, folder: spec.folder, label: spec.label || spec.file, url: spec.url, dir: targetFor(spec).dir,
+      // Checked against its own published checksum, like the build it stands in for.
+      id: spec.id, file: spec.file, folder: spec.folder, label: spec.label || spec.file, url: spec.url, sha256: catalogSha256(spec), dir: targetFor(spec).dir,
       status: "queued", receivedBytes: 0, totalBytes: Number(spec.bytes || 0), bytesPerSecond: 0, queuedAt: Date.now(), error: "",
       alternatives: rest, fallbackFrom: failed.file
     };
