@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Model fixes, plainer wording and wide images
+
 ### Added
 - **Wide images take two columns** (Settings › General › Layout, off for
   now): landscape images span two gallery columns when there are three or
