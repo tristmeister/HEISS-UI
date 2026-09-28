@@ -16,6 +16,7 @@ import type { ModelFile, Models, OutputFolderReport, UpdateStatus, UpscaleInstal
 import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
+import { shortcuts } from './shortcuts';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
@@ -77,7 +78,7 @@ function ComfyAddressRow({ current, showToast, onSaved }: { current: string; sho
   };
   const changed = value.trim() && value.trim() !== current;
   return (
-    <Row label="Address" description={note || 'Where HEISS UI looks for ComfyUI. ComfyUI Desktop usually uses port 8000; a manual install, 8188.'}>
+    <Row label="Address" description={note || 'Where HEISS UI looks for ComfyUI. ComfyUI Desktop usually uses port 8000, a manual install 8188; on this computer HEISS UI tries both by itself.'}>
       <div className="set-address">
         <input className="set-path-input" value={value} onChange={(event) => setValue(event.target.value)} aria-label="ComfyUI address" spellCheck={false} autoComplete="off" onKeyDown={(event) => { if (event.key === 'Enter' && changed) submit(true); }} />
         <button className="btn" onClick={() => submit(false)} disabled={busy || !value.trim()}>Test</button>
@@ -730,17 +731,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
-              {([
-                ["Enter", "Generate (when “Enter to generate” is on)"],
-                ["⌘/Ctrl + Enter", "Generate, always"],
-                ["Shift + Enter", "New line in the prompt"],
-                ["Any letter", "Jump to the prompt and start typing"],
-                ["← →", "Previous or next image (viewer and zen)"],
-                ["Arrow keys", "Move between gallery tiles, newest to oldest"],
-                ["+  −  0", "Zoom in, out, reset (viewer)"],
-                ["Delete", "Delete the open image (undo for a few seconds)"],
-                ["Esc", "Close the menu, viewer or dialog on top"]
-              ] as const).map(([keys, what]) => (
+              {shortcuts.map(([keys, what]) => (
                 <Row key={keys} label={<kbd className="set-kbd">{keys}</kbd>} description={what} />
               ))}
             </Group>
@@ -938,6 +929,12 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <section className="about-hero">
               <HeatMark className="about-mark" />
               <p className="about-tagline">A local image and video studio for ComfyUI.</p>
+              {/* What staying local means, in numbers: everything made here stays here. */}
+              {stats ? (
+                <p className="about-value">
+                  {stats.outputs.toLocaleString()} {stats.videos ? 'images and videos' : stats.outputs === 1 ? 'image' : 'images'} made here · none uploaded · no telemetry
+                </p>
+              ) : null}
               <div className="about-meta">
                 {appVersion ? (
                   sinceRelease?.commits
