@@ -92,7 +92,8 @@ export function catalogDownloadsForFile(file = "", folder = "") {
   return found;
 }
 
-function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
+/** The core nodes a family needs; a ComfyUI without one of them gets "Newer ComfyUI" instead of a failed run. */
+export function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
   const nodes = new Set(family.requiredNodes || []);
   if (family.sampling !== "h3") nodes.add(family.latent);
   if (needsEncoderLoader) nodes.add(clipLoaderClass[family.slots.length]);
