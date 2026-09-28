@@ -61,6 +61,32 @@ test("a background write that is no longer the newest leaves the file alone", as
   assert.deepEqual(fs.readdirSync(dir).filter((name) => name.includes(".tmp-")), []);
 });
 
+test("a synchronous write during a background write's backup keeps its own clean backup", async () => {
+  const file = path.join(dir, "purge.json");
+  writeJsonFile(file, ["secret prompt"], { compact: true });
+  let sequence = 1;
+  let committed = 0;
+  const copyFile = fs.promises.copyFile;
+  // The copy reads the old file, and a purge (written twice, so .bak is clean too) lands before it finishes.
+  fs.promises.copyFile = async (from, to) => {
+    const old = fs.readFileSync(from);
+    for (let i = 0; i < 2; i += 1) {
+      writeJsonFile(file, ["clean"], { compact: true });
+      committed = (sequence += 1);
+    }
+    fs.writeFileSync(to, old);
+  };
+  try {
+    const mine = 1;
+    assert.equal(await writeJsonFileAsync(file, ["secret prompt", "more"], { shouldCommit: () => mine > committed }), false);
+  } finally {
+    fs.promises.copyFile = copyFile;
+  }
+  assert.deepEqual(readJsonFile(file), ["clean"]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(`${file}.bak`, "utf8")), ["clean"]);
+  assert.deepEqual(fs.readdirSync(dir).filter((name) => name.includes(".tmp-")), []);
+});
+
 test("temporary files a killed process left behind are cleared, not ones still being written", () => {
   const file = path.join(dir, "stale.json");
   fs.writeFileSync(`${file}.tmp-1`, "{");
