@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
+import { useAtComputer } from './device';
 import { forgetDeviceSecret, hasDeviceSecret, keepDeviceSecret, passkeyCancelled, passkeySupport, registerPasskey, unlockWithPasskey, type PasskeyOption, type PasskeySupport } from './passkeys';
 import type { GalleryItem, PrivacyStatus } from './types';
 import type { GallerySpace } from './useGalleryStore';
@@ -34,6 +35,8 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
   const [busy, setBusy] = useState(false);
 
   const enabled = Boolean(status?.enabled);
+  // Only the computer HEISS UI runs on can create Hidden.
+  const atComputer = useAtComputer();
   const unlocked = Boolean(status?.unlocked);
   const hasPasskey = (status?.passkeys?.length || 0) > 0;
   // A device passkey only works in the browser that kept its secret, so "Unlock
@@ -246,6 +249,10 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
    */
   const ensureReady = useCallback((next: HiddenIntent) => {
     if (!enabled) {
+      if (!atComputer) {
+        showToast("Hidden isn’t set up yet. Set it up on the computer running HEISS UI.", "warning");
+        return false;
+      }
       setIntent(next);
       setSetupOpen(true);
       return false;
@@ -255,7 +262,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
       return false;
     }
     return true;
-  }, [enabled, requestUnlock, unlocked]);
+  }, [atComputer, enabled, requestUnlock, showToast, unlocked]);
 
   const takeIntent = useCallback(() => {
     const current = intent;

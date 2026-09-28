@@ -4,6 +4,7 @@ import { ArrowLeft, Fingerprint, KeyRound } from 'lucide-react';
 import { Modal } from './Modal';
 import { VaultHero, type VaultHeroStage } from './VaultHero';
 import { LockMark, type LockMarkStage } from './LockMark';
+import { useAtComputer } from './device';
 import { cn } from './format';
 import type { HiddenState } from './useHidden';
 
@@ -93,6 +94,8 @@ function lockStageFor(hidden: HiddenState): LockMarkStage {
 export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenState; onLeave: () => void; onSetup: () => void }) {
   const stage = lockStageFor(hidden);
   const notSetUp = !hidden.enabled;
+  // Hidden is made on the computer it lives on; other devices can only say where.
+  const atComputer = useAtComputer();
   return (
     <motion.section
       className={cn("hidden-lockscreen", `is-${stage}`)}
@@ -106,10 +109,10 @@ export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenS
         <div className="stage-copy">
           <h2>{notSetUp ? "Hidden" : stage === "opening" ? "Unlocked" : "Hidden is locked"}</h2>
           <p>{notSetUp
-            ? "Images you keep to yourself, encrypted on this computer."
+            ? atComputer ? "Images you keep to yourself, encrypted on this computer." : "Images you keep to yourself, encrypted on the computer running HEISS UI. Set it up there first."
             : hidden.usablePasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
           <div className="empty-actions">
-            {notSetUp ? (
+            {notSetUp && !atComputer ? <div className="hidden-unlock-spacer" /> : notSetUp ? (
               <div className="hidden-unlock">
                 <button type="button" className="hidden-unlock-primary" onClick={onSetup}><span>Set up Hidden</span></button>
               </div>

@@ -44,8 +44,8 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   if (!enabled) {
     return (
       <Group>
-        <Row label={<Status>Not set up</Status>} description="Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello.">
-          <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button>
+        <Row label={<Status>Not set up</Status>} description={atComputer ? "Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello." : "Images you keep to yourself, encrypted on the computer running HEISS UI. Set it up there first."}>
+          {atComputer ? <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button> : null}
         </Row>
       </Group>
     );
