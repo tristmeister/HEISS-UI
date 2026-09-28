@@ -4,6 +4,7 @@ import { apiJson } from './api';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer } from './device';
 import { cn } from './format';
+import { SettingsDrawer } from './SettingsDrawer';
 import { passwordStrength } from './HiddenSetup';
 import { QrCode } from './QrCode';
 import { Skeleton } from './components';
@@ -315,12 +316,6 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
         {on && network && !entries.length && !(tls?.configured && !tls.ok) ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
       </Group>
 
-      {tls ? (
-        <Group title="HTTPS" note={<>With a certificate browsers already trust, for example from <code>tailscale cert</code>. At this computer, keep using localhost.</>}>
-          <HttpsRows tls={tls} supervised={Boolean(lan?.supervised)} restartHeiss={restartHeiss} showToast={showToast} onSaved={load} Row={Row} Status={Status} />
-        </Group>
-      ) : null}
-
       <Group title="Signing in">
         <StudioPasswordRow access={access} onSaved={loadAccess} showToast={showToast} Row={Row} Status={Status} />
         <Row
@@ -348,6 +343,19 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
               <button className="btn is-danger-soft" onClick={signOutAll}><LogOut size={14} /> Sign out all</button>
             </Row>
           ) : null}
+        </Group>
+      ) : null}
+
+      {tls ? (
+        <Group title="Advanced">
+          <SettingsDrawer
+            id="set-https"
+            title="HTTPS for other devices"
+            description={<>{tls.active ? 'On' : tls.configured && (!tls.ok || tls.problem) ? 'Set up, but it can’t start' : tls.configured ? 'Set up' : 'Off'}. With a certificate you already have, such as from <code>tailscale cert</code>.</>}
+            defaultOpen={Boolean(tls.configured && (!tls.ok || tls.problem))}
+          >
+            <HttpsRows tls={tls} supervised={Boolean(lan?.supervised)} restartHeiss={restartHeiss} showToast={showToast} onSaved={load} Row={Row} Status={Status} />
+          </SettingsDrawer>
         </Group>
       ) : null}
     </>

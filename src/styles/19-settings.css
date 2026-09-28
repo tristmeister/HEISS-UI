@@ -250,6 +250,7 @@
 }
 .set-drawer-toggle:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .set-drawer-toggle .set-kbd { font-size: 11px; }
+.set-drawer-toggle code { padding: 1px 5px; border-radius: 6px; background: var(--control-fill); color: hsl(var(--foreground)); font: 500 11.5px/1.5 var(--font-mono); }
 .set-drawer-chevron { flex: none; color: hsl(var(--muted-foreground)); transition: transform var(--dur-base) var(--ease-out), color var(--dur-fast); }
 .set-drawer-toggle:hover .set-drawer-chevron { color: hsl(var(--foreground)); }
 .set-drawer.is-open .set-drawer-chevron { transform: rotate(180deg); }
