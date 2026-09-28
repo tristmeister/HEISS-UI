@@ -157,10 +157,11 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
   let rowIndex = -1;
   return (
     <div ref={panelRef} className="prompt-history-panel" role="dialog" aria-label="Recent prompts" onKeyDown={onKeyDown}>
-      <label className="prompt-history-search">
+      <label className="model-menu-search">
         <Search size={14} aria-hidden="true" />
         <input
           ref={searchRef}
+          className="is-framed"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={prompts.length ? `Search ${prompts.length === 1 ? 'your prompt' : `${prompts.length} prompts`}` : 'Recent prompts'}
@@ -170,7 +171,7 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
           spellCheck={false}
           autoComplete="off"
         />
-        {query ? <button type="button" className="prompt-history-clear" aria-label="Clear search" onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={12} /></button> : null}
+        {query ? <button type="button" className="model-menu-clear" aria-label="Clear search" onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={12} /></button> : null}
       </label>
       <div ref={listRef} id={`${id}-list`} className="prompt-history-list" role="listbox" aria-label="Recent prompts">
         {sections.map((section) => (
