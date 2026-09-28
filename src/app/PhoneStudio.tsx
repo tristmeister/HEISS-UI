@@ -339,7 +339,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
   const restarting = Boolean(comfyStatus?.restarting);
   const connected = Boolean(comfyStatus?.connected);
   const statusText = restarting ? 'ComfyUI is restarting' : connected ? `Connected${comfyStatus?.device ? ` · ${comfyStatus.device}` : ''}` : comfyStatus?.checked ? 'ComfyUI is offline' : 'Checking ComfyUI…';
-  const workflowName = currentProfile?.displayName || currentProfile?.label || 'Choose a workflow';
+  const workflowName = currentProfile?.displayName || currentProfile?.label || 'Choose a model';
   const quickGo = Boolean(prompt.trim()) && !generateDisabled && !comfyOffline && !restarting;
 
   return (
@@ -548,7 +548,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
       <div className="phone-group">
         <button type="button" className="phone-row" onClick={() => setSheet('workflow')}>
           <SlidersHorizontal size={20} />
-          <span>{currentProfile?.displayName || currentProfile?.label || 'Choose a workflow'}<small>{currentProfile ? familyLabel(currentProfile) : 'Workflow'}</small></span>
+          <span>{currentProfile?.displayName || currentProfile?.label || 'Choose a model'}<small>{currentProfile ? familyLabel(currentProfile) : 'Model'}</small></span>
           <ChevronRight size={18} className="phone-row-end" />
         </button>
         {(aspectOptions || []).length && !aspectLocked ? (
@@ -562,8 +562,8 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
 
       {variations && maxCount > 1 ? (
         <div className="phone-control">
-          <span className="phone-control-label">Variants</span>
-          <div className="phone-seg" role="radiogroup" aria-label="Variants">
+          <span className="phone-control-label">Images</span>
+          <div className="phone-seg" role="radiogroup" aria-label="Images">
             {Array.from({ length: maxCount }, (_, index) => index + 1).map((value) => (
               <button key={value} type="button" role="radio" aria-checked={count === value} className={cn(count === value && 'active')} onClick={() => setCount(value)}>{value}</button>
             ))}
@@ -574,7 +574,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
       <div className="phone-control">
         <span className="phone-control-label">Steps <b>{steps}</b></span>
         <input className="phone-slider" type="range" min={stepMin} max={stepMax} step={1} value={steps} aria-label="Steps" onChange={(event) => setSteps(Number(event.target.value))} />
-        <span className="phone-control-hint"><span>Faster</span>{stepDefault ? <button type="button" className="phone-step-default" onClick={() => setSteps(stepDefault)} disabled={steps === stepDefault}>Workflow default {stepDefault}</button> : null}<span>More detail</span></span>
+        <span className="phone-control-hint"><span>Faster</span>{stepDefault ? <button type="button" className="phone-step-default" onClick={() => setSteps(stepDefault)} disabled={steps === stepDefault}>Recommended {stepDefault}</button> : null}<span>More detail</span></span>
       </div>
 
       <button type="button" className="phone-link is-strong" onClick={() => setSheet('advanced')}>
@@ -617,17 +617,18 @@ function WorkflowSheet({ view, open, onClose }: { view: Record<string, any>; ope
     </div>
   );
   return (
-    <Sheet open={open} onClose={onClose} title="Workflow" full>
+    <Sheet open={open} onClose={onClose} title="Model" full>
       {profiles.length > 8 ? (
         <label className="phone-search">
           <Search size={17} aria-hidden="true" />
-          <input className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} workflows`} aria-label="Search workflows" spellCheck={false} autoComplete="off" />
+          <input className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" spellCheck={false} autoComplete="off" />
         </label>
       ) : null}
-      {!profiles.length ? <p className="phone-empty">{(view.comfyStatus?.connected) ? 'No workflows yet. Add models on the computer running HEISS UI.' : 'ComfyUI isn’t answering, so its workflows can’t be listed right now.'}</p> : null}
+      {!profiles.length ? <p className="phone-empty">{(view.comfyStatus?.connected) ? 'No models yet. Get one on the computer running HEISS UI.' : 'ComfyUI isn’t answering, so its models can’t be listed right now.'}</p> : null}
       {starred.length ? <><h3 className="phone-section">Favorites</h3><div className="phone-group">{starred.map(row)}</div></> : null}
       {recent.length ? <><h3 className="phone-section">Recent</h3><div className="phone-group">{recent.map(row)}</div></> : null}
-      {rest.length ? <><h3 className="phone-section">{starred.length || recent.length ? 'All' : ''}</h3><div className="phone-group">{rest.map(row)}</div></> : null}
+      {rest.some((profile) => !profile.id.startsWith('custom:')) ? <><h3 className="phone-section">{starred.length || recent.length ? 'All models' : ''}</h3><div className="phone-group">{rest.filter((profile) => !profile.id.startsWith('custom:')).map(row)}</div></> : null}
+      {rest.some((profile) => profile.id.startsWith('custom:')) ? <><h3 className="phone-section">Your workflows</h3><div className="phone-group">{rest.filter((profile) => profile.id.startsWith('custom:')).map(row)}</div></> : null}
       {needle && !starred.length && !rest.length ? <p className="phone-empty">Nothing matches “{query.trim()}”.</p> : null}
     </Sheet>
   );

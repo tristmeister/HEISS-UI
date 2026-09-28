@@ -14,7 +14,7 @@ import { estimatePhrase, type GenerationEstimate } from './useGenerationEstimate
    The composer bar always shows every control as large as it fits. When the
    row runs out of room we walk down a fixed ladder of single-notch demotions,
    cheapest control first, so the important ones keep their labels longest.
-   Priority (largest kept longest): workflow > private > aspect > variants > steps.
+   Priority (largest kept longest): model > private > aspect > images > steps.
 --------------------------------------------------------------------------- */
 
 type ControlId = "workflow" | "private" | "negative" | "aspect" | "size" | "steps" | "variants" | "lora";
@@ -201,6 +201,8 @@ export type ComposerBarProps = {
   /** Down on purpose: the button says "Restarting…" and waits instead of offering a retry. */
   comfyRestarting?: boolean;
   onFindModels?: () => void;
+  /** Opens "Get a model": the starter models, from the model menu. */
+  onGetModels?: () => void;
   strayModelCount?: number;
   mode: string;
   aspectPickerValue: string;
@@ -246,11 +248,13 @@ export type ComposerBarProps = {
   /** What Generate would take here, once the server trusts its estimate for this model. */
   generationEstimate?: GenerationEstimate | null;
   onRandomSeed?: () => void;
+  /** The key that sends the prompt, shown in Generate's tooltip. */
+  generateKey?: string;
 };
 
 export function ComposerBar(props: ComposerBarProps) {
   const {
-    models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, strayModelCount, mode,
+    models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
@@ -258,7 +262,7 @@ export function ComposerBar(props: ComposerBarProps) {
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
     referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
-    pinnedSeed = "", onRandomSeed, generationEstimate = null
+    pinnedSeed = "", onRandomSeed, generationEstimate = null, generateKey = ""
   } = props;
 
   const showVariants = mode === "image" && currentProfile?.capabilities.variations !== false;
@@ -272,7 +276,7 @@ export function ComposerBar(props: ComposerBarProps) {
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
-    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "ComfyUI isn't reachable. Start it and your models show up here." : strayModelCount ? "Your models are in a folder ComfyUI doesn’t read." : "ComfyUI has no model HEISS UI can run yet. Add one to its models folder, or search for yours."} />
+    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "ComfyUI isn't reachable. Start it and your models show up here." : strayModelCount ? "Your models are in a folder ComfyUI doesn’t read." : "ComfyUI has no model HEISS UI can run yet. Add one to its models folder, or search for yours."} />
     : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
   const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (
@@ -298,7 +302,7 @@ export function ComposerBar(props: ComposerBarProps) {
   );
 
   const variantsPicker = (density: ControlDensity) => showVariants ? (
-    <NumberPicker label="Variants" icon={<Images size={14} />} density={density} value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} size="sm" />
+    <NumberPicker label="Images" icon={<Images size={14} />} density={density} value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} size="sm" />
   ) : null;
 
   const loraPill = (density: ControlDensity) => loraActiveCount ? (
@@ -313,12 +317,12 @@ export function ComposerBar(props: ComposerBarProps) {
   const privateToggle = (density: ControlDensity) => hiddenSpace ? <HiddenChip density={density} /> : null;
 
   const CONTROLS: Array<[ControlId, string, (density: ControlDensity) => React.ReactNode]> = [
-    ["workflow", "Workflow", workflowPicker],
+    ["workflow", "Model", workflowPicker],
     ["private", "Hidden", privateToggle],
     ["aspect", "Aspect ratio", aspectPicker],
     ["size", "Size", sizePickers],
     ["steps", "Steps", stepsPicker],
-    ["variants", "Variants", variantsPicker],
+    ["variants", "Images", variantsPicker],
     ["lora", "LoRA", loraPill]
   ];
 
@@ -357,12 +361,12 @@ export function ComposerBar(props: ComposerBarProps) {
       </AnimatePresence>
       <div className="zen-prompt-actions" ref={rowRef} data-density-level={level}>
         <div className="prompt-left-actions" data-fluid-group>
-          <Tip content={!canUseNegativePrompt ? "Negative prompt is unavailable for this workflow" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}>
+          <Tip content={!canUseNegativePrompt ? "Negative prompt is unavailable for this model" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}>
             <button
               data-open-trigger
               type="button"
               className={cn("negative-toggle", showNegativePrompt && "active", !canUseNegativePrompt && "is-unavailable", plan.negative.density !== "full" && `is-density-${plan.negative.density}`)}
-              aria-label={!canUseNegativePrompt ? "Negative prompt unavailable for this workflow" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}
+              aria-label={!canUseNegativePrompt ? "Negative prompt unavailable for this model" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}
               aria-disabled={!canUseNegativePrompt || undefined}
               onClick={() => { if (canUseNegativePrompt) setShowNegativePrompt((value: boolean) => !value); }}
             >
@@ -403,7 +407,7 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyRestarting ? "ComfyUI is restarting. Generate is back in a few seconds." : comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}`}>
+        <Tip content={comfyRestarting ? "ComfyUI is restarting. Generate is back in a few seconds." : comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}${generateKey ? ` · ${generateKey}` : ""}`}>
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && !comfyRestarting && "is-working", comfyRestarting ? "is-restarting" : comfyOffline && "is-offline")}
             onClick={comfyRestarting ? undefined : comfyOffline ? refreshComfyStatus : generate}

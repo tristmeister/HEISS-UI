@@ -88,7 +88,7 @@ export function useGenerationActions(view: any) {
       return;
     }
     if (!currentProfile) {
-      showToast(generateDisabledReason || "Choose a workflow first", "error", openModelSetup ? { action: { label: "Workflows", onClick: openModelSetup } } : undefined);
+      showToast(generateDisabledReason || "Choose a model first", "error", openModelSetup ? { action: { label: "Models", onClick: openModelSetup } } : undefined);
       return;
     }
     if (missingRequiredReference) {

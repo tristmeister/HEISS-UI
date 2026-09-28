@@ -114,6 +114,8 @@ export type Profile = {
   missing?: MissingPart[];
   /** False while a part the model needs is missing; generation stays off until then. */
   ready?: boolean;
+  /** The model file's size, when it sits on this computer. */
+  weightBytes?: number;
 };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean };
@@ -162,7 +164,7 @@ export type OutputFolderReport = { path: string; state: OutputFolderState; media
 export type Health = { ok: boolean; comfyUrl?: string; error?: string; /** Admin allowed: on the computer HEISS UI runs on, or its trusted LAN in LAN mode. */ thisComputer?: boolean };
 /** How a ComfyUI restart ended, as the server saw it: how long it took, and which node packs it brought in or failed to load. */
 export type RestartResult = { startedAt: number; endedAt: number; outcome: 'back' | 'failed'; durationMs?: number | null; newPacks?: string[]; failedPacks?: string[] };
-export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean; checked?: boolean; /** A restart HEISS asked for is under way: not answering is expected. */ restarting?: boolean; restartStartedAt?: number; restartElapsedMs?: number; /** How long restarts usually take here, once they agree. */ restartTypicalMs?: number; /** The restart that ended in the last two minutes. */ lastRestart?: RestartResult };
+export type ComfyStatus = { connected: boolean; url?: string; latencyMs?: number; version?: string; device?: string; error?: string; checking?: boolean; checked?: boolean; /** A restart HEISS asked for is under way: not answering is expected. */ restarting?: boolean; restartStartedAt?: number; restartElapsedMs?: number; /** How long restarts usually take here, once they agree. */ restartTypicalMs?: number; /** The restart that ended in the last two minutes. */ lastRestart?: RestartResult; /** ComfyUI turned up at this other usual address, which is now saved. */ found?: string; /** Other addresses on this computer HEISS UI tries by itself. */ nearby?: string[] };
 export type UpdateDownload = { status: "downloading" | "verifying" | "unpacking" | "ready" | "error"; version?: string; receivedBytes?: number; totalBytes?: number; error?: string };
 export type UpdateResult = { ok: boolean; rolledBack?: boolean; from?: string; to?: string; error?: string };
 export type UpdateStatus = {
