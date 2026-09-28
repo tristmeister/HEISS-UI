@@ -61,6 +61,16 @@ export const encoderDownloads = {
   hidream_clip_g: [{ file: "clip_g_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_g_hidream.safetensors"), bytes: 1_389_743_104 }]
 };
 
+// Vision encoders that read a start image for image-to-video models (models/clip_vision).
+export const visionDownloads = {
+  sigclip_384: [{ file: "sigclip_vision_patch14_384.safetensors", url: hf("Comfy-Org/sigclip_vision_384", "sigclip_vision_patch14_384.safetensors"), bytes: 856_505_640 }]
+};
+
+/** Which vision encoder a clip_vision file is, by name (they have no other use here). */
+export const visionKinds = {
+  sigclip_384: { label: "SigLIP vision (384)", test: /sig(clip|lip).*384|384.*sig(clip|lip)/i }
+};
+
 export const vaeDownloads = {
   sd15: [{ file: "vae-ft-mse-840000-ema-pruned.safetensors", url: hf("stabilityai/sd-vae-ft-mse-original", "vae-ft-mse-840000-ema-pruned.safetensors"), bytes: 334_641_190 }],
   sdxl: [{ file: "sdxl_vae.safetensors", url: hf("stabilityai/sdxl-vae", "sdxl_vae.safetensors"), bytes: 334_641_164 }],
@@ -105,6 +115,14 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
  * "ideogram4" (two models through a dual guider), "mage" (its own encode node).
  * pair: a second model file the family runs next to the picked one (see pairSpec).
  * promptPrefix / negativePrefix: system text the model was trained to see first.
+ * imageToVideo: `latent` is an image-to-video node (WanImageToVideo and the
+ * like) that takes both conditionings, the VAE and the start image, and hands
+ * back conditionings and latent; startImage: "required" makes the composer ask
+ * for that picture. clipVision: vision encoder kinds that also read it.
+ * refines: a family the detection finds, which a name pattern narrows to this
+ * one (the weights cannot tell them apart); weightsTell: only when the weights
+ * were out of reach, because they can. excludes: a name that marks a sibling
+ * with the same layout, which is `as` (a knownFamilies id) instead.
  * pack: a node-packs.js id when the family runs on custom nodes. ownLoaders:
  * the pack loads encoder and VAE itself (no pickers, no LoRAs).
  * variants: first whose `match` passes wins; the last one is the fallback, so
@@ -329,8 +347,10 @@ export const families = {
   },
   wan22_14b: {
     label: "Wan 2.2 14B", kind: "video", sources: ["unet"],
+    // Wan 2.1 14B and Wan 2.2 14B share every key; the high/low-noise pair is a naming convention.
+    refines: { family: "wan21", name: /(high|low)[-_ ]?noise/i },
     pair: {
-      owns: /wan/i, isPartner: (base) => /low[-_ ]?noise/i.test(base),
+      owns: /^(?!.*i2v).*wan/i, isPartner: (base) => /low[-_ ]?noise/i.test(base),
       partnerOf: (name) => name.replace(/high([-_ ]?)noise/i, (_match, sep) => `low${sep}noise`),
       label: "Low-noise model", runsAs: "Runs as the second half of its high-noise model.",
       detail: (base) => `Wan 2.2 14B also needs the matching low-noise file next to ${base} in diffusion_models.`,
@@ -344,6 +364,35 @@ export const families = {
       { id: "fast", label: "Fast (4-step)", fast: true, match: (name) => speedName.test(name) || /lightx2v|rapid/i.test(name), modelSampling: { node: "ModelSamplingSD3", shift: 5 }, defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Wan 2.2 14B", defaults: { steps: 20, cfg: 3.5, sampler: "euler", scheduler: "simple" } }
     ],
+    size: [832, 480], frames: 81, fps: 16
+  },
+  // Wan 2.2 14B image-to-video, as Comfy-Org's template runs it: WanImageToVideo
+  // puts the start image into both conditionings and makes the latent, then the
+  // high/low-noise pair samples at shift 5 (20 steps at CFG 3.5, or 4 at CFG 1
+  // with the lightx2v LoRAs). Its weights take 36 input channels (the picture
+  // and its mask ride along), which is how it is told from text-to-video.
+  wan22_14b_i2v: {
+    label: "Wan 2.2 14B I2V", kind: "video", sources: ["unet"],
+    refines: { family: "wan22_14b", name: /i2v/i, weightsTell: true },
+    // Wan 2.2 Fun inpaint shares this layout exactly; it needs its own nodes.
+    excludes: { name: /fun[-_ ]|inpaint|camera|control|vace|animate|s2v/i, as: "wan_other" },
+    pair: {
+      owns: /wan.*i2v|i2v.*wan/i, isPartner: (base) => /low[-_ ]?noise/i.test(base),
+      partnerOf: (name) => name.replace(/high([-_ ]?)noise/i, (_match, sep) => `low${sep}noise`),
+      label: "Low-noise model", runsAs: "Runs as the second half of its high-noise model.",
+      detail: (base) => `Wan 2.2 14B I2V also needs the matching low-noise file next to ${base} in diffusion_models.`,
+      download: (name) => `wan22_i2v_low_${/fp16|bf16/i.test(name) ? "fp16" : "fp8"}`
+    },
+    slots: [{ slot: "encoder", label: "UMT5-XXL", kinds: ["umt5xxl"] }], clipType: "wan",
+    vae: ["wan21"], latent: "WanImageToVideo", imageToVideo: true, startImage: "required",
+    sizeStep: 16, frameStep: 4, negative: "text", sampling: "pair", aspects: wide,
+    modelSampling: { node: "ModelSamplingSD3", shift: 5 },
+    requiredNodes: ["WanImageToVideo", "LoadImage"],
+    variants: [
+      { id: "fast", label: "Fast (4-step)", fast: true, match: (name) => speedName.test(name) || /lightx2v|rapid/i.test(name), defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "standard", label: "Wan 2.2 14B I2V", defaults: { steps: 20, cfg: 3.5, sampler: "euler", scheduler: "simple" } }
+    ],
+    // The template's 640×640 is the area; the aspect follows the picture you pick.
     size: [832, 480], frames: 81, fps: 16
   },
   hunyuan15: {
@@ -362,6 +411,29 @@ export const families = {
       { id: "standard", label: "HunyuanVideo 1.5", defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } }
     ],
     size: [848, 480], frames: 61, fps: 24
+  },
+  // HunyuanVideo 1.5 image-to-video (Comfy-Org's 720p I2V template): the start
+  // image goes in through HunyuanVideo15ImageToVideo and, read by a SigLIP
+  // vision encoder, as guidance; shift 7, 20 steps at CFG 6. The I2V weights
+  // have the same layout as text-to-video, so only the name tells them apart.
+  hunyuan15_i2v: {
+    label: "HunyuanVideo 1.5 I2V", kind: "video", sources: ["unet", "checkpoint"],
+    refines: { family: "hunyuan15", name: /i2v/i },
+    slots: [
+      { slot: "encoder", label: "Qwen2.5-VL 7B", kinds: ["qwen25vl_7b"] },
+      { slot: "glyph", label: "ByT5 Glyph", kinds: ["byt5_glyph"] }
+    ], clipType: "hunyuan_video_15",
+    vae: ["hunyuan15"], latent: "HunyuanVideo15ImageToVideo", imageToVideo: true, startImage: "required", clipVision: ["sigclip_384"],
+    sizeStep: 16, frameStep: 4, negative: "text", aspects: wide,
+    modelSampling: { node: "ModelSamplingSD3", shift: 7 },
+    requiredNodes: ["HunyuanVideo15ImageToVideo", "CLIPVisionLoader", "CLIPVisionEncode", "LoadImage"],
+    variants: [
+      { id: "step_distilled", label: "Step-distilled", fast: true, match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 20, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
+      { id: "standard", label: "HunyuanVideo 1.5 I2V", defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } }
+    ],
+    size: [848, 480], frames: 121, fps: 24
   },
   minimax_h3: {
     label: "MiniMax H3", kind: "video", sources: ["unet", "checkpoint"], audio: true,
@@ -540,7 +612,7 @@ export const knownFamilies = {
   ltxv: "LTX-Video",
   hunyuan_video: "HunyuanVideo 1.0",
   newbie: "NewBie (Lumina-based, needs its own text encoders; not in HEISS UI yet)",
-  wan_i2v: "Wan image-to-video (needs a start image; not in HEISS UI yet)",
+  wan_i2v: "Wan 2.1 image-to-video (needs CLIP vision; not in HEISS UI yet)",
   wan_other: "Wan VACE / Fun / camera model",
   qwen_image_edit: "Qwen-Image Edit (image editing model)",
   sdxl_refiner: "SDXL Refiner (used after a base model, not on its own)",
@@ -728,6 +800,8 @@ export function familyFromHeader(header) {
   if (has("head.modulation")) {
     if (["vace_patch_embedding.weight", "control_adapter.conv.weight"].some(has)) return { family: "wan_other" };
     if (dim(keys, "head.head.weight", 0) / 4 === 48) return { family: "wan22_5b" };
+    // Wan 2.2 14B I2V: the picture and its mask ride in as 20 more input channels, with no CLIP vision (Wan 2.1's has img_emb).
+    if (!has("img_emb.proj.0.bias") && dim(keys, "patch_embedding.weight", 1) === 36 && dim(keys, "head.modulation", -1) === 5120) return { family: "wan22_14b_i2v" };
     if (has("img_emb.proj.0.bias") || dim(keys, "patch_embedding.weight", 1) >= 36) return { family: "wan_i2v" };
     // Wan 2.2 14B and Wan 2.1 14B share every key; the high/low-noise pair is a naming convention.
     return { family: "wan21", detail: { width: dim(keys, "head.modulation", -1) } };
@@ -815,6 +889,25 @@ export function quantFromHeader(header, name = "") {
   if (/svdq|nunchaku/i.test(base)) return "svdq";
   if (/(^|[^a-z])(bnb[-_]?)?nf4([^a-z]|$)/i.test(base)) return "nf4";
   return "";
+}
+
+/**
+ * The family a detected one narrows to by name (see `refines`): Wan 2.1 14B
+ * named high/low noise is Wan 2.2 14B, and HunyuanVideo 1.5 named i2v is its
+ * image-to-video model. A refinement the weights can make is only taken from
+ * the name when they were out of reach.
+ */
+export function refinedFamily(familyId = "", name = "", weightsRead = false) {
+  const base = String(name).split(/[\\/]/).pop() || "";
+  let id = familyId;
+  for (let step = 0; step < 4; step += 1) {
+    const next = Object.entries(families).find(([, spec]) => spec.refines?.family === id && spec.refines.name.test(base) && !(weightsRead && spec.refines.weightsTell));
+    if (!next) break;
+    id = next[0];
+  }
+  // A sibling with the very same layout that only its name gives away, and that runs elsewhere.
+  const excludes = families[id]?.excludes;
+  return excludes && excludes.name.test(base) ? excludes.as : id;
 }
 
 /* ------------------------------------------------------------ Speed LoRAs */

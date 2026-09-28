@@ -112,7 +112,7 @@ Drop a model file into ComfyUI and HEISS UI recognises it from its weights, not 
 | | Families |
 | --- | --- |
 | **Image** | Ideogram 4, Krea 2 (Turbo, Raw), MageFlow, ERNIE-Image, Anima, Z-Image (Turbo, Base), Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana (1.5, Sprint, 2K/4K), Flux.2 Dev, Flux.2 Klein 4B and 9B, Pony V7, Chroma, Qwen-Image (including 2512) and Qwen-Image 2.1, HiDream I1, SD 3.5, Flux.1 (Dev, Schnell, de-distilled), SDXL (NoobAI, Illustrious, Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), SD 2.x and SD 1.5 |
-| **Video** | MiniMax H3, HunyuanVideo 1.5, Wan 2.2 5B, Wan 2.2 14B (high and low-noise pair) and Wan 2.1 |
+| **Video** | MiniMax H3, HunyuanVideo 1.5 (text and image to video), Wan 2.2 5B, Wan 2.2 14B (high and low-noise pair, text and image to video) and Wan 2.1 |
 
 Both all-in-one checkpoints and model-only files work. HEISS UI sees which parts a file carries and fills the rest from compatible files you already have, or offers to download them. A file it can't identify can be assigned by hand under **Use as** in Settings. GGUF and other formats that need custom loader nodes aren't supported yet. For anything else, get it running in ComfyUI first and bring it over as [your own workflow](#bring-your-own-workflow).
 

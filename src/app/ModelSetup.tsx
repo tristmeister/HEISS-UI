@@ -21,13 +21,15 @@ const partVerb: Record<MissingPart['part'], string> = {
   encoder: 'Text encoder',
   vae: 'VAE',
   model: 'Model file',
+  vision: 'Vision encoder',
   comfy: 'ComfyUI'
 };
 
 /** One plain line for the parts people new to ComfyUI will not know by name. */
 const partHint: Partial<Record<MissingPart['part'], string>> = {
   encoder: 'Reads your prompt for the model',
-  vae: 'Turns the model’s result into pixels'
+  vae: 'Turns the model’s result into pixels',
+  vision: 'Reads your start image for the model'
 };
 
 type RowState = 'idle' | 'queued' | 'downloading' | 'paused' | 'error' | 'landed' | 'manual' | 'installed';

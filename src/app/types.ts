@@ -145,7 +145,7 @@ export type NodeInstallPlan = ShellPlan & { exact: boolean; customNodesDir: stri
  * terminal `install`; a part fetched outside HEISS carries a `command`.
  */
 export type MissingPart = {
-  part: "encoder" | "vae" | "model" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
+  part: "encoder" | "vae" | "model" | "vision" | "comfy"; slot?: string; label: string; kind?: string; detail?: string; downloads: PartDownload[];
   nodePack?: NodePackInfo; install?: NodeInstallPlan; autoInstall?: PackAutoInstall; missingNodes?: string[];
   command?: ShellPlan & { target?: string };
 };

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, speedVariantFor, vaeDownloads } from './family-catalog.js';
+import { encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, speedVariantFor, vaeDownloads, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
@@ -20,6 +20,7 @@ const clipLoaderClass = [null, "CLIPLoader", "DualCLIPLoader", "TripleCLIPLoader
 function partLabel(kind, key, file) {
   if (kind === "encoder" && encoderKinds[key]) return `${encoderKinds[key].label} text encoder`;
   if (kind === "vae" && vaeKinds[key]) return vaeKinds[key].label;
+  if (kind === "vision" && visionKinds[key]) return `${visionKinds[key].label} encoder`;
   return file;
 }
 
@@ -42,7 +43,8 @@ function withDisk(entry) {
 const downloadSources = {
   encoder: [encoderDownloads, "text_encoders"],
   vae: [vaeDownloads, "vae"],
-  model: [modelDownloads, "diffusion_models"]
+  model: [modelDownloads, "diffusion_models"],
+  vision: [visionDownloads, "clip_vision"]
 };
 
 /** Every catalog download HEISS will fetch, by id. The only files the download route accepts. */
@@ -177,6 +179,7 @@ export function familyProfiles(info, helpers) {
   const vaeFiles = optionsFor(info, "VAELoader", "vae_name")
     .filter((name) => !/^(pixel_space|taesd|taesdxl|taesd3|taef1)$/i.test(name))
     .map(classifyVae);
+  const visionFiles = optionsFor(info, "CLIPVisionLoader", "clip_name");
 
   const profiles = [];
   const modelFiles = [];
@@ -283,6 +286,15 @@ export function familyProfiles(info, helpers) {
         missing.push({ part: "vae", label: vaeKinds[key].label, kind: key, detail: "H3 decodes its sound with a separate VAE.", downloads: downloadsFor(vaeDownloads[key], "vae", `vae:${key}`) });
       }
     }
+    // An image-to-video model that also reads its start image with a vision encoder.
+    let clipVision = "";
+    if (family.clipVision) {
+      clipVision = visionFiles.find((file) => family.clipVision.some((kind) => visionKinds[kind]?.test.test(file))) || "";
+      if (!clipVision) {
+        const key = family.clipVision[0];
+        missing.push({ part: "vision", label: `${visionKinds[key].label} encoder`, kind: key, detail: `${family.label} reads the start image with it. Put it in ComfyUI/models/clip_vision.`, downloads: downloadsFor(visionDownloads[key], "clip_vision", `vision:${key}`) });
+      }
+    }
     if (family.pair && !pairModel) {
       const key = family.pair.download?.(base);
       missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`) : [] });
@@ -341,8 +353,12 @@ export function familyProfiles(info, helpers) {
       return [id, { label: fast.label, ...settingsOf(fast) }];
     }));
     const references = canReference(family, info) ? family.references : 0;
+    // Image-to-video runs from a picture: one start image, and no run without it.
+    const startSlot = family.startImage === "required"
+      ? [{ id: "reference", kind: "image", required: true, min: 1, max: 1, label: "Start image", role: "start" }]
+      : null;
     const profile = buildProfile({
-      mediaInputs: referenceSlots(references),
+      mediaInputs: startSlot || referenceSlots(references),
       aspectPolicy: references ? "reference" : "manual",
       id: legacyProfileId(info2.family, source, name) || `${family.kind}:${info2.family}:${source}:${name}`,
       kind: family.kind,
@@ -385,6 +401,7 @@ export function familyProfiles(info, helpers) {
         // ComfyUI's LoRA loader cannot patch a model it did not build.
         lora: canUseLoras && !family.ownLoaders,
         startImage: Boolean(family.img2img || family.startImage),
+        startImageRequired: family.startImage === "required",
         denoise: Boolean(family.img2img),
         frames: family.kind === "video",
         fps: family.kind === "video"
@@ -401,6 +418,7 @@ export function familyProfiles(info, helpers) {
       bundledKnown: bundled.known !== false,
       audioVae,
       pairModel,
+      clipVision,
       vpredPatch,
       ...(quantLoader ? { quant: info2.quant, checkpointLoader: quantLoader } : {}),
       ...(Object.keys(speedLoras).length ? { speedLoras, speedVariants } : {}),

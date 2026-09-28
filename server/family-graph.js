@@ -223,6 +223,20 @@ export function familyGraph(body) {
   const startImage = body.startImageComfy && !editLatent && !editSize && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
   if (editLatent) {
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent;
+  } else if (family.imageToVideo) {
+    // Image-to-video: one node puts the start image into both conditionings and
+    // makes the latent (and, where the family reads it, a vision encoding of it).
+    if (!startImage) throw new Error(`${family.label} makes a video from a picture. Add a start image first.`);
+    const inputs = { positive, negative: negative || positive, vae, width, height, length: frames, batch_size: 1, start_image: startImage };
+    if (family.clipVision) {
+      if (!body.clipVision) throw new Error(`${family.label} needs its vision encoder.`);
+      const vision = [add("CLIPVisionLoader", { clip_name: body.clipVision }), 0];
+      inputs.clip_vision_output = [add("CLIPVisionEncode", { clip_vision: vision, image: startImage, crop: "center" }), 0];
+    }
+    const conditioned = add(family.latent, inputs);
+    positive = [conditioned, 0];
+    negative = [conditioned, 1];
+    latent = [conditioned, 2];
   } else if (family.latent === "Wan22ImageToVideoLatent") {
     const inputs = { vae, width, height, length: frames, batch_size: 1 };
     if (startImage) inputs.start_image = startImage;

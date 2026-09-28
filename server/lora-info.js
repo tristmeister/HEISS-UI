@@ -201,14 +201,32 @@ function localLoraFile(name) {
 
 const label = (ids) => [...new Set(ids.map((id) => families[id]?.label).filter(Boolean))].join(" / ");
 
+/**
+ * The families a LoRA fits, with the ones that only narrow them by name
+ * (`refines`): a Wan 14B LoRA fits Wan 2.2 14B I2V, a HunyuanVideo 1.5 one its I2V model.
+ */
+function withRefinements(ids) {
+  const all = new Set(ids);
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const [id, spec] of Object.entries(families)) {
+      if (spec.refines && all.has(spec.refines.family) && !all.has(id)) { all.add(id); grew = true; }
+    }
+  }
+  return [...all];
+}
+
 function describe(header, metadata) {
   const fromKeys = familiesFromKeys(header);
   const fromMeta = familiesFromMetadata(metadata);
   // The keys are the stronger witness; metadata narrows a key reading that fits several.
   const narrowed = fromKeys.length && fromMeta.length ? fromKeys.filter((id) => fromMeta.includes(id)) : [];
-  const ids = narrowed.length ? narrowed : fromKeys.length ? fromKeys : fromMeta;
+  const found = narrowed.length ? narrowed : fromKeys.length ? fromKeys : fromMeta;
+  // The label names what it was made for; the list also holds the models that share its layout.
+  const base = label(found);
+  const ids = withRefinements(found);
   const about = ["modelspec.title", "ss_output_name", "name"].map((key) => metadata?.[key]).filter((value) => typeof value === "string").join(" ");
-  return { families: ids, base: label(ids), triggers: triggersFromMetadata(metadata || {}), ...(about ? { about: about.slice(0, 200) } : {}) };
+  return { families: ids, base, triggers: triggersFromMetadata(metadata || {}), ...(about ? { about: about.slice(0, 200) } : {}) };
 }
 
 /** What one LoRA file on this computer is, cached by size and date; null when out of reach. */

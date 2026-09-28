@@ -94,6 +94,9 @@ function sanitizeFamilyBody(input, info, stats) {
   const referenceAssets = slots.length
     ? slots.map((slot) => supplied.find((item) => item?.slot === slot)).filter(Boolean)
     : supplied;
+  if (profile.capabilities.startImageRequired && !referenceAssets.length && !input.startImage && !input.startImageId) {
+    throw new Error(`${profile.displayName} makes a video from a picture. Add a start image first.`);
+  }
   const loras = sanitizeLoras(input, info, profile, kind, 8);
   // A stacked speed LoRA runs the model as its few-step variant (Wan's shift, Flux's guidance).
   const speedVariant = loras.map((lora) => profile.speedLoras?.[lora.name]).find(Boolean) || "";
@@ -114,6 +117,7 @@ function sanitizeFamilyBody(input, info, stats) {
     vae: resolvedVae,
     audioVae: profile.audioVae,
     pairModel: profile.pairModel,
+    clipVision: profile.clipVision || "",
     vpredPatch: profile.vpredPatch,
     krea2Enhancer: profile.family === "krea2" && Boolean(info["ComfyUI-Krea2T-Enhancer"]),
     sana: profile.sana || null,

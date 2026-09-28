@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfy, modelFolders } from './comfy.js';
 import { dataDir } from './gallery-store.js';
-import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, quantFromHeader, variantFor } from './family-catalog.js';
+import { families, familyFromHeader, familyFromName, isKrea2Raw, isZImageBase, knownFamilies, quantFromHeader, refinedFamily, variantFor } from './family-catalog.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 
 /**
@@ -261,9 +261,8 @@ export function classifyModel(source, name) {
   // A quantized format rides along whatever family the file is: it decides the loader, not the settings.
   const quant = quantFromHeader(header, header ? "" : name);
   const finish = (familyId, via, detail = null, variantId = "") => {
-    let id = familyId || "";
-    // Wan 2.1 14B and Wan 2.2 14B share every key; the high/low-noise pair shows in the name.
-    if (id === "wan21" && /(high|low)[-_ ]?noise/i.test(base)) id = "wan22_14b";
+    // Families the weights cannot tell apart (Wan 2.1 and 2.2 14B, HunyuanVideo 1.5 T2V and I2V) narrow by name; a choice stands as made.
+    const id = via === "choice" ? familyId || "" : refinedFamily(familyId || "", base, Boolean(header));
     const family = families[id];
     const variant = family
       ? (variantId && family.variants.find((item) => item.id === variantId)) || variantFor(id, base, header, detail)

@@ -17,7 +17,7 @@ import { hfFetch as fetch } from "./hf-access.js";
  * where it left off, even after HEISS restarts.
  */
 
-const allowedFolders = new Set(["text_encoders", "vae", "diffusion_models", "checkpoints", "loras"]);
+const allowedFolders = new Set(["text_encoders", "vae", "diffusion_models", "checkpoints", "loras", "clip_vision"]);
 const allowedHosts = new Set(["huggingface.co"]);
 
 let queue = [];

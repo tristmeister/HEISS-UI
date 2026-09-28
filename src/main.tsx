@@ -45,9 +45,11 @@ function snapDimension(value: number, meta: Record<string, number> = {}): number
 }
 
 function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[] {
-  if (!profile || profile.kind !== "image") return [];
+  if (!profile) return [];
   const declared = (profile.mediaInputs || []).filter((input) => input.kind === "image");
+  // Video models take a picture only when they declare it (image-to-video's start image).
   if (declared.length) return declared;
+  if (profile.kind !== "image") return [];
   // Edit models read a reference; everything else can only start from a picture and redraw it.
   if (profile.capabilities.imageToImage) {
     return [{ id: "reference", kind: "image", required: true, min: 1, max: 1, label: "Reference image", role: "reference" }];

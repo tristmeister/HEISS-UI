@@ -236,7 +236,7 @@ test("an imported workflow's missing file gets a download only for that exact ca
 });
 
 test("a lone Wan 2.2 high-noise file is offered its matching low-noise half", () => {
-  const wan = inferModels(objectInfo({ unets: ["wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"] })).profiles.find((profile) => profile.family === "wan22_14b");
+  const wan = inferModels(objectInfo({ unets: ["wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"] })).profiles.find((profile) => profile.family === "wan22_14b_i2v");
   const partner = wan.missing.find((item) => item.part === "model");
   assert.equal(partner.downloads[0].file, "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors");
 });
