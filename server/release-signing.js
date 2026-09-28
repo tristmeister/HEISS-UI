@@ -13,9 +13,10 @@ import crypto from "node:crypto";
  * the key with `node scripts/release-keygen.mjs` (see CONTRIBUTING.md).
  */
 
-// PLACEHOLDER: the release public key (base64 SPKI DER, one line), printed by
-// `node scripts/release-keygen.mjs`. Empty means "not configured yet".
-export const RELEASE_PUBLIC_KEY = "";
+// The release public key (base64 SPKI DER, one line), printed by
+// `node scripts/release-keygen.mjs`. Its private half signs releases in CI
+// (the HEISS_RELEASE_SIGNING_KEY secret) and never enters the repository.
+export const RELEASE_PUBLIC_KEY = "MCowBQYDK2VwAyEAs0saAKXi2pIf2cVERFS9NJevmattk3PXYC9eM6E3H+I=";
 
 /** The key the updater checks against. HEISS_RELEASE_PUBLIC_KEY is for test feeds (HEISS_RELEASE_API). */
 export function releasePublicKey() {

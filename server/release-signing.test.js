@@ -21,11 +21,11 @@ test("a signed release verifies with its public key, and only as exactly this re
   assert.throws(() => signRelease({ ...release, privateKeyPem: pem(crypto.generateKeyPairSync("ec", { namedCurve: "P-256" }).privateKey) }), /Ed25519/);
 });
 
-test("until a release key is configured, updates install on their checksum as before", () => {
-  assert.equal(RELEASE_PUBLIC_KEY, "", "the placeholder ships empty");
-  const asset = pickAsset({ tag_name: "v0.12.0", assets: [{ name: "heiss-ui-0.12.0.zip", browser_download_url: "https://example.test/z.zip", digest: `sha256:${"a".repeat(64)}` }] });
-  assert.deepEqual(installable(asset), { ok: true, reason: "" });
-  assert.equal(installable({ ...asset, sha256: "" }).reason, "checksum");
+test("the shipped release key is a real Ed25519 key, so an unsigned release won't install itself", () => {
+  const key = crypto.createPublicKey({ key: Buffer.from(RELEASE_PUBLIC_KEY, "base64"), format: "der", type: "spki" });
+  assert.equal(key.asymmetricKeyType, "ed25519");
+  const unsigned = pickAsset({ tag_name: "v0.12.0", assets: [{ name: "heiss-ui-0.12.0.zip", browser_download_url: "https://example.test/z.zip", digest: `sha256:${"a".repeat(64)}` }] });
+  assert.deepEqual(installable(unsigned), { ok: false, reason: "unsigned" });
 });
 
 test("once a key is configured, a release without a signature won't install itself", () => {
