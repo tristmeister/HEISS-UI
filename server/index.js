@@ -612,8 +612,9 @@ const serverStartedAt = Date.now();
 
 app.get("/api/health", async (req, res) => {
   try {
-    const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer });
+    // Only whether ComfyUI answers: its system_stats (command line, paths) stay here.
+    await comfy("/system_stats");
+    res.json({ ok: true, comfyUrl, startedAt: serverStartedAt, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer });
   } catch (error) {
     res.status(503).json({ ok: false, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
