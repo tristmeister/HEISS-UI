@@ -53,6 +53,8 @@ The node graph is great for building workflows and less great for the everyday l
 - **Watch it render.** Live previews resolve from a pixel mosaic into the final image while ComfyUI works, with a countdown to done. Queue the next one, cancel any time.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs are read straight from ComfyUI. You only see what the selected model actually uses.
 - **Zen mode.** A fullscreen prompt and output view for when you don't need the panels.
+- **Find it again.** Press ↑ in an empty prompt for your recent prompts (star the ones to keep), `/` to search the gallery by prompt, model or LoRA, and star images to keep them one tap away. Earlier images from other folders (old ComfyUI outputs, AUTOMATIC1111, Forge) join the gallery where they are, from Settings › Library. Prompts from Hidden are never kept.
+- **Civitai-ready images (beta).** Switched on in Settings › Library, new PNGs also carry the prompt, LoRAs and settings the way AUTOMATIC1111 writes them, so Civitai fills in an upload.
 
 <p align="center">
   <a href="./docs/screenshots/realtime-generation.mp4"><img src="./docs/screenshots/realtime-generation.gif" alt="Two new images resolving live in the gallery, from pixel-mosaic step previews to the finished photograph" width="100%" /></a>
