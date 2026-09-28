@@ -20,6 +20,10 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
   const history = {};
   const sockets = new Map();
   const waiting = new Map();
+  // Runs that left the queue: finished (into history) or dropped (a restart).
+  const ended = new Set();
+  const deleted = [];
+  let down = false;
   let count = 0;
 
   const json = (res, status, value) => {
@@ -34,10 +38,13 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, "http://localhost");
+    // Out of reach, the way a proxy in front of a stopped ComfyUI answers.
+    if (down) return json(res, 503, { error: "down" });
     if (req.method === "POST" && url.pathname === "/prompt") {
       const body = await readBody(req);
       count += 1;
-      const id = `prompt-${count}`;
+      // A current ComfyUI takes the id the client chose.
+      const id = body.prompt_id || `prompt-${count}`;
       prompts.push({ id, ...body });
       json(res, 200, { prompt_id: id, number: count, node_errors: {} });
       waiting.get("prompt")?.(prompts.at(-1));
@@ -48,7 +55,20 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
       json(res, 200, history[id] ? { [id]: history[id] } : {});
       return;
     }
-    if (req.method === "GET" && url.pathname === "/history") return json(res, 200, {});
+    if (req.method === "GET" && url.pathname === "/history") return json(res, 200, history);
+    if (req.method === "POST" && url.pathname === "/history") {
+      const body = await readBody(req);
+      for (const id of body.delete || []) {
+        deleted.push(id);
+        delete history[id];
+      }
+      res.writeHead(200);
+      res.end();
+      return;
+    }
+    if (req.method === "GET" && url.pathname === "/queue") {
+      return json(res, 200, { queue_running: prompts.filter((item) => !ended.has(item.id)).map((item) => [0, item.id, {}, {}, []]), queue_pending: [] });
+    }
     if (req.method === "GET" && url.pathname === "/object_info") return json(res, 200, objectInfo);
     if (req.method === "GET" && url.pathname === "/system_stats") {
       return json(res, 200, { system: { comfyui_version: version, os: "posix", python_version: "3.12", pytorch_version: "2.8.0" }, devices: [{ name: "Fake GPU", type: "cuda", vram_total: 24e9, vram_free: 20e9 }], ...systemStats });
@@ -80,14 +100,24 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
     /** Resolves once the job's progress socket is connected. */
     socketFor: (clientId) => new Promise((resolve) => (sockets.has(clientId) ? resolve() : waiting.set(`socket:${clientId}`, resolve))),
     connected: (clientId) => sockets.has(clientId),
+    /** Stops (or resumes) answering: every route fails with 503 meanwhile. */
+    setDown(value) { down = Boolean(value); },
+    /** History entries HEISS UI asked ComfyUI to delete. */
+    deleted,
+    /** Forgets a run without a result, as a ComfyUI restart does. */
+    drop(promptId) { ended.add(promptId); },
     send(clientId, message) {
       sockets.get(clientId)?.write(frame(JSON.stringify(message)));
     },
     /** Records the run's result, the way ComfyUI's /history reports it. */
     finish(promptId, { outputs = {}, error = null } = {}) {
+      const queued = prompts.find((item) => item.id === promptId) || {};
+      // [number, prompt_id, graph, extra_data, outputs to run], as ComfyUI keeps it.
+      const prompt = [0, promptId, queued.prompt || {}, { ...(queued.extra_data || {}), client_id: queued.client_id }, []];
+      ended.add(promptId);
       history[promptId] = error
-        ? { outputs: {}, status: { status_str: "error", completed: false, messages: [["execution_error", error]] } }
-        : { outputs, status: { status_str: "success", completed: true, messages: [] } };
+        ? { prompt, outputs: {}, status: { status_str: "error", completed: false, messages: [["execution_error", error]] } }
+        : { prompt, outputs, status: { status_str: "success", completed: true, messages: [] } };
     },
     close() {
       for (const socket of sockets.values()) socket.destroy();

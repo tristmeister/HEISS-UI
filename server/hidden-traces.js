@@ -7,23 +7,26 @@ import { comfy, comfyInputDir } from "./comfy.js";
  * any image it was handed in its input folder. For a Hidden run both are
  * plaintext copies of something that now only exists encrypted, so they go as
  * soon as the run is done. Best effort: a ComfyUI that is gone or a file that
- * is locked must never fail the run itself.
+ * is locked must never fail the run itself. Resolves to whether ComfyUI took
+ * the history entries out, so a Hidden run can be finished later if not.
  */
 export async function forgetComfyRun({ promptIds = [], inputNames = [] } = {}) {
   const ids = [...new Set(promptIds.filter(Boolean).map(String))];
+  let historyGone = true;
   if (ids.length) {
-    await comfy("/history", {
+    historyGone = await comfy("/history", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ delete: ids })
-    }).catch(() => null);
+    }).then(() => true, () => false);
   }
   const inputDir = comfyInputDir();
-  if (!inputDir) return;
+  if (!inputDir) return historyGone;
   const base = path.resolve(inputDir);
   for (const name of new Set(inputNames.filter(Boolean).map(String))) {
     const file = path.resolve(base, name);
     if (!file.startsWith(`${base}${path.sep}`)) continue;
     try { fs.unlinkSync(file); } catch { /* already gone, or ComfyUI still holds it */ }
   }
+  return historyGone;
 }

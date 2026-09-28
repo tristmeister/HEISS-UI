@@ -45,6 +45,7 @@ import { saveStartImage } from './start-images.js';
 import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockWithPasskey, unlockWithPassword } from './privacy.js';
 import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, retireVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
 import { forgetComfyRun } from './hidden-traces.js';
+import { adoptHiddenRuns, forgetHiddenRunKeys, settleHiddenRuns, withoutHiddenRuns } from './hidden-runs.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
@@ -109,7 +110,9 @@ function refreshComfyContextSoon() {
 
 async function recoverGalleryFromHistory() {
   cleanupGalleryState(jobs);
-  const history = await comfy(`/history?max_items=${Math.min(galleryLimit, 500)}`).catch(() => ({}));
+  // Hidden runs HEISS UI lost track of are sealed first, and never join the gallery either way.
+  await settleHiddenRuns().catch(() => null);
+  const history = withoutHiddenRuns(await comfy(`/history?max_items=${Math.min(galleryLimit, 500)}`).catch(() => ({})));
   const recovered = recordsFromComfyHistory(history);
   if (!recovered.length) return;
   const pending = gallery.filter((item) => item.status === "pending");
@@ -215,6 +218,8 @@ async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
   if (unlocked) {
     migrateLegacyPrompts(key);
     forgetOldHiddenThumbnails(key);
+    // What Hidden runs made after HEISS UI lost track of them joins Hidden now.
+    try { adoptHiddenRuns(key); } catch { /* the next unlocked request tries again */ }
   }
   return {
     ...status,
@@ -424,6 +429,7 @@ app.post("/api/privacy/erase", (req, res) => {
   }
   eraseVault();
   erasePrivacy();
+  forgetHiddenRunKeys();
   clearUnlockCookie(res);
   res.json({ ok: true, enabled: false, unlocked: false, passkeys: [], vault: { unlocked: false, revision: 0 } });
 });
@@ -448,6 +454,7 @@ app.get("/api/hidden/gallery", (req, res) => {
   const key = requireHiddenKey(req, res);
   if (!key) return;
   cleanupGalleryState(jobs);
+  try { adoptHiddenRuns(key); } catch { /* tried again with the next page */ }
   try {
     const page = hiddenPage(req, key);
     if (Number(req.query.since || 0) && Number(req.query.since) === page.revision) {
