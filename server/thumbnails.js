@@ -228,6 +228,13 @@ async function findOrBuild(filename, subfolder, type) {
  * modified time. The caller checks the file is one it may serve.
  */
 export async function getFileThumbnail(file) {
+  const result = await findOrBuildFile(file);
+  // Served now, so the cache cap keeps it like an output's thumbnail.
+  if (result?.file) noteUsed(result.file);
+  return result;
+}
+
+async function findOrBuildFile(file) {
   const resolved = path.resolve(file);
   const key = crypto.createHash("sha1").update(`file:${resolved}:${longestEdge}:${quality}`).digest("hex");
   if (!(await loadSharp())) return cachedThumbnail(key) || { original: true };
