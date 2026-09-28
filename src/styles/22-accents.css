@@ -83,11 +83,12 @@
 }
 /* In a line of text it keeps its own air; flex rows space it with their gap. */
 .beta-tag { margin-inline-start: 7px; translate: 0 -1px; }
-.mode-tabs .beta-tag { margin-inline-start: 0; translate: none; }
+/* Flex rows (tabs, buttons, icon labels) space it with their own gap. */
+:is(.mode-tabs button, .hidden-way, .btn) > .beta-tag { margin-inline-start: 0; translate: none; }
 /* On a pressed tab or segment the fill behind it is lighter; the tint stays readable. */
 :is(.active, [aria-checked="true"], [aria-selected="true"]) > .beta-tag { background: rgb(255 154 82 / .2); }
-/* The phone's pressed segment is near-white: burn the ember darker to keep it legible. */
-.phone-seg button.active > .beta-tag { background: rgb(214 104 30 / .14); color: #b0500f; }
+/* On near-white fills (the phone's pressed segment, primary buttons) burn the ember darker. */
+:is(.phone-seg button.active, .btn.is-primary) > .beta-tag { background: rgb(214 104 30 / .14); color: #b0500f; }
 
 @media (forced-colors: active) {
   .beta-tag { outline: 1px solid CanvasText; outline-offset: -1px; }

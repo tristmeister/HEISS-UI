@@ -1,4 +1,5 @@
-import { writeLocalEnvValue } from "./env.js";
+import { envFileKeys, writeLocalEnvValue } from "./env.js";
+import { listensBeyondThisComputer, resolveLan } from "./lan.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -31,7 +32,19 @@ export function setComfyUrl(value = "") {
   comfyUrl = next;
   return comfyUrl;
 }
-export const host = process.env.HOST || "127.0.0.1";
+export const lan = resolveLan({ argv: process.argv, env: process.env, fileKeys: envFileKeys });
+export const host = lan.host;
+export const lanListening = listensBeyondThisComputer(host);
+
+/**
+ * The Settings switch: remembered in .env, used from the next start. A HOST
+ * line in .env that would contradict it is rewritten to match.
+ */
+export function saveLanSetting(enabled) {
+  writeLocalEnvValue("HEISS_LAN", enabled ? "1" : "0");
+  if (envFileKeys.has("HOST")) writeLocalEnvValue("HOST", enabled ? "0.0.0.0" : "127.0.0.1");
+  return enabled;
+}
 export const port = Number(process.env.PORT || 8787);
 /**
  * An output file on this computer, for when ComfyUI itself cannot serve it
@@ -121,7 +134,7 @@ export function modelFolders(kind, subfolders = [kind]) {
 }
 
 export const localHosts = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-export const allowLanActions = process.env.HEISS_ALLOW_LAN === "1" || process.env.JAI_ALLOW_LAN === "1" || host === "0.0.0.0" || host === "::";
+export const allowLanActions = process.env.HEISS_ALLOW_LAN === "1" || process.env.JAI_ALLOW_LAN === "1" || lanListening;
 /** Fake models and placeholder generations when ComfyUI is unreachable. A dev opt-in for agent and UI testing without a GPU. */
 export const demoMode = process.env.HEISS_DEMO === "1";
 

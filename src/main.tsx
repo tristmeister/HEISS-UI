@@ -1132,7 +1132,9 @@ function App() {
     connected: comfyStatus.connected,
     emptyModels: Boolean(models && comfyStatus.connected && !models.profiles.some((profile) => profile.ready !== false)),
     onModelsChanged: () => { refreshModels(false); refreshWorkflows(); },
-    showToast
+    showToast,
+    hints: prefs.modelFolderHints !== false,
+    onStopHints: () => setPrefs({ modelFolderHints: false })
   });
   const doneGallery = useMemo(() => visibleGallery.filter((item) => item.status === "done" || item.status === "error"), [visibleGallery]);
   const zenGallery = useMemo(() => visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error"), [visibleGallery]);

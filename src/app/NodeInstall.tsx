@@ -3,6 +3,7 @@ import { Check, Download, RotateCw } from 'lucide-react';
 import { ComfyRestart, managerMajor, useComfyManager } from './ComfyRestart';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { apiJson, copyText } from './api';
+import { BetaTag } from './components';
 import { cn } from './format';
 import type { NodePackInfo, PackAutoInstall, PackInstallState, ShellPlan } from './types';
 import type { ShowToast } from './toast';
@@ -98,6 +99,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
       <button type="button" className="btn is-primary" onClick={start} disabled={running}>
         {running ? <RotateCw size={14} className="is-spinning" /> : <Download size={14} />}
         {running ? state.step || 'Installing…' : state?.status === 'error' ? 'Try again' : `Install ${pack.name}`}
+        {running ? null : <BetaTag />}
       </button>
       {running ? <p className="upscale-fine">{state.route === 'manager' ? 'ComfyUI-Manager is doing this. ' : "Using ComfyUI's own Python. "}It can take a few minutes.</p> : null}
       {state?.status === 'error' ? <p className="upscale-fine is-warn">{state.error}</p> : null}

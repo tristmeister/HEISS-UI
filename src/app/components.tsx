@@ -448,7 +448,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
     return [
       { id: "favorites", label: "Favorites", rows: starred },
       { id: "recent", label: "Recent", rows: recent },
-      { id: "all", label: starred.length || recent.length ? "All models" : "", rows: rest }
+      { id: "all", label: starred.length || recent.length ? "All workflows" : "", rows: rest }
     ].filter((section) => section.rows.length);
   }, [menu, profiles, query]);
   const flat = React.useMemo(() => sections.flatMap((section) => section.rows), [sections]);
@@ -500,13 +500,13 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
   let rowIndex = -1;
   return (
     <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={selected ? `${selected.displayName || selected.label}${setupNote(selected) ? ` · ${setupNote(selected)}` : ""} - choose workflow` : "Choose model"}><button ref={triggerRef} type="button" data-open-trigger className={cn("model-trigger", setupNote(selected) && "needs-setup")} aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+      <Tip content={selected ? `${selected.displayName || selected.label}${setupNote(selected) ? ` · ${setupNote(selected)}` : ""} · choose a workflow` : "Choose a workflow"}><button ref={triggerRef} type="button" data-open-trigger className={cn("model-trigger", setupNote(selected) && "needs-setup")} aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
           {setupNote(selected) ? <span className="model-setup-flag" aria-label={setupNote(selected)} /> : null}
           {compact ? (
-            <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No model"}</strong></span>
+            <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No workflow"}</strong></span>
           ) : (
             <span className="model-copy">
-              <strong>{selected?.displayName || selected?.label || "No model"}</strong>
+              <strong>{selected?.displayName || selected?.label || "No workflow"}</strong>
               <em>{selected ? familyLabel(selected) : "No supported workflow"}</em>
             </span>
           )}
@@ -516,7 +516,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
         <div className={cn("model-menu", searchable && "has-search")} data-open-surface onKeyDown={onMenuKey}>
           {profiles.length ? null : (
             <div className="model-menu-empty">
-              <strong>No models to choose from</strong>
+              <strong>No workflows to choose from</strong>
               <span>{emptyHint || "ComfyUI has no model HEISS UI can run yet."}</span>
               {onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
             </div>
@@ -524,12 +524,12 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
           {searchable ? (
             <label className="model-menu-search">
               <Search size={14} aria-hidden="true" />
-              <input ref={searchRef} className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined} spellCheck={false} autoComplete="off" />
+              <input ref={searchRef} className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} workflows`} aria-label="Search workflows" aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined} spellCheck={false} autoComplete="off" />
               {query ? <button type="button" className="model-menu-clear" aria-label="Clear search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={12} /></button> : null}
             </label>
           ) : null}
           {profiles.length ? (
-            <div className="model-menu-list" ref={listRef} role="listbox" aria-label="Models" tabIndex={-1} aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined}>
+            <div className="model-menu-list" ref={listRef} role="listbox" aria-label="Workflows" tabIndex={-1} aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined}>
               {sections.map((section) => (
                 <div key={section.id} className="model-menu-section" role="group" aria-label={section.label || undefined}>
                   {section.label ? <div className="model-menu-label">{section.label}</div> : null}
@@ -564,7 +564,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                   })}
                 </div>
               ))}
-              {query && !flat.length ? <div className="model-menu-none">No model matches “{query.trim()}”.</div> : null}
+              {query && !flat.length ? <div className="model-menu-none">No workflow matches “{query.trim()}”.</div> : null}
             </div>
           ) : null}
           {onFindModels && profiles.length ? (

@@ -562,8 +562,8 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
 
       {variations && maxCount > 1 ? (
         <div className="phone-control">
-          <span className="phone-control-label">Images</span>
-          <div className="phone-seg" role="radiogroup" aria-label="Images">
+          <span className="phone-control-label">Variants</span>
+          <div className="phone-seg" role="radiogroup" aria-label="Variants">
             {Array.from({ length: maxCount }, (_, index) => index + 1).map((value) => (
               <button key={value} type="button" role="radio" aria-checked={count === value} className={cn(count === value && 'active')} onClick={() => setCount(value)}>{value}</button>
             ))}

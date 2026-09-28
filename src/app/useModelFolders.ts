@@ -25,13 +25,20 @@ function readDismissed() {
   try { return localStorage.getItem(dismissKey) || ''; } catch { return ''; }
 }
 
-export function useModelFolders({ connected, emptyModels, onModelsChanged, showToast }: {
+export function useModelFolders({ connected, emptyModels, onModelsChanged, showToast, hints = true, onStopHints }: {
   /** ComfyUI answers; the scan waits for it. */
   connected: boolean;
   /** ComfyUI lists no model HEISS can run: found folders then open the dialog by themselves, once. */
   emptyModels: boolean;
   onModelsChanged: () => void;
   showToast: ShowToast;
+  /**
+   * Whether to point found folders out at all. The search can mistake a folder
+   * for one ComfyUI should read, so people can switch the hints off; searching
+   * by hand (Settings, the model menu) still works.
+   */
+  hints?: boolean;
+  onStopHints?: () => void;
 }) {
   // Model folders belong to the computer running HEISS UI; other devices never scan or ask.
   const thisComputer = useThisComputer();
@@ -80,10 +87,10 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
 
   // No runnable model at all, and there are models right there: that is the moment to say so.
   useEffect(() => {
-    if (autoOpened.current || !thisComputer || !emptyModels || !report?.folders.length) return;
+    if (autoOpened.current || !hints || !thisComputer || !emptyModels || !report?.folders.length) return;
     autoOpened.current = true;
     setOpen(true);
-  }, [emptyModels, report]);
+  }, [emptyModels, hints, report]);
 
   const openDialog = useCallback(() => {
     setOpen(true);
@@ -99,7 +106,8 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
     const value = signature(report?.folders || []);
     try { localStorage.setItem(dismissKey, value); } catch { /* the notice just comes back */ }
     setDismissed(value);
-  }, [report]);
+    if (onStopHints) showToast('Hidden until other models turn up', 'default', { action: { label: 'Don’t show again', onClick: onStopHints } });
+  }, [onStopHints, report, showToast]);
 
   /** Waits until ComfyUI reads every added folder, which it does from its next start; true once it does. */
   const waitUntilRead = useCallback(async (paths: string[], deadline: number) => {
@@ -182,9 +190,11 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   }, [scan, showToast]);
 
   const folders = report?.folders || [];
-  const noticeVisible = thisComputer && folders.length > 0 && dismissed !== signature(folders) && stage !== 'done';
+  const noticeVisible = hints && thisComputer && folders.length > 0 && dismissed !== signature(folders) && stage !== 'done';
+  // What the studio points out; Settings still lists every folder it found.
+  const strayCount = hints ? folders.reduce((sum, folder) => sum + folder.count, 0) : 0;
   return {
-    report, stage, open, error, saved, selected, added, noticeVisible,
+    report, stage, open, error, saved, selected, added, noticeVisible, strayCount, hints,
     setSelected, openDialog, close, scan, add, pick, remove, dismissNotice
   };
 }

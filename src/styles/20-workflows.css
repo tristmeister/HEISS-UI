@@ -276,6 +276,34 @@
 .wf-mapping summary:hover { color: hsl(var(--foreground)); }
 .wf-map-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding-top: 10px; }
 
+/* What follows the studio and what stays as saved, side by side. */
+.wf-fit { display: grid; gap: 10px; padding: 12px; border-radius: calc(var(--r-item) - 4px); background: var(--well); }
+.wf-fit-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.wf-fit h5 { margin: 0 0 6px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: hsl(var(--muted-foreground)); }
+.wf-fit ul { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.wf-fit-cols li { display: grid; grid-template-columns: 12px auto minmax(0, 1fr); align-items: baseline; gap: 6px; font-size: 12.5px; }
+.wf-fit-cols li svg { align-self: center; color: #8fd6a4; }
+.wf-fit-cols li strong { font-weight: 550; white-space: nowrap; }
+.wf-fit-cols li span { min-width: 0; font-size: 11.5px; color: hsl(var(--muted-foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf-fit-cols .is-off li svg { color: hsl(var(--muted-foreground) / .7); }
+.wf-fit-cols .is-off li strong { font-weight: 500; color: hsl(var(--muted-foreground)); }
+.wf-fit p { margin: 0; font-size: 12px; color: hsl(var(--muted-foreground)); }
+.wf-fit-notes { padding-top: 10px !important; border-top: 1px solid var(--surface-border); }
+.wf-fit-notes li { position: relative; padding-left: 14px; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.wf-fit-notes li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px; background: hsl(var(--muted-foreground) / .6); }
+
+/* The AI agent hand-off: one quiet row with its copy button. */
+.wf-agent { display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px; border-radius: var(--r-item); background: rgb(255 255 255 / .03); box-shadow: inset 0 0 0 1px var(--surface-border); }
+.wf-agent-icon { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--well); color: hsl(var(--foreground) / .85); }
+.wf-agent-text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.wf-agent-text strong { font-size: 13px; font-weight: 550; }
+.wf-agent-text span { font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
+.wf-agent .btn { flex: none; }
+
+/* Where a workflow came from, first on its card's second line. */
+.wf-origin { margin-right: 6px; padding: 1px 6px; border-radius: 4px; background: var(--control-fill); color: hsl(var(--foreground) / .7); font-style: normal; font-size: 10.5px; font-weight: 550; }
+.wf-origin.is-builtin { background: rgb(255 255 255 / .12); color: hsl(var(--foreground)); }
+
 /* ----------------------------------------------------------------- Phone */
 
 @media (max-width: 760px) {
@@ -288,5 +316,7 @@
   .wf-filters { padding: 10px 12px 12px; }
   .wf-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 2px 12px 20px; }
   .wf-review-row,
-  .wf-map-grid { grid-template-columns: 1fr; }
+  .wf-map-grid,
+  .wf-fit-cols { grid-template-columns: 1fr; }
+  .wf-agent { flex-wrap: wrap; }
 }

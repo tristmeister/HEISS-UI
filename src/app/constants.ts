@@ -19,7 +19,8 @@ export const defaultPrefs: Preferences = {
   smartUpscale: true,
   upscaleQuality: "balanced",
   upscaleFaceDetail: false,
-  hiddenAutoLockMinutes: 15
+  hiddenAutoLockMinutes: 15,
+  modelFolderHints: true
 };
 
 /**

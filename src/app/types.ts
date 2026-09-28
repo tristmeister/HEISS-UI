@@ -212,13 +212,16 @@ export type WorkflowImportPreview = {
     kind: Mode;
     family: string;
     controls: Record<string, { node: string; input: string }>;
+    /** Connections found by node type and order rather than declared by the workflow. */
+    guessed?: string[];
+    loraStack?: { adapter: string; node: string; max?: number } | null;
     defaults?: Record<string, unknown>;
     capabilities?: Record<string, boolean>;
     mediaInputs?: MediaInput[];
     promptComposition?: PromptComposition | null;
     aspectRatios?: unknown[];
     aspectPolicy?: "manual" | "reference";
-    nodes: Array<{ id: string; classType: string; inputs: string[]; suggestedInputs: string[] }>;
+    nodes: Array<{ id: string; classType: string; title?: string; inputs: string[]; suggestedInputs: string[] }>;
   };
   validation: WorkflowValidation;
 };
@@ -244,6 +247,8 @@ export type Preferences = {
   upscaleFaceDetail: boolean;
   /** Minutes untouched before Hidden locks itself; 0 leaves it to the session. */
   hiddenAutoLockMinutes: number;
+  /** Point out models in folders ComfyUI doesn’t read (sidebar notice, model menu, first-run dialog). */
+  modelFolderHints?: boolean;
   mobileZenDefaulted?: boolean;
   /** On a phone, show the full studio instead of the simplified phone one. */
   fullStudioOnPhone?: boolean;

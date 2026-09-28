@@ -317,8 +317,8 @@ export function ComposerBar(props: ComposerBarProps) {
     ["private", "Hidden", privateToggle],
     ["aspect", "Aspect ratio", aspectPicker],
     ["size", "Size", sizePickers],
-    ["variants", "Variants", variantsPicker],
     ["steps", "Steps", stepsPicker],
+    ["variants", "Variants", variantsPicker],
     ["lora", "LoRA", loraPill]
   ];
 

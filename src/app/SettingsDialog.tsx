@@ -118,7 +118,7 @@ function SwitchRow({ label, tag, description, checked, onChange, disabled }: { l
 }
 
 /** Folders ComfyUI reads because HEISS added them, and the way to find more. */
-function ModelFolderSettings({ folders, confirmAction, onOpen }: { folders: ModelFolders; confirmAction: ConfirmAction; onOpen: () => void }) {
+function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsChange }: { folders: ModelFolders; confirmAction: ConfirmAction; onOpen: () => void; hints: boolean; onHintsChange: (next: boolean) => void }) {
   const report = folders.report;
   const stray = (report?.folders || []).reduce((sum, folder) => sum + folder.count, 0);
   const linked = report?.linked || [];
@@ -140,6 +140,12 @@ function ModelFolderSettings({ folders, confirmAction, onOpen }: { folders: Mode
       >
         <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? 'Add' : 'Search'}</button>
       </Row>
+      <SwitchRow
+        label="Point out found models"
+        description="A note in the sidebar and the model menu when models sit in a folder ComfyUI doesn’t read. The search can be wrong about a folder; turn this off and search here when you want to."
+        checked={hints}
+        onChange={onHintsChange}
+      />
     </Group>
   );
 }
@@ -342,6 +348,96 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
         <div className="about-update">{check}</div>
       </Row>
     </>
+  );
+}
+
+/* ------------------------------------------------------------ Other devices */
+
+type NetworkInfo = {
+  listening: boolean;
+  port: number;
+  interfaces: Array<{ name: string; address: string; likelyVirtual: boolean }>;
+  lan?: { saved: boolean; source: 'flag' | 'shell' | 'setting'; supervised: boolean; hiddenReady: boolean };
+};
+
+/**
+ * Opening the studio on phones and other computers: one switch that restarts
+ * HEISS UI into (or out of) LAN mode, then the addresses to open.
+ */
+function OtherDevicesGroup({ canChange, hiddenEnabled, confirmAction, restartHeiss, restarting, copyToClipboard, showToast, onSetUpHidden }: {
+  canChange: boolean;
+  hiddenEnabled: boolean;
+  confirmAction: ConfirmAction;
+  restartHeiss: () => Promise<boolean>;
+  restarting: boolean;
+  copyToClipboard: (text: string) => Promise<boolean>;
+  showToast: ShowToast;
+  onSetUpHidden: () => void;
+}) {
+  const [network, setNetwork] = React.useState<NetworkInfo | null>(null);
+  const [busy, setBusy] = React.useState(false);
+  const copy = useCopyFeedback();
+  const load = React.useCallback(() => apiJson<NetworkInfo>('/api/network').then(setNetwork).catch(() => null), []);
+  React.useEffect(() => { load(); }, [load]);
+  // The page's own port: Vite's in development, HEISS UI's otherwise.
+  const lanUrl = (address: string) => `${window.location.protocol}//${address}:${window.location.port || network?.port || 8787}`;
+
+  const lan = network?.lan;
+  const on = Boolean(network?.listening);
+  const forced = lan?.source === 'flag' || lan?.source === 'shell';
+  // Saved one way, running the other: waiting for a restart.
+  const pending = Boolean(lan && !forced && lan.saved !== on);
+
+  const restartNow = () => { restartHeiss(); };
+  const toggle = async (next: boolean) => {
+    if (!lan) return;
+    if (lan.supervised && !await confirmAction({
+      title: next ? 'Open on other devices?' : 'Close to other devices?',
+      description: next
+        ? 'HEISS UI restarts to listen on your network. Running generations stop; this page reloads when it’s back.'
+        : 'HEISS UI restarts to answer only this computer. Running generations stop, and phones lose their connection.',
+      action: 'Restart HEISS UI'
+    })) return;
+    setBusy(true);
+    try {
+      const result = await apiJson<{ restartNeeded: boolean }>('/api/network/lan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled: next }) });
+      await load();
+      if (result.restartNeeded && lan.supervised) restartNow();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : 'Could not change the setting', 'error');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const description = !lan ? undefined
+    : lan.source === 'flag' ? 'On for this run: HEISS UI was started with --lan.'
+    : lan.source === 'shell' ? 'Set by HOST where HEISS UI was started, so this switch can’t change it.'
+    : restarting ? 'Restarting…'
+    : pending ? (lan.supervised ? `${lan.saved ? 'Turns on' : 'Turns off'} when HEISS UI restarts.` : `${lan.saved ? 'Turns on' : 'Turns off'} the next time you start HEISS UI.`)
+    : on ? 'Phones and other computers on this network can open the studio.'
+    : 'Open the studio from your phone or another computer on this network. HEISS UI restarts to switch.';
+
+  return (
+    <Group title="Other devices" note="Only on a network you trust. Other devices sign in with your Hidden password.">
+      {lan ? (
+        <Row label="Open on other devices" description={description} disabled={busy || restarting}>
+          {pending && lan.supervised && !restarting ? <button className="btn" onClick={restartNow}>Restart now</button> : null}
+          <Switch label="Open on other devices" checked={forced ? on : lan.saved} disabled={!canChange || forced || busy || restarting} onChange={toggle} />
+        </Row>
+      ) : !network ? <Row label={<Skeleton className="skeleton-text short" />} /> : null}
+      {(on || lan?.saved) && !hiddenEnabled ? (
+        <Row label={<Status tone="warn">Needs a Hidden password</Status>} description="Other devices sign in with it before they see anything.">
+          <button className="btn is-primary" onClick={onSetUpHidden}><LockKeyhole size={14} /> Set up Hidden</button>
+        </Row>
+      ) : null}
+      {on ? (network?.interfaces || []).map((item) => (
+        <Row key={`${item.name}-${item.address}`} label={<span className="set-model-name">{lanUrl(item.address)}</span>} description={`${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`}>
+          <button className="btn" onClick={() => copy.copyWith(() => copyToClipboard(lanUrl(item.address)), item.address)}><CopyIcon copied={copy.copied === item.address} /> {copy.copied === item.address ? 'Copied' : 'Copy'}</button>
+        </Row>
+      )) : null}
+      {on && network && !network.interfaces.length ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
+    </Group>
   );
 }
 
@@ -580,16 +676,6 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
     }
   };
 
-  const [network, setNetwork] = React.useState<{ listening: boolean; port: number; interfaces: Array<{ name: string; address: string; likelyVirtual: boolean }> } | null>(null);
-  React.useEffect(() => {
-    if (!open || section !== 'connection') return;
-    let live = true;
-    fetch('/api/network').then((response) => response.ok ? response.json() : null).then((data) => { if (live && data) setNetwork({ listening: Boolean(data.listening), port: Number(data.port), interfaces: data.interfaces || [] }); }).catch(() => null);
-    return () => { live = false; };
-  }, [open, section]);
-  // The page's own port: Vite's in development, HEISS UI's otherwise.
-  const lanUrl = (address: string) => `${window.location.protocol}//${address}:${window.location.port || network?.port || 8787}`;
-  const lanCopy = useCopyFeedback();
 
   const upscaleOn = prefs.smartUpscale !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
@@ -684,8 +770,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
           <>
             <Group title="Composer">
               <SwitchRow label="Enter to generate" description="Shift+Enter adds a new line." checked={prefs.enterToGenerate} onChange={(next) => setPrefs({ enterToGenerate: next })} />
-              <Row label="Multiple images" description={prefs.variationQueueMode === 'separate' ? 'One job per image. Easier to cancel one at a time.' : 'One ComfyUI prompt with a larger batch. Usually faster.'}>
-                <Segmented label="Multiple images" value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: 'One batch' }, { value: 'separate', label: 'Separate jobs' }]} />
+              <Row label="Run variants as" description={prefs.variationQueueMode === 'separate' ? 'One job per variant. Easier to cancel one at a time.' : 'One ComfyUI prompt with a larger batch. Usually faster.'}>
+                <Segmented label="Run variants as" value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: 'One batch' }, { value: 'separate', label: 'Separate jobs' }]} />
               </Row>
             </Group>
             <Group title="Previews">
@@ -694,7 +780,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
             </Group>
             <Group title="Starting values" note="Used when a workflow doesn't define its own. Changing them doesn't touch the current draft.">
-              <Row label="Images per run"><NumberPicker label="Images" value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
+              <Row label="Variants"><NumberPicker label="Variants" value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
               <Row label="Image steps"><NumberPicker label="Steps" value={Number(prefs.defaultImageSteps)} onChange={(next) => setPrefs({ defaultImageSteps: next })} min={1} max={150} /></Row>
               <Row label="Video steps"><NumberPicker label="Steps" value={Number(prefs.defaultVideoSteps)} onChange={(next) => setPrefs({ defaultVideoSteps: next })} min={1} max={150} /></Row>
               <Row label="Video frames"><NumberPicker label="Frames" value={Number(prefs.defaultVideoFrames)} onChange={(next) => setPrefs({ defaultVideoFrames: next })} min={1} max={1000} step={4} /></Row>
@@ -799,18 +885,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
               </Row>
             </Group>
-            <Group title="Other devices" note="Other devices unlock with your Hidden password, so set up Hidden on this computer first. Only do this on a network you trust.">
-              {network && !network.listening ? (
-                <Row label={<Status tone="bad">Off</Status>} description={<>This studio only answers this computer. Start it with <code>HOST=0.0.0.0</code> (in <code>.env</code> or the shell) and allow the port through your firewall, then open one of the addresses below on your phone.</>} />
-              ) : null}
-              {(network?.interfaces || []).map((item) => (
-                <Row key={`${item.name}-${item.address}`} label={<span className="set-model-name">{lanUrl(item.address)}</span>} description={`${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`}>
-                  <button className="btn" onClick={() => lanCopy.copyWith(() => copyToClipboard(lanUrl(item.address)), item.address)} disabled={!network?.listening}><CopyIcon copied={lanCopy.copied === item.address} /> {lanCopy.copied === item.address ? 'Copied' : 'Copy'}</button>
-                </Row>
-              ))}
-              {network && !network.interfaces.length ? <Row label="No network address" description="This computer isn't on a local network right now." /> : null}
-              {!network ? <Row label={<Skeleton className="skeleton-text short" />} /> : null}
-            </Group>
+            <OtherDevicesGroup
+              canChange={thisComputer}
+              hiddenEnabled={Boolean(hidden?.enabled)}
+              confirmAction={confirmAction}
+              restartHeiss={restartHeiss}
+              restarting={Boolean(restarting)}
+              copyToClipboard={copyToClipboard}
+              showToast={showToast}
+              onSetUpHidden={() => onSectionChange('privacy')}
+            />
           </>
         ) : null}
 
@@ -823,7 +907,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
-            {modelFolders ? <ModelFolderSettings folders={modelFolders} confirmAction={confirmAction} onOpen={() => { onClose(); modelFolders.openDialog(); }} /> : null}
+            {modelFolders ? <ModelFolderSettings folders={modelFolders} confirmAction={confirmAction} onOpen={() => { onClose(); modelFolders.openDialog(); }} hints={prefs.modelFolderHints !== false} onHintsChange={(next) => setPrefs({ modelFolderHints: next })} /> : null}
             {typedModels.length ? (
               <Group title="Model types" note="Set the type for models that weren’t recognized or were detected wrong.">
                 {typedModels.map((file) => {

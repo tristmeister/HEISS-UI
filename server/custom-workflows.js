@@ -126,7 +126,9 @@ function visualWorkflowToApi(raw, info = {}) {
       if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than its ComfyUI schema. Re-export the workflow with named widget values or reconnect ComfyUI before importing.`);
       widgets.forEach((value, index) => { inputs[widgetNames[index]] = value; });
     }
-    graph[id] = { class_type: classType, inputs, ...(node._meta ? { _meta: node._meta } : {}) };
+    // The canvas title ("Positive", "Refiner") is how people know a node; keep it for the import review.
+    const meta = node._meta || (node.title ? { title: String(node.title) } : null);
+    graph[id] = { class_type: classType, inputs, ...(meta ? { _meta: meta } : {}) };
   }
   return graph;
 }
@@ -428,7 +430,7 @@ function nodeInputsForClass(classType = "") {
 export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
   const existing = workflowMeta(raw);
   const graph = graphFromJson(raw);
-  const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", inputs: node?.inputs || {} }));
+  const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", title: String(node?._meta?.title || ""), inputs: node?.inputs || {} }));
   const textNodes = nodes.filter((node) => /TextEncode/i.test(node.classType) && ("text" in node.inputs || "prompt" in node.inputs));
   const latentNode = nodes.find((node) => /Latent/i.test(node.classType) && ("width" in node.inputs || "height" in node.inputs));
   const samplerNode = nodes.find((node) => /Sampler/i.test(node.classType));
@@ -437,8 +439,13 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
   const controls = {
     ...(existing.controls || {})
   };
+  // Connections the workflow didn't declare itself: found by node type and order, worth a second look.
+  const guessed = [];
   const set = (key, node, input) => {
-    if (!controls[key] && node && input && input in node.inputs) controls[key] = { node: node.id, input };
+    if (!controls[key] && node && input && input in node.inputs) {
+      controls[key] = { node: node.id, input };
+      guessed.push(key);
+    }
   };
   set("prompt", textNodes[0], "text" in (textNodes[0]?.inputs || {}) ? "text" : "prompt");
   set("negative", textNodes[1], "text" in (textNodes[1]?.inputs || {}) ? "text" : "prompt");
@@ -463,6 +470,8 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
     kind: existing.kind === "video" || hasVideo ? "video" : "image",
     family: existing.family || "custom",
     controls,
+    guessed,
+    loraStack: existing.loraStack || null,
     defaults: existing.defaults || {},
     capabilities: {
       ...(existing.capabilities || {}),
@@ -475,6 +484,7 @@ export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
     nodes: nodes.map((node) => ({
       id: node.id,
       classType: node.classType,
+      title: node.title,
       inputs: Object.keys(node.inputs || {}),
       suggestedInputs: nodeInputsForClass(node.classType).filter((input) => input in node.inputs)
     }))

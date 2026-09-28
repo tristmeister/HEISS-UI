@@ -242,7 +242,9 @@ export function previewWorkflowImport(raw, filename = "", info = {}) {
   if (format === "unsupported") throw new Error("Unsupported JSON. Expected a ComfyUI API workflow or a visual workflow with nodes and links.");
   const source = format === "comfyui-api-wrapper" ? raw.prompt : raw;
   const graph = graphFromJson(format === "comfyui-visual" ? { ...raw } : source, info);
-  const detected = detectWorkflowMetadata({ ...source, graph }, path.basename(filename || "", path.extname(filename || "")), info);
+  // A wrapper ({ prompt: graph }) or a visual file can carry the heissUi block beside the graph.
+  const declared = raw?.heissUi || raw?.heiss_ui || raw?.jAiStudio || raw?.j_ai_studio;
+  const detected = detectWorkflowMetadata({ ...(declared ? { heissUi: declared } : {}), ...source, graph }, path.basename(filename || "", path.extname(filename || "")), info);
   const validation = validateWorkflow({
     id: detected.id,
     profileId: `custom:${detected.id}`,

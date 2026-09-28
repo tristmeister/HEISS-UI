@@ -3,6 +3,7 @@ import { Check, EyeOff, Fingerprint, FolderOpen, LockKeyhole, Sparkles } from 'l
 import { Modal } from './Modal';
 import { Watcher } from './UpscaleDialogs';
 import { VaultHero, type VaultHeroStage } from './VaultHero';
+import { BetaTag } from './components';
 import { cn } from './format';
 import { passkeyCancelled, PasskeyWithoutSecretError } from './passkeys';
 import type { HiddenState } from './useHidden';
@@ -260,7 +261,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
           {step !== "intro" && step !== "offline" ? <Stepper step={step} biometricLabel={label} /> : null}
         </div>
       }
-      title={copy[step].title}
+      title={step === "biometric" || step === "scanning" ? <>{copy[step].title}<BetaTag /></> : copy[step].title}
       description={copy[step].description}
       footer={footer}
     >

@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, comfyOutputDir, comfyUrl, host, isLocalClient, isTrustedClient, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl } from './comfy.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
@@ -194,8 +194,24 @@ app.get("/api/network", (req, res) => {
     .map((entry) => ({ name, address: entry.address, likelyVirtual: /^(docker|br-|veth|vbox|vmnet|utun|tun|tap|wg|zt|tailscale)/i.test(name) })));
   interfaces.sort((a, b) => Number(a.likelyVirtual) - Number(b.likelyVirtual));
   // Only a server listening beyond this computer can be opened from a phone.
-  const listening = host === "0.0.0.0" || host === "::" || !["127.0.0.1", "localhost", "::1"].includes(host);
-  res.json({ addresses: interfaces.map((item) => item.address), interfaces, port, listening });
+  res.json({
+    addresses: interfaces.map((item) => item.address), interfaces, port, listening: lanListening,
+    // saved: what the next start does. source: who decides it now (flag and shell outrank the switch).
+    lan: { saved: lan.saved, source: lan.source, supervised: typeof process.send === "function", hiddenReady: isPrivacyEnabled() }
+  });
+});
+
+// The Settings switch for other devices. It takes effect when HEISS UI starts again.
+app.post("/api/network/lan", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const enabled = Boolean(req.body?.enabled);
+  try {
+    saveLanSetting(enabled);
+  } catch (error) {
+    res.status(500).json({ ok: false, error: error.message });
+    return;
+  }
+  res.json({ ok: true, saved: enabled, restartNeeded: lan.source === "setting" && enabled !== lanListening });
 });
 
 function sessionSeconds(req) {
@@ -743,10 +759,12 @@ app.post("/api/workflows/import", async (req, res) => {
   try {
     const raw = req.body?.workflow || req.body;
     const { info } = await loadComfyContext().catch(() => ({ info: {} }));
+    // The review's own notes (the node list, what was guessed) aren't part of the workflow.
+    const { nodes: _nodes, guessed: _guessed, ...metadata } = req.body?.metadata || {};
     const normalized = (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) || raw?.prompt
-      ? { graph: previewWorkflowImport(raw, req.body?.filename || "", info).graph, heissUi: req.body?.metadata || {} }
+      ? { graph: previewWorkflowImport(raw, req.body?.filename || "", info).graph, heissUi: metadata }
       : raw;
-    const workflow = saveImportedWorkflow(normalized, req.body?.metadata || {});
+    const workflow = saveImportedWorkflow(normalized, metadata);
     const { graph, ...summary } = workflow;
     res.json({ ok: true, workflow: summary });
   } catch (error) {
@@ -1793,7 +1811,9 @@ app.listen(port, host, (error) => {
     if (host === "0.0.0.0" || host === "::") {
       const addresses = Object.values(os.networkInterfaces()).flatMap((entries) => entries || []).filter((entry) => entry.family === "IPv4" && !entry.internal);
       for (const entry of addresses) console.log(`    ➜  Network   http://${entry.address}:${pagePort}`);
-      if (addresses.length) console.log("");
+      if (addresses.length) console.log(isPrivacyEnabled()
+        ? "    Other devices sign in with your Hidden password.\n"
+        : "    Other devices sign in with a Hidden password: set one up in Settings › Hidden first.\n");
     }
     // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
     const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);

@@ -7,12 +7,16 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const envPath = path.join(root, ".env");
 
+/** Keys that came from .env rather than the shell, so a setting knows it may rewrite them. */
+export const envFileKeys = new Set();
+
 try {
   for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
     const match = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*?)\s*$/);
     if (!match || match[1] in process.env) continue;
     const value = match[2].replace(/^(["'])(.*)\1$/, "$2");
     process.env[match[1]] = value;
+    envFileKeys.add(match[1]);
   }
 } catch {
   // .env is optional.

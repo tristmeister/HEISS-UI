@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Check, ClipboardPaste, FileJson, Heart, RefreshCw, Search, Trash2, Upload, Wand2, X } from 'lucide-react';
+import { ArrowLeft, Bot, Check, ClipboardPaste, FileJson, Heart, Minus, RefreshCw, Search, Trash2, Upload, Wand2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import type { ConfirmAction } from './useConfirmation';
 import { apiJson, copyText } from './api';
@@ -14,6 +14,7 @@ import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, Workflo
 import { useThisComputer } from './device';
 import type { ShowToast } from './toast';
 import { CopyIcon, useCopyFeedback } from "./CopyFeedback";
+import { agentPrompt, agentPromptFor, controlLabel, loraNodes, workflowControls } from "./workflowAgentGuide";
 
 type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] };
 type Filter = "all" | "favorites" | "attention";
@@ -21,22 +22,6 @@ type Filter = "all" | "favorites" | "attention";
 /** The file lines the setup panel already shows as rows (see custom-workflows.js workflowOptionIssues). */
 const missingFileIssue = /^Missing (diffusion model|checkpoint|text encoder|VAE|upscale model|file):/;
 
-const controlLabels: Record<string, string> = {
-  prompt: "Prompt",
-  negative: "Negative",
-  width: "Width",
-  height: "Height",
-  count: "Count",
-  seed: "Seed",
-  steps: "Steps",
-  cfg: "CFG",
-  sampler: "Sampler",
-  scheduler: "Scheduler",
-  denoise: "Denoise",
-  startImage: "Reference image",
-  frames: "Frames",
-  fps: "FPS"
-};
 
 function timeLabel(value = "") {
   if (!value) return "";
@@ -47,6 +32,89 @@ function timeLabel(value = "") {
 
 function selectedNodeValue(mapping?: { node: string; input: string }) {
   return mapping?.node && mapping?.input ? `${mapping.node}.${mapping.input}` : "__none";
+}
+
+/** A node as people know it: its canvas title, else its type, with the id to find it. */
+function nodeName(nodes: ImportDraft["metadata"]["nodes"], id: string) {
+  const node = nodes.find((item) => item.id === id);
+  return node ? `${node.title || node.classType} #${id}` : `#${id}`;
+}
+
+/**
+ * The honest summary of an import: which studio controls reach the workflow,
+ * which don't (and so keep their saved values), and what was only guessed.
+ */
+function ImportFit({ item }: { item: ImportDraft }) {
+  const { controls, guessed = [], nodes, kind, loraStack } = item.metadata;
+  const relevant = workflowControls.filter((control) => control.editable && !(kind === "image" && (control.key === "frames" || control.key === "fps")) && !(kind === "video" && control.key === "count"));
+  const connected = workflowControls.filter((control) => controls[control.key]);
+  const unconnected = relevant.filter((control) => !controls[control.key] && !(control.key === "startImage" && item.metadata.mediaInputs?.length));
+  const samplers = nodes.filter((node) => /Sampler/i.test(node.classType) && node.inputs.includes("steps"));
+  const encoders = nodes.filter((node) => /TextEncode/i.test(node.classType) && (node.inputs.includes("text") || node.inputs.includes("prompt")));
+  const loraLoaders = nodes.filter((node) => /lora/i.test(node.classType));
+  const rgthree = nodes.find((node) => (Object.values(loraNodes) as string[]).includes(node.classType));
+  const samplerNode = controls.seed?.node || controls.steps?.node;
+
+  const notes: React.ReactNode[] = [];
+  const guessedPrompt = guessed.filter((key) => key === "prompt" || key === "negative");
+  if (guessedPrompt.length) notes.push(guessedPrompt.length === 2
+    ? "Prompt and negative were picked by order: the first text node gets your prompt, the second the negative. Check they’re the right way round."
+    : `The ${guessedPrompt[0] === "prompt" ? "prompt" : "negative"} was picked by node order. Check it’s the right one.`);
+  if (encoders.length > 2) notes.push(`${encoders.length} prompt nodes: only the connected ones get your text, the others keep what’s saved.`);
+  if (samplers.length > 1 && samplerNode) notes.push(`${samplers.length} samplers: only ${nodeName(nodes, samplerNode)} follows seed, steps and CFG. The others keep their saved values.`);
+  if (loraStack?.node) notes.push(`LoRA picker: connected to ${nodeName(nodes, loraStack.node)}.`);
+  else if (rgthree) notes.push(`${rgthree.classType} found, but not connected to the LoRA picker. An AI agent can connect it (see below).`);
+  else if (loraLoaders.length) notes.push("The LoRA picker only drives rgthree LoRA loaders. This workflow’s own LoRAs stay as saved.");
+  else notes.push("No LoRA picker: it needs an rgthree Power Lora Loader or Lora Loader Stack in the workflow.");
+
+  return (
+    <section className="wf-fit" aria-label="What HEISS UI can change">
+      <div className="wf-fit-cols">
+        <div>
+          <h5>Follows the studio</h5>
+          {connected.length ? (
+            <ul>
+              {connected.map((control) => (
+                <li key={control.key}>
+                  <Check size={12} aria-hidden="true" />
+                  <strong>{control.label}</strong>
+                  <span>{nodeName(nodes, controls[control.key].node)}{guessed.includes(control.key) ? " · guessed" : ""}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p>Nothing yet. It runs exactly as saved, whatever you type.</p>}
+        </div>
+        <div>
+          <h5>Stays as saved</h5>
+          {unconnected.length ? (
+            <ul className="is-off">
+              {unconnected.map((control) => <li key={control.key}><Minus size={12} aria-hidden="true" /><strong>{control.label}</strong></li>)}
+            </ul>
+          ) : <p>Every studio control is connected.</p>}
+        </div>
+      </div>
+      <ul className="wf-fit-notes">
+        {notes.map((note, index) => <li key={index}>{note}</li>)}
+        <li>Everything else in the workflow runs exactly as saved.</li>
+      </ul>
+    </section>
+  );
+}
+
+/** Hands the job of fitting a workflow to an AI agent: a prompt that says what HEISS UI can and can't connect. */
+function AgentGuide({ onCopy, copied, forWorkflow }: { onCopy: () => void; copied: boolean; forWorkflow?: boolean }) {
+  return (
+    <div className="wf-agent">
+      <span className="wf-agent-icon" aria-hidden="true"><Bot size={16} /></span>
+      <div className="wf-agent-text">
+        <strong>{forWorkflow ? "Let an AI agent fix the connections" : "Make a workflow fit with an AI agent"}</strong>
+        <span>{forWorkflow
+          ? "Copies a prompt with this workflow and what HEISS UI found. Paste it into Claude, ChatGPT or another agent, then import the JSON it gives back."
+          : "Copies a prompt that tells an agent what HEISS UI can connect. Paste it into Claude, ChatGPT or another agent with your workflow JSON, then import what it gives back."}</span>
+      </div>
+      <button type="button" className="btn" onClick={onCopy}><CopyIcon copied={copied} size={13} /> {copied ? "Copied" : forWorkflow ? "Copy for an agent" : "Copy prompt"}</button>
+    </div>
+  );
 }
 
 function WorkflowThumbnail({ src }: { src?: string }) {
@@ -127,6 +195,12 @@ export function WorkflowGallery({ view }: { view: any }) {
     try { refreshModels(false); await Promise.resolve(refreshWorkflows()); } finally { window.setTimeout(() => setChecking(false), 600); }
   };
   const nodesCopy = useCopyFeedback();
+  const agentCopy = useCopyFeedback();
+  const copyAgent = (text: string, key: string) => agentCopy.copyWith(async () => {
+    const ok = await copyText(text);
+    if (!ok) showToast("Copy failed", "error");
+    return ok;
+  }, key);
   const copyMissing = (nodes: string[]) => nodesCopy.copyWith(async () => {
     const ok = await copyText(nodes.join("\n"));
     if (!ok) showToast("Copy failed", "error");
@@ -228,7 +302,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         await apiJson("/api/workflows/import", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ workflow: item.raw, filename: item.filename, metadata: item.metadata })
+          body: JSON.stringify({ workflow: item.raw, filename: item.filename, metadata: (({ nodes: _nodes, guessed: _guessed, ...metadata }) => metadata)(item.metadata) })
         });
       }
       const count = imports.length;
@@ -256,12 +330,13 @@ export function WorkflowGallery({ view }: { view: any }) {
         const controls = { ...item.metadata.controls };
         if (node && input) controls[key] = { node, input };
         else delete controls[key];
+        const guessed = (item.metadata.guessed || []).filter((entry) => entry !== key);
         const mediaInputs = key === "startImage"
           ? node && input
             ? [{ ...(item.metadata.mediaInputs?.[0] || { id: "reference", kind: "image" as const, label: "Reference image", required: false, min: 0, max: 1 }), control: { node, input } }, ...(item.metadata.mediaInputs || []).slice(1)]
             : []
           : item.metadata.mediaInputs;
-        return { ...item.metadata, controls, mediaInputs };
+        return { ...item.metadata, controls, guessed, mediaInputs };
       })()
     } : item));
   };
@@ -276,7 +351,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       bodyClassName="wf-layout"
       title="Workflows"
       description="Pick what your next generation runs on, or bring your own ComfyUI workflow."
-      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button> : undefined}
+      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span><BetaTag /></button> : undefined}
       contentProps={{
         onDragEnter: (event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } },
         onDragOver: (event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); },
@@ -314,7 +389,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                 {workflow.profileId === model ? <span className="wf-current">In use</span> : null}
                 <span className="wf-card-copy">
                   <strong>{workflow.name}</strong>
-                  <span>{workflow.familyName || workflow.family}{workflow.source === "custom" ? " · Imported" : ""}</span>
+                  <span><em className={cn("wf-origin", workflow.source === "builtin" && "is-builtin")}>{workflow.source === "builtin" ? "Built in" : "Imported"}</em>{workflow.familyName || workflow.family}</span>
                 </span>
                 {workflow.validation.ok && !workflow.validation.unverified ? null : <StatusBadge validation={workflow.validation} />}
               </button>
@@ -372,7 +447,7 @@ export function WorkflowGallery({ view }: { view: any }) {
               <dt>Source</dt><dd>{selected.source === "builtin" ? "Built in" : "Imported"}</dd>
               <dt>Family</dt><dd>{selected.familyName || selected.family || "Unknown"}</dd>
               <dt>Last used</dt><dd>{timeLabel(selected.lastUsedAt) || "Never"}</dd>
-              {selected.controls?.length ? <><dt>Controls</dt><dd>{selected.controls.map((key) => controlLabels[key] || key).join(", ")}</dd></> : null}
+              {selected.controls?.length ? <><dt>Controls</dt><dd>{selected.controls.map(controlLabel).join(", ")}</dd></> : null}
               {selected.mediaInputs?.length ? <><dt>Inputs</dt><dd>{selected.mediaInputs.map((input) => input.label || "Reference image").join(", ")}</dd></> : null}
             </dl>
           </>
@@ -389,8 +464,10 @@ export function WorkflowGallery({ view }: { view: any }) {
         size="form"
         busy={busy}
         className="wf-import"
-        title={importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}
-        description={importStep === "choose" ? "API and visual ComfyUI JSON both work." : "Check the name and kind. Adjust the controls only if something looks off."}
+        title={<>{importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}<BetaTag /></>}
+        description={importStep === "choose"
+          ? "HEISS UI runs a workflow as saved and changes only the inputs it’s connected to. ComfyUI’s Export (API) JSON reads most reliably; the visual format works too."
+          : "Check what follows the studio. Anything that stays as saved keeps the workflow’s own value on every run."}
         footer={importStep === "choose" ? (
           <>
             <button className="btn" disabled={busy} onClick={closeImport}>Cancel</button>
@@ -412,8 +489,9 @@ export function WorkflowGallery({ view }: { view: any }) {
             </button>
             <input ref={fileInput} hidden type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files?.length) readFiles(event.target.files); event.currentTarget.value = ""; }} />
             <Field label={<><ClipboardPaste size={13} /> Or paste the JSON</>}>
-              <textarea className="wf-paste" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ ... }" spellCheck={false} />
+              <textarea className="wf-paste" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ … }" spellCheck={false} />
             </Field>
+            <AgentGuide onCopy={() => copyAgent(agentPrompt(), "guide")} copied={agentCopy.copied === "guide"} />
           </>
         ) : (
           <div className="wf-review">
@@ -432,23 +510,25 @@ export function WorkflowGallery({ view }: { view: any }) {
                     <div className="field"><span>Kind</span><Segmented label="Kind" value={item.metadata.kind} onChange={(next) => updateImport(index, { kind: next })} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} /></div>
                     <Field label="Family"><input className="modal-input" value={item.metadata.family} onChange={(event) => updateImport(index, { family: event.target.value })} /></Field>
                   </div>
+                  <ImportFit item={item} />
                   <details className="wf-mapping">
-                    <summary>Control mapping <span>{Object.keys(item.metadata.controls || {}).length} detected</span></summary>
+                    <summary>Change connections</summary>
                     <div className="wf-map-grid">
-                      {Object.keys(controlLabels).map((key) => (
-                        <Field key={key} label={controlLabels[key]}>
+                      {workflowControls.filter((control) => control.editable).map(({ key, label }) => (
+                        <Field key={key} label={label}>
                           <Select
                             value={selectedNodeValue(item.metadata.controls[key])}
                             onChange={(value) => updateImportControl(index, key, value === "__none" ? "" : value)}
                             options={[
-                              { label: "Not mapped", value: "__none" },
-                              ...item.metadata.nodes.flatMap((node) => node.inputs.map((input) => ({ label: `${node.id} · ${node.classType}.${input}`, value: `${node.id}.${input}` })))
+                              { label: "Stays as saved", value: "__none" },
+                              ...item.metadata.nodes.flatMap((node) => node.inputs.map((input) => ({ label: `${node.title || node.classType} #${node.id} · ${input}`, value: `${node.id}.${input}` })))
                             ]}
                           />
                         </Field>
                       ))}
                     </div>
                   </details>
+                  <AgentGuide forWorkflow onCopy={() => copyAgent(agentPromptFor(item), `item-${index}`)} copied={agentCopy.copied === `item-${index}`} />
                 </div>
               );
             })}

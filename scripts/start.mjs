@@ -64,7 +64,8 @@ for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { if (child
 function runServer(onReady) {
   return new Promise((resolve) => {
     let ready = false;
-    child = fork(path.join(root, "server", "index.js"), [], { cwd: root, stdio: "inherit" });
+    // Flags given to the launcher (npm start -- --lan) reach every server it starts.
+    child = fork(path.join(root, "server", "index.js"), process.argv.slice(2), { cwd: root, stdio: "inherit" });
     child.on("message", (message) => {
       if (message?.type !== "ready" || ready) return;
       ready = true;

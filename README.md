@@ -168,7 +168,7 @@ Nothing downloads until you press the button.
 
 HEISS UI has a phone studio of its own, laid out for your thumb: the gallery edge to edge, one **Describe…** pill that opens the prompt, reference image, workflow, shape and number of images, and Advanced one link away. Long press a tile to Share, Upscale, Make another, Hide or Delete. Share hands the file to the phone's share sheet. Added to the home screen it opens full-screen, with haptics where the phone allows them. A ring around Generate shows progress while you browse.
 
-To use it, let HEISS UI listen on your network: set `HOST=0.0.0.0` in `.env`, allow the `PORT` (8787 by default) through your firewall and restart. **Settings** then lists every address to open from the phone. Only do this on a network you trust.
+To use it, turn on **Settings › Connection › Open on other devices**. HEISS UI restarts listening on your network and lists every address to open from the phone. Phones sign in with your Hidden password, so set up Hidden first. For a single run, start it with `npm start -- --lan` (or `npm run dev:lan` in a checkout) instead. The first time, your system may ask whether Node.js may accept connections; allow it for private networks. Only do this on a network you trust.
 
 Looking after the computer stays at the computer: model downloads, node installs, updates, restarts and deleting everything are refused from other devices, and the phone hides them. The share sheet needs HTTPS; without it, Share saves the file instead. "Use the full studio" in More switches to the complete layout, and `?phone=1` shows the phone studio on any screen.
 
