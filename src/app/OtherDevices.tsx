@@ -16,7 +16,7 @@ type NetworkInfo = {
   interfaces: Array<{ name: string; address: string; likelyVirtual: boolean }>;
   lan?: { saved: boolean; source: 'flag' | 'shell' | 'setting'; supervised: boolean; hiddenReady: boolean };
   /** HTTPS as it runs now (server/tls.js), and `next`: what .env says for the next start. */
-  tls?: TlsInfo & { next: TlsInfo; fromShell: boolean };
+  tls?: TlsInfo & { next: TlsInfo; fromShell: boolean; problem?: string };
 };
 
 type TlsInfo = { configured: boolean; ok: boolean; error: string; certPath: string; keyPath: string; names: string[]; validTo: string; expired: boolean; port: number; active: boolean };
@@ -57,11 +57,11 @@ function HttpsRows({ tls, supervised, restartHeiss, showToast, onSaved, Row, Sta
   };
   const names = tls.names.filter((name) => !name.startsWith('*.'));
   const label = tls.active ? <Status tone="ok">HTTPS on</Status>
-    : tls.configured && !tls.ok ? <Status tone="bad">HTTPS can’t start</Status>
+    : tls.configured && (!tls.ok || tls.problem) ? <Status tone="bad">HTTPS can’t start</Status>
     : tls.configured ? <Status tone="warn">HTTPS set up</Status>
     : <Status>HTTPS off</Status>;
   const description = tls.active ? `Other devices connect securely on port ${tls.port}${names.length ? ` as ${names.join(', ')}` : ''}. Certificate valid until ${day(tls.validTo)}.`
-    : tls.configured && !tls.ok ? `${tls.error} Other devices can’t connect until it’s fixed; this computer still works.`
+    : tls.configured && (!tls.ok || tls.problem) ? `${tls.problem || tls.error} Other devices can’t connect until it’s fixed; this computer still works.`
     : tls.configured ? 'Starts when other devices are let in (the switch above).'
     : 'What devices send, the studio password included, crosses the network unencrypted. Fine at home; add a certificate for anything else.';
   return (
@@ -219,7 +219,8 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
   const pending = Boolean(lan && !forced && lan.saved !== on);
   const tls = network?.tls;
   // With HTTPS the certificate's names are the way in; without it, this computer's addresses.
-  const entries = tls?.active
+  // Set up but not running (a bad certificate, a busy port): the network stays closed, and the HTTPS row says why.
+  const entries = tls?.configured && !tls.active ? [] : tls?.active
     ? tls.names.filter((name) => !name.startsWith('*.')).map((name) => ({ key: name, url: `https://${name.includes(':') ? `[${name}]` : name}:${tls.port}`, detail: 'HTTPS, from the certificate', virtual: false }))
     : (network?.interfaces || []).map((item) => ({ key: `${item.name}-${item.address}`, url: lanUrl(item.address), detail: `${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`, virtual: item.likelyVirtual }));
   // One real address: show its code straight away, it's what people came for.

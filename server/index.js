@@ -15,7 +15,7 @@ import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.j
 import { limitedCheck, registerAccessRoutes } from './access-routes.js';
 import { requestGuard } from './request-guard.js';
 import { stripMetadata } from './metadata-strip.js';
-import { httpsListening, startServers } from './listen.js';
+import { httpsListening, httpsProblem, startServers } from './listen.js';
 import { httpsPort, inspectTls, startupTls, tlsHostNames, tlsSummary } from './tls.js';
 import { envFileKeys, writeLocalEnvValue } from './env.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
@@ -238,7 +238,7 @@ const tlsFromShell = ["HEISS_TLS_CERT", "HEISS_TLS_KEY"].some((name) => process.
 function networkTls(thisComputer) {
   const hidePaths = (summary) => (thisComputer ? summary : { ...summary, certPath: "", keyPath: "" });
   const next = inspectTls(process.env.HEISS_TLS_CERT || "", process.env.HEISS_TLS_KEY || "");
-  return { ...hidePaths(tlsSummary(startupTls, { active: httpsListening })), next: hidePaths(tlsSummary(next)), fromShell: tlsFromShell };
+  return { ...hidePaths(tlsSummary(startupTls, { active: httpsListening })), problem: httpsProblem, next: hidePaths(tlsSummary(next)), fromShell: tlsFromShell };
 }
 
 /**

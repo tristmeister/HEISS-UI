@@ -24,6 +24,8 @@ export function listenPlan({ host, tls = startupTls }) {
 }
 
 export let httpsListening = false;
+/** Why HTTPS isn't running although it was set up: the certificate, or its port. Settings shows it. */
+export let httpsProblem = "";
 
 /**
  * Starts the servers. `onListening` runs once plain HTTP is up; a failure to
@@ -37,10 +39,12 @@ export function startServers(app, { host, port, onListening, onFatal }) {
     server.off("error", onFatal);
     onListening({ plan });
   });
+  httpsProblem = plan.tlsProblem;
   if (plan.tlsProblem) console.warn(`\n  HTTPS is set up but can’t start: ${plan.tlsProblem}\n  Other devices can’t connect until that’s fixed; this computer still opens http://localhost:${port}\n`);
   if (plan.httpsHost) {
     const secure = https.createServer({ cert: startupTls.pem.cert, key: startupTls.pem.key }, app);
     secure.once("error", (error) => {
+      httpsProblem = error.code === "EADDRINUSE" ? `Port ${httpsPort} is already in use. Set HEISS_HTTPS_PORT to another one.` : error.message;
       console.warn(`\n  HTTPS could not start on port ${httpsPort}: ${error.code === "EADDRINUSE" ? "something else uses it (set HEISS_HTTPS_PORT)" : error.message}\n`);
     });
     secure.listen(httpsPort, plan.httpsHost, () => {
