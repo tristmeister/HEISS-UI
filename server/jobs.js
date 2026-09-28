@@ -333,7 +333,7 @@ function showReconnecting(id, run, on) {
   let progress;
   if (on) {
     run.progressBefore = current.progress || null;
-    progress = { value: 0, max: 0, node: "", phase: "Reconnecting to ComfyUI", steps: false, reconnecting: true };
+    progress = { value: 0, max: 0, node: "", phase: "Reconnecting…", steps: false, reconnecting: true };
   } else {
     progress = run.progressBefore || { value: 0, max: 0 };
     run.progressBefore = null;
