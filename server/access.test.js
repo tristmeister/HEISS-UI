@@ -92,6 +92,24 @@ test("admin: always this computer, a signed-in device only when trusted, a proxy
   assert.equal(access.canAdmin(phone()), false);
 });
 
+test("the Connection settings are for signed-in devices only, though /api/access/ is open before signing in", async () => {
+  const { registerAccessRoutes } = await import("./access-routes.js");
+  const routes = {};
+  registerAccessRoutes({ get: (route, handler) => { routes[route] = handler; }, post: () => {} });
+  const call = (req) => {
+    const res = { ...response(), statusCode: 200, body: null, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
+    routes["/api/access/devices"](req, res);
+    return res;
+  };
+  const stranger = call(request("192.168.1.77"));
+  assert.equal(stranger.statusCode, 401);
+  assert.equal(stranger.body.adminFromDevices, undefined);
+  const signedIn = response();
+  access.startDeviceSession(request("192.168.1.78"), signedIn);
+  assert.equal(call(request("192.168.1.78", signedIn)).body.ok, true);
+  assert.equal(call(request("127.0.0.1")).body.ok, true);
+});
+
 test("another device's Hidden unlock is tied to its sign-in and ends with it", async () => {
   const key = await privacy.setupPrivacy("hidden password");
   const signIn = response();

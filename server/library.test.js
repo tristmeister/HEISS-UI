@@ -23,6 +23,9 @@ test("a folder of earlier images joins the gallery in place, with its prompts", 
   fs.writeFileSync(path.join(earlier, "comfy.png"), withPngText(await image("#999"), "prompt", JSON.stringify({ 6: { class_type: "CLIPTextEncode", inputs: { text: "an owl in snow" } } })));
   fs.writeFileSync(path.join(earlier, "notes.txt"), "not an image");
   fs.writeFileSync(path.join(earlier, "2024", ".cache", "thumb.png"), await image());
+  // An output folder HEISS UI does not know as one (yet): its own heiss-ui folder may hold what Hidden could not remove.
+  fs.mkdirSync(path.join(earlier, "output", "heiss-ui"), { recursive: true });
+  fs.writeFileSync(path.join(earlier, "output", "heiss-ui", "image_00001_.png"), await image("#111"));
 
   const result = await library.addLibraryFolder(earlier);
   assert.equal(result.added, 2);
@@ -47,6 +50,9 @@ test("only media inside the folder is served, never a dot folder or HEISS UI's o
   assert.equal(library.libraryFile(folder.id, "notes.txt"), null);
   assert.equal(library.libraryFile(folder.id, "2024/.cache/thumb.png"), null);
   assert.equal(library.libraryFile("nope", "comfy.png"), null);
+  assert.ok(fs.existsSync(path.join(earlier, "output", "heiss-ui", "image_00001_.png")));
+  assert.equal(library.libraryFile(folder.id, "output/heiss-ui/image_00001_.png"), null);
+  assert.ok(!store.gallery.some((item) => item.outputName === "image_00001_.png"), "never scanned in either");
   await assert.rejects(library.addLibraryFolder(dataDir), /own folder/);
 });
 

@@ -10,7 +10,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, localOutputFile, outputMediaPattern, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, requestedPort, setListeningPort } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, inDotFolder, localOutputFile, outputMediaPattern, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, requestedPort, setListeningPort } from './comfy.js';
 import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
 import { limitedCheck, registerAccessRoutes } from './access-routes.js';
 import { requestGuard } from './request-guard.js';
@@ -1271,6 +1271,8 @@ app.post("/api/library/folders", async (req, res) => {
       dir = await pickFolder(req.body?.start || "", "Choose a folder of earlier images");
       if (!dir) { res.json({ ok: true, canceled: true, folders: libraryFolders() }); return; }
     }
+    // Which folder is ComfyUI's output decides how a folder is read (library.js), so find it first.
+    await autoDetectOutputDir();
     const result = await addLibraryFolder(dir);
     res.json({ ok: true, ...result, folders: libraryFolders(), revision: galleryRevisionValue() });
   } catch (error) {
@@ -1281,6 +1283,7 @@ app.post("/api/library/folders", async (req, res) => {
 app.post("/api/library/folders/:id/scan", async (req, res) => {
   if (!requireThisComputer(req, res)) return;
   try {
+    await autoDetectOutputDir();
     res.json({ ok: true, ...(await scanLibraryFolder(req.params.id)), folders: libraryFolders(), revision: galleryRevisionValue() });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message, folders: libraryFolders() });
@@ -1743,12 +1746,15 @@ app.post("/api/queue/cancel", async (_req, res) => {
 
 app.post("/api/gallery/clear", (req, res) => {
   if (!requireAdmin(req, res)) return;
-  // Clearing the gallery never touches Hidden; that has its own erase.
-  const cleared = gallery.filter((item) => item.status === "done" && !item.privateVault);
+  // Clearing the gallery never touches Hidden; that has its own erase. Nor images
+  // shown from another folder (library.js): their files are not in the output
+  // folder, so no trash could bring them back; Settings › Library removes those.
+  const clears = (item) => item.status === "done" && !item.privateVault && !item.library;
+  const cleared = gallery.filter(clears);
   // Into the trash, not deleted: it can be put back until the trash empties itself (gallery-trash.js).
   const trash = trashGalleryItems(cleared);
   hideGalleryItems(cleared);
-  setGallery(gallery.filter((item) => item.status !== "done" || item.privateVault));
+  setGallery(gallery.filter((item) => !clears(item)));
   saveGallery();
   res.json({ ok: true, files: { deleted: trash.moved, skipped: trash.skipped }, trash: { batch: trash.batch, moved: trash.moved, days: trashSummary().days }, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });
@@ -2046,7 +2052,7 @@ app.get("/comfy/thumb", async (req, res) => {
   const type = String(req.query.type || "output");
   if (!filename) { res.status(400).json({ error: "filename is required." }); return; }
   // The same outputs /comfy/view serves, and nothing else.
-  if (!["output", "input", "temp"].includes(type) || !outputMediaPattern.test(filename)) { res.status(404).json({ error: "Not an output." }); return; }
+  if (!["output", "input", "temp"].includes(type) || !outputMediaPattern.test(filename) || inDotFolder(req.query.subfolder)) { res.status(404).json({ error: "Not an output." }); return; }
   try {
     const thumbnail = await getThumbnail(filename, subfolder, type);
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
@@ -2107,8 +2113,9 @@ app.get("/comfy/*path", async (req, res) => {
     const query = req.originalUrl.split("?")[1] ? `?${req.originalUrl.split("?")[1]}` : "";
     const proxyPath = Array.isArray(req.params.path) ? req.params.path.join("/") : req.params.path;
     // Only ComfyUI's image route, for images, videos and sound among its outputs, inputs
-    // and previews. Its other GET routes (settings, logs, Manager's) are not for the studio's visitors.
-    if (proxyPath !== "view" || !["output", "input", "temp"].includes(String(req.query.type || "output")) || !outputMediaPattern.test(String(req.query.filename || ""))) {
+    // and previews. Its other GET routes (settings, logs, Manager's) are not for the studio's visitors,
+    // and neither are dot folders among the outputs (the gallery's trash, gallery-trash.js).
+    if (proxyPath !== "view" || !["output", "input", "temp"].includes(String(req.query.type || "output")) || !outputMediaPattern.test(String(req.query.filename || "")) || inDotFolder(req.query.subfolder)) {
       res.status(404).json({ ok: false, error: "Not an output." });
       return;
     }
@@ -2166,7 +2173,10 @@ app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "
 
 if (fs.existsSync(dist)) serveApp(app, dist);
 
-setTimeout(() => recoverGalleryFromHistory().catch(() => null).then(() => rescanLibraryFolders()).catch(() => null), 1200);
+setTimeout(() => recoverGalleryFromHistory().catch(() => null)
+  // A library scan skips the output folder, so it has to be known before one runs.
+  .then(() => (libraryFolders().length ? autoDetectOutputDir() : null))
+  .then(() => rescanLibraryFolders()).catch(() => null), 1200);
 scheduleTrashPurge();
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }

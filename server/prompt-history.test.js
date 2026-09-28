@@ -48,6 +48,8 @@ test("forgetting spares prompts the gallery still shows", () => {
   const texts = history.listPrompts().map((entry) => entry.text);
   assert.ok(!texts.includes("a green frog"));
   assert.ok(texts.includes("a blue owl"));
+  // Nor in the backup the store keeps of the file before.
+  assert.ok(!fs.readFileSync(`${history.promptHistoryPath}.bak`, "utf8").includes("a green frog"));
 });
 
 test("clearing keeps pinned prompts unless asked not to", () => {
@@ -57,4 +59,17 @@ test("clearing keeps pinned prompts unless asked not to", () => {
   assert.deepEqual(history.listPrompts(), []);
   history.resetPromptHistoryCache();
   assert.deepEqual(history.listPrompts(), [], "the saved file is read back, and an empty list is not re-seeded");
+  assert.ok(!fs.readFileSync(`${history.promptHistoryPath}.bak`, "utf8").includes("red fox"), "cleared from the backup too");
+});
+
+test("prompts still sealed by the old privacy scheme never seed the list", () => {
+  fs.rmSync(history.promptHistoryPath, { force: true });
+  fs.rmSync(`${history.promptHistoryPath}.bak`, { force: true });
+  history.resetPromptHistoryCache();
+  setGallery([
+    { id: "f", url: "f", status: "done", prompt: "enc:v1:abc", createdAt: "2026-01-01T00:00:00Z" },
+    { id: "g", url: "g", status: "done", prompt: "a title", promptEncrypted: "enc:v1:def", createdAt: "2026-01-02T00:00:00Z" },
+    { id: "h", url: "h", status: "done", prompt: "a grey cat", createdAt: "2026-01-03T00:00:00Z" }
+  ], { persist: false });
+  assert.deepEqual(history.listPrompts().map((entry) => entry.text), ["a grey cat"]);
 });

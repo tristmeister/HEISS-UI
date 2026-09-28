@@ -47,6 +47,22 @@ test("a build gone from its address falls back to the next one by itself", async
   assert.equal(gone.alternatives, undefined, "the list stays on the server");
 });
 
+test("the build a download falls back to is still checked against its own checksum", async () => {
+  const seen = [];
+  setDownloadTransport(async (entry, _signal, { targetFor, finishDownload, finalError }) => {
+    seen.push({ file: entry.file, sha256: entry.sha256 });
+    if (entry.file === "missing.safetensors") throw finalError(`${entry.file} is no longer at its download address (HTTP 404).`);
+    const { partial, target, note } = targetFor(entry);
+    fs.writeFileSync(partial, "0123456789");
+    finishDownload(entry, partial, target, note);
+  });
+  const sha = "ab".repeat(32);
+  startDownload(spec("missing.safetensors", { sha256: "cd".repeat(32), alternatives: [spec("checked.safetensors", { sha256: sha.toUpperCase() })] }));
+  await settle("checked.safetensors");
+  assert.deepEqual(seen.find((item) => item.file === "checked.safetensors"), { file: "checked.safetensors", sha256: sha });
+  setDownloadTransport(null);
+});
+
 test("a gated build falls back too, but a full disk does not", async () => {
   setDownloadTransport(async (entry, _signal, { targetFor, finishDownload, finalError }) => {
     if (entry.file === "gated.safetensors") throw finalError("needs a login", { browser: true });

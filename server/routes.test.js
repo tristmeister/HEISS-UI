@@ -116,3 +116,31 @@ test("a generate request with no prompt is refused plainly", async () => {
   assert.equal(refused.status, 400);
   assert.ok(refused.body.error);
 });
+
+test("clearing the gallery leaves images shown from another folder where they are", async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-routes-library-"));
+  try {
+    fs.writeFileSync(path.join(folder, "earlier.png"), "not really a png");
+    const added = await api("/api/library/folders", { method: "POST", body: { path: folder } });
+    assert.equal(added.status, 200, JSON.stringify(added.body));
+    const shown = async () => (await api("/api/gallery?limit=200")).body.items.filter((item) => item.library);
+    assert.equal((await shown()).length, 1);
+    const cleared = await api("/api/gallery/clear", { method: "POST" });
+    assert.equal(cleared.status, 200);
+    assert.equal((await shown()).length, 1, "no trash could bring it back, so a clear does not take it");
+    const id = added.body.folders.find((entry) => entry.path === fs.realpathSync(folder)).id;
+    await api(`/api/library/folders/${id}`, { method: "DELETE" });
+  } finally {
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("the gallery's trash and other dot folders are never served, not even through ComfyUI", async () => {
+  for (const route of ["view", "thumb"]) {
+    for (const query of ["subfolder=.heiss-trash%2Fbatch%2Ffiles%2Fheiss-ui", "subfolder=heiss-ui%2F.hidden", "subfolder=heiss-ui&subfolder=.heiss-trash"]) {
+      const response = await fetch(`${base}/comfy/${route}?filename=image_00001_.png&type=output&${query}`);
+      assert.equal(response.status, 404, `${route}?${query}`);
+      assert.equal((await response.json()).error, "Not an output.");
+    }
+  }
+});

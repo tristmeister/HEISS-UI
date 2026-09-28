@@ -53,6 +53,15 @@ export function setListeningPort(value) {
   port = Number(value) || requestedPort;
   return port;
 }
+/**
+ * A subfolder with a dot folder anywhere in it: the gallery's trash
+ * (.heiss-trash) and anything else kept out of sight. Never served, whether
+ * from the output folder or through ComfyUI.
+ */
+export function inDotFolder(subfolder = "") {
+  // A query string can name it twice; every value counts.
+  return [].concat(subfolder ?? "").some((value) => String(value || "").split(/[\\/]/).some((part) => part.startsWith(".")));
+}
 /** What an output can be: images, videos and sound. Anything else in the folder is never served. */
 export const outputMediaPattern = /\.(png|jpe?g|webp|gif|avif|bmp|tiff?|mp4|webm|mov|mkv|m4v|flac|mp3|wav|ogg|opus|m4a|aac)$/i;
 
@@ -65,7 +74,7 @@ export const outputMediaPattern = /\.(png|jpe?g|webp|gif|avif|bmp|tiff?|mp4|webm
 export function localOutputFile(filename, subfolder = "", type = "output") {
   if (type !== "output" || !comfyOutputDir || !filename) return null;
   if (!outputMediaPattern.test(String(filename))) return null;
-  if (String(subfolder || "").split(/[\\/]/).some((part) => part.startsWith("."))) return null;
+  if (inDotFolder(subfolder)) return null;
   const base = path.resolve(comfyOutputDir);
   const file = path.resolve(base, String(subfolder || ""), String(filename));
   if (!isInside(base, file)) return null;

@@ -118,8 +118,10 @@ const yieldToEventLoop = () => new Promise((resolve) => setImmediate(resolve));
 export async function writeJsonFileAsync(file, value, { mode, sliceSize = 500, shouldCommit = () => true } = {}) {
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
   const temporary = temporaryFor(file);
+  const backupTemporary = `${temporary}.bak`;
   const handle = await fs.promises.open(temporary, "w", mode);
   let committed = false;
+  let backedUp = false;
   try {
     try {
       if (Array.isArray(value)) {
@@ -139,19 +141,32 @@ export async function writeJsonFileAsync(file, value, { mode, sliceSize = 500, s
       await handle.close();
     }
     if (!shouldCommit()) return false;
+    // The backup is copied beside the file first and only takes .bak's place
+    // below, together with the rename. A synchronous write landing while the
+    // copy runs (hiding an image rewrites the gallery and its backup to take
+    // its prompt out) must not find its clean .bak replaced by the older copy.
     try {
-      await fs.promises.copyFile(file, `${file}.bak`);
-      if (mode !== undefined) await fs.promises.chmod(`${file}.bak`, mode);
+      await fs.promises.copyFile(file, backupTemporary);
+      if (mode !== undefined) await fs.promises.chmod(backupTemporary, mode);
+      backedUp = true;
     } catch {
       // No current file yet, or it is busy: keep the older backup.
     }
     // Asked again: a synchronous write may have landed while the backup was copied.
     if (!shouldCommit()) return false;
+    if (backedUp) {
+      try {
+        renameWithRetry(backupTemporary, `${file}.bak`);
+      } catch {
+        // Keep the older backup.
+      }
+    }
     renameWithRetry(temporary, file);
     committed = true;
     return true;
   } finally {
     if (!committed) await fs.promises.rm(temporary, { force: true }).catch(() => {});
+    await fs.promises.rm(backupTemporary, { force: true }).catch(() => {});
   }
 }
 
