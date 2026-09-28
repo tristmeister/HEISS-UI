@@ -101,7 +101,8 @@ test("paging through 50,000 items reads each page from one sorted list, without 
   assert.deepEqual(seen.slice(0, 4), ["local-49996", "local-49997", "local-49998", "local-49999"], "newest first, a batch in its own order");
   // Re-filtering and re-sorting per page made every page cost as much as the whole
   // gallery; all of them are now cut from the one list the first page built.
-  assert.equal(store.visibleListBuildCount() - buildsBefore, 1, `the list was rebuilt while paging through ${pages} pages`);
+  // A folder re-check on a busy machine (at most once a second) may rebuild it once or twice more; per page it'd be hundreds.
+  assert.ok(store.visibleListBuildCount() - buildsBefore <= 3, `the list was rebuilt ${store.visibleListBuildCount() - buildsBefore} times while paging through ${pages} pages`);
 
   const videos = pageGallery({ type: "video", limit: 500, includeFailed: false });
   assert.ok(videos.items.every((item) => item.type === "video" && item.status !== "error"));

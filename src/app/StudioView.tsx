@@ -482,6 +482,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               toggleBundle={toggleBundle}
               ungroupBundle={ungroupBundle}
               columns={galleryColumnCount}
+              spanWide={Boolean(prefs.spanWideImages) && !phone}
               copyPromptAndToast={(item) => copyToClipboard(item.prompt || item.filename || "", "Prompt copied")}
               deleteItem={deleteItem}
               formatElapsed={formatElapsed}

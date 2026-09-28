@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
 import { GalleryTile } from './GalleryTile';
 import { generationIdentity } from './GenerationPreview';
 import { BundleTile, bundleSheetHeight } from './BundleTile';
+import { WIDE_RATIO, firstReaching, packMasonry, type MasonrySlot } from './masonry';
 import type { UpscaleNotice } from './useUpscale';
 import type { GalleryItem } from './types';
 
 type VirtualMasonryGalleryProps = {
   items: GalleryItem[];
   columns: number;
+  /** Wide images take two columns, from three columns up. */
+  spanWide?: boolean;
   scrollRef: React.RefObject<HTMLElement | null>;
   formatElapsed: (value: number) => string;
   titleFromPrompt: (value?: string) => string;
@@ -35,6 +37,9 @@ function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set
   const ratio = Number(item.width || 1) / Math.max(1, Number(item.height || 1));
   return Math.max(120, Math.round(width / Math.max(0.2, ratio)));
 }
+
+/** Bundles stay one column wide: an opened one lays its sheet out to that width. */
+const isWide = (item: GalleryItem) => !item.bundle && Number(item.width || 1) / Math.max(1, Number(item.height || 1)) >= WIDE_RATIO;
 
 /** Which column a tile sits in, kept by run and position so a finished image keeps its pending tile's place. */
 const placementKey = (item: GalleryItem) => item.jobId && Number.isInteger(item.index) ? `${item.jobId}:${item.index}` : item.id;
@@ -79,6 +84,7 @@ export function VirtualMasonryGallery({
   setBundleCover,
   settlingBundles,
   smartUpscale = false,
+  spanWide = false,
   titleFromPrompt,
   toggleBundle,
   ungroupBundle,
@@ -92,77 +98,106 @@ export function VirtualMasonryGallery({
   // The element that scrolls, found from where the gallery actually sits. The
   // scrollRef passed in is attached by an ancestor after this gallery's own
   // layout effects run, so right after a layout switch (phone ↔ full studio) it
-  // still named the previous shell's detached <main>: the virtualizer measured
-  // that as 0px tall and drew no tiles until something re-rendered it.
+  // still named the previous shell's detached <main>: the grid measured that
+  // as 0px tall and drew no tiles until something re-rendered it.
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
+  // The grid's own column gap, which the stylesheets set and which isn't the
+  // spacing between rows (8px against 7px on a computer): tiles line up on the
+  // grid's tracks, where the per-column lists used to sit.
+  const [columnGap, setColumnGap] = useState<number | null>(null);
   React.useLayoutEffect(() => {
     const next = scrollParent(containerRef.current) || scrollRef.current;
     setScrollElement((current) => (current === next ? current : next));
+    const gap = containerRef.current ? parseFloat(getComputedStyle(containerRef.current).columnGap) : NaN;
+    if (Number.isFinite(gap)) setColumnGap((current) => (current === gap ? current : gap));
   });
   const safeColumns = Math.max(1, columns);
   const spacing = containerWidth < 620 ? 4 : 7;
   const columnWidth = containerWidth ? Math.floor((containerWidth - spacing * (safeColumns - 1)) / safeColumns) : 240;
+  // Columns sit where the grid's tracks start (browsers lay tracks out in
+  // 1/64 px steps), each tile as wide as it always was; a wide tile reaches
+  // the right edge of the tile beside it.
+  const gutter = columnGap ?? spacing;
+  const track = containerWidth ? (containerWidth - gutter * (safeColumns - 1)) / safeColumns : columnWidth;
+  const columnLeft = (column: number) => Math.floor(column * track * 64) / 64 + column * gutter;
+  const wideWidth = Math.floor(track + gutter + columnWidth);
   // The grid is newest first, each tile in the shortest column: the newest top
   // left, the same layout a reload gives. That places every tile by the ones
   // before it, so a tile that goes (deleted, hidden, stopped) only moves the
   // tiles after it, but a result landing at the top moves them all. While the
   // pointer is over the grid, landing tiles take the top of whichever column's
   // top tile is oldest instead and nothing else moves, so no tile slides out
-  // from under the cursor; the grid settles once the pointer leaves.
+  // from under the cursor; the grid settles once the pointer leaves. With
+  // spanWide, wide images take two level columns (masonry.js has the rules).
   const [holding, setHolding] = useState(false);
   const releaseTimer = useRef(0);
   const hold = () => { window.clearTimeout(releaseTimer.current); setHolding(true); };
   const release = () => { window.clearTimeout(releaseTimer.current); releaseTimer.current = window.setTimeout(() => setHolding(false), 500); };
   useEffect(() => () => window.clearTimeout(releaseTimer.current), []);
-  const placement = useRef<{ signature: string; columns: Map<string, number> }>({ signature: "", columns: new Map() });
-  const columnItems = useMemo(() => {
-    const signature = `${safeColumns}:${columnWidth}`;
-    const previous = placement.current.signature === signature ? placement.current.columns : null;
-    const assigned = new Map<string, number>();
-    const heights = Array.from({ length: safeColumns }, () => 0);
-    const height = (item: GalleryItem) => estimatedHeight(item, columnWidth, expandedBundles) + spacing;
-    const place = (item: GalleryItem, column: number) => {
-      assigned.set(placementKey(item), column);
-      heights[column] += height(item);
-    };
-    const shortest = () => {
-      let target = 0;
-      for (let column = 1; column < safeColumns; column += 1) if (heights[column] < heights[target]) target = column;
-      return target;
-    };
-    const present = new Set(items.map(placementKey));
-    const removed = previous ? Array.from(previous.keys()).some((key) => !present.has(key)) : false;
-    const known = (item: GalleryItem) => {
-      const column = previous?.get(placementKey(item));
-      return column !== undefined && column < safeColumns;
-    };
-    // Hold only for results landing on top of tiles that are all where they were.
-    const firstKnown = items.findIndex(known);
-    const holdable = holding && previous && !removed && firstKnown > 0 && items.slice(firstKnown).every(known);
-    if (!holdable) {
-      for (const item of items) place(item, shortest());
-    } else {
-      for (const item of items.slice(firstKnown)) place(item, previous!.get(placementKey(item))!);
-      const top = Array.from({ length: safeColumns }, () => Infinity);
-      items.forEach((item, index) => {
-        const column = assigned.get(placementKey(item));
-        if (column !== undefined && top[column] === Infinity) top[column] = index;
-      });
-      // Oldest of the new ones first, each onto the column whose top tile is oldest.
-      for (let index = firstKnown - 1; index >= 0; index -= 1) {
-        let target = 0;
-        for (let column = 1; column < safeColumns; column += 1) {
-          if (top[column] > top[target] || (top[column] === top[target] && heights[column] < heights[target])) target = column;
-        }
-        place(items[index], target);
-        top[target] = index;
-      }
-    }
-    placement.current = { signature, columns: assigned };
-    const next = Array.from({ length: safeColumns }, () => [] as GalleryItem[]);
-    for (const item of items) next[assigned.get(placementKey(item)) ?? 0].push(item);
+  const placement = useRef<{ signature: string; slots: Map<string, MasonrySlot> | null }>({ signature: "", slots: null });
+  const layout = useMemo(() => {
+    const signature = `${safeColumns}:${columnWidth}:${spanWide}`;
+    const previous = placement.current.signature === signature ? placement.current.slots : null;
+    const next = packMasonry({
+      count: items.length,
+      columns: safeColumns,
+      columnWidth,
+      gap: spacing,
+      keyOf: (index) => placementKey(items[index]),
+      heightOf: (index, span) => estimatedHeight(items[index], span === 2 ? wideWidth : columnWidth, expandedBundles),
+      wideOf: (index) => spanWide && isWide(items[index]),
+      previous,
+      holding,
+    });
+    placement.current = { signature, slots: next.placement };
     return next;
-  }, [columnWidth, expandedBundles, holding, items, safeColumns, spacing]);
+  }, [columnWidth, expandedBundles, holding, items, safeColumns, spacing, spanWide, wideWidth]);
+
+  // The stretch of the grid to draw, in the grid's own coordinates: the screen
+  // and one more above and below. It moves in steps of half a screen, so
+  // scrolling re-renders the grid only when tiles need to come or go.
+  const [range, setRange] = useState({ start: 0, end: 2400 });
+  React.useLayoutEffect(() => {
+    const element = scrollElement?.isConnected ? scrollElement : scrollRef.current;
+    const container = containerRef.current;
+    if (!element || !container) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const offset = container.getBoundingClientRect().top - element.getBoundingClientRect().top;
+      const view = element.clientHeight || window.innerHeight;
+      const step = Math.max(200, Math.round(view / 2));
+      const overscan = Math.max(600, view);
+      const band = Math.floor(Math.max(0, -offset) / step);
+      const start = band * step - overscan;
+      const end = (band + 1) * step + view + overscan;
+      setRange((current) => (current.start === start && current.end === end ? current : { start, end }));
+    };
+    const schedule = () => { if (!frame) frame = window.requestAnimationFrame(measure); };
+    measure();
+    element.addEventListener("scroll", schedule, { passive: true });
+    const observer = new ResizeObserver(schedule);
+    observer.observe(element);
+    return () => {
+      element.removeEventListener("scroll", schedule);
+      observer.disconnect();
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, [containerRef, layout.total, scrollElement, scrollRef]);
+
+  // The tiles in that stretch, column by column and top to bottom, so Tab walks
+  // the masonry as it always has; a spanning tile belongs to its left column.
+  const visible = useMemo(() => {
+    const out: Array<{ index: number; row: number }> = [];
+    layout.lists.forEach((list, column) => {
+      for (let row = firstReaching(list, layout.top, layout.height, range.start); row < list.length; row += 1) {
+        const index = list[row];
+        if (layout.top[index] > range.end) break;
+        if (layout.column[index] === column) out.push({ index, row });
+      }
+    });
+    return out;
+  }, [layout, range]);
 
   return (
     <section
@@ -187,85 +222,17 @@ export function VirtualMasonryGallery({
       }}
       style={{ "--gallery-columns": safeColumns, "--gallery-gap": `${spacing}px` } as React.CSSProperties}
     >
-      {columnItems.map((column, index) => (
-        <VirtualMasonryColumn
-          key={`virtual-column-${index}`}
-          cancelJob={cancelJob}
-          column={column}
-          copyPromptAndToast={copyPromptAndToast}
-          deleteItem={deleteItem}
-          expandedBundles={expandedBundles}
-          gatheringIds={gatheringIds}
-          formatElapsed={formatElapsed}
-          openItem={openItem}
-          scrollRef={scrollRef}
-          scrollElement={scrollElement}
-          setBundleCover={setBundleCover}
-          settlingBundles={settlingBundles}
-          smartUpscale={smartUpscale}
-          upscaleBusyIds={upscaleBusyIds}
-          onUpscale={onUpscale}
-          onCancelUpscale={onCancelUpscale}
-          upscaleNotices={upscaleNotices}
-          onDismissUpscaleNotice={onDismissUpscaleNotice}
-          spacing={spacing}
-          titleFromPrompt={titleFromPrompt}
-          toggleBundle={toggleBundle}
-          ungroupBundle={ungroupBundle}
-          width={columnWidth}
-        />
-      ))}
-    </section>
-  );
-}
-
-function VirtualMasonryColumn({
-  cancelJob,
-  column,
-  copyPromptAndToast,
-  deleteItem,
-  expandedBundles,
-  gatheringIds,
-  formatElapsed,
-  openItem,
-  scrollRef,
-  setBundleCover,
-  settlingBundles,
-  smartUpscale = false,
-  spacing,
-  titleFromPrompt,
-  toggleBundle,
-  ungroupBundle,
-  upscaleBusyIds,
-  onUpscale,
-  onCancelUpscale,
-  upscaleNotices,
-  onDismissUpscaleNotice,
-  width,
-  scrollElement,
-}: Omit<VirtualMasonryGalleryProps, "columns" | "items"> & { column: GalleryItem[]; spacing: number; width: number; scrollElement: HTMLElement | null }) {
-  const virtualizer = useVirtualizer({
-    count: column.length,
-    getScrollElement: () => (scrollElement?.isConnected ? scrollElement : scrollRef.current),
-    estimateSize: (index: number) => estimatedHeight(column[index], width, expandedBundles) + spacing,
-    overscan: 8,
-    getItemKey: (index: number) => itemKey(column[index]) || index,
-  });
-  return (
-    <div className="gallery-column virtual-gallery-column" style={{ width }}>
-      <div className="virtual-gallery-spacer" style={{ height: virtualizer.getTotalSize() }}>
-        {virtualizer.getVirtualItems().map((virtualItem: any) => {
-          const item = column[virtualItem.index];
-          if (!item) return null;
-          const height = estimatedHeight(item, width, expandedBundles);
-          const cellHeight = height + spacing;
+      <div className="virtual-gallery-spacer" style={{ height: layout.total }}>
+        {visible.map(({ index, row }) => {
+          const item = items[index];
+          const wide = layout.span[index] === 2;
+          const width = wide ? wideWidth : columnWidth;
+          const height = layout.height[index];
           return (
             <div
-              key={virtualItem.key}
-              ref={virtualizer.measureElement}
-              className="virtual-gallery-cell"
-              data-index={virtualItem.index}
-              style={{ height: cellHeight, transform: `translateY(${virtualItem.start}px)` }}
+              key={itemKey(item) || `tile-${index}`}
+              className={wide ? "virtual-gallery-cell is-wide" : "virtual-gallery-cell"}
+              style={{ left: columnLeft(layout.column[index]), width, height: height + spacing, transform: `translateY(${layout.top[index]}px)` }}
             >
               {item.bundle ? (
                 <BundleTile
@@ -284,7 +251,7 @@ function VirtualMasonryColumn({
               <GalleryTile
                 cancelJob={cancelJob}
                 gathering={gatheringIds.has(item.id)}
-                gatherIndex={virtualItem.index}
+                gatherIndex={row}
                 copyPromptAndToast={copyPromptAndToast}
                 deleteItem={deleteItem}
                 formatElapsed={formatElapsed}
@@ -305,6 +272,6 @@ function VirtualMasonryColumn({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }
