@@ -24,6 +24,7 @@ import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, 
 import { galleryStats } from './stats.js';
 import { describeHardware } from './hardware.js';
 import { starterPlan } from './starter-models.js';
+import { findComfy, findComfyNow, nearbyAddresses } from './comfy-finder.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
 import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
@@ -520,7 +521,19 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-app.get("/api/comfy/status", async (_req, res) => {
+/** Switch to an address where ComfyUI turned up by itself, and remember it like a saved one. */
+function adoptFoundComfy(found) {
+  try {
+    setComfyUrl(found);
+  } catch {
+    return false; // .env could not be written; the saved address stays.
+  }
+  comfyCache = { info: null, stats: null, fetchedAt: 0 };
+  console.log(`    Found ComfyUI at ${found}; HEISS UI uses it from now on.\n`);
+  return true;
+}
+
+app.get("/api/comfy/status", async function comfyStatus(req, res) {
   const startedAt = performance.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
@@ -540,7 +553,8 @@ app.get("/api/comfy/status", async (_req, res) => {
       url: comfyUrl,
       latencyMs,
       version: stats?.system?.comfyui_version || "",
-      device
+      device,
+      ...(res.locals.foundComfy ? { found: res.locals.foundComfy } : {})
     });
   } catch (error) {
     // Demo mode makes placeholder images without ComfyUI, so to the app it is connected.
@@ -550,9 +564,15 @@ app.get("/api/comfy/status", async (_req, res) => {
     }
     // A timeout counts here too: this poll is the app asking whether ComfyUI is there.
     noteComfyFetchError(error?.name === "AbortError" ? new Error("timed out") : error);
+    // Not at this address: on this computer it may well be on the other usual port (Desktop uses 8000).
+    const found = comfyRestarting() || res.locals.foundComfy ? "" : await findComfyNow(comfyUrl);
+    if (found && adoptFoundComfy(found)) {
+      res.locals.foundComfy = found;
+      return comfyStatus(req, res);
+    }
     const latencyMs = Math.round(performance.now() - startedAt);
     const message = error?.name === "AbortError" ? "Connection timed out" : error?.message || "Connection failed";
-    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(), error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
+    res.json({ connected: false, isMock: demoMode, url: comfyUrl, latencyMs, ...restartFields(), nearby: nearbyAddresses(comfyUrl), error: `${message}${demoMode ? " (Demo Mode Active)" : ""}` });
   } finally {
     clearTimeout(timeout);
   }
@@ -1833,7 +1853,8 @@ app.listen(port, host, (error) => {
     }
     // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
     const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
-    if (!answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
+    const found = answering || demoMode ? "" : await findComfy({ current: comfyUrl });
+    if (!(found && adoptFoundComfy(found)) && !answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
   }).catch(() => {});
   // Tells scripts/start.mjs this version runs, so a fresh update is kept.
   process.send?.({ type: "ready", version: appVersion });
