@@ -21,6 +21,9 @@ version opens with a `> ` summary line, which the update pill shows.
   in the phone's Advanced settings, where they're easier to reach.
 
 ### Fixed
+- **Krea 2 fine-tunes run as Turbo again.** Since 0.12.0 a Krea 2 file whose
+  name didn't say "turbo" ran with Raw's settings; now it's Turbo unless its
+  name or metadata says Raw.
 - **The sidebar and other glass stay readable over the video gallery on
   Windows**, where Chrome can hand playing videos to a layer the blur can't
   reach.
