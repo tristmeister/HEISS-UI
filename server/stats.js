@@ -13,7 +13,8 @@ const nextDay = (key) => {
 };
 
 export function galleryStats(items = [], now = new Date()) {
-  const done = items.filter((item) => item?.status === "done");
+  // Earlier images shown from another folder (library.js) were not made here.
+  const done = items.filter((item) => item?.status === "done" && !item.library);
   const days = new Map();
   const workflows = new Map();
   let renderMs = 0;

@@ -14,6 +14,12 @@ test("counts outputs, render time and megapixels, ignoring unfinished items", ()
   assert.equal(stats.megapixels, 2);
 });
 
+test("earlier images shown from another folder are not counted as made here", () => {
+  const stats = galleryStats([done(at(2026, 9, 1)), done(at(2020, 1, 1), { library: { folder: "f", path: "old.png" } })], new Date(2026, 8, 1));
+  assert.equal(stats.outputs, 1);
+  assert.equal(stats.megapixels, 1);
+});
+
 test("streaks run over consecutive days, and the current one survives until tomorrow", () => {
   const items = [1, 2, 3, 7, 8, 9, 10, 20, 21].map((day) => done(at(2026, 9, day)));
   assert.equal(galleryStats(items, new Date(2026, 8, 21, 18)).currentStreak, 2);
