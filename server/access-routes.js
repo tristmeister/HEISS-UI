@@ -90,6 +90,11 @@ export function registerAccessRoutes(app) {
   // Settings › Connection. Every signed-in device sees the switches; the list of devices is for those who look after the computer.
   app.get("/api/access/devices", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
+    // /api/access/ is open before signing in (index.js), so this one checks for itself.
+    if (!clientOf(req).thisComputer && !deviceSession(req)) {
+      res.status(401).json({ ok: false, reason: "sign-in", error: "Sign in with the studio password to continue." });
+      return;
+    }
     res.json({
       ok: true,
       adminFromDevices: devicesMayAdmin(),
