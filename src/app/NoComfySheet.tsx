@@ -91,8 +91,8 @@ export function NoComfySheet({ open, onOpenChange, onChangeAddress }: { open: bo
         <p>Start ComfyUI and leave it running. HEISS UI looks on port 8188 (a manual or portable install) and 8000 (ComfyUI Desktop) and connects on its own.</p>
         <h3>A good start</h3>
         <p>
-          A graphics card with 8 GB runs SDXL and Flux.2 Klein; 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything.
-          On a Mac, 16 GB of memory runs SDXL and Flux.2 Klein, and 32 GB or more runs Krea 2.
+          A graphics card with 8 GB runs SDXL and the compact Flux.2 Klein; 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything.
+          On a Mac, 16 GB of memory runs SDXL, 18 GB or more Flux.2 Klein, and 48 GB or more Krea 2.
           Models take 7 to 50 GB of disk each.{line ? <> <strong>{line}</strong></> : null}
         </p>
       </section>

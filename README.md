@@ -60,7 +60,7 @@ The node graph is great for building workflows and less great for the everyday l
 
 ## Quick start
 
-You need a working **ComfyUI** install, and on macOS, Linux or from source **Node.js 20.9+** (22 LTS or newer recommended). The Windows download brings its own Node.js. HEISS UI looks for ComfyUI at `http://127.0.0.1:8188`.
+You need **ComfyUI** ([no ComfyUI yet?](#no-comfyui-yet)), and on macOS, Linux or from source **Node.js 20.9+** (22 LTS or newer recommended). The Windows download brings its own Node.js. HEISS UI finds ComfyUI by itself on this computer, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000.
 
 **Easiest:** download the zip for your system from [Releases](https://github.com/tristmeister/HEISS-UI/releases) (`heiss-ui-*-windows-x64.zip`, `-macos-arm64` or `-linux-x64`), unpack it and double-click **Start HEISS UI** (`.bat` on Windows, `.command` on macOS, `.sh` on Linux), or run `npm start` in the folder. Its packages are inside, and the Windows zip brings Node.js too, so on Windows there is nothing else to install; on macOS and Linux, install Node.js first. The plain `heiss-ui-*.zip` (no system in its name) is what installed copies download to update themselves; you don't need it.
 
@@ -79,7 +79,23 @@ npm start
 
 `npm start` builds the app the first time. Then open **http://localhost:8787**. Your models, samplers and VAEs show up on their own.
 
-ComfyUI on another port or machine? Copy `.env.example` to `.env` and set `COMFY_URL`.
+ComfyUI on another machine or port? Set its address in **Settings › Connection**, or copy `.env.example` to `.env` and set `COMFY_URL`.
+
+### No ComfyUI yet?
+
+ComfyUI does the generating; HEISS UI is the studio on top. Install it once and leave it running while you work.
+
+| Your computer | Install |
+| --- | --- |
+| **Windows** | [ComfyUI Desktop](https://www.comfy.org/download) for NVIDIA graphics cards. With an AMD card, or to keep everything in one folder, the [portable version](https://docs.comfy.org/installation/comfyui_portable_windows). |
+| **Mac** | [ComfyUI Desktop](https://www.comfy.org/download), for Apple Silicon (M1 or later) on macOS 13 or newer. |
+| **Linux** | The [install guide](https://docs.comfy.org/installation/manual_install) (NVIDIA or AMD with ROCm), or [ComfyUI on GitHub](https://github.com/comfyanonymous/ComfyUI). |
+
+HEISS UI looks on port 8188 (a manual or portable install) and 8000 (ComfyUI Desktop), and connects on its own. A graphics card with 8 GB runs SDXL and the compact Flux.2 Klein; 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything. On a Mac, 16 GB of memory runs SDXL, 18 GB or more Flux.2 Klein, and 48 GB or more Krea 2. The offline screen's **No ComfyUI yet?** says the same, for your system.
+
+### Your first model
+
+With no model yet, the studio offers three to start with: **Krea 2**, **Flux.2** and **SDXL**, each in three sizes. The one that suits your computer is picked and marked; the others are a tap away. One tap downloads the model with its text encoder and VAE, then selects it with a prompt ready to try. More later from the model menu's **Get more models**. [Sizes ↓](#what-runs-where)
 
 ### Paste into an agent
 
@@ -91,7 +107,7 @@ Install and run HEISS UI from GitHub: https://github.com/tristmeister/HEISS-UI
 Please do the full local setup for me:
 
 1. Check whether Node.js 20.9+ is installed (22 LTS recommended).
-2. Check whether ComfyUI is installed and running at http://127.0.0.1:8188.
+2. Check whether ComfyUI is installed and running at http://127.0.0.1:8188 (ComfyUI Desktop: http://127.0.0.1:8000).
 3. If ComfyUI is not running, help me start my existing ComfyUI install. Do not download models unless I explicitly ask.
 4. Clone https://github.com/tristmeister/HEISS-UI into a normal projects folder.
 5. Run npm install.
@@ -118,32 +134,52 @@ Both all-in-one checkpoints and model-only files work. HEISS UI sees which parts
 
 Adding a family is mostly data, not code. [MODELS.md](./MODELS.md) walks through it.
 
+### What runs where
+
+The first models the studio offers, with what each downloads and the memory it runs in comfortably. HEISS reads the graphics card from ComfyUI and marks the largest version that fits; everything stays selectable, and a larger model on a smaller card still runs, only slower, as ComfyUI moves parts of it in and out of memory.
+
+| Model | Version | Download | Graphics card | Mac |
+| --- | --- | --- | --- | --- |
+| Krea 2 | Turbo, compact (fp8) | 18.2 GB | 16 GB | 48 GB |
+| Krea 2 | Turbo | 31.4 GB | 32 GB, with 48 GB RAM | 48 GB |
+| Krea 2 | Raw | 31.4 GB | 32 GB, with 48 GB RAM | 48 GB |
+| Flux.2 | Klein 4B, compact (fp8) | 8.8 GB | 8 GB | 18 GB |
+| Flux.2 | Klein 4B | 12.5 GB | 12 GB | 18 GB |
+| Flux.2 | Dev | 53.8 GB | 32 GB, with 64 GB RAM | 128 GB |
+| SDXL | RealVisXL V5.0 Lightning | 6.9 GB | 6 GB | 16 GB |
+| SDXL | RealVisXL V5.0 | 6.9 GB | 8 GB | 16 GB |
+| SDXL | SDXL 1.0 | 6.9 GB | 8 GB | 16 GB |
+
+A Mac shares one memory between CPU and GPU, and macOS lets the GPU use part of it; HEISS counts on 70%, or the GPU limit if you raised it (`iogpu.wired_limit_mb`). fp8 files save download and disk on a Mac but not memory, since they load at full precision there. [Hardware notes](./docs/hardware-notes.md) has the details and sources.
+
 ## Bring your own workflow
 
 The built-in models cover the everyday loop. For anything custom, bring your graph.
 
-1. Build and test the graph in ComfyUI.
-2. Export it in **API format**.
-3. Add a `heissUi` block that maps node inputs to the controls you want:
+1. **Export.** Build and test the graph in ComfyUI, then export it (**API format** works best; the regular workflow file works too).
+2. **Drop.** Open the **Workflow Gallery** from the dock and drop the file on it, or paste the JSON.
+3. **Check the connections.** HEISS finds the prompt, negative prompt, size, seed, steps, CFG, sampler, scheduler, denoise, frames and start image by itself. The review shows what follows the studio's controls and what stays as saved, marks the connections it only guessed, and lets you change any of them under **Change connections**. Then import.
 
-   ```json
-   {
-     "heissUi": {
-       "id": "my-workflow",
-       "name": "My Workflow",
-       "kind": "image",
-       "controls": {
-         "prompt": { "node": "4", "input": "text" },
-         "steps": { "node": "7", "input": "steps" },
-         "seed": { "node": "7", "input": "seed" }
-       }
-     }
-   }
-   ```
+It shows up in the model menu under **Your workflows** as soon as the nodes it needs are installed. Only the connected inputs are touched; everything else runs exactly as you exported it. If the workflow uses a model file HEISS UI knows and you don't have, it offers the download; otherwise it says which folder the file belongs in.
 
-4. Import it in the **Workflows** panel, or drop it into the `workflows/` folder.
+**Advanced: a `heissUi` block.** To ship a workflow with its connections fixed, add a mapping to the exported JSON and drop the file into the `workflows/` folder:
 
-It shows up as soon as the nodes it needs are installed. Only the mapped inputs are touched. Everything else runs exactly as you exported it. If the workflow uses a model file HEISS UI knows and you don't have, it offers the download; otherwise it says which folder the file belongs in. The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
+```json
+{
+  "heissUi": {
+    "id": "my-workflow",
+    "name": "My Workflow",
+    "kind": "image",
+    "controls": {
+      "prompt": { "node": "4", "input": "text" },
+      "steps": { "node": "7", "input": "steps" },
+      "seed": { "node": "7", "input": "seed" }
+    }
+  }
+}
+```
+
+The [workflow guide](./workflows/README.md) covers the full control list, image-to-image inputs and LoRA loaders.
 
 ## Auto-downloads
 
@@ -268,7 +304,7 @@ Into your normal ComfyUI output folder. Gallery metadata lives in HEISS UI's own
 
 ## Troubleshooting
 
-- **No models showing up?** Make sure ComfyUI is running and `COMFY_URL` points at it.
+- **No models showing up?** Make sure ComfyUI is running. On this computer HEISS UI finds it on port 8188 or 8000; anywhere else, set its address in Settings › Connection. With no model at all, the studio offers [a first one](#your-first-model).
 - **A generation fails?** Check that the model works in ComfyUI itself and that any custom nodes it needs are installed.
 - **No video option?** Your ComfyUI needs video generation nodes and a matching workflow.
 
