@@ -3,8 +3,9 @@
  * release, not a Git checkout).
  *
  * "Install update" downloads the new release zip in the background, checks it
- * against its published SHA-256, unpacks it into .update/staged and marks it
- * pending. The swap itself happens in scripts/start.mjs on the next start,
+ * against its published SHA-256 and, once a release key is configured, its
+ * Ed25519 signature (release-signing.js), unpacks it into .update/staged and
+ * marks it pending. The swap itself happens in scripts/start.mjs on the next start,
  * which the app triggers by asking the supervisor for a restart. See
  * release-swap.js for how the swap and the rollback work.
  */
@@ -17,6 +18,7 @@ import { pipeline } from "node:stream/promises";
 import { promisify } from "node:util";
 import { fetchRuntime, needsRuntime } from "./node-runtime.js";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
+import { signingConfigured, verifyReleaseSignature } from "./release-signing.js";
 import { RESTART_CODE, checkStaged, clearStaging, readPending, takeResult, updateDir, writePending } from "./release-swap.js";
 
 const execFileAsync = promisify(execFile);
@@ -40,8 +42,20 @@ export function pickAsset(release) {
   const zip = assets.find((asset) => asset.name === `heiss-ui-${version}.zip`) || assets.find((asset) => /^heiss-ui-.*\.zip$/.test(asset.name));
   if (!zip) return null;
   const sumAsset = assets.find((asset) => asset.name === `${zip.name}.sha256`);
+  const sigAsset = assets.find((asset) => asset.name === `${zip.name}.sig`);
   const digest = /^sha256:([0-9a-f]{64})$/i.exec(String(zip.digest || ""))?.[1]?.toLowerCase() || "";
-  return { version, name: zip.name, url: zip.browser_download_url, size: Number(zip.size || 0), sha256: digest, sumUrl: sumAsset?.browser_download_url || "" };
+  return { version, name: zip.name, url: zip.browser_download_url, size: Number(zip.size || 0), sha256: digest, sumUrl: sumAsset?.browser_download_url || "", sigUrl: sigAsset?.browser_download_url || "" };
+}
+
+/**
+ * Whether this copy may install a release by itself: it needs a checksum,
+ * and once a release key is configured, a signature too. An unsigned
+ * release then says so instead of installing.
+ */
+export function installable(asset) {
+  if (!asset || !(asset.sha256 || asset.sumUrl)) return { ok: false, reason: "checksum" };
+  if (signingConfigured() && !asset.sigUrl) return { ok: false, reason: "unsigned" };
+  return { ok: true, reason: "" };
 }
 
 let state = { status: "idle" };
@@ -135,13 +149,15 @@ export async function releaseStatus(root, { fresh = false, auto = false, dataDir
   const asset = pickAsset(release);
   const latest = asset?.version || String(release.tag_name || "").replace(/^v/, "");
   const available = Boolean(latest) && isNewer(latest, current);
+  const check = installable(asset);
   return {
     ...base,
     available,
     latest,
     url: release.html_url || releasesUrl,
     size: asset?.size || 0,
-    canInstall: Boolean(available && asset && (asset.sha256 || asset.sumUrl)),
+    canInstall: Boolean(available && check.ok),
+    ...(available && check.reason === "unsigned" ? { unsigned: true } : {}),
     ...(available ? releaseHighlight(release.body) : {}),
     download: state.status === "idle" ? undefined : { ...state }
   };
@@ -179,6 +195,23 @@ async function unzip(zip, dest) {
   throw new Error(`Could not unpack the download (${errors.join("; ")}).`);
 }
 
+/**
+ * The release's signature, checked against what was downloaded: this
+ * version, this file, these exact bytes. Throws in plain words otherwise.
+ */
+async function checkSignature(asset, sha256) {
+  if (!signingConfigured()) return;
+  if (!asset.sigUrl) throw new Error("This release isn’t signed with HEISS UI’s release key, so it wasn’t installed. Nothing was changed.");
+  const response = await fetch(asset.sigUrl, { signal: AbortSignal.timeout(30000) });
+  if (!response.ok) throw new Error(`Could not fetch the release signature (${response.status}). Nothing was changed; try again.`);
+  const sig = (await response.text()).slice(0, 64 * 1024);
+  try {
+    verifyReleaseSignature({ sig, version: asset.version, file: asset.name, sha256 });
+  } catch (error) {
+    throw new Error(`${error.message} It wasn’t installed, and nothing was changed.`);
+  }
+}
+
 async function download(root, asset, notesUrl) {
   const dir = updateDir(root);
   clearStaging(root);
@@ -204,6 +237,7 @@ async function download(root, asset, notesUrl) {
     state = { ...state, status: "verifying" };
     const actual = hash.digest("hex");
     if (actual !== sha256) throw new Error("The download does not match its published checksum. Nothing was changed; try again.");
+    await checkSignature(asset, actual);
 
     state = { ...state, status: "unpacking" };
     fs.mkdirSync(staged, { recursive: true });
@@ -241,6 +275,7 @@ export async function startReleaseUpdate(root) {
   const asset = pickAsset(release);
   if (!asset) throw new Error("The latest release has no HEISS UI download.");
   if (!isNewer(asset.version, readVersion(root))) throw new Error("This copy is already up to date.");
+  if (installable(asset).reason === "unsigned") throw new Error(`HEISS UI ${asset.version} isn’t signed with the release key, so it won’t install itself. If you trust it, download it from ${release.html_url || releasesUrl}.`);
   state = { status: "downloading", version: asset.version, receivedBytes: 0, totalBytes: asset.size };
   running = download(root, asset, release.html_url || releasesUrl);
   return { ...state };

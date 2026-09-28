@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { changelogPath, cutRelease, section, SUMMARY_MAX, summaryOf } from "./changelog.mjs";
+import { releasePublicKey } from "../server/release-signing.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const args = process.argv.slice(2);
@@ -58,6 +59,15 @@ if (git("status", "--porcelain")) fail("The working tree has uncommitted changes
 if (git("tag", "--list", tag)) fail(`The tag ${tag} already exists.`);
 run("git", ["fetch", "--quiet", "origin", "main", "--tags"]);
 if (git("rev-list", "--count", "HEAD..origin/main") !== "0") fail("origin/main has commits this checkout lacks. Pull first.");
+
+// Once installed copies trust a release key, CI must be able to sign with it,
+// or the release it publishes would be refused by every one of them.
+if (releasePublicKey()) {
+  let secrets = null;
+  try { secrets = run("gh", ["secret", "list", "--json", "name", "--jq", ".[].name"], { quiet: true }).split(/\s+/); } catch { secrets = null; }
+  if (secrets && !secrets.includes("HEISS_RELEASE_SIGNING_KEY")) fail("server/release-signing.js trusts a release key, but the repository has no HEISS_RELEASE_SIGNING_KEY secret. Run: gh secret set HEISS_RELEASE_SIGNING_KEY < ~/.config/heiss-ui/release-signing-key.pem");
+  if (!secrets) console.warn("Could not ask GitHub whether HEISS_RELEASE_SIGNING_KEY is set (is gh signed in?). The release workflow stops if it isn't.");
+}
 
 const changelog = fs.readFileSync(changelogPath, "utf8");
 const notes = section(changelog, "Unreleased");

@@ -1762,7 +1762,9 @@ app.post("/api/update/install", async (req, res) => {
     if (before.release) {
       // A release copy has no git to pull: download the new release, swap it in on restart.
       if (!before.canInstall && before.download?.status !== "ready") {
-        res.json({ ...before, updated: false, message: `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
+        res.json({ ...before, updated: false, message: before.unsigned
+          ? `HEISS UI ${before.latest} isn’t signed with the release key, so it won’t install itself. If you trust it, download it from ${before.url} and replace this folder (keep your data folder).`
+          : `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
         return;
       }
       if (before.download?.status === "ready") { res.json({ ...before, updated: false }); return; }

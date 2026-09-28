@@ -9,6 +9,9 @@
 // Writes release/heiss-ui-<version>/ and these zips:
 //   heiss-ui-<version>.zip               what the in-app updater downloads (no packages)
 //   heiss-ui-<version>-<platform>.zip    the downloads, runtime packages included
+// and, with a signing key, a <zip>.sig beside each (server/release-signing.js).
+// The key comes from HEISS_RELEASE_SIGNING_KEY (the PEM itself, as CI has it)
+// or HEISS_RELEASE_SIGNING_KEY_FILE (a path, for a local build).
 import { execFileSync, execSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -16,6 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { downloadVerified, publishedSha256, runtimeFolder } from "../server/node-runtime.js";
 import { foreignLauncher, LAUNCHERS } from "../server/release-swap.js";
+import { publicKeyLine, releasePublicKey, signRelease, verifyReleaseSignature } from "../server/release-signing.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
@@ -26,6 +30,37 @@ const target = path.join(outDir, name);
 if (!fs.existsSync(path.join(root, "dist", "index.html"))) {
   console.error("dist/ is missing. Run `npm run build` first.");
   process.exit(1);
+}
+
+// Signing, decided before anything is built: a release that installed copies
+// would refuse must not be published by accident.
+const signingKey = (() => {
+  if (process.env.HEISS_RELEASE_SIGNING_KEY) return process.env.HEISS_RELEASE_SIGNING_KEY;
+  const file = process.env.HEISS_RELEASE_SIGNING_KEY_FILE;
+  return file ? fs.readFileSync(file, "utf8") : "";
+})();
+const trustedKey = releasePublicKey();
+const publishing = /^refs\/tags\//.test(process.env.GITHUB_REF || "");
+if (signingKey && trustedKey && publicKeyLine(signingKey) !== trustedKey) {
+  console.error("The signing key does not match RELEASE_PUBLIC_KEY in server/release-signing.js; installed copies would refuse this release.");
+  process.exit(1);
+}
+if (!signingKey && trustedKey) {
+  if (publishing) {
+    console.error("RELEASE_PUBLIC_KEY is set but HEISS_RELEASE_SIGNING_KEY is not: copies with that key refuse unsigned releases. Add the secret (see scripts/release-keygen.mjs).");
+    process.exit(1);
+  }
+  console.warn("No signing key: this package is unsigned, so installed copies won't install it by themselves.");
+}
+
+/** Writes <zip>.sig and checks it the way the updater will. */
+function signZip(zip, sha256) {
+  fs.rmSync(`${zip}.sig`, { force: true });
+  if (!signingKey) return "";
+  const sig = signRelease({ version: pkg.version, file: path.basename(zip), sha256, privateKeyPem: signingKey });
+  verifyReleaseSignature({ sig, version: pkg.version, file: path.basename(zip), sha256, publicKey: trustedKey || publicKeyLine(signingKey) });
+  fs.writeFileSync(`${zip}.sig`, sig);
+  return " and signed";
 }
 
 fs.rmSync(target, { recursive: true, force: true });
@@ -135,7 +170,8 @@ function runNpm(args, cwd) {
 // The update: no packages. The in-app updater downloads exactly this name and
 // never touches node_modules. GitHub publishes its digest, which the updater checks.
 const zip = path.join(outDir, `${name}.zip`);
-console.log(`Packaged ${path.relative(root, zip)} (sha256 ${zipFolder(zip, outDir)})`);
+const zipSha256 = zipFolder(zip, outDir);
+console.log(`Packaged${signZip(zip, zipSha256)} ${path.relative(root, zip)} (sha256 ${zipSha256})`);
 
 // The downloads: the same app with its runtime packages already installed for
 // one platform (sharp's native binary differs), so a first start installs
@@ -175,7 +211,7 @@ for (const bundle of bundles) {
   runNpm(["ci", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts", `--os=${bundle.os}`, `--cpu=${bundle.cpu}`, ...(bundle.libc ? [`--libc=${bundle.libc}`] : [])], path.join(stage, name));
   if (bundle.node) await windowsNode(path.join(stage, name));
   const bundleZip = path.join(outDir, `${name}-${bundle.id}.zip`);
-  zipFolder(bundleZip, stage);
+  signZip(bundleZip, zipFolder(bundleZip, stage));
   fs.rmSync(stage, { recursive: true, force: true });
   console.log(`Packaged ${path.relative(root, bundleZip)} (${(fs.statSync(bundleZip).size / 1e6).toFixed(1)} MB, packages${bundle.node ? ` and Node.js ${nodeVersion}` : ""} included)`);
 }

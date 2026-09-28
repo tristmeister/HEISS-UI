@@ -169,6 +169,8 @@ export type UpdateStatus = {
   ok: boolean; available?: boolean; current?: string; latest?: string; branch?: string; behind?: number; updated?: boolean; restartRequired?: boolean; message?: string; error?: string;
   /** A copy unpacked from a GitHub release rather than a Git checkout. */
   release?: boolean; url?: string; size?: number; canInstall?: boolean; supervised?: boolean; download?: UpdateDownload; result?: UpdateResult;
+  /** A release key is configured and this release has no signature, so it can't install itself. */
+  unsigned?: boolean;
   /** The first headline of the new release's notes, and how many more changes it has. */
   highlight?: string; more?: number;
   prefs?: UpdatePrefs;

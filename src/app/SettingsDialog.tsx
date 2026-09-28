@@ -325,7 +325,9 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
             ? `The download stopped: ${download.error}`
             : status.canInstall
               ? `You have ${status.current}.${status.size ? ` ${formatBytes(status.size)},` : ''} installs on restart.`
-              : `You have ${status.current}. This release has to be downloaded by hand: replace this folder with it and keep your data folder.`}
+              : status.unsigned
+                ? `You have ${status.current}. This release isn’t signed with HEISS UI’s release key, so it won’t install itself. Only download it by hand if you trust where it came from.`
+                : `You have ${status.current}. This release has to be downloaded by hand: replace this folder with it and keep your data folder.`}
           stacked
         >
           <div className="about-update">
