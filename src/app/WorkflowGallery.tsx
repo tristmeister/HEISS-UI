@@ -381,7 +381,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       bodyClassName="wf-layout"
       title="Workflows"
       description="Pick what your next generation runs on, or bring your own ComfyUI workflow."
-      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span><BetaTag /></button> : undefined}
+      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button> : undefined}
       contentProps={{
         onDragEnter: (event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } },
         onDragOver: (event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); },
@@ -494,7 +494,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         size="form"
         busy={busy}
         className="wf-import"
-        title={<>{importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}<BetaTag /></>}
+        title={<>{importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}</>}
         description={importStep === "choose"
           ? "HEISS UI runs a workflow as saved and changes only the inputs it’s connected to. ComfyUI’s Export (API) JSON reads most reliably; the visual format works too."
           : "Check what follows the studio. Anything that stays as saved keeps the workflow’s own value on every run."}
