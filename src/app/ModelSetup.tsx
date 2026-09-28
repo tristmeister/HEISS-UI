@@ -70,7 +70,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   // Downloads land on the computer running HEISS UI; from another device they are its job.
   const remote = remoteAnswer || state?.local === false || !thisComputer;
   const missing = profile.missing || [];
-  const name = profile.displayName || profile.label || 'This workflow';
+  const name = profile.displayName || profile.label || 'This model';
 
   // Remember every part seen missing here; the ones no longer missing are in place.
   let memory = setupMemory.get(profile.id);
@@ -272,7 +272,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       {manual && !moving ? (
         <button type="button" className="btn is-ghost model-setup-recheck" onClick={onInstalled}><RefreshCw size={13} /> Check again</button>
       ) : null}
-      {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer, so put these files into its models folders there, then rescan.' : 'Add these on the computer running HEISS UI; this workflow is ready here once they are in place.'}</p> : null}
+      {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer, so put these files into its models folders there, then rescan.' : 'Add these on the computer running HEISS UI; this model is ready here once they are in place.'}</p> : null}
     </section>
   );
 }

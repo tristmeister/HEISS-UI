@@ -276,6 +276,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   useHistoryDismiss(Boolean(settings), () => setSettings(false));
   const [noComfyOpen, setNoComfyOpen] = React.useState(false);
   const [getModelsOpen, setGetModelsOpen] = React.useState(false);
+  const openGetModels = React.useCallback(() => setGetModelsOpen(true), []);
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false);
   // "?" anywhere outside a field lists the keyboard shortcuts.
   React.useEffect(() => {
@@ -639,9 +640,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
-                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This model takes no negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
-              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
+              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this model"}</span>
             </div>
             <StableComposerBar
               models={models}
@@ -653,8 +654,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
               comfyRestarting={Boolean(comfyStatus?.restarting)}
-              onFindModels={modelFolders?.openDialog}
-              onGetModels={() => setGetModelsOpen(true)}
+              onFindModels={thisComputer ? modelFolders?.openDialog : undefined}
+              onGetModels={thisComputer ? openGetModels : undefined}
               strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
@@ -744,9 +745,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
               <label className="negative-drawer-label">Negative prompt</label>
               <div className="negative-unavailable-frame">
-                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This workflow does not expose a negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This model takes no negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
-              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this workflow"}</span>
+              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this model"}</span>
             </div>
             <StableComposerBar
               models={models}
@@ -758,8 +759,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               currentProfile={currentProfile}
               comfyOffline={Boolean(comfyOffline)}
               comfyRestarting={Boolean(comfyStatus?.restarting)}
-              onFindModels={modelFolders?.openDialog}
-              onGetModels={() => setGetModelsOpen(true)}
+              onFindModels={thisComputer ? modelFolders?.openDialog : undefined}
+              onGetModels={thisComputer ? openGetModels : undefined}
               strayModelCount={strayModelCount}
               mode={mode}
               aspectPickerValue={aspectPickerValue}
@@ -813,7 +814,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       )}
       <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
       <NoComfySheet open={noComfyOpen} onOpenChange={setNoComfyOpen} onChangeAddress={thisComputer ? () => openSettings("connection") : undefined} />
-      <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={modelFolders?.openDialog} />
+      <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={thisComputer ? modelFolders?.openDialog : undefined} />
       <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       {modelFolders ? <ModelFoldersDialog folders={modelFolders} runningCount={runningCount} /> : null}
       <UpscaleSetupDialog
@@ -891,10 +892,11 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           </div>
                         </div>
                       ) : null}
-                      <Tip content="Load this output's prompt and settings into the composer (you can undo)"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Apply these settings</button></Tip>
-                      <Tip content="The prompt, model, steps, seed and size as plain text"><button className="copy-all-settings" onClick={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}><CopyIcon copied={viewerCopy.copied === "settings"} size={13} /> {viewerCopy.copied === "settings" ? "Copied" : "Copy settings"}</button></Tip>
-                      {active.status === "done" && !active.vaultLocked && !active.library ? <Tip content="Same prompt and settings, a new seed"><button className="copy-all-settings" onClick={() => view.varyItem(active)}>Vary this</button></Tip> : null}
-                      <Tip content="Load this output's LoRA stack into the composer"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Apply its LoRAs</button></Tip>
+                      {active.library && !active.prompt ? null : <Tip content="Load this output's prompt and settings into the composer (you can undo)"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Apply these settings</button></Tip>}
+                      {/* An earlier image shown from another folder carries a prompt at most: Copy prompt above covers it. */}
+                      {active.library ? null : <Tip content="The prompt, model, steps, seed and size as plain text"><button className="copy-all-settings" onClick={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}><CopyIcon copied={viewerCopy.copied === "settings"} size={13} /> {viewerCopy.copied === "settings" ? "Copied" : "Copy settings"}</button></Tip>}
+                      {active.status === "done" && active.url && !active.vaultLocked && !active.library ? <Tip content="Same prompt and settings, a new seed"><button className="copy-all-settings" onClick={() => view.varyItem(active)}>Vary this</button></Tip> : null}
+                      {active.library ? null : <Tip content="Load this output's LoRA stack into the composer"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Apply its LoRAs</button></Tip>}
                       {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? (
                         <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
                       ) : null}

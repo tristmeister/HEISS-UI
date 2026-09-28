@@ -151,7 +151,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
                 {ready ? (
                   <button type="button" className="btn" onClick={() => onUse(version.file)}><Check size={14} /> Use {family.title}</button>
                 ) : !canDownload ? (
-                  <p className="starter-remote">Download it on the computer running ComfyUI.</p>
+                  <p className="starter-remote">{thisComputer ? 'ComfyUI runs on another computer. Get it there.' : 'Get it on the computer running HEISS UI.'}</p>
                 ) : progress.state === 'moving' || progress.state === 'paused' ? (
                   <div className="starter-progress">
                     <CellBar value={progress.total ? progress.received / progress.total : 0} />

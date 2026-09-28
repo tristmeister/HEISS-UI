@@ -106,7 +106,7 @@ export function useViewerControls(view: any) {
     const seedNote = itemSettings.seed && itemSettings.seed !== "Random" ? ` Seed ${itemSettings.seed} is fixed until you change it.` : "";
     const message = matchingProfile
       ? `Settings applied.${seedNote}`
-      : `Settings applied, but its workflow isn’t installed, so the current one stays.${seedNote}`;
+      : `Settings applied, but its model isn’t installed here, so the current one stays.${seedNote}`;
     toast(message, {
       duration: 8000,
       action: before ? { label: "Undo", onClick: () => restoreDraft(before) } : undefined
