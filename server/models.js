@@ -2,7 +2,6 @@ import { missingNodes, nodeRange, optionsFor, textRange } from './comfy.js';
 import { loadCustomWorkflows, workflowOptionIssues } from './custom-workflows.js';
 import { modelTypeChoices } from './model-families.js';
 import { familyProfiles } from './family-profiles.js';
-import { cachedLoraAbout } from './lora-info.js';
 
 export function modelBasename(name = "") {
   return String(name).split(/[\\/]/).pop() || name;
@@ -149,9 +148,7 @@ export function inferModels(info, stats = {}) {
   const { profiles, modelFiles } = familyProfiles(info, {
     prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras,
     incompatible: (name) => incompatibleModels.includes(name),
-    cuda: (stats?.devices || []).some((device) => device?.type === "cuda"),
-    // What a LoRA's own metadata calls it, once read: a speed LoRA whose name says nothing.
-    loraAbout: cachedLoraAbout
+    cuda: (stats?.devices || []).some((device) => device?.type === "cuda")
   });
 
   for (const workflow of loadCustomWorkflows()) {

@@ -126,12 +126,7 @@ export type Profile = {
   ready?: boolean;
   /** The model file's size, when it sits on this computer. */
   weightBytes?: number;
-  /** Speed LoRAs that run this full-step model as one of its few-step variants, by LoRA file. */
-  speedLoras?: Record<string, string>;
-  /** Those variants' settings, by variant id. */
-  speedVariants?: Record<string, SpeedVariant>;
 };
-export type SpeedVariant = { label: string; steps: number; cfg: number; sampler: string; scheduler: string };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean; /** Who publishes it on Hugging Face (the repo owner), and the repo. */ source?: string; repo?: string };
 /** A ComfyUI custom node pack (server/node-packs.js). */

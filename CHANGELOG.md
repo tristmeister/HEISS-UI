@@ -21,9 +21,10 @@ version opens with a `> ` summary line, which the update pill shows.
   in the phone's Advanced settings, where they're easier to reach.
 
 ### Fixed
-- **Krea 2 fine-tunes run as Turbo again.** Since 0.12.0 a Krea 2 file whose
-  name didn't say "turbo" ran with Raw's settings; now it's Turbo unless its
-  name or metadata says Raw.
+- **Model settings work as they did before 0.12.0.** A renamed Krea 2,
+  Z-Image or Klein fine-tune runs as Turbo or Distilled again unless its name
+  says base or raw, stacking a speed LoRA no longer changes steps, CFG,
+  sampler and scheduler, and img2img starts at 0.65 for every model.
 - **The sidebar and other glass stay readable over the video gallery on
   Windows**, where Chrome can hand playing videos to a layer the blur can't
   reach.

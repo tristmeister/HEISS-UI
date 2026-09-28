@@ -53,14 +53,9 @@ catalog, so a family that is described correctly needs no UI work.
    remote ComfyUI gets.
 
 4. **Describe the family** in `families`. Settings live on variants; the last
-   variant is the fallback, so make it the full-step one (a renamed base model
-   run at 4 steps is ruined; a distilled one at 30 only slow). `match(name,
-   header, detail)` picks a variant, so let the weights decide where they can
-   (see Flux Schnell and Sana Sprint), then the file's own metadata
-   (`distillationFromMetadata`), and the filename only where they cannot.
-   Mark few-step variants `fast: true`: a speed LoRA stacked on the base model
-   (Lightning, Hyper, lightx2v, …) switches to them. `denoise` sets the
-   family's img2img strength.
+   variant is the fallback. `match(name, header, detail)` picks a variant, so
+   let the weights decide where they can (see Flux Schnell and Sana Sprint)
+   and the filename only where they cannot.
 
 5. **Teach detection.** Add the tensor-key signature to `familyFromHeader` at
    the same position ComfyUI checks it, so no file is read two ways. Watch for
