@@ -69,6 +69,9 @@ export function serveApp(app, dist) {
     cacheControl: false,
     setHeaders: (res, file) => res.setHeader("Cache-Control", cacheControlFor(root, file))
   }));
+  // A built file that is not there (a page from before an update asking for an
+  // old hash) is missing, not the app page: HTML in place of a script fails obscurely.
+  app.get("/assets/*splat", (_req, res) => res.status(404).setHeader("Cache-Control", revalidate).end());
   app.get("*splat", (_req, res) => res.sendFile(path.join(root, "index.html"), { cacheControl: false, dotfiles: "allow", headers: { "Cache-Control": revalidate } }));
 }
 

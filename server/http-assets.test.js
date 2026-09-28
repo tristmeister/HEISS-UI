@@ -83,6 +83,8 @@ test("the page itself is always checked again, and unknown paths get the page", 
   assert.equal(deep.status, 200);
   assert.equal(deep.headers["cache-control"], "no-cache");
   assert.match(deep.body.toString(), /<title>HEISS<\/title>/);
+  const stale = await raw("/assets/index-oldhash.js", { "accept-encoding": "br" });
+  assert.equal(stale.status, 404, "a missing built file is missing, not the page");
   const small = await raw("/assets/tiny-abc.css", { "accept-encoding": "br" });
   assert.equal(small.headers["content-encoding"], undefined, "no copy was made for a tiny file");
   assert.equal(small.body.toString(), "a{}");

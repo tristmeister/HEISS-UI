@@ -42,7 +42,11 @@ test("the shell launcher starts the download's own Node from any folder, with th
 
 test("without a bundled Node and none on PATH, the launcher says what to install", { skip: !posix }, () => {
   const { dir, launcher } = download({ runtime: false });
-  const result = spawnSync("sh", [launcher], { cwd: dir, encoding: "utf8", env: { PATH: "/usr/bin:/bin".split(":").filter((entry) => !fs.existsSync(path.join(entry, "node"))).join(":") || "/nonexistent" } });
+  // A PATH with just the tools the launcher uses, so a Node installed on this machine is not found.
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-bin-"));
+  for (const tool of ["dirname", "cat", "uname"]) fs.symlinkSync(execFileSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).trim(), path.join(bin, tool));
+  const result = spawnSync("/bin/sh", [launcher], { cwd: dir, encoding: "utf8", env: { PATH: bin } });
+  fs.rmSync(bin, { recursive: true, force: true });
   assert.equal(result.status, 1);
   assert.match(result.stdout, /needs Node\.js 20\.9 or newer/);
   fs.rmSync(dir, { recursive: true, force: true });
