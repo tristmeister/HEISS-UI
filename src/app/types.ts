@@ -124,7 +124,12 @@ export type Profile = {
   missing?: MissingPart[];
   /** False while a part the model needs is missing; generation stays off until then. */
   ready?: boolean;
+  /** Speed LoRAs that run this full-step model as one of its few-step variants, by LoRA file. */
+  speedLoras?: Record<string, string>;
+  /** Those variants' settings, by variant id. */
+  speedVariants?: Record<string, SpeedVariant>;
 };
+export type SpeedVariant = { label: string; steps: number; cfg: number; sampler: string; scheduler: string };
 export type EncoderSlot = { slot: string; label: string; options: string[]; default: string };
 export type PartDownload = { id: string; file: string; url: string; folder: string; label: string; bytes?: number; /** Already in a ComfyUI model folder, waiting for ComfyUI to list it. */ onDisk?: boolean };
 /** A ComfyUI custom node pack (server/node-packs.js). */

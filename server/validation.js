@@ -94,12 +94,15 @@ function sanitizeFamilyBody(input, info, stats) {
   const referenceAssets = slots.length
     ? slots.map((slot) => supplied.find((item) => item?.slot === slot)).filter(Boolean)
     : supplied;
+  const loras = sanitizeLoras(input, info, profile, kind, 8);
+  // A stacked speed LoRA runs the model as its few-step variant (Wan's shift, Flux's guidance).
+  const speedVariant = loras.map((lora) => profile.speedLoras?.[lora.name]).find(Boolean) || "";
   return {
     kind,
     workflow: profile.workflow,
     profileId: profile.id,
     family: profile.family,
-    variant: profile.variant,
+    variant: speedVariant || profile.variant,
     source: profile.source,
     model: profile.model,
     bundled: profile.source === "checkpoint" ? { encoder: profile.encoderBuiltIn, vae: profile.vaeBuiltIn } : null,
@@ -133,7 +136,7 @@ function sanitizeFamilyBody(input, info, stats) {
     startImageName: String(input.startImageName || ""),
     referenceAssets,
     promptPolicy: null,
-    loras: sanitizeLoras(input, info, profile, kind, 8),
+    loras,
     // A retry after the GPU ran out of memory while decoding; only where this ComfyUI has the node.
     tiledDecode: Boolean(input.tiledDecode) && Boolean(info.VAEDecodeTiled) && profile.family !== "sana",
     profileLabel: profile.displayName

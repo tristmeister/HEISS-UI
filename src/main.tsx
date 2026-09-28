@@ -15,6 +15,7 @@ import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
+import { useSpeedLoras } from './app/useSpeedLoras';
 import { useViewerControls } from './app/useViewerControls';
 import { useGalleryBundles } from './app/useGalleryBundles';
 import { useGalleryStore } from './app/useGalleryStore';
@@ -1031,6 +1032,7 @@ function App() {
   }, [mode, models, workflowPreferences]);
 
   const currentProfile = useMemo(() => models?.profiles.find((profile) => profile.id === model) || null, [model, models]);
+  useSpeedLoras({ profile: currentProfile, loras, steps, cfg, sampler, scheduler, setSteps, setCfg, setSampler, setScheduler, showToast });
   const toggleModelFavoriteRef = useRef<(id: string) => void>(() => undefined);
   const modelMenu = useMemo(() => ({
     favorites: workflowPreferences.favorites || [],
