@@ -49,7 +49,10 @@ export const encoderDownloads = {
     { file: "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors", url: hf("ethanfel/Qwen2.5-VL-7B-Huihui-Abliterated-ComfyUI-ConvRot-INT8", "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors"), bytes: 10_064_106_602 },
     { file: "qwen_2.5_vl_7b_fp8_scaled.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"), bytes: 9_384_670_680 }
   ],
-  mistral3_24b: [{ file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447 }],
+  mistral3_24b: [
+    { file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447 },
+    { file: "mistral_3_small_flux2_fp8.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors"), bytes: 18_034_640_095 }
+  ],
   llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors"), bytes: 9_081_258_056 }],
   ministral3_3b: [{ file: "ministral-3-3b.safetensors", url: hf("Comfy-Org/ERNIE-Image", "text_encoders/ministral-3-3b.safetensors"), bytes: 7_717_637_511 }],
   gemma2_2b: [{ file: "gemma_2_2b_fp16.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/text_encoders/gemma_2_2b_fp16.safetensors"), bytes: 5_232_958_283 }],
@@ -83,8 +86,61 @@ export const modelDownloads = {
   wan22_i2v_low_fp8: wan22("wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors", 14_294_742_832),
   wan22_i2v_low_fp16: wan22("wan2.2_i2v_low_noise_14B_fp16.safetensors", 28_577_914_792),
   ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors"), bytes: 9_280_741_293 }],
-  ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors"), bytes: 9_583_465_712 }]
+  ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors"), bytes: 9_583_465_712 }],
+  // Starter models (see starterModels below).
+  krea2_turbo_fp8: [{ file: "krea2_turbo_fp8_scaled.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_fp8_scaled.safetensors"), bytes: 13_141_730_784 }],
+  krea2_turbo_bf16: [{ file: "krea2_turbo_bf16.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_bf16.safetensors"), bytes: 26_283_332_608 }],
+  krea2_raw_bf16: [{ file: "krea2_raw_bf16.safetensors", label: "Krea 2 Raw", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_raw_bf16.safetensors"), bytes: 26_283_332_608 }],
+  flux2_klein_4b_fp8: [{ file: "flux-2-klein-4b-fp8.safetensors", label: "Flux.2 Klein 4B", url: hf("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors"), bytes: 4_070_624_520 }],
+  flux2_klein_4b: [{ file: "flux-2-klein-4b.safetensors", label: "Flux.2 Klein 4B", url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-4b", "split_files/diffusion_models/flux-2-klein-4b.safetensors"), bytes: 7_751_105_712 }],
+  flux2_dev_fp8: [{ file: "flux2_dev_fp8mixed.safetensors", label: "Flux.2 Dev", url: hf("Comfy-Org/flux2-dev", "split_files/diffusion_models/flux2_dev_fp8mixed.safetensors"), bytes: 35_455_599_592 }]
 };
+
+// Whole checkpoints (model, text encoders and VAE in one file), for models/checkpoints.
+export const checkpointDownloads = {
+  realvisxl5_lightning: [{ file: "RealVisXL_V5.0_Lightning_fp16.safetensors", label: "RealVisXL V5.0 Lightning", url: hf("SG161222/RealVisXL_V5.0_Lightning", "RealVisXL_V5.0_Lightning_fp16.safetensors"), bytes: 6_938_065_512 }],
+  realvisxl5: [{ file: "RealVisXL_V5.0_fp16.safetensors", label: "RealVisXL V5.0", url: hf("SG161222/RealVisXL_V5.0", "RealVisXL_V5.0_fp16.safetensors"), bytes: 6_938_065_488 }],
+  sdxl_base: [{ file: "sd_xl_base_1.0.safetensors", label: "SDXL 1.0", url: hf("stabilityai/stable-diffusion-xl-base-1.0", "sd_xl_base_1.0.safetensors"), bytes: 6_938_078_334 }]
+};
+
+/**
+ * First models for an empty studio: three families, each in three versions
+ * sized for different amounts of memory, small to large. Every file is
+ * ungated, so one tap fetches it all without a Hugging Face login.
+ *
+ * model: the catalog download of the model file. encoders: a slot's download
+ * when it is not the slot's first. memory: GPU memory (GB) the version runs
+ * comfortably in. appleMemory: what a Mac needs instead, where that differs
+ * (fp8 weights load at full precision there; docs/hardware-notes.md). ram:
+ * system memory it wants besides. The studio highlights the largest version
+ * that fits and never hides the others.
+ */
+export const starterModels = [
+  {
+    family: "krea2", title: "Krea 2", blurb: "Photographic, with natural light and real texture.",
+    versions: [
+      { id: "turbo-fp8", label: "Turbo", detail: "8 steps · compact", model: "model:krea2_turbo_fp8:0", memory: 16, appleMemory: 32, fp8: true },
+      { id: "turbo", label: "Turbo", detail: "8 steps · full precision", model: "model:krea2_turbo_bf16:0", memory: 32, ram: 48 },
+      { id: "raw", label: "Raw", detail: "28 steps · follows a negative prompt", model: "model:krea2_raw_bf16:0", memory: 32, ram: 48 }
+    ]
+  },
+  {
+    family: "flux2_klein_4b", title: "Flux.2", blurb: "Quick and versatile, and it can work from reference images.",
+    versions: [
+      { id: "klein-fp8", label: "Klein 4B", detail: "4 steps · compact", model: "model:flux2_klein_4b_fp8:0", memory: 8, appleMemory: 12, fp8: true },
+      { id: "klein", label: "Klein 4B", detail: "4 steps · full precision", model: "model:flux2_klein_4b:0", memory: 12 },
+      { id: "dev", label: "Dev", family: "flux2_dev", detail: "28 steps · the largest Flux", model: "model:flux2_dev_fp8:0", encoders: { encoder: "encoder:mistral3_24b:1" }, memory: 32, appleMemory: 80, ram: 64, fp8: true }
+    ]
+  },
+  {
+    family: "sdxl", title: "SDXL", blurb: "Light and quick, with the largest world of LoRAs.",
+    versions: [
+      { id: "lightning", label: "RealVisXL Lightning", detail: "6 steps · fastest", model: "checkpoint:realvisxl5_lightning:0", memory: 6 },
+      { id: "realvis", label: "RealVisXL", detail: "25 steps · photographic", model: "checkpoint:realvisxl5:0", memory: 8 },
+      { id: "base", label: "SDXL 1.0", detail: "25 steps · the original, for its LoRAs", model: "checkpoint:sdxl_base:0", memory: 8 }
+    ]
+  }
+];
 
 /* ------------------------------------------------------------ Families */
 

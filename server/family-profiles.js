@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
+import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
@@ -36,7 +36,8 @@ function withDisk(entry) {
 const downloadSources = {
   encoder: [encoderDownloads, "text_encoders"],
   vae: [vaeDownloads, "vae"],
-  model: [modelDownloads, "diffusion_models"]
+  model: [modelDownloads, "diffusion_models"],
+  checkpoint: [checkpointDownloads, "checkpoints"]
 };
 
 /** Every catalog download HEISS will fetch, by id. The only files the download route accepts. */

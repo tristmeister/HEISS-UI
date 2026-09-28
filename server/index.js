@@ -23,6 +23,7 @@ import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWo
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
 import { describeHardware } from './hardware.js';
+import { starterPlan } from './starter-models.js';
 import { loadWorkflowPreferences, markWorkflowUsed, previewWorkflowImport, saveWorkflowPreferences, workflowSummaries } from './workflow-catalog.js';
 import { saveStartImage } from './start-images.js';
 import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockBackoffMs, unlockWithPasskey, unlockWithPassword } from './privacy.js';
@@ -664,6 +665,14 @@ app.post("/api/models/downloads", async (req, res) => {
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
+});
+
+// First models for an empty studio, sized for this hardware. Their files are
+// ordinary catalog downloads, fetched through the route above.
+app.get("/api/starter-models", async (_req, res) => {
+  const context = await loadComfyContext().catch(() => null);
+  const hardware = await describeHardware({ stats: context?.stats, comfyUrl });
+  res.json({ ok: true, hardware, local: downloadState().local, families: starterPlan({ hardware, info: context?.info }) });
 });
 
 app.post("/api/models/downloads/cancel", (req, res) => {
