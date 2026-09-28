@@ -3,7 +3,7 @@ import { apiJson } from './api';
 import { Group, Row } from './SettingsDialog';
 import type { ShowToast } from './toast';
 
-type TokenStatus = { set: boolean; source: '' | 'settings' | 'environment'; editable: boolean; hint?: string; mirror?: string };
+type TokenStatus = { set: boolean; source: '' | 'settings' | 'environment'; editable: boolean; key?: string; hint?: string; mirror?: string };
 
 /**
  * A Hugging Face token for gated downloads (some model makers ask you to
@@ -26,7 +26,9 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
       const next = await apiJson<TokenStatus>('/api/settings/hf-token', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token }) });
       setStatus(next);
       setValue('');
-      showToast(token ? 'Hugging Face token saved' : 'Hugging Face token removed', token ? 'success' : 'removed');
+      // Removed from HEISS UI, but one set in the shell still applies: say so rather than claim it is gone.
+      if (!token && next.source === 'environment') showToast(`Removed from Settings. ${next.key || 'HF_TOKEN'} in your environment still applies.`, 'warning');
+      else showToast(token ? 'Hugging Face token saved' : 'Hugging Face token removed', token ? 'success' : 'removed');
     } catch (error) {
       setNote(error instanceof Error ? error.message : 'The token could not be saved.');
     } finally {
@@ -36,7 +38,7 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
 
   if (!status) return null;
   const description = note || (status.source === 'environment'
-    ? `Set by HF_TOKEN in your environment (${status.hint}). Gated files download here once you’ve accepted their licence on Hugging Face.`
+    ? `Set by ${status.key || 'HF_TOKEN'} in your environment (${status.hint}). Gated files download here once you’ve accepted their licence on Hugging Face.`
     : status.set
       ? `Saved on this computer (${status.hint}). It is sent to huggingface.co only.`
       : 'For gated models, after you accept their licence on Hugging Face. Create a read token under Settings › Access Tokens there. It stays on this computer and goes to huggingface.co only.');

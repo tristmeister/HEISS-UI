@@ -5,7 +5,8 @@ import { fileURLToPath } from "node:url";
 // Keep local setup plug-and-play without adding a runtime dependency. Explicit
 // shell environment variables always win over values in .env.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const envPath = path.join(root, ".env");
+// HEISS_ENV_FILE points at another file (tests use one of their own).
+const envPath = process.env.HEISS_ENV_FILE ? path.resolve(process.env.HEISS_ENV_FILE) : path.join(root, ".env");
 
 /** Keys that came from .env rather than the shell, so a setting knows it may rewrite them. */
 export const envFileKeys = new Set();
@@ -22,13 +23,40 @@ try {
   // .env is optional.
 }
 
+function keyMatcher(key) {
+  return new RegExp(`^\\s*${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*=`);
+}
+
+function writeLines(lines) {
+  fs.writeFileSync(envPath, `${lines.filter((line, index, all) => line || index < all.length - 1).join("\n")}\n`, { mode: 0o600 });
+}
+
+/**
+ * Takes a setting out of .env altogether. What the process has is left alone
+ * unless it came from .env, so a value set in the shell still applies.
+ */
+export function removeLocalEnvValue(key) {
+  const safeKey = String(key || "").trim();
+  if (!/^[A-Z_][A-Z0-9_]*$/.test(safeKey)) throw new Error("Invalid local setting.");
+  let lines = [];
+  try { lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/); } catch { return false; }
+  const matcher = keyMatcher(safeKey);
+  const kept = lines.filter((line) => !matcher.test(line));
+  if (kept.length !== lines.length) writeLines(kept);
+  if (envFileKeys.has(safeKey)) {
+    delete process.env[safeKey];
+    envFileKeys.delete(safeKey);
+  }
+  return kept.length !== lines.length;
+}
+
 export function writeLocalEnvValue(key, value) {
   const safeKey = String(key || "").trim();
   const safeValue = String(value || "").trim();
   if (!/^[A-Z_][A-Z0-9_]*$/.test(safeKey) || /[\r\n]/.test(safeValue)) throw new Error("Invalid local setting.");
   let lines = [];
   try { lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/); } catch {}
-  const matcher = new RegExp(`^\\s*${safeKey.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s*=`);
+  const matcher = keyMatcher(safeKey);
   let replaced = false;
   lines = lines.map((line) => {
     if (!matcher.test(line)) return line;
@@ -36,6 +64,6 @@ export function writeLocalEnvValue(key, value) {
     return `${safeKey}=${safeValue}`;
   });
   if (!replaced) lines.push(`${safeKey}=${safeValue}`);
-  fs.writeFileSync(envPath, `${lines.filter((line, index, all) => line || index < all.length - 1).join("\n")}\n`, { mode: 0o600 });
+  writeLines(lines);
   process.env[safeKey] = safeValue;
 }
