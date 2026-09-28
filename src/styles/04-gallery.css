@@ -16,20 +16,18 @@
   flex-direction: column;
   gap: 6px;
 }
-.virtual-gallery-column {
-  position: relative;
-  display: block;
-  gap: 0;
-}
+/* The live gallery places every tile itself (VirtualMasonryGallery): one
+   layer across all the grid's columns, each cell moved into its column and
+   down to its row. The columns above are for the loading skeleton. */
 .virtual-gallery-spacer {
   position: relative;
+  grid-column: 1 / -1;
   width: 100%;
 }
 .virtual-gallery-cell {
   position: absolute;
   left: 0;
   top: 0;
-  width: 100%;
   overflow: visible;
   will-change: transform;
 }
