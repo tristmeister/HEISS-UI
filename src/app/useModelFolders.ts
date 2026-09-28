@@ -67,12 +67,12 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
     if (!quiet) setStage('scanning');
     // Long enough for the search to read as a search, even on a fast disk.
     const [next] = await Promise.all([
-      apiJson<ModelFolderReport>('/api/model-folders').catch((reason) => ({ ok: false, folders: [], linked: [], error: reason instanceof Error ? reason.message : 'Scan failed' } as ModelFolderReport)),
+      apiJson<ModelFolderReport>('/api/model-folders').catch((reason) => ({ ok: false, folders: [], linked: [], error: reason instanceof Error ? reason.message : 'Couldn’t scan for models' } as ModelFolderReport)),
       quiet ? Promise.resolve() : sleep(1100)
     ]);
     if (!alive.current || busy.current) return next;
     const nextStage = next.ok || next.offline ? settle(next) : 'error';
-    if (!next.ok && !next.offline) setError(next.error || 'The scan did not finish.');
+    if (!next.ok && !next.offline) setError(next.error || 'The scan didn’t finish.');
     setStage(nextStage);
     return next;
   }, [settle]);
@@ -106,7 +106,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
     const value = signature(report?.folders || []);
     try { localStorage.setItem(dismissKey, value); } catch { /* the notice just comes back */ }
     setDismissed(value);
-    if (onStopHints) showToast('Hidden until other models turn up', 'default', { action: { label: 'Don’t show again', onClick: onStopHints } });
+    if (onStopHints) showToast('Hidden until new models are found', 'default', { action: { label: 'Don’t show again', onClick: onStopHints } });
   }, [onStopHints, report, showToast]);
 
   /** Waits until ComfyUI reads every added folder, which it does from its next start; true once it does. */
@@ -164,7 +164,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
     } catch (reason) {
       if (!alive.current) return;
       setStage('error');
-      setError(reason instanceof Error ? reason.message : 'ComfyUI could not be set up.');
+      setError(reason instanceof Error ? reason.message : 'Couldn’t set up ComfyUI.');
     } finally {
       busy.current = false;
     }
@@ -175,17 +175,17 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
       const result = await apiJson<{ path?: string; canceled?: boolean }>('/api/model-folders/pick', { method: 'POST' });
       if (result.path) await add({ picked: result.path });
     } catch (reason) {
-      showToast(reason instanceof Error ? reason.message : 'Could not open the folder picker', 'error');
+      showToast(reason instanceof Error ? reason.message : 'Couldn’t open the folder picker', 'error');
     }
   }, [add, showToast]);
 
   const remove = useCallback(async (path: string) => {
     try {
       await apiJson('/api/model-folders', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
-      showToast('Removed. ComfyUI stops reading it after its next restart.', 'removed');
+      showToast('Removed. Takes effect when ComfyUI restarts.', 'removed');
       scan({ quiet: true });
     } catch (reason) {
-      showToast(reason instanceof Error ? reason.message : 'Could not remove that folder', 'error');
+      showToast(reason instanceof Error ? reason.message : 'Couldn’t remove that folder', 'error');
     }
   }, [scan, showToast]);
 

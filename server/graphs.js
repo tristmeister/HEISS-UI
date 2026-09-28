@@ -170,7 +170,7 @@ export function saveIntoHeissFolder(graph) {
 
 export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
-  if (!workflow) throw new Error("Custom workflow is not installed.");
+  if (!workflow) throw new Error("This workflow isn’t installed.");
   const graph = cloneGraph(workflow.graph);
   await applyMappedInputs(graph, workflow, body);
   if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);

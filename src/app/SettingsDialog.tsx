@@ -26,14 +26,14 @@ import { TrashRow } from './TrashRow';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
-  { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'How the studio looks and behaves, and starting over.' },
-  { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and the values new models start from.' },
-  { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'The arrow on finished images: one click makes a larger, sharper copy (SeedVR2, run in ComfyUI).' },
-  { id: 'library', label: 'Library', icon: Library, description: 'Where outputs live and what the gallery shows.' },
-  { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and opened with a password, Touch ID or Windows Hello.' },
-  { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed, where it looks for more, and what type each file is.' },
+  { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, restarts and reset.' },
+  { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and starting values.' },
+  { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'Makes a larger, sharper copy of a finished image with SeedVR2.' },
+  { id: 'library', label: 'Library', icon: Library, description: 'Where images are saved and what the gallery shows.' },
+  { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
+  { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
   { id: 'connection', label: 'Connection', icon: Plug, description: 'Where ComfyUI runs, and opening the studio on other devices.' },
-  { id: 'about', label: 'About', icon: Info, description: 'Version, your numbers, updates and credits.' }
+  { id: 'about', label: 'About', icon: Info, description: 'Version, stats, updates and credits.' }
 ] as const;
 export type SettingsSection = typeof SETTINGS_SECTIONS[number]['id'];
 
@@ -71,20 +71,20 @@ function ComfyAddressRow({ current, showToast, onSaved }: { current: string; sho
     try {
       const response = await apiFetch('/api/comfy-url', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ url: value, save }) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) { setNote(data.error || 'That address could not be checked.'); return; }
+      if (!response.ok) { setNote(data.error || 'Couldn’t check that address.'); return; }
       setValue(data.url);
-      if (!data.reachable) { setNote(`${data.detail || 'ComfyUI didn’t answer there.'}${save ? ' Nothing was changed.' : ''}`); return; }
-      if (data.saved) { setNote('Saved. ComfyUI answers there.'); onSaved(); }
-      else setNote('ComfyUI answers there.');
+      if (!data.reachable) { setNote(`${data.detail || 'ComfyUI didn’t respond at that address.'}${save ? ' The address wasn’t saved.' : ''}`); return; }
+      if (data.saved) { setNote('Saved. Connected to ComfyUI.'); onSaved(); }
+      else setNote('ComfyUI responds at that address.');
     } catch {
-      setNote('HEISS UI could not be reached to check it.');
+      setNote('Can’t reach HEISS UI. Make sure it’s running.');
     } finally {
       setBusy(false);
     }
   };
   const changed = value.trim() && value.trim() !== current;
   return (
-    <Row label="Address" description={note || 'Where HEISS UI looks for ComfyUI. ComfyUI Desktop usually uses port 8000, a manual install 8188; on this computer HEISS UI tries both by itself.'}>
+    <Row label="Address" description={note || 'Where ComfyUI runs. ComfyUI Desktop usually uses port 8000, a manual install 8188; on this computer both are tried.'}>
       <div className="set-address">
         <input className="set-path-input" value={value} onChange={(event) => setValue(event.target.value)} aria-label="ComfyUI address" spellCheck={false} autoComplete="off" onKeyDown={(event) => { if (event.key === 'Enter' && changed) submit(true); }} />
         <button className="btn" onClick={() => submit(false)} disabled={busy || !value.trim()}>Test</button>
@@ -134,7 +134,7 @@ function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsCha
   return (
     <Group title="Model folders" note={report?.configLabel ? <>Stored in <code>{report.configLabel}</code>.</> : undefined}>
       {linked.map((item) => (
-        <Row key={item.path} label={<span className="set-folder-path" title={item.path}>{item.label}</span>} description={item.read ? 'Added by HEISS UI · read by ComfyUI' : 'Added by HEISS UI · ComfyUI reads it after a restart'}>
+        <Row key={item.path} label={<span className="set-folder-path" title={item.path}>{item.label}</span>} description={item.read ? 'Added here · ComfyUI reads it' : 'Added here · ComfyUI reads it after a restart'}>
           <button className="btn is-ghost" onClick={async () => {
             if (!await confirmAction({ title: `Stop using ${item.label}?`, description: 'ComfyUI stops reading this folder after its next restart.', action: 'Remove folder' })) return;
             folders.remove(item.path);
@@ -149,7 +149,7 @@ function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsCha
       </Row>
       <SwitchRow
         label="Point out found models"
-        description="A note in the sidebar and the model menu when models sit in a folder ComfyUI doesn’t read. The search can be wrong about a folder; turn this off and search here when you want to."
+        description="Shows a note in the sidebar and model menu when models are in a folder ComfyUI doesn’t read."
         checked={hints}
         onChange={onHintsChange}
       />
@@ -181,7 +181,7 @@ function RestartButton({ what, busy, done, disabled, onClick }: { what: string; 
   return (
     <button type="button" className={cn('btn', done && 'is-done')} onClick={onClick} disabled={disabled || busy || done} aria-label={`Restart ${what}`} aria-live="polite">
       {done ? <Check size={14} /> : <RotateCw size={14} className={cn(busy && 'is-spinning')} />}
-      {done ? 'Back' : busy ? 'Restarting…' : 'Restart'}
+      {done ? 'Restarted' : busy ? 'Restarting…' : 'Restart'}
     </button>
   );
 }
@@ -199,23 +199,23 @@ function RestartGroup({ confirmAction, onComfyBack, restartHeiss, heissRestartin
 }) {
   const comfy = useComfyRestart({
     onBack: onComfyBack,
-    confirm: () => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })
+    confirm: () => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. It takes a few seconds.', action: 'Restart ComfyUI', destructive: true })
   });
   const comfyBack = comfy.phase === 'back';
   const comfyLine = comfyBack ? restartResultLine(comfy.result)
     : comfy.busy ? (comfy.eta?.text || 'Usually back in a few seconds.')
     : comfy.phase === 'error' ? comfy.error
-    : 'Picks up new custom nodes and files, and frees the memory it holds.';
+    : 'Loads new custom nodes and files, and frees memory.';
 
   // A release copy knows whether its launcher can bring it back; a checkout finds out on the first try.
   const [heissFailed, setHeissFailed] = React.useState(false);
   const unsupervised = Boolean(updateStatus?.release && updateStatus.supervised === false) || heissFailed;
   const restartApp = async () => {
-    if (!await confirmAction({ title: 'Restart HEISS UI?', description: 'Running generations stop. This page reloads when it’s back, usually within a few seconds.', action: 'Restart HEISS UI', destructive: true })) return;
+    if (!await confirmAction({ title: 'Restart HEISS UI?', description: 'Running generations stop and this page reloads.', action: 'Restart HEISS UI', destructive: true })) return;
     if (!await restartHeiss()) setHeissFailed(true);
   };
-  const heissLine = heissRestarting ? 'This page reloads when it’s back.'
-    : unsupervised ? 'It wasn’t started with its launcher, so it can’t bring itself back. Stop it and start it again.'
+  const heissLine = heissRestarting ? 'This page reloads when it’s done.'
+    : unsupervised ? 'Started without its launcher, so it can’t restart from here. Quit it and start it again.'
     : 'Reloads the studio. Running generations stop.';
 
   return (
@@ -247,23 +247,23 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
     );
   }
   if (!status) {
-    return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale is unavailable right now.'}><button className="btn" onClick={onOpenSetup}>Open setup</button></Row>;
+    return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale isn’t available right now.'}><button className="btn" onClick={onOpenSetup}>Open setup</button></Row>;
   }
   if (!status.nodesInstalled) {
-    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install of its ComfyUI nodes; Set up offers one click where it can."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install of its ComfyUI nodes."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
   }
   if (install?.status === 'error' && !status.ready) {
     return <Row label={<Status tone="bad">Download stopped</Status>} description={install.error}><button className="btn is-primary" onClick={onOpenSetup}>Resume</button></Row>;
   }
   if (status.needsDownload) {
-    return <Row label={<Status tone="warn">Needs a download</Status>} description={`${formatBytes(status.downloadBytes)} of SeedVR2 weights, once.`}><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+    return <Row label={<Status tone="warn">Needs a download</Status>} description={`${formatBytes(status.downloadBytes)} of SeedVR2 weights, downloaded once.`}><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
   }
   if (status.substituting) {
     const effort = upscaleQualityLabel(status.quality);
     return (
       <Row
-        label={<Status tone="warn">Running on a fallback model</Status>}
-        description={`${effort} has no weights of its own yet, so it uses ${status.fallbackFile || 'another installed SeedVR2 weight'} instead. Results can differ from what ${effort} is tuned for.`}
+        label={<Status tone="warn">Using a fallback model</Status>}
+        description={`${effort} uses ${status.fallbackFile || 'another installed SeedVR2 weight'} until its own weights are downloaded. Results can differ.`}
         stacked
       >
         <button className="btn is-primary" onClick={onDownload}>Download {effort} · {formatBytes(status.downloadBytes)}</button>
@@ -299,7 +299,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
   const result = status.result;
   const resultRow = result && !result.ok ? (
     <Row
-      label={<Status tone="bad">{result.rolledBack ? `${result.to} would not start` : 'The last update did not install'}</Status>}
+      label={<Status tone="bad">{result.rolledBack ? `${result.to} didn’t start` : 'The last update didn’t install'}</Status>}
       description={result.rolledBack ? `Still on ${result.from}.${result.error ? ` ${result.error}` : ''}` : result.error}
     />
   ) : null;
@@ -312,7 +312,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
     return (
       <Row
         label={<Status tone="warn">{download.status === 'downloading' ? `Downloading ${latest}` : 'Checking the download'}</Status>}
-        description={download.status === 'downloading' ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}. You can keep working.` : 'Verifying and unpacking.'}
+        description={download.status === 'downloading' ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}. You can keep working.` : 'Checking and unpacking.'}
         stacked
       >
         <div className="set-progress"><div style={{ width: `${Math.round((download.status === 'downloading' ? ratio : 1) * 100)}%` }} /></div>
@@ -323,7 +323,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
     return (
       <Row
         label={<Status tone="ok">{latest} is ready to install</Status>}
-        description={status.supervised ? 'Running generations stop when HEISS UI restarts.' : 'Quit HEISS UI and open it again to switch.'}
+        description={status.supervised ? 'Running generations stop when HEISS UI restarts.' : 'Quit HEISS UI and open it again to finish.'}
         stacked
       >
         <div className="about-update">
@@ -338,14 +338,14 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
       <>
         {resultRow}
         <Row
-          label={<Status tone="warn">HEISS UI {latest} is out</Status>}
+          label={<Status tone="warn">HEISS UI {latest} is available</Status>}
           description={download?.status === 'error'
             ? `The download stopped: ${download.error}`
             : status.canInstall
-              ? `You have ${status.current}.${status.size ? ` ${formatBytes(status.size)},` : ''} installs on restart.`
+              ? `You have ${status.current}.${status.size ? ` ${formatBytes(status.size)}.` : ''} Installs on restart.`
               : status.unsigned
-                ? `You have ${status.current}. This release isn’t signed with HEISS UI’s release key, so it won’t install itself. Only download it by hand if you trust where it came from.`
-                : `You have ${status.current}. This release has to be downloaded by hand: replace this folder with it and keep your data folder.`}
+                ? `You have ${status.current}. This release can’t be verified, so it won’t install from here. Download it yourself only if you trust the source.`
+                : `You have ${status.current}. Download this release, replace this folder with it and keep your data folder.`}
           stacked
         >
           <div className="about-update">
@@ -385,10 +385,10 @@ function HelpGroup({ copyToClipboard }: { copyToClipboard: (text: string) => Pro
   };
   return (
     <Group title="Help">
-      <Row label="Troubleshooting" description="What the common errors mean, and how to get past them.">
+      <Row label="Troubleshooting" description="Common errors and how to fix them.">
         <a className="btn is-ghost" href={troubleshootingUrl()} target="_blank" rel="noreferrer"><LifeBuoy size={13} /> Open</a>
       </Row>
-      <Row label="Copy diagnostics" description="Your HEISS UI, Node.js and ComfyUI versions, system and GPU, to paste into a bug report. No prompts, images or file names.">
+      <Row label="Copy diagnostics" description="HEISS UI, ComfyUI and Node.js versions, system and GPU, for a bug report. Prompts, images and file names aren’t included.">
         <button className="btn" onClick={() => copy.copyWith(copyDiagnostics)}><CopyIcon copied={Boolean(copy.copied)} /> {copy.copied ? 'Copied' : 'Copy'}</button>
       </Row>
     </Group>
@@ -407,11 +407,11 @@ function describeFolder(report: OutputFolderReport | null): { tone?: 'ok' | 'war
   if (!report) return { label: 'Checking…', detail: '' };
   switch (report.state) {
     case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Needed to delete files and to remove ComfyUI’s copies of hidden images.' };
-    case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'Nothing exists at that path on this computer.' };
+    case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'There’s nothing at that path on this computer.' };
     case 'not-folder': return { tone: 'bad', label: 'Not a folder', detail: 'That path points at a file.' };
-    case 'mismatch': return { tone: 'warn', label: 'Your recent images aren’t here', detail: `None of your last ${report.checked} images are in this folder (${fileCount(report)}). ComfyUI is probably saving somewhere else. Try Find automatically.` };
+    case 'mismatch': return { tone: 'warn', label: 'Recent images aren’t here', detail: `None of the last ${report.checked} images are in this folder (${fileCount(report)}). ComfyUI probably saves somewhere else; try Find automatically.` };
     case 'match': return { tone: 'ok', label: 'Linked', detail: `${report.found === report.checked ? `All ${report.checked}` : `${report.found} of ${report.checked}`} recent images found here · ${fileCount(report)}` };
-    default: return { tone: report.looksLikeComfy ? 'ok' : 'warn', label: report.looksLikeComfy ? 'Linked' : 'Set', detail: `${fileCount(report)}${report.looksLikeComfy ? '' : ' · does not look like a ComfyUI folder'}. It gets confirmed after your next gen.` };
+    default: return { tone: report.looksLikeComfy ? 'ok' : 'warn', label: report.looksLikeComfy ? 'Linked' : 'Set', detail: `${fileCount(report)}${report.looksLikeComfy ? '' : ' · doesn’t look like a ComfyUI output folder'}. Checked again after the next image.` };
   }
 }
 
@@ -470,7 +470,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
       if (data.path) await save(data.path);
     } catch (error) {
       setBusy('');
-      showToast(error instanceof Error ? error.message : 'Could not open the folder picker', 'error');
+      showToast(error instanceof Error ? error.message : 'Couldn’t open the folder picker', 'error');
     }
   };
 
@@ -482,7 +482,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
       if (!list.length) showToast(report?.state === 'match' ? 'This is already the right folder' : 'No output folder found. Is ComfyUI running?', report?.state === 'match' ? 'success' : 'error');
       setCandidates(list.length ? list : null);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not search for the output folder', 'error');
+      showToast(error instanceof Error ? error.message : 'Couldn’t search for the output folder', 'error');
     } finally {
       setBusy('');
     }
@@ -520,7 +520,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
               <code className="set-path">{item.path}</code>
               <span>
                 {item.source === 'comfy' ? 'From ComfyUI · ' : ''}
-                {item.state === 'match' ? `${item.found} of ${item.checked} recent images here` : item.state === 'mismatch' ? 'Your recent images aren’t here' : fileCount(item)}
+                {item.state === 'match' ? `${item.found} of ${item.checked} recent images here` : item.state === 'mismatch' ? 'Recent images aren’t here' : fileCount(item)}
               </span>
               {item.state === 'match' ? <Check size={14} className="set-folder-pick-mark" aria-hidden="true" /> : null}
             </button>
@@ -589,7 +589,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
       refreshModels(false);
       refreshWorkflows();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not save the model type', 'error');
+      showToast(error instanceof Error ? error.message : 'Couldn’t save the model type', 'error');
     } finally {
       setTypeBusy('');
     }
@@ -680,30 +680,30 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         {section === 'general' ? (
           <>
             <Group title="Layout">
-              <SwitchRow label="Zen mode" description="A prompt-first fullscreen layout: one image at a time, the composer below. Leave it with the same switch, the dock’s expand button or Escape." checked={prefs.zenMode} onChange={setZenMode} />
-              <SwitchRow label="Gallery strip in zen" description="Show recent outputs as a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
-              {phoneDevice || prefs.fullStudioOnPhone ? <SwitchRow label="Simple phone studio" description="Just making, browsing and sharing, laid out for your thumb. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
-              <SwitchRow label="Follow the latest output" description="Jump to each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
+              <SwitchRow label="Zen mode" description="Full screen, one image at a time with the composer below. Press Escape to leave." checked={prefs.zenMode} onChange={setZenMode} />
+              <SwitchRow label="Gallery strip in zen" description="Shows recent images and videos in a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
+              {phoneDevice || prefs.fullStudioOnPhone ? <SwitchRow label="Simple phone studio" description="A simpler layout for making, browsing and sharing. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
+              <SwitchRow label="Follow the latest output" description="Shows each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
             </Group>
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
               <ShortcutsDrawer />
             </Group>
             <Group title="Safety">
-              <SwitchRow label="Confirm before removing things" description="Ask before deleting or stopping things. Deletes can still be undone for a few seconds, and anything permanent always asks." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
+              <SwitchRow label="Confirm before removing things" description="Asks before deleting or stopping something. Permanent deletes always ask." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
             {thisComputer ? <RestartGroup confirmAction={confirmAction} onComfyBack={() => { refreshModels(false); refreshWorkflows(); }} restartHeiss={restartHeiss} heissRestarting={Boolean(restarting)} updateStatus={updateStatus} /> : null}
             <Group title="Reset" tone="danger">
               {thisComputer ? (
                 <>
-                  <Row label="Delete all finished images" description="Moves their files to a trash in ComfyUI’s output folder for 30 days, then deletes them. Hidden isn’t affected.">
+                  <Row label="Delete all finished images" description="Moves their files to the trash for 30 days, then deletes them. Hidden isn’t affected.">
                     <button className="btn is-danger-soft" onClick={clearGallery}>Delete all</button>
                   </Row>
-                  <Row label="Clear all cache" description="Browser cache, stale queue state, and ComfyUI memory.">
+                  <Row label="Clear all cache" description="Clears the browser cache, stale queue state and ComfyUI’s memory.">
                     <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
                   </Row>
                 </>
               ) : null}
-              <Row label="Reset all settings" description="Prompts, layout, model choices, LoRA stacks and every preference here.">
+              <Row label="Reset all settings" description="Resets prompts, layout, model choices, LoRA stacks and every preference here.">
                 <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>
               </Row>
             </Group>
@@ -713,18 +713,18 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         {section === 'generation' ? (
           <>
             <Group title="Composer">
-              <SwitchRow label="Enter to generate" description="Shift+Enter adds a new line." checked={prefs.enterToGenerate} onChange={(next) => setPrefs({ enterToGenerate: next })} />
-              <Row label="Run variants as" description={prefs.variationQueueMode === 'separate' ? 'One job per variant. Easier to cancel one at a time.' : 'One ComfyUI prompt with a larger batch. Usually faster.'}>
+              <SwitchRow label="Enter to generate" description="Press Enter to generate and Shift+Enter for a new line." checked={prefs.enterToGenerate} onChange={(next) => setPrefs({ enterToGenerate: next })} />
+              <Row label="Run variants as" description={prefs.variationQueueMode === 'separate' ? 'One job per variant. Easier to cancel one at a time.' : 'One ComfyUI job with a larger batch. Usually faster.'}>
                 <Segmented label="Run variants as" value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: 'One batch' }, { value: 'separate', label: 'Separate jobs' }]} />
               </Row>
               <PromptHistoryRow Row={Row} Switch={Switch} showToast={showToast} confirmAction={confirmAction} />
             </Group>
             <Group title="Previews">
-              <Row label="While generating" description={prefs.generationPreviewMode === 'simple' ? 'Each sampler step as it arrives. Lighter on the GPU.' : 'Early steps resolve through an animated pixel mosaic. Reduced motion always uses simple.'}>
+              <Row label="While generating" description={prefs.generationPreviewMode === 'simple' ? 'Each sampler step as it arrives. Lighter on the GPU.' : 'Early steps show as an animated pixel mosaic. With reduced motion on, Simple is used.'}>
                 <Segmented label="Generation previews" value={prefs.generationPreviewMode === 'simple' ? 'simple' : 'advanced'} onChange={(next) => setPrefs({ generationPreviewMode: next })} options={[{ value: 'advanced', label: 'Mosaic' }, { value: 'simple', label: 'Simple' }]} />
               </Row>
             </Group>
-            <Group title="Starting values" note="Used when a model doesn't set its own. Changing them doesn't touch the current draft.">
+            <Group title="Starting values" note="Used when a model doesn’t set its own. The current draft stays as it is.">
               <Row label="Variants"><NumberPicker label="Variants" value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
               <Row label="Image steps"><NumberPicker label="Steps" value={Number(prefs.defaultImageSteps)} onChange={(next) => setPrefs({ defaultImageSteps: next })} min={1} max={150} /></Row>
               <Row label="Video steps"><NumberPicker label="Steps" value={Number(prefs.defaultVideoSteps)} onChange={(next) => setPrefs({ defaultVideoSteps: next })} min={1} max={150} /></Row>
@@ -737,7 +737,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         {section === 'upscale' ? (
           <>
             <Group>
-              <SwitchRow label="Smart upscale" description="Show an upscale arrow on finished images. The original file is never replaced." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
+              <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. Upscales are saved as a copy." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
             </Group>
             {upscaleOn ? (
               <>
@@ -757,7 +757,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   />
                   {!faceDetailReady && upscaleStatus?.faceDetail?.setup?.length ? upscaleStatus.faceDetail.setup.map((setup: NonNullable<NonNullable<typeof upscaleStatus.faceDetail.setup>>[number]) => (
                     <div className="set-node-install" key={setup.pack.name}>
-                      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart="The face pass turns on here once ComfyUI loads it." />
+                      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart="Then the face pass can be turned on here." />
                     </div>
                   )) : null}
                 </Group>
@@ -785,24 +785,24 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
             </Group> : null}
             {features.runGrouping ? <Group title="Runs" note="Hidden images only group with each other.">
-              <SwitchRow label="Group generation runs" description="Collapse a burst of related outputs into one stack you can open in place." checked={prefs.groupRuns !== false} onChange={(next) => setPrefs({ groupRuns: next })} />
+              <SwitchRow label="Group generation runs" description="Stacks images from the same run into one tile you can open." checked={prefs.groupRuns !== false} onChange={(next) => setPrefs({ groupRuns: next })} />
               {prefs.groupRuns !== false ? (
                 <>
-                  <Row label="Group by" description={prefs.runGroupingMode === 'job' ? 'Only outputs from the same generation job.' : 'The same prompt repeated, or one batch.'}>
+                  <Row label="Group by" description={prefs.runGroupingMode === 'job' ? 'Only images from the same job.' : 'The same prompt repeated, or one batch.'}>
                     <Segmented label="Group by" value={prefs.runGroupingMode === 'job' ? 'job' : 'smart'} onChange={(next) => setPrefs({ runGroupingMode: next })} options={[{ value: 'smart', label: 'Smart' }, { value: 'job', label: 'Batches' }]} />
                   </Row>
-                  <Row label="Close a run after" description="Minutes of quiet before a run is stacked. Later outputs start a new run.">
+                  <Row label="Close a run after" description="Minutes without a new image before a run is stacked. Later images start a new run.">
                     <NumberPicker label="Minutes" value={Number(prefs.runCooldownMinutes ?? 5)} onChange={(next) => setPrefs({ runCooldownMinutes: next })} min={1} max={240} />
                   </Row>
                 </>
               ) : null}
             </Group> : null}
             <Group title="Gallery">
-              <SwitchRow label="Show failed items" description="Keep interrupted or failed generations visible." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
+              <SwitchRow label="Show failed items" description="Shows interrupted and failed generations in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>
               </Row>
-              <SwitchRow label="Share without settings" description="Downloads and shares leave out the prompt, seed and workflow saved inside PNG, WebP, JPEG and MP4 files. The files in your gallery keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
+              <SwitchRow label="Share without settings" description="Leaves the prompt, seed and workflow out of downloaded and shared files. The files in the gallery keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
               <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
@@ -822,16 +822,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="ComfyUI">
               <Row
                 label={comfyRestarting ? <Status tone="warn">Restarting</Status> : health ? <Status tone={connected ? 'ok' : 'bad'}>{connected ? 'Connected' : 'Not connected'}</Status> : <Skeleton className="skeleton-text short" />}
-                description={comfyRestarting ? `ComfyUI is restarting and reconnects by itself. ${restartEta?.text || 'Usually back in a few seconds.'}` : health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
+                description={comfyRestarting ? `Reconnects when it’s back. ${restartEta?.text || 'Usually a few seconds.'}` : health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
               >
                 <button className="btn is-primary" onClick={refreshHealth} disabled={comfyRestarting}>{comfyRestarting ? 'Waiting…' : 'Check again'}</button>
               </Row>
               {thisComputer ? <ComfyAddressRow current={health?.comfyUrl || 'http://127.0.0.1:8188'} showToast={showToast} onSaved={() => { refreshHealth(); refreshModels(false); refreshWorkflows(); }} /> : null}
-              <Row label="Open ComfyUI" description="Its own interface, in a new tab.">
+              <Row label="Open ComfyUI" description="Opens ComfyUI’s own interface in a new tab.">
                 <button className="btn" onClick={() => window.open(health?.comfyUrl || 'http://127.0.0.1:8188', '_blank')}><ExternalLink size={14} /> Open</button>
               </Row>
-              <Row label="Restart ComfyUI" description="Picks up new custom nodes and files, and frees everything it holds.">
-                <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. ComfyUI comes back in a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
+              <Row label="Restart ComfyUI" description="Loads new custom nodes and files, and frees memory.">
+                <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. It takes a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
               </Row>
             </Group>
             <OtherDevicesGroup
@@ -854,7 +854,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Models">
               <Row label="Image models"><span className="set-value">{models ? models.imageModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
               <Row label="Video models"><span className="set-value">{models ? models.videoModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
-              <Row label="Rescan" description="Look again for models and workflows added since ComfyUI started.">
+              <Row label="Rescan" description="Finds models and workflows added since ComfyUI started.">
                 <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group>
@@ -907,13 +907,13 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </div>
             </section>
 
-            <Group title="Your studio" note={stats && stats.outputs ? <>Since {formatDay(stats.firstAt)} · {stats.activeDays} active day{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <> · busiest day {formatDay(stats.busiestDay)} with {stats.busiestCount}</> : null}.</> : undefined}>
+            <Group title="Stats" note={stats && stats.outputs ? <>Since {formatDay(stats.firstAt)} · {stats.activeDays} active day{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <> · busiest day {formatDay(stats.busiestDay)} with {stats.busiestCount}</> : null}.</> : undefined}>
               <div className="about-stats">
                 {[
                   { value: stats ? compact(stats.outputs) : null, label: 'Outputs', hint: stats ? `${compact(stats.images)} images · ${compact(stats.videos)} videos` : '' },
                   { value: stats ? formatDuration(stats.renderMs) : null, label: 'Rendering', hint: stats?.upscales ? `${compact(stats.upscales)} upscaled` : 'time in ComfyUI' },
                   { value: stats ? `${compact(stats.megapixels)} MP` : null, label: 'Pixels made', hint: 'megapixels' },
-                  { value: stats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null, label: 'Current streak', hint: stats?.currentStreak ? 'keep it going' : 'generate today to start one' },
+                  { value: stats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null, label: 'Current streak', hint: stats?.currentStreak ? '' : 'starts with today’s first image' },
                   { value: stats ? `${stats.longestStreak} day${stats.longestStreak === 1 ? '' : 's'}` : null, label: 'Longest streak', hint: '' },
                   { value: stats ? (topWorkflowName || '—') : null, label: 'Most used', hint: stats?.topWorkflowCount ? `${compact(stats.topWorkflowCount)} outputs` : '' }
                 ].map((tile) => (
@@ -938,7 +938,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   onRestart={restartForUpdate}
                 />
               ) : (
-                <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? 'Pulls the latest code, installs packages and rebuilds.' : 'Checks GitHub for a newer commit.'} stacked>
+                <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? 'Downloads the latest code and rebuilds.' : 'Checks GitHub for a newer commit.'} stacked>
                   <div className="about-update">
                     <MosaicButton busy={checking} disabled={checking || updateBusy} onClick={runUpdateCheck}>
                       {checking ? 'Checking for updates…' : updateStatus?.ok && !updateStatus.available ? 'Up to date · check again' : 'Check for updates'}
@@ -950,7 +950,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               {updateStatus?.release && updateStatus.prefs ? (
                 <SwitchRow
                   label="Check automatically"
-                  description="Every few hours, HEISS UI asks GitHub which version is the latest and offers a new one once. Offline, it stays quiet. Off, it never asks."
+                  description="Checks GitHub for a new version every few hours."
                   checked={updateStatus.prefs.autoCheck}
                   onChange={(autoCheck) => setUpdatePrefs({ autoCheck })}
                 />
@@ -969,7 +969,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </Group>
 
             <Group title="Credits">
-              <Row label="J-AI Studio by Jasper" description="HEISS UI started as a fork of J-AI Studio. The calm, prompt-first idea and much of the foundation are his work.">
+              <Row label="J-AI Studio by Jasper" description="HEISS UI started as a fork of J-AI Studio. The prompt-first idea and much of the foundation are his work.">
                 <a className="btn is-ghost" href="https://github.com/jasperdevs/J-AI-Studio" target="_blank" rel="noreferrer"><ExternalLink size={13} /> J-AI Studio</a>
               </Row>
               <Row label="ComfyUI" description="Renders every image and video.">

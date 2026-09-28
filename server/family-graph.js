@@ -62,7 +62,7 @@ function modelSamplingPatch(add, spec, model, body) {
 
 export function familyGraph(body) {
   const family = families[body.family];
-  if (!family) throw new Error("This model type is not supported.");
+  if (!family) throw new Error("This model type isn’t supported.");
   const variant = family.variants.find((item) => item.id === body.variant) || family.variants.at(-1);
   const { graph, add } = builder();
   const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));

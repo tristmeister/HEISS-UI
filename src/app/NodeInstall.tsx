@@ -85,7 +85,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
         : { method: 'POST' });
       await follow(install);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'Could not start the install', 'error');
+      showToast(error instanceof Error ? error.message : 'Couldn’t start the install', 'error');
     }
   };
   // Where the code comes from, and which version: it runs inside ComfyUI once installed.
@@ -96,7 +96,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
   if (state?.status === 'blocked') {
     return (
       <div className="node-quick" role="alert">
-        <p className="upscale-fine is-warn">{state.error} HEISS UI didn’t go around it.</p>
+        <p className="upscale-fine is-warn">{state.error}</p>
         <p className="upscale-fine">{state.canOverride
           ? <>You can install {pack.name} with ComfyUI’s own Python instead. It’s third-party code from {source || 'GitHub'} and runs inside ComfyUI.</>
           : <>Lower Manager’s security level if you trust {pack.name}, or install it yourself below.</>}</p>
@@ -120,7 +120,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
         {running ? state.step || 'Installing…' : state?.status === 'error' ? 'Try again' : `Install ${pack.name}`}
         {running ? null : <BetaTag />}
       </button>
-      {running ? <p className="upscale-fine">{state.route === 'manager' ? 'ComfyUI-Manager is doing this. ' : "Using ComfyUI's own Python. "}It can take a few minutes.</p> : null}
+      {running ? <p className="upscale-fine">{state.route === 'manager' ? 'Installing through ComfyUI-Manager. ' : 'Installing with ComfyUI’s own Python. '}It can take a few minutes.</p> : null}
       {!running && source ? <p className="upscale-fine">Third-party code from {source}, run inside ComfyUI.</p> : null}
       {state?.status === 'error' ? <p className="upscale-fine is-warn">{state.error}</p> : null}
     </div>
@@ -182,11 +182,11 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
   );
   return (
     <div className="node-install">
-      {quickError && !manual ? <p className="upscale-fine is-warn">The one-click install stopped: {quickError} Here is how to do it by hand.</p> : null}
+      {quickError && !manual ? <p className="upscale-fine is-warn">The install stopped. {quickError} Install it yourself below.</p> : null}
       <div className="upscale-routes" role="tablist" aria-label="How to install">
         {(['manager', 'terminal'] as const).map((value) => (
           <button key={value} type="button" role="tab" aria-selected={route === value} className={cn(route === value && 'is-active')} onClick={() => setRoute(value)}>
-            {value === 'manager' ? 'ComfyUI Manager' : 'Terminal'}
+            {value === 'manager' ? 'ComfyUI-Manager' : 'Terminal'}
             {value === 'manager' && !hasManager ? <span className="upscale-route-tag">Off</span> : null}
           </button>
         ))}
@@ -222,10 +222,10 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
             <span className="upscale-step-n">1</span>
             <div>
               {plan?.cloned
-                ? <>The {pack.name} folder is already in <code>custom_nodes</code>. If it still does not show up after a restart, its Python packages are missing; this installs them:</>
-                : <>Run this in {commands.length > 1 ? 'a terminal' : 'Terminal'}. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? " with ComfyUI's own Python" : ''}:</>}
+                ? <>The {pack.name} folder is already in <code>custom_nodes</code>. If it doesn’t load after a restart, its Python packages are missing. This installs them:</>
+                : <>Run this in {commands.length > 1 ? 'a terminal' : 'Terminal'}. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? ' with ComfyUI’s own Python' : ''}:</>}
               <ShellCommand plan={{ commands }} showToast={showToast} />
-              {plan?.needsGit !== false ? <p className="upscale-fine">Needs <code>git</code>. Without it, the ComfyUI Manager route does the same.</p> : null}
+              {plan?.needsGit !== false ? <p className="upscale-fine">Needs <code>git</code>. Without it, use the ComfyUI-Manager route.</p> : null}
               {plan && !plan.exact ? (
                 <p className="upscale-fine">
                   {plan.customNodesDir ? null : <>Run it from the folder that holds ComfyUI. </>}

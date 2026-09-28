@@ -158,7 +158,7 @@ export function SearchEmpty({ search, onClear, hiddenSpace = false }: { search: 
           <h2>{onlyStars ? 'No favourites yet' : <>Nothing matches “{words}”{search.favorites ? ' in favourites' : ''}</>}</h2>
           <p>{onlyStars
             ? `Star an image${hiddenSpace ? ' in Hidden' : ''} and it shows up here.`
-            : 'Search looks through prompts, models and LoRAs. Try fewer or shorter words.'}</p>
+            : 'Search covers prompts, models and LoRAs. Try fewer words.'}</p>
           <div className="empty-actions">
             <button type="button" className="reconnect-btn" onClick={onClear}><X size={13} /> {onlyStars ? 'Show everything' : 'Clear search'}</button>
           </div>

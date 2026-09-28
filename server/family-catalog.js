@@ -606,11 +606,11 @@ export const sanaLatentNode = "EmptyHunyuanImageLatent";
 export const sanaRunners = {
   sana: {
     pack: "extramodels", variantNodes: { sprint: ["ScmModelSampling"] },
-    note: "Sana is not built into ComfyUI; these custom nodes run it.",
+    note: "Sana isn’t built into ComfyUI. These custom nodes run it.",
     sizeNode: sanaLatentNode
   },
   sana_diffusers: {
-    pack: "comfyui_sana", note: "Sana is not built into ComfyUI; these custom nodes run it, on Apple Silicon too.",
+    pack: "comfyui_sana", note: "Sana isn’t built into ComfyUI. These custom nodes run it, on Apple Silicon too.",
     sizeNode: "SanaGenerate"
   }
 };
@@ -664,11 +664,11 @@ export function sanaConf(name = "", detail = null) {
 
 // Recognised so HEISS can say what they are, but not runnable here yet.
 export const knownFamilies = {
-  ltx: "LTX-2 video (needs its two-stage audio pipeline; not in HEISS UI yet)",
+  ltx: "LTX-2 video (needs its two-stage audio pipeline)",
   ltxv: "LTX-Video",
   hunyuan_video: "HunyuanVideo 1.0",
-  newbie: "NewBie (Lumina-based, needs its own text encoders; not in HEISS UI yet)",
-  wan_i2v: "Wan 2.1 image-to-video (needs CLIP vision; not in HEISS UI yet)",
+  newbie: "NewBie (Lumina-based, needs its own text encoders)",
+  wan_i2v: "Wan 2.1 image-to-video (needs CLIP vision)",
   wan_other: "Wan VACE / Fun / camera model",
   qwen_image_edit: "Qwen-Image Edit (image editing model)",
   sdxl_refiner: "SDXL Refiner (used after a base model, not on its own)",
@@ -911,13 +911,13 @@ export const quantFormats = {
   svdq: {
     label: "Nunchaku SVDQuant",
     loaders: {},
-    reason: "A Nunchaku (SVDQuant) file: it only runs through the ComfyUI-nunchaku loader nodes, which HEISS UI does not drive yet. Use a regular or GGUF build of this model."
+    reason: "A Nunchaku (SVDQuant) file. These only run through the ComfyUI-nunchaku loader nodes, which aren’t supported yet. Use a regular or GGUF build of this model."
   },
   nf4: {
     label: "bitsandbytes NF4",
     pack: "bnb_nf4",
     loaders: { checkpoint: "CheckpointLoaderNF4" },
-    reason: "A bitsandbytes NF4 file outside checkpoints/: only the NF4 checkpoint loader reads these. Put the all-in-one NF4 checkpoint in checkpoints/, or use a regular build."
+    reason: "A bitsandbytes NF4 file outside checkpoints/. Only the NF4 checkpoint loader reads these. Put the all-in-one NF4 checkpoint in checkpoints/, or use a regular build."
   }
 };
 

@@ -61,7 +61,7 @@ export function useFavorites({ patchGalleryItems, removeGalleryItems, setActive,
       if (!favorite && latest.current.search.favorites && leaving.length) latest.current.removeGalleryItems(leaving);
     } catch (error) {
       apply(!favorite);
-      latest.current.showToast(error instanceof Error ? error.message : "Could not save the star", "error");
+      latest.current.showToast(error instanceof Error ? error.message : "Couldn’t save the star", "error");
     }
   }, []);
 }

@@ -120,11 +120,11 @@ function BundleTileComponent({ expanded, height, item, onSetCover, onToggle, onU
                   {child.id === bundle.coverId ? (
                     <span className="bundle-cover-flag" aria-label="Current cover">Cover</span>
                   ) : (
-                    <Tip content="Use as the run's cover" side="left">
+                    <Tip content="Use as cover" side="left">
                       <button
                         type="button"
                         className="bundle-cover-set"
-                        aria-label="Use as the run's cover"
+                        aria-label="Use as cover"
                         onClick={() => onSetCover(bundle.domain, bundle.id, child.id)}
                       >
                         <ImageUp size={12} />

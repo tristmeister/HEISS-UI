@@ -32,7 +32,7 @@ export function TrashRow({ confirmAction, showToast, Row }: {
       const data = await apiJson<{ restored: number; missing: number; trash: TrashSummary }>('/api/gallery/trash/restore', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ batch: trash.latest }) });
       // The gallery picks them up with its next poll.
       setTrash(data.trash);
-      showToast(data.missing ? `${data.restored} back in the gallery. ${data.missing} stayed in the trash because something new has the same name.` : `${data.restored} back in the gallery`, data.missing ? 'warning' : 'success');
+      showToast(data.missing ? `${data.restored} back in the gallery. ${data.missing} stayed in the trash because a newer file has the same name.` : `${data.restored} back in the gallery`, data.missing ? 'warning' : 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Couldn’t restore them', 'error');
     } finally {
@@ -40,7 +40,7 @@ export function TrashRow({ confirmAction, showToast, Row }: {
     }
   };
   const emptyNow = async () => {
-    if (!await confirmAction({ title: 'Empty the trash?', description: `${trash.files} file${trash.files === 1 ? ' is' : 's are'} deleted from disk for good. This can’t be undone.`, action: 'Empty trash', destructive: true, irreversible: true })) return;
+    if (!await confirmAction({ title: 'Empty the trash?', description: `${trash.files} file${trash.files === 1 ? ' is' : 's are'} deleted permanently. This can’t be undone.`, action: 'Empty trash', destructive: true, irreversible: true })) return;
     setBusy(true);
     try {
       const data = await apiJson<{ trash: TrashSummary }>('/api/gallery/trash/empty', { method: 'POST' });
@@ -56,14 +56,14 @@ export function TrashRow({ confirmAction, showToast, Row }: {
     <Row
       label="Trash"
       description={empty
-        ? `“Delete all” moves images here. They stay ${trash.days} days, then they’re deleted.`
-        : `${trash.items} image${trash.items === 1 ? '' : 's'} from ${trash.batches === 1 ? 'one clear' : `${trash.batches} clears`}. The oldest are deleted for good on ${day(trash.purgesAt)}.`}
+        ? `“Delete all” moves images here for ${trash.days} days.`
+        : `${trash.items} image${trash.items === 1 ? '' : 's'} from ${trash.batches === 1 ? 'one clear' : `${trash.batches} clears`}. The oldest are deleted on ${day(trash.purgesAt)}.`}
       disabled={busy}
     >
       {empty ? null : (
         <>
           <button className="btn" disabled={busy} onClick={restore}><RotateCcw size={14} /> Restore{trash.batches > 1 ? ' latest' : ''}</button>
-          <button className="btn is-ghost" disabled={busy} aria-label="Empty the trash" onClick={emptyNow}><Trash2 size={14} /></button>
+          <button className="btn is-ghost" disabled={busy} aria-label="Empty trash" onClick={emptyNow}><Trash2 size={14} /></button>
         </>
       )}
     </Row>

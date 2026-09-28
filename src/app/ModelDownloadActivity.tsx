@@ -36,15 +36,15 @@ export function useModelDownloadActivity({ onDone, hidden, onOpen }: { onDone: (
   const progress = total ? Math.min(1, received / total) : 0;
   const speed = active?.bytesPerSecond || 0;
   const title = mode === 'downloading' ? `Downloading ${active?.label || 'model file'}`
-    : mode === 'ready' ? `${flash?.label || 'File'} is in place`
+    : mode === 'ready' ? `${flash?.label || 'File'} downloaded`
     : `${failed?.label || 'Download'} stopped`;
   const meta = mode === 'downloading'
-    ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', active?.verifying ? 'checking the file' : speed > 0 ? `${formatBytes(speed)}/s` : active?.reconnecting ? 'connection dropped, reconnecting' : 'connecting', speed > 0 ? formatEta((total - received) / speed) : '', queued ? `${queued} more after` : ''].filter(Boolean).join(' · ')
+    ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', active?.verifying ? 'checking the file' : speed > 0 ? `${formatBytes(speed)}/s` : active?.reconnecting ? 'connection dropped, reconnecting' : 'connecting', speed > 0 ? formatEta((total - received) / speed) : '', queued ? `${queued} queued` : ''].filter(Boolean).join(' · ')
     : mode === 'ready' ? 'Ready to use'
-    : failed?.needsBrowser ? 'Needs your browser; open the model setup'
-    : failed?.retryable === false ? (failed.error || 'Trying again won’t help; see the model setup for why')
-    : failed?.error ? `${failed.error}. Click to resume where it left off`
-    : 'Click to resume where it left off';
+    : failed?.needsBrowser ? 'Open model setup to download it in the browser'
+    : failed?.retryable === false ? (failed.error || 'Open model setup for details')
+    : failed?.error ? `${failed.error}. Click to resume`
+    : 'Click to resume';
   const dismiss = () => { setFailed(null); setFlash(null); };
   return {
     id: 'model-download',

@@ -81,7 +81,7 @@ export function isTransientComfyError(error) {
 // How long ComfyUI may stay silent before a run is given up on (shorter in tests).
 const defaultLostAfterMs = Number(process.env.HEISS_COMFY_LOST_AFTER_MS) > 0 ? Number(process.env.HEISS_COMFY_LOST_AFTER_MS) : 60_000;
 
-export const lostConnectionMessage = "ComfyUI stopped answering for over a minute, so HEISS UI stopped waiting for this run.";
+export const lostConnectionMessage = "ComfyUI stopped answering for over a minute, so this run was given up.";
 export const droppedRunMessage = "ComfyUI no longer has this run. It may have restarted, or the run was removed from its queue.";
 
 /**

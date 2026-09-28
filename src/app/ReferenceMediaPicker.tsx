@@ -123,7 +123,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
         }
       }));
     } catch (error) {
-      setPages((current) => ({ ...current, [target]: { ...current[target], loading: false, loaded: true, error: error instanceof Error ? error.message : "Could not load images" } }));
+      setPages((current) => ({ ...current, [target]: { ...current[target], loading: false, loaded: true, error: error instanceof Error ? error.message : "Couldn’t load images" } }));
     }
   }, []);
 
@@ -151,7 +151,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       onSelect(resolved);
       onClose();
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : "Could not use this image");
+      onError?.(error instanceof Error ? error.message : "Couldn’t use this image");
     } finally {
       setSelectingId("");
     }
@@ -166,7 +166,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       setPages((current) => ({ ...current, upload: { ...current.upload, items: current.upload.items.filter((item) => item.id !== asset.id) } }));
       if (selected?.id === asset.id) onRemoveSelected();
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : "Could not delete upload");
+      onError?.(error instanceof Error ? error.message : "Couldn’t delete the upload");
     }
   }
 
@@ -209,7 +209,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
           <div className="reference-empty">
             <LockKeyhole size={22} />
             <strong>Hidden is locked</strong>
-            <p>Unlock it to use one of your hidden images. It stays in Hidden.</p>
+            <p>Unlock it to use a hidden image. The image stays in Hidden.</p>
             <button className="btn is-primary" onClick={() => hidden?.unlock()}><LockKeyhole size={14} /> Unlock</button>
           </div>
         ) : page.loading && !page.items.length ? (
@@ -222,7 +222,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
           <div className="reference-empty">
             <ImageIcon size={22} />
             <strong>{tab === "generation" ? "No generations yet" : tab === "hidden" ? "Nothing in Hidden yet" : "No uploads yet"}</strong>
-            <p>{tab === "generation" ? "Finished images will show up here." : tab === "hidden" ? "Images you hide will show up here." : "Upload one, or drop it on the prompt."}</p>
+            <p>{tab === "generation" ? "Finished images show up here." : tab === "hidden" ? "Images you hide show up here." : "Upload one, or drop it on the prompt."}</p>
             {tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}><Upload size={14} /> Upload image</button> : null}
           </div>
         ) : (
@@ -265,7 +265,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       <AnimatePresence>
         {dropActive ? (
           <motion.div key="drop" className="reference-drop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
-            <DropBadge text="Drop to add to your uploads" />
+            <DropBadge text="Drop to upload" />
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -356,7 +356,7 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
           <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Hidden" : "Upload"} · change</small>
         </button>
         {isStart && strength ? (
-          <Tip content="How much the model may change your image: low keeps it close, high only borrows its layout and colors">
+          <Tip content="How much the image can change. Low stays close; high keeps only its layout and colors.">
             <label className="ref-strength">
               <span>Change<b>{Math.round(strength.value * 100)}%</b></span>
               <input
@@ -457,7 +457,7 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
       window.setTimeout(() => setFreshSlot(""), 700);
       return asset;
     } catch (error) {
-      onError?.(error instanceof Error ? error.message : "Upload failed");
+      onError?.(error instanceof Error ? error.message : "Couldn’t upload the image");
       return null;
     } finally {
       setUploadSlot("");

@@ -62,7 +62,7 @@ test("a file gone from its address says to update, and where to look by hand", a
     assert.equal(failed.status, "error");
     assert.equal(failed.retryable, false);
     const message = JSON.stringify(failed);
-    assert.match(message, /Update HEISS UI under Settings › About/);
+    assert.match(message, /Update HEISS UI in Settings › About/);
     assert.match(message, /https:\/\/huggingface\.co\/Comfy-Org\/some_repo and put it in ComfyUI’s vae folder/);
   } finally {
     globalThis.fetch = originalFetch;

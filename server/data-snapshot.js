@@ -121,7 +121,7 @@ export function snapshotIfNewVersion({ dataDir = defaultDataDir, version = curre
       // preserveTimestamps gives the folder data/'s own date; its age counts from now.
       fs.utimesSync(target, new Date(now), new Date(now));
     } catch (error) {
-      console.warn(`\n  HEISS UI couldn't keep a copy of its data before updating (${error.message}). It tries again next start.\n`);
+      console.warn(`\n  Couldn't back up the data folder before updating (${error.message}). Trying again next start.\n`);
       try { fs.rmSync(target, { recursive: true, force: true }); } catch { /* nothing to undo */ }
       return "";
     }

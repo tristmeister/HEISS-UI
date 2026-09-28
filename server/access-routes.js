@@ -15,12 +15,12 @@ export async function limitedCheck(req, res, check, wrongMessage) {
   if (result.ok) return result.value;
   if (result.reason === "busy") {
     res.status(429).setHeader("Retry-After", "1");
-    res.json({ ok: false, error: "One try at a time. Wait a moment, then try again." });
+    res.json({ ok: false, error: "Wait a moment, then try again." });
     return null;
   }
   if (result.retryAfterMs) res.setHeader("Retry-After", String(Math.ceil(result.retryAfterMs / 1000)));
   if (result.reason === "locked") {
-    res.status(429).json({ ok: false, error: `Too many wrong tries from this device. Try again in ${waitWords(result.retryAfterMs)}.` });
+    res.status(429).json({ ok: false, error: `Too many wrong passwords. Try again in ${waitWords(result.retryAfterMs)}.` });
     return null;
   }
   res.status(401).json({ ok: false, locked: true, error: result.retryAfterMs ? `${wrongMessage} Try again in ${waitWords(result.retryAfterMs)}.` : wrongMessage });
@@ -38,7 +38,7 @@ export function hiddenPasswordSignsIn() {
 
 function requireThisComputer(req, res) {
   if (clientOf(req).thisComputer) return true;
-  res.status(403).json({ ok: false, reason: "this-computer", error: "Only the computer HEISS UI runs on can change this." });
+  res.status(403).json({ ok: false, reason: "this-computer", error: "Only the computer running HEISS UI can change this." });
   return false;
 }
 
@@ -67,7 +67,7 @@ export function registerAccessRoutes(app) {
     if (client.thisComputer) { res.json(accessStatus(req)); return; }
     const password = String(req.body?.password || "");
     if (!studioPasswordSet() && !isPrivacyEnabled()) {
-      res.status(409).json({ ok: false, reason: "setup", error: "Set a studio password on the computer running HEISS UI first: Settings › Connection." });
+      res.status(409).json({ ok: false, reason: "setup", error: "Set a studio password first, on the computer running HEISS UI (Settings › Connection)." });
       return;
     }
     const legacy = hiddenPasswordSignsIn();

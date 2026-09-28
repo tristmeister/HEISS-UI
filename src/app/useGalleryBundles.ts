@@ -97,7 +97,7 @@ export function useGalleryBundles({
       await refreshBundles();
       showToast(createdTotal === 1 ? "Grouped 1 run" : `Grouped ${createdTotal} runs`, "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not group runs", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t group runs", "error");
     } finally {
       setGathering(new Set());
       setBusy(false);
@@ -113,7 +113,7 @@ export function useGalleryBundles({
       });
       await reloadGallery();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not set the cover", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t set the cover", "error");
     }
   }, [reloadGallery, showToast]);
 
@@ -124,7 +124,7 @@ export function useGalleryBundles({
       // The run becomes tidy-able again straight away, so refresh the count.
       await refreshBundles();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not ungroup the run", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t ungroup the run", "error");
     }
   }, [refreshBundles, reloadGallery, showToast]);
 

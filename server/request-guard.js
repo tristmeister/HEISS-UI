@@ -101,17 +101,17 @@ export function requestGuard({ lan = () => false, extraHosts = () => [] } = {}) 
   return (req, res, next) => {
     if (!req.path.startsWith("/api") && !req.path.startsWith("/comfy")) return next();
     if (!hostAllowed(req.headers.host, { lan: lan(), extra: extraHosts() })) {
-      refuse(res, "host", `HEISS UI doesn’t answer to “${hostnameOf(req.headers.host) || "this address"}”. Open it at localhost, or on another device at this computer’s network address. A name of your own goes in HEISS_ALLOWED_HOSTS.`);
+      refuse(res, "host", `HEISS UI doesn’t open at “${hostnameOf(req.headers.host) || "this address"}”. Open it at localhost, or from another device at this computer’s network address. Add other names to HEISS_ALLOWED_HOSTS.`);
       return;
     }
     const site = String(req.headers["sec-fetch-site"] || "").toLowerCase();
     if (site === "cross-site" || site === "same-site") {
-      refuse(res, "origin", "Another website tried to use HEISS UI. It was refused.");
+      refuse(res, "origin", "Blocked a request from another website.");
       return;
     }
     if (safeMethods.has(req.method)) return next();
     if (!fromOwnPage(req)) {
-      refuse(res, "origin", "Another website tried to use HEISS UI. It was refused.");
+      refuse(res, "origin", "Blocked a request from another website.");
       return;
     }
     if (!req.headers[studioHeader] && !req.is("application/json")) {

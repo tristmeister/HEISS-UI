@@ -146,7 +146,7 @@ export async function sourceFromOutput(output) {
   const filename = String(parsed.searchParams.get("filename") || "");
   const subfolder = String(parsed.searchParams.get("subfolder") || "");
   const outputType = String(parsed.searchParams.get("type") || "output");
-  if (!filename || path.basename(filename) !== filename) throw new Error("Hidden only accepts files ComfyUI generated.");
+  if (!filename || path.basename(filename) !== filename) throw new Error("Only generated images can go into Hidden.");
   const mime = mimeFor(filename, output.type);
   if (comfyOutputDir && outputType === "output") {
     const base = path.resolve(comfyOutputDir);
@@ -175,7 +175,7 @@ async function galleryItemBytes(item, url) {
     return { buffer: Buffer.from(data), sourcePath: "", mime: mimeFor(name, item.type) };
   }
   if (String(url).startsWith("data:")) return sourceFromOutput({ url, filename: name, type: item.type });
-  throw new Error("The original file is no longer there.");
+  throw new Error("The original file is gone.");
 }
 
 /* Upscales of Hidden items run like any other; their progress lives here in
@@ -323,7 +323,7 @@ function runItem(body, asset, index, { createdAt, durationMs = 0 }) {
  * and how many plaintext copies ComfyUI kept that could not be removed.
  */
 export async function storeHiddenOutputs(key, outputs, body, existing = []) {
-  if (!key) throw new Error("Hidden locked before this run finished, so its result could not be saved.");
+  if (!key) throw new Error("Hidden was locked before this run finished, so the result wasn’t saved.");
   const sources = [];
   for (const output of outputs) sources.push(await sourceFromOutput(output));
   const manifest = readManifest(key);
@@ -564,7 +564,7 @@ async function putBackInOutput(buffer, name, mime) {
       if (!(error instanceof TypeError)) refused = error.message;
     }
   }
-  if (!comfyOutputDir) throw new Error(refused ? `ComfyUI did not take the image back (${refused}).` : "ComfyUI is not answering, and HEISS UI does not know its output folder to put the image back in. Start ComfyUI, or set the folder under Library.");
+  if (!comfyOutputDir) throw new Error(refused ? `ComfyUI didn’t accept the image (${refused}).` : "ComfyUI isn’t answering and no output folder is set. Start ComfyUI, or set the output folder in Settings › Library.");
   const base = path.resolve(comfyOutputDir);
   const folder = path.join(base, "heiss-ui");
   fs.mkdirSync(folder, { recursive: true });

@@ -36,7 +36,7 @@ test("a token set in the shell stays, and the status says it still applies", () 
     assert.deepEqual(status, { set: true, source: "environment", editable: false, key: "HUGGING_FACE_HUB_TOKEN", hint: "hf_…4321" });
     assert.equal(process.env.HUGGING_FACE_HUB_TOKEN, "hf_shellshellshellshell4321");
     assert.equal(fs.readFileSync(envFile, "utf8").includes("HF_TOKEN"), false);
-    assert.throws(() => saveHfToken("hf_anotheranotheranother00"), /HUGGING_FACE_HUB_TOKEN in your environment/);
+    assert.throws(() => saveHfToken("hf_anotheranotheranother00"), /HUGGING_FACE_HUB_TOKEN in the environment/);
   } finally {
     delete process.env.HUGGING_FACE_HUB_TOKEN;
   }

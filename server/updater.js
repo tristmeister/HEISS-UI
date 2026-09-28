@@ -166,12 +166,12 @@ export async function releaseStatus(root, { fresh = false, auto = false, dataDir
 async function expectedSha256(asset) {
   if (asset.sumUrl) {
     const response = await fetch(asset.sumUrl, { signal: AbortSignal.timeout(30000) });
-    if (!response.ok) throw new Error(`Could not fetch the checksum (${response.status}).`);
+    if (!response.ok) throw new Error(`Couldn’t get the checksum (${response.status}).`);
     const sum = /\b([0-9a-f]{64})\b/i.exec(await response.text())?.[1]?.toLowerCase();
     if (sum) return sum;
   }
   if (asset.sha256) return asset.sha256;
-  throw new Error("This release has no published checksum, so it cannot be installed automatically.");
+  throw new Error("This release has no published checksum, so it can’t be installed from here.");
 }
 
 /** Unzips with what the system already has: tar (Windows 10+, macOS), ditto, unzip, then PowerShell. */
@@ -192,7 +192,7 @@ async function unzip(zip, dest) {
       fs.mkdirSync(dest, { recursive: true });
     }
   }
-  throw new Error(`Could not unpack the download (${errors.join("; ")}).`);
+  throw new Error(`Couldn’t unpack the download (${errors.join("; ")}).`);
 }
 
 /**
@@ -201,14 +201,14 @@ async function unzip(zip, dest) {
  */
 async function checkSignature(asset, sha256) {
   if (!signingConfigured()) return;
-  if (!asset.sigUrl) throw new Error("This release isn’t signed with HEISS UI’s release key, so it wasn’t installed. Nothing was changed.");
+  if (!asset.sigUrl) throw new Error("This release isn’t signed with the HEISS UI release key, so it wasn’t installed.");
   const response = await fetch(asset.sigUrl, { signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`Could not fetch the release signature (${response.status}). Nothing was changed; try again.`);
+  if (!response.ok) throw new Error(`Couldn’t download the release signature (${response.status}). Try again.`);
   const sig = (await response.text()).slice(0, 64 * 1024);
   try {
     verifyReleaseSignature({ sig, version: asset.version, file: asset.name, sha256 });
   } catch (error) {
-    throw new Error(`${error.message} It wasn’t installed, and nothing was changed.`);
+    throw new Error(`${error.message} It wasn’t installed.`);
   }
 }
 
@@ -236,7 +236,7 @@ async function download(root, asset, notesUrl) {
 
     state = { ...state, status: "verifying" };
     const actual = hash.digest("hex");
-    if (actual !== sha256) throw new Error("The download does not match its published checksum. Nothing was changed; try again.");
+    if (actual !== sha256) throw new Error("The download didn’t match its published checksum. Try again.");
     await checkSignature(asset, actual);
 
     state = { ...state, status: "unpacking" };
@@ -273,9 +273,9 @@ export async function startReleaseUpdate(root) {
   // Always the current answer: a cached one could name a release older than the one on offer.
   const { release } = await latestRelease(true);
   const asset = pickAsset(release);
-  if (!asset) throw new Error("The latest release has no HEISS UI download.");
+  if (!asset) throw new Error("The latest release has no download.");
   if (!isNewer(asset.version, readVersion(root))) throw new Error("This copy is already up to date.");
-  if (installable(asset).reason === "unsigned") throw new Error(`HEISS UI ${asset.version} isn’t signed with the release key, so it won’t install itself. If you trust it, download it from ${release.html_url || releasesUrl}.`);
+  if (installable(asset).reason === "unsigned") throw new Error(`HEISS UI ${asset.version} isn’t signed with the release key, so it can’t be installed from here. To install it anyway, download it from ${release.html_url || releasesUrl}.`);
   state = { status: "downloading", version: asset.version, receivedBytes: 0, totalBytes: asset.size };
   running = download(root, asset, release.html_url || releasesUrl);
   return { ...state };

@@ -123,7 +123,7 @@ function visualWorkflowToApi(raw, info = {}) {
       }
     } else {
       const widgets = Array.isArray(node.widgets_values) ? node.widgets_values : [];
-      if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than its ComfyUI schema. Re-export the workflow with named widget values or reconnect ComfyUI before importing.`);
+      if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than ComfyUI expects. Export the workflow again, or reconnect ComfyUI, then import it.`);
       widgets.forEach((value, index) => { inputs[widgetNames[index]] = value; });
     }
     // The canvas title ("Positive", "Refiner") is how people know a node; keep it for the import review.
@@ -206,7 +206,7 @@ export function metadataFromJson(raw, file) {
 }
 
 export function validateGraph(graph) {
-  if (!graph || typeof graph !== "object" || !Object.keys(graph).length) throw new Error("Workflow JSON does not contain a ComfyUI API graph.");
+  if (!graph || typeof graph !== "object" || !Object.keys(graph).length) throw new Error("This file has no ComfyUI workflow in it.");
   for (const [id, node] of Object.entries(graph)) {
     if (!node?.class_type) throw new Error(`Workflow node ${id} is missing class_type.`);
     for (const value of Object.values(node.inputs || {})) {
@@ -280,7 +280,7 @@ export function allCustomWorkflowRecords({ dedupe = true } = {}) {
           id: safeId(path.basename(file, ".json")),
           profileId: `custom:${safeId(path.basename(file, ".json"))}`,
           name: path.basename(file, ".json"),
-          description: "Workflow JSON could not be parsed.",
+          description: "This file isn’t valid JSON.",
           kind: "image",
           family: "custom",
           graph: {},
@@ -301,7 +301,7 @@ export function allCustomWorkflowRecords({ dedupe = true } = {}) {
           id: safeId(path.basename(file, ".json")),
           profileId: `custom:${safeId(path.basename(file, ".json"))}`,
           name: path.basename(file, ".json"),
-          description: error.message || "Workflow could not be read.",
+          description: error.message || "Couldn’t read this workflow.",
           kind: "image",
           family: "custom",
           graph: {},

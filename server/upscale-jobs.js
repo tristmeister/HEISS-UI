@@ -175,7 +175,7 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
       if (checked.state === "done") {
         const outputs = outputsFrom(checked.entry);
         const output = outputs.find((item) => item.type === "image");
-        if (!output) throw new Error("The upscale finished without producing an image.");
+        if (!output) throw new Error("The upscale ended without an image.");
         await target.finish(output, plan);
         setTerminalJob(jobId, { status: "done", outputs: target.hidden ? [] : [output] });
         socket?.close();

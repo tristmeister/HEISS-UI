@@ -44,12 +44,12 @@ export async function startServers(app, { host, port, fallback = true, onListeni
   }
   onListening({ plan, port: listening.port, moved: listening.moved });
   httpsProblem = plan.tlsProblem;
-  if (plan.tlsProblem) console.warn(`\n  HTTPS is set up but can’t start: ${plan.tlsProblem}\n  Other devices can’t connect until that’s fixed; this computer still opens http://localhost:${listening.port}\n`);
+  if (plan.tlsProblem) console.warn(`\n  HTTPS can’t start: ${plan.tlsProblem}\n  Other devices can’t connect until that’s fixed. This computer can still open http://localhost:${listening.port}\n`);
   if (plan.httpsHost) {
     const secure = https.createServer({ cert: startupTls.pem.cert, key: startupTls.pem.key }, app);
     secure.once("error", (error) => {
       httpsProblem = error.code === "EADDRINUSE" ? `Port ${httpsPort} is already in use. Set HEISS_HTTPS_PORT to another one.` : error.message;
-      console.warn(`\n  HTTPS could not start on port ${httpsPort}: ${error.code === "EADDRINUSE" ? "something else uses it (set HEISS_HTTPS_PORT)" : error.message}\n`);
+      console.warn(`\n  HTTPS couldn’t start on port ${httpsPort}: ${error.code === "EADDRINUSE" ? "the port is in use (set HEISS_HTTPS_PORT)" : error.message}\n`);
     });
     secure.listen(httpsPort, plan.httpsHost, () => {
       httpsListening = true;

@@ -62,14 +62,14 @@ export function useSpeedLoras({ profile, loras, steps, cfg, sampler, scheduler, 
         apply(fast);
         showToast(`Speed LoRA: ${summary}`, 'default', {
           id: 'speed-lora',
-          description: `Set for ${profile.displayName || profile.label}'s ${fast.label} settings.`,
+          description: `Set to ${profile.displayName || profile.label}’s ${fast.label} settings.`,
           action: { label: 'Undo', onClick: () => apply(was) }
         });
       } else {
         showToast('This LoRA runs in a few steps', 'default', {
           id: 'speed-lora',
           description: `${fast.label} settings: ${summary}.`,
-          action: { label: 'Use them', onClick: () => apply(fast) }
+          action: { label: 'Apply', onClick: () => apply(fast) }
         });
       }
       return;

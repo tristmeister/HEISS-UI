@@ -53,7 +53,7 @@ test("only media inside the folder is served, never a dot folder or HEISS UI's o
   assert.ok(fs.existsSync(path.join(earlier, "output", "heiss-ui", "image_00001_.png")));
   assert.equal(library.libraryFile(folder.id, "output/heiss-ui/image_00001_.png"), null);
   assert.ok(!store.gallery.some((item) => item.outputName === "image_00001_.png"), "never scanned in either");
-  await assert.rejects(library.addLibraryFolder(dataDir), /own folder/);
+  await assert.rejects(library.addLibraryFolder(dataDir), /the HEISS UI folder/);
 });
 
 test("removing one from the gallery leaves its file alone and keeps it out of later scans", async () => {

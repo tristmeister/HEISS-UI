@@ -76,9 +76,9 @@ function formatDuration(seconds: number) {
 function fileLine(file: UpscaleInstallFile) {
   switch (file.phase) {
     case "queued": return "Waiting";
-    case "resuming": return "Checking what already arrived";
+    case "resuming": return "Checking the partial download";
     case "retrying": return "Connection dropped, retrying";
-    case "verifying": return "Verifying checksum";
+    case "verifying": return "Checking the file";
     case "verified": return "Verified";
     default: return `${formatBytes(file.bytes)} of ${formatBytes(file.totalBytes)}`;
   }
@@ -89,13 +89,13 @@ const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean, fa
     case "checking": return { title: "Setting up smart upscale", description: "Checking ComfyUI…" };
     case "offline": return { title: "Waiting for ComfyUI", description: "Start ComfyUI to continue." };
     case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale runs on the SeedVR2 nodes. Install them through ComfyUI-Manager or a terminal." };
-    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights. They download once from Hugging Face and are checked before first use.${fallback ? ` Until then it runs on ${fallback}.` : ""}` };
-    case "downloading": return { title: "Downloading SeedVR2", description: pending ? "Your image upscales when this finishes. You can close this; the download continues." : "You can close this; the download continues." };
-    case "verifying": return { title: "Checking the download", description: "Verifying the files." };
+    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
+    case "downloading": return { title: "Downloading SeedVR2", description: pending ? "The image upscales when this finishes. The download continues if you close this." : "The download continues if you close this." };
+    case "verifying": return { title: "Checking the download", description: "Making sure the files are complete." };
     case "ready": return fallback && !pending
-      ? { title: "Ready, on a fallback model", description: `${upscaleQualityLabel(quality)} works, but not with the model it is made for.` }
-      : { title: "Smart upscale is ready", description: pending ? "Starting your upscale now." : "Every finished image has an upscale arrow in its corner." };
-    case "error": return { title: "The download stopped", description: "Try again to resume where it stopped." };
+      ? { title: "Ready with a fallback model", description: `${upscaleQualityLabel(quality)} works, but not with its own model.` }
+      : { title: "Smart upscale is ready", description: pending ? "Starting the upscale." : "Every finished image has an upscale arrow in its corner." };
+    case "error": return { title: "The download stopped", description: "Try again to resume." };
   }
 };
 
@@ -127,7 +127,7 @@ export function UpscaleSetupDialog({
   const fallback = status?.substituting ? status.fallbackFile || "another installed SeedVR2 weight" : "";
   const { title, description } = copyFor(stage, quality, Boolean(pending), fallback);
   const close = setup.closeSetup;
-  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Keep going in the background" : "Not now"}</button>;
+  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Continue in background" : "Not now"}</button>;
   const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} /> Check again</button>;
 
   const missingModels = (status?.models || []).filter((model) => !model.present);
@@ -163,7 +163,7 @@ export function UpscaleSetupDialog({
         <Watcher lastChecked={setup.lastChecked}>Waiting for the SeedVR2 nodes…</Watcher>
         {status?.detectedNodes?.length ? (
           <p className="upscale-fine">
-            ComfyUI loads other SeedVR2 nodes ({status.detectedNodes.join(", ")}), so a different or older SeedVR2 pack is installed. Smart upscale needs the one above.
+            A different or older SeedVR2 pack is installed ({status.detectedNodes.join(", ")}). Smart upscale needs the one above.
           </p>
         ) : null}
       </>
@@ -179,12 +179,12 @@ export function UpscaleSetupDialog({
     body = !admin ? (
       <div className="upscale-callout">
         <strong>The upscale model downloads on the computer running HEISS UI.</strong>
-        <span>Open smart upscale there once, and it works here too.</span>
+        <span>Set up smart upscale there, and it works here too.</span>
       </div>
     ) : !status?.canDownload ? (
       <div className="upscale-callout">
-        <strong>HEISS UI does not know where ComfyUI keeps its models yet.</strong>
-        <span>Set the ComfyUI output folder under Library and the models folder next to it is found automatically.</span>
+        <strong>The models folder isn’t set yet.</strong>
+        <span>Set ComfyUI’s output folder in Settings › Library, and the models folder next to it is found automatically.</span>
       </div>
     ) : (
       <>
@@ -220,7 +220,7 @@ export function UpscaleSetupDialog({
           <code title={status.modelDir}>{status.modelDir}</code>
           {freeBytes !== null ? <span>{formatBytes(freeBytes)} free</span> : null}
         </div>
-        {tooBig ? <p className="upscale-fine is-warn">That drive needs {formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)} more free space, or pick a lighter effort.</p> : null}
+        {tooBig ? <p className="upscale-fine is-warn">Free up {formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)} on that drive, or pick a lighter effort.</p> : null}
         {setup.startError ? <p className="upscale-fine is-warn">{setup.startError}</p> : null}
       </>
     );
@@ -249,7 +249,7 @@ export function UpscaleSetupDialog({
             </div>
           </div>
         ) : (
-          <Watcher>Making sure ComfyUI can load the new weights</Watcher>
+          <Watcher>Checking that ComfyUI can load the new weights</Watcher>
         )}
         <ul className="upscale-files is-live">
           {files.map((file) => {
@@ -279,13 +279,13 @@ export function UpscaleSetupDialog({
         <SafeImg src={pending.thumbnailUrl || pending.url} draggable={false} />
         <div>
           <strong>Upscaling with {upscaleQualityLabel(quality)}</strong>
-          <span>It shows up on the tile when it’s done.</span>
+          <span>It appears on the tile when it’s done.</span>
         </div>
       </div>
     ) : fallback ? (
       <div className="upscale-callout is-warn">
         <strong>{upscaleQualityLabel(quality)} is using {fallback}</strong>
-        <span>Its own weights are not downloaded, so it borrows the SeedVR2 weight you already have. Upscales still work, but can look different from what {upscaleQualityLabel(quality)} is tuned for.</span>
+        <span>Its own weights aren’t downloaded, so it uses one you already have. Results can look different.</span>
       </div>
     ) : null;
     footer = pending ? null : fallback && admin ? (

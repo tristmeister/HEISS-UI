@@ -222,7 +222,7 @@ async function flush() {
     inFlight = 0;
     failures += 1;
     const locked = Boolean((error as { locked?: boolean }).locked);
-    setStatus({ failing: true, locked, error: error instanceof Error ? error.message : 'Could not reach HEISS UI' });
+    setStatus({ failing: true, locked, error: error instanceof Error ? error.message : 'Can’t reach HEISS UI' });
     // Back off, but never give up: the edits are safe on this device meanwhile.
     scheduleFlush(Math.min(30000, 1500 * 2 ** Math.min(failures - 1, 5)));
   }

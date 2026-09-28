@@ -35,7 +35,7 @@ export const loraNodes = { "rgthree-power-v1": "Power Lora Loader (rgthree)", "r
 
 const promptHead = `I use HEISS UI, a local studio that runs ComfyUI workflows behind a simple prompt box. Help me prepare a ComfyUI workflow for it.
 
-How HEISS UI runs a workflow: exactly as saved, except for the node inputs it is connected to. The connections live in a "heissUi" block at the top level of the workflow JSON, in ComfyUI's API format (the object whose keys are node ids, each with "class_type" and "inputs").
+HEISS UI runs a workflow as saved, except for the node inputs it is connected to. The connections live in a "heissUi" block at the top level of the workflow JSON, in ComfyUI's API format (the object whose keys are node ids, each with "class_type" and "inputs").
 
 Your task:
 1. Read the workflow. If it is in ComfyUI's visual format (it has "nodes" and "links"), ask me to export it again with ComfyUI's "Export (API)", unless you are certain of every widget value.
@@ -97,7 +97,7 @@ My workflow JSON follows after this message.`;
 /** The prompt with one workflow and how HEISS UI read it, ready to paste into an agent. */
 export function agentPromptFor(item: { filename?: string; raw: unknown; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] }) {
   const { controls, guessed = [] } = item.metadata;
-  const read = Object.entries(controls || {}).map(([key, mapping]) => `- ${key} → node ${mapping.node}.${mapping.input}${guessed.includes(key) ? " (guessed by HEISS UI, check it)" : ""}`);
+  const read = Object.entries(controls || {}).map(([key, mapping]) => `- ${key} → node ${mapping.node}.${mapping.input}${guessed.includes(key) ? " (guessed, check it)" : ""}`);
   const problems = [...(item.preview.validation.issues || []), ...(item.preview.validation.warnings || [])].map((issue) => `- ${issue}`);
   return `${promptHead}
 

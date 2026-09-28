@@ -117,7 +117,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       setConfirm("");
       setStep(support?.available ? "biometric" : "ready");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Could not set up Hidden.");
+      setError(reason instanceof Error ? reason.message : "Couldn’t set up Hidden.");
     } finally {
       setBusy(false);
     }
@@ -134,7 +134,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       if (passkeyCancelled(reason)) return;
       setError(reason instanceof PasskeyWithoutSecretError
         ? `This browser can’t unlock Hidden with ${label}. Use your password.`
-        : reason instanceof Error ? reason.message : `Could not add ${label}.`);
+        : reason instanceof Error ? reason.message : `Couldn’t add ${label}.`);
     }
   };
 
@@ -145,16 +145,16 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     : step === "ready" ? "sealed"
     : "intro";
 
-  const intentLine = intent?.kind === "hide" ? `${intent.items.length === 1 ? "Your image moves" : `Your ${intent.items.length} images move`} in when you close this.`
-    : intent?.kind === "generate" ? "Your generation starts when you close this."
-    : "Open it from the lock in the dock. Anything you generate there stays hidden.";
+  const intentLine = intent?.kind === "hide" ? `${intent.items.length === 1 ? "The image moves" : `The ${intent.items.length} images move`} to Hidden when you close this.`
+    : intent?.kind === "generate" ? "The generation starts when you close this."
+    : "Open it from the lock in the dock. Anything made there stays in Hidden.";
 
   const copy: Record<Step, { title: string; description: string }> = {
-    offline: comfyRestarting ? { title: "ComfyUI is restarting", description: "Setup carries on as soon as it’s back, usually in a few seconds. You can also set up now." } : { title: "Waiting for ComfyUI", description: "Hidden removes ComfyUI’s copies of what you hide, so it works best with ComfyUI running. You can create the password now and start ComfyUI later." },
+    offline: comfyRestarting ? { title: "ComfyUI is restarting", description: "Setup continues when it’s back, usually in a few seconds. Or set up now." } : { title: "Waiting for ComfyUI", description: "Hidden removes ComfyUI’s copies of hidden images, so it works best with ComfyUI running. You can also set the password now." },
     intro: { title: "Hidden", description: "Images you keep to yourself, encrypted on this computer." },
-    password: { title: "Choose a password", description: "Works on any device, and whenever Touch ID or Windows Hello doesn’t." },
+    password: { title: "Choose a password", description: "Works on any device, and when Touch ID or Windows Hello doesn’t." },
     biometric: { title: `Unlock with ${label}`, description: support?.available ? `Unlock without typing. Your password still works.` : support?.reason || "Checking this device…" },
-    scanning: { title: `Waiting for ${label}`, description: "Follow the prompt from your system." },
+    scanning: { title: `Waiting for ${label}`, description: "Follow the system prompt." },
     ready: { title: "Hidden is ready", description: intentLine }
   };
 
@@ -174,8 +174,8 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
     body = (
       <>
         <ul className="hidden-promises">
-          <li><LockKeyhole size={15} /><div><strong>Encrypted on this computer</strong><span>Images, prompts and settings. When it’s locked, not even a count shows.</span></div></li>
-          <li><Sparkles size={15} /><div><strong>Everything still works</strong><span>Upscale, compare, remix and video. What you make from a Hidden image stays hidden.</span></div></li>
+          <li><LockKeyhole size={15} /><div><strong>Encrypted on this computer</strong><span>Images, prompts and settings. While it’s locked, no images or counts show.</span></div></li>
+          <li><Sparkles size={15} /><div><strong>Tools work as usual</strong><span>Upscale, compare, remix and video. Anything made from a Hidden image stays in Hidden.</span></div></li>
           <li><EyeOff size={15} /><div><strong>Hide from the gallery</strong><span>Move images in, or back out. ComfyUI’s copies are removed.</span></div></li>
           <li><Fingerprint size={15} /><div><strong>Opens with {label}</strong><span>{support?.available ? "Or your password, on any device." : "Or your password. " + (support?.reason || "")}</span></div></li>
         </ul>
@@ -206,7 +206,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
           <span>{strengthLabel(password)}</span>
         </div>
         <input className="modal-input" type="password" autoComplete="new-password" aria-label="Confirm password" placeholder="Confirm password" value={confirm} onChange={(event) => { setConfirm(event.target.value); setError(""); }} />
-        <p className={cn("upscale-fine", error && "is-warn")}>{error || "There’s no password reset. If you lose it and every passkey, Hidden can only be erased."}</p>
+        <p className={cn("upscale-fine", error && "is-warn")}>{error || "A forgotten password can’t be recovered. Without it or a passkey, Hidden can only be erased."}</p>
         <button type="submit" hidden />
       </form>
     );
@@ -227,7 +227,7 @@ export function HiddenSetupDialog({ hidden, comfyOnline, comfyUrl, onRecheck, on
       </>
     ) : (
       <div className="upscale-callout">
-        <strong>{support?.reason || `${label} is not available here.`}</strong>
+        <strong>{support?.reason || `${label} isn’t available here.`}</strong>
         {support?.localhostUrl ? <span>Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it in Settings › Hidden. Until then, use your password.</span> : <span>Use your password for now. You can add {label} later in Settings › Hidden.</span>}
       </div>
     );

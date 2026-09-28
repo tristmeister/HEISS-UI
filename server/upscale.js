@@ -319,7 +319,7 @@ async function downloadOne(entry, dir, onProgress, signal) {
       hash = crypto.createHash("sha256");
     }
     if (!response.ok || !response.body) {
-      throw new Error(`Hugging Face answered ${response.status} for ${entry.file}. Place it in ${dir} by hand, or try again.`);
+      throw new Error(`Hugging Face answered ${response.status} for ${entry.file}. Try again, or put it in ${dir} yourself.`);
     }
     await pipeline(
       Readable.fromWeb(response.body),
@@ -339,7 +339,7 @@ async function downloadOne(entry, dir, onProgress, signal) {
   const digest = hash.digest("hex");
   if (received !== spec.bytes || digest !== spec.sha256) {
     fs.rmSync(partial, { force: true });
-    throw new VerifyError(`${entry.file} did not match its published checksum, so it was thrown away.`);
+    throw new VerifyError(`${entry.file} didn’t match its published checksum, so it was deleted. Try again.`);
   }
   renameWithRetry(partial, target);
   rememberValidated(dir, entry.file, spec);
@@ -398,7 +398,7 @@ export function startModelInstall(quality, info) {
   if (install?.status === "running") return installSnapshot();
   const plan = downloadPlan(quality, info);
   const dir = plan.modelDir;
-  if (!dir) throw new Error("HEISS UI doesn’t know where ComfyUI keeps its models yet. Choose ComfyUI’s output folder under Settings › Library, then try again: the upscale models go next to it.");
+  if (!dir) throw new Error("Set ComfyUI’s output folder in Settings › Library first. The upscale models go in the models folder next to it.");
   if (!plan.files.length) {
     install = { status: "done", quality: plan.quality, files: [], receivedBytes: 0, totalBytes: 0, startedAt: Date.now(), finishedAt: Date.now() };
     return installSnapshot();
@@ -407,7 +407,7 @@ export function startModelInstall(quality, info) {
   const headroom = 512 * 1024 * 1024;
   if (plan.freeBytes !== null && plan.freeBytes < plan.remainingBytes + headroom) {
     const gb = (bytes) => `${(bytes / 1e9).toFixed(1)} GB`;
-    throw new Error(`Not enough disk space: the models need ${gb(plan.remainingBytes)} but only ${gb(plan.freeBytes)} is free on that drive.`);
+    throw new Error(`Not enough disk space. The models need ${gb(plan.remainingBytes)}, and the drive has ${gb(plan.freeBytes)} free.`);
   }
   fs.mkdirSync(dir, { recursive: true });
   const controller = new AbortController();
@@ -546,14 +546,14 @@ function faceDetailStack(graph, body, imageSource, info) {
   const textEncoder = String(settings.textEncoder || "");
   const vae = String(settings.vae || "");
   if (!model || !textEncoder || !vae) {
-    throw new Error("Face detail needs the original model, text encoder, and VAE, which this image did not record.");
+    throw new Error("Face detail needs the image’s model, text encoder and VAE, and this image doesn’t record them.");
   }
   const unets = optionsFor(info, "UNETLoader", "unet_name").map(String);
   if (unets.length && !unets.includes(model)) {
-    throw new Error(`Face detail re-runs the image's own model, and ComfyUI has no diffusion model named ${model}. Turn face detail off to upscale this image.`);
+    throw new Error(`Face detail needs this image’s model, ${model}, and ComfyUI doesn’t have it. Turn off face detail to upscale this image.`);
   }
   const detector = optionsFor(info, "UltralyticsDetectorProvider", "model_name").find((name) => /face/i.test(String(name)));
-  if (!detector) throw new Error("No Ultralytics face detector model is installed for the Impact Pack.");
+  if (!detector) throw new Error("Face detail needs an Ultralytics face detector model for the Impact Pack.");
   const sam = optionsFor(info, "SAMLoader", "model_name").map(String).find((name) => name && name !== "None");
   graph["10"] = { class_type: "UNETLoader", inputs: { unet_name: model, weight_dtype: String(settings.weightDtype || "default") } };
   graph["11"] = { class_type: "CLIPLoader", inputs: { clip_name: textEncoder, type: String(settings.clipType || "wan"), device: "default" } };
@@ -638,7 +638,7 @@ export function upscaleGraph(body, info = {}) {
   const have = available(info, seedvr2ModelDir());
   const dit = resolveDit(plan.quality, have);
   const vae = resolveVae(have);
-  if (dit.missing || vae.missing) throw new Error("SeedVR2 models are not installed yet.");
+  if (dit.missing || vae.missing) throw new Error("The SeedVR2 models aren’t installed yet.");
   const ditDevices = devicesFor(info, "SeedVR2LoadDiTModel");
   const vaeDevices = devicesFor(info, "SeedVR2LoadVAEModel");
   const swap = ditDevices.offload !== "none";

@@ -89,9 +89,9 @@ function remember(entry) {
 function targetFor(spec) {
   const modelsDir = comfyModelsDir();
   if (!modelsDir) throw new Error("ComfyUI isn't on this computer. Download the file from the link and add it there.");
-  if (!allowedFolders.has(spec.folder)) throw new Error("That file does not belong in a ComfyUI model folder.");
+  if (!allowedFolders.has(spec.folder)) throw new Error("That file doesn’t belong in a ComfyUI model folder.");
   const name = path.basename(String(spec.file || ""));
-  if (!name || name !== spec.file || !/\.(safetensors|gguf)$/i.test(name)) throw new Error("That is not a model file HEISS can download.");
+  if (!name || name !== spec.file || !/\.(safetensors|gguf)$/i.test(name)) throw new Error("That isn’t a downloadable model file.");
   const url = new URL(spec.url);
   if (url.protocol !== "https:" || !allowedHosts.has(url.hostname)) throw new Error("Only Hugging Face downloads are supported.");
   // Land it where ComfyUI itself reads that kind from, so it shows up without a restart.
@@ -247,8 +247,8 @@ async function pump() {
     active.status = canceled ? "paused" : "error";
     const percent = active.totalBytes ? Math.floor((active.receivedBytes / active.totalBytes) * 100) : 0;
     active.error = canceled ? ""
-      : error?.code === "ENOSPC" ? "The disk filled up. Free some space, then try again; it resumes where it stopped."
-      : isNetworkError(error) ? `The connection to Hugging Face kept dropping${percent ? ` at ${percent}%` : ""}. Check the internet connection, then try again; it resumes where it stopped.`
+      : error?.code === "ENOSPC" ? "The disk is full. Free some space and try again. The download resumes where it stopped."
+      : isNetworkError(error) ? `The connection to Hugging Face kept dropping${percent ? ` at ${percent}%` : ""}. Check the internet connection and try again. The download resumes where it stopped.`
       : error.message || "Download failed.";
     // Retrying only helps when the network was the problem.
     active.retryable = canceled || !error?.final;
@@ -353,12 +353,12 @@ async function fetchInto(entry, signal) {
   if (!response.ok || !response.body) {
     await response.body?.cancel().catch(() => {});
     if (response.status === 401 || response.status === 403) {
-      throw finalError(`${entry.file} needs a Hugging Face login or licence acceptance (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
+      throw finalError(`${entry.file} needs a Hugging Face sign-in or an accepted licence (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
     }
     if (response.status === 404) {
       // The catalog in this version is out of date; a newer one usually knows where the file went.
       const page = repositoryPage(entry.url);
-      throw finalError(`${entry.file} is no longer at its download address (HTTP 404). Update HEISS UI under Settings › About: newer versions know its new address. Or download it yourself${page ? ` from ${page}` : ""} and put it in ComfyUI’s ${entry.folder} folder.`);
+      throw finalError(`${entry.file} is no longer at its download address (HTTP 404). Update HEISS UI in Settings › About, or download it yourself${page ? ` from ${page}` : ""} and put it in ComfyUI’s ${entry.folder} folder.`);
     }
     throw new Error(`Hugging Face answered ${response.status} for ${entry.file}.`);
   }

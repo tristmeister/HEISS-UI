@@ -144,9 +144,9 @@ export function useUpscaleDownloadActivity(setup: UpscaleSetup, install: Upscale
     progress: mode === 'downloading' ? progress : undefined,
     meta: mode === 'downloading'
       ? [received ? `${formatBytes(received)} of ${formatBytes(total)}` : total ? formatBytes(total) : '', speed > 0 ? `${formatBytes(speed)}/s` : 'connecting', formatEta(eta)].filter(Boolean).join(' · ')
-      : mode === 'verifying' ? 'Matching checksums, then ComfyUI'
-      : mode === 'ready' ? (finished ? 'Upscaling your image now' : 'Every finished image has an upscale arrow')
-      : 'Click to resume where it left off',
+      : mode === 'verifying' ? 'Almost ready'
+      : mode === 'ready' ? (finished ? 'Upscaling the image' : 'Use the upscale arrow on any image')
+      : 'Click to resume',
     aside: waitingThumb ? <SafeImg className="activity-thumb is-waiting" src={waitingThumb} draggable={false} title="Upscales when the download is done" />
       : readyThumb ? <SafeImg className="activity-thumb" src={readyThumb} draggable={false} />
       : null,

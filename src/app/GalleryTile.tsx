@@ -68,7 +68,7 @@ function upscaleTooltip(item: GalleryItem) {
     const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
     return `Upscaling${step} · click to stop`;
   }
-  if (state?.status === "error") return `Upscale failed: ${state.error || "unknown error"}. Click to retry`;
+  if (state?.status === "error") return `${state.error || "Upscale failed"}. Click to try again`;
   if (state?.url) return item.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale";
   return "Smart upscale";
 }

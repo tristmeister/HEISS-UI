@@ -20,7 +20,7 @@ test("a damaged safetensors file gets a plain title and hint, with the raw text 
   const failure = describeFailure({ message: "Error while deserializing header: header is too large. File path: D:\\ComfyUI\\models\\vae\\x.safetensors", nodeType: "VAELoader", nodeId: "8" });
   assert.equal(failure.title, "The VAE file is damaged");
   assert.equal(failure.file, "x.safetensors");
-  assert.match(failure.summary, /^x\.safetensors could not be read/);
+  assert.match(failure.summary, /^x\.safetensors couldn't be read/);
   assert.match(failure.hint, /download it again/);
   assert.equal(failure.nodeType, "VAELoader");
   assert.match(failure.detail, /x\.safetensors/);
@@ -68,7 +68,7 @@ test("the plain summary leads while ComfyUI's own words stay in the detail", () 
 test("a damaged file from a node that is not a loader keeps the general title", () => {
   const failure = describeFailure({ message: "safetensors_rust.SafetensorError: Error while deserializing header: header is too large", nodeType: "KSampler" });
   assert.equal(failure.title, "A model file is damaged or incomplete");
-  assert.match(failure.summary, /^A model file could not be read/);
+  assert.match(failure.summary, /^A model file couldn't be read/);
 });
 
 test("a GGUF model type ComfyUI-GGUF doesn't know says so plainly", () => {

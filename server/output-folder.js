@@ -79,18 +79,18 @@ export async function outputDirChoice(value, { current = comfyOutputDir, comfyDi
   const dir = normalizeFolderInput(value);
   if (!dir) return { ok: false, error: "Choose an existing ComfyUI output folder." };
   const report = await inspectOutputDir(dir, samples);
-  if (report.state === "missing") return { ok: false, error: "That folder does not exist on this computer.", report };
-  if (report.state === "not-folder") return { ok: false, error: "That path points at a file, not a folder.", report };
+  if (report.state === "missing") return { ok: false, error: "That folder doesn’t exist on this computer.", report };
+  if (report.state === "not-folder") return { ok: false, error: "That’s a file. Choose a folder.", report };
   if (current && samePath(dir, current)) return { ok: true, dir, report };
   const resolved = path.resolve(dir);
   const guarded = [path.parse(resolved).root, os.homedir(), path.dirname(os.homedir())].filter(Boolean);
   if (guarded.some((item) => samePath(item, resolved)) || isInside(resolved, root, { orSame: true }) || isInside(resolved, dataDir, { orSame: true })) {
-    return { ok: false, error: "That folder is too wide: pick the output folder inside your ComfyUI folder.", report };
+    return { ok: false, error: "That folder is too broad. Choose the output folder inside the ComfyUI folder.", report };
   }
   if (report.looksLikeComfy || report.state === "match" || fs.existsSync(path.join(resolved, "heiss-ui"))) return { ok: true, dir, report };
   const told = comfyDirs || await comfyOutputDirs().catch(() => []);
   if (told.some((item) => samePath(item, resolved))) return { ok: true, dir, report };
-  return { ok: false, error: "That doesn’t look like a ComfyUI output folder: no ComfyUI images in it, and no models or custom_nodes folder next to it. Pick the output folder inside your ComfyUI folder.", report };
+  return { ok: false, error: "That doesn’t look like a ComfyUI output folder. Choose the output folder inside the ComfyUI folder.", report };
 }
 
 /** Where ComfyUI itself says it saves: --output-directory, --base-directory, or next to its models. */
@@ -219,7 +219,7 @@ export async function pickFolder(start = "", pickPrompt = defaultPickPrompt) {
       return (await run("osascript", [...script.flatMap((line) => ["-e", line]), ...(startDir ? [startDir] : [])])).trim();
     } catch (error) {
       if (/-128|cancel/i.test(error.stderr)) return "";
-      throw new Error("macOS would not open a folder picker. Paste the path instead.");
+      throw new Error("The folder picker didn’t open. Paste the path instead.");
     }
   }
   if (process.platform === "win32") {
@@ -237,7 +237,7 @@ export async function pickFolder(start = "", pickPrompt = defaultPickPrompt) {
     try {
       return (await run("powershell.exe", ["-NoProfile", "-STA", "-Command", script], { env: { ...process.env, HEISS_PICK_START: startDir } })).trim();
     } catch {
-      throw new Error("Windows would not open a folder picker. Paste the path instead.");
+      throw new Error("The folder picker didn’t open. Paste the path instead.");
     }
   }
   const attempts = [
@@ -250,7 +250,7 @@ export async function pickFolder(start = "", pickPrompt = defaultPickPrompt) {
     } catch (error) {
       if (error.code === "ENOENT") continue;
       if (error.code === 1) return "";
-      throw new Error("The folder picker failed. Paste the path instead.");
+      throw new Error("The folder picker didn’t open. Paste the path instead.");
     }
   }
   throw new Error("No folder picker is installed (zenity or kdialog). Paste the path instead.");

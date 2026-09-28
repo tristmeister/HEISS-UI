@@ -133,7 +133,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
         setUnlockStage("idle");
         return false;
       }
-      failed(error instanceof Error ? error.message : "Could not unlock Hidden. Try again, or use your password.");
+      failed(error instanceof Error ? error.message : "Couldn’t unlock Hidden. Try again, or use the password.");
       return false;
     }
   }, [failed, fetchOptions, opened, sessionSeconds]);
@@ -143,7 +143,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
       const next = await apiJson<PrivacyStatus>("/api/privacy/lock", { method: "POST" });
       setStatus((current) => ({ ...(current || next), ...next, unlocked: false }));
     } catch (error) {
-      if (!quiet) showToast(error instanceof Error ? error.message : "Could not lock Hidden", "error");
+      if (!quiet) showToast(error instanceof Error ? error.message : "Couldn’t lock Hidden", "error");
     }
   }, [showToast]);
 
@@ -215,8 +215,8 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     setBusy(true);
     try {
       const result = await apiJson<{ moved: number; ids: string[]; hiddenIds?: string[]; failed: Array<{ id: string; error: string }>; leftBehind: number }>("/api/hidden/hide", json({ ids }));
-      if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Could not hide the image", "error");
-      else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} could not be removed.`, "warning");
+      if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Couldn’t hide the image", "error");
+      else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} couldn’t be removed.`, "warning");
       return result;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -224,7 +224,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
         requestUnlock({ kind: "hide", items });
         return null;
       }
-      showToast(error instanceof Error ? error.message : "Could not hide the image", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t hide the image", "error");
       return null;
     } finally {
       setBusy(false);
@@ -236,7 +236,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     try {
       return await apiJson<{ restored: number }>("/api/hidden/unhide", json({ ids: items.map((item) => item.id) }));
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not move it to the gallery", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t move it to the gallery", "error");
       return null;
     } finally {
       setBusy(false);
@@ -250,7 +250,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
   const ensureReady = useCallback((next: HiddenIntent) => {
     if (!enabled) {
       if (!atComputer) {
-        showToast("Hidden isn’t set up yet. Set it up on the computer running HEISS UI.", "warning");
+        showToast("Hidden isn’t set up. Set it up on the computer running HEISS UI.", "warning");
         return false;
       }
       setIntent(next);

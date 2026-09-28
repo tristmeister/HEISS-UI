@@ -29,7 +29,7 @@ const log = (message) => console.log(`\n  ${message}\n`);
 // OneDrive holds files open while it syncs, which breaks installs and updates.
 const oneDrive = process.env.OneDrive || process.env.OneDriveConsumer || process.env.OneDriveCommercial;
 if (process.platform === "win32" && oneDrive && root.toLowerCase().startsWith(oneDrive.toLowerCase())) {
-  log("This copy is inside OneDrive, which can lock files during installs and updates. A folder like C:\\HEISS-UI works better.");
+  log("This copy is in OneDrive, which can lock files during installs and updates. A folder like C:\\HEISS-UI works better.");
 }
 
 // npm's own script: the one `npm start` ran, else the npm that ships next to this
@@ -112,7 +112,7 @@ for (;;) {
   try {
     applied = applyPending(root, log);
   } catch (error) {
-    log(`Could not install the update, staying on this version: ${error.message}`);
+    log(`Couldn't install the update, so this version keeps running: ${error.message}`);
   }
   if (applied) trial = applied;
 

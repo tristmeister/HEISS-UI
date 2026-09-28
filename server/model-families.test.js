@@ -163,7 +163,7 @@ test("a chosen type (and variant) overrides detection and can be undone", () => 
   assert.deepEqual([chosen.family, chosen.variant.id, chosen.via], ["krea2", "raw", "choice"]);
   setModelChoice("unet", "mystery.safetensors", "");
   assert.equal(classifyModel("unet", "mystery.safetensors").family, "");
-  assert.throws(() => setModelChoice("unet", "x.safetensors", "sd2"), /cannot load from this folder/);
+  assert.throws(() => setModelChoice("unet", "x.safetensors", "sd2"), /can’t load from this folder/);
   assert.throws(() => setModelChoice("loras", "x.safetensors", "krea2"), /Unknown model folder/);
 });
 
@@ -320,7 +320,7 @@ test("validation fills encoders from the profile and rejects files that do not f
   const profile = inferModels(info).profiles.find((item) => item.family === "zimage");
   const body = sanitizeGenerateBody({ kind: "image", workflow: profile.workflow, profileId: profile.id, model: profile.model, prompt: "a cat" }, info);
   assert.deepEqual([body.encoders, body.vae, body.source, body.bundled], [["qwen3-4b-heretic_fp8_e4m3fn.safetensors"], "ae.safetensors", "checkpoint", { encoder: false, vae: false }]);
-  assert.throws(() => sanitizeGenerateBody({ kind: "image", workflow: profile.workflow, profileId: profile.id, prompt: "a cat", textEncoders: ["ae.safetensors"] }, info), /does not fit/);
+  assert.throws(() => sanitizeGenerateBody({ kind: "image", workflow: profile.workflow, profileId: profile.id, prompt: "a cat", textEncoders: ["ae.safetensors"] }, info), /doesn’t fit/);
 });
 
 test("a staged reference image becomes the start image of a built-in graph", async () => {

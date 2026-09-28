@@ -105,7 +105,7 @@ export function normalizeFolderInput(value = "") {
 export function setComfyOutputDir(value = "") {
   const next = normalizeFolderInput(value);
   if (!next) throw new Error("Choose an existing ComfyUI output folder.");
-  if (!fs.existsSync(next) || !fs.statSync(next).isDirectory()) throw new Error("That folder does not exist on this computer.");
+  if (!fs.existsSync(next) || !fs.statSync(next).isDirectory()) throw new Error("That folder doesn’t exist on this computer.");
   writeLocalEnvValue("COMFY_OUTPUT_DIR", next);
   comfyOutputDir = next;
   return comfyOutputDir;
@@ -251,7 +251,7 @@ export function normalizeComfyError(message = "") {
     return "ComfyUI ran out of GPU memory. Try a smaller size, fewer steps, or a lighter model.";
   }
   if (/cannot import|no module named|module .* has no attribute|attributeerror/i.test(text)) {
-    return "ComfyUI failed inside Python. Check that the selected model, custom nodes, and PyTorch version are compatible.";
+    return "ComfyUI hit a Python error. Check that the model, custom nodes and PyTorch version work together.";
   }
   return text || "ComfyUI request failed.";
 }

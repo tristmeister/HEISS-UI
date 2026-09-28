@@ -30,7 +30,7 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
       if (!token && next.source === 'environment') showToast(`Removed from Settings. ${next.key || 'HF_TOKEN'} in your environment still applies.`, 'warning');
       else showToast(token ? 'Hugging Face token saved' : 'Hugging Face token removed', token ? 'success' : 'removed');
     } catch (error) {
-      setNote(error instanceof Error ? error.message : 'The token could not be saved.');
+      setNote(error instanceof Error ? error.message : 'Couldn’t save the token.');
     } finally {
       setBusy(false);
     }
@@ -38,10 +38,10 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
 
   if (!status) return null;
   const description = note || (status.source === 'environment'
-    ? `Set by ${status.key || 'HF_TOKEN'} in your environment (${status.hint}). Gated files download here once you’ve accepted their licence on Hugging Face.`
+    ? `Set by ${status.key || 'HF_TOKEN'} in your environment (${status.hint}). Gated models download after you accept their licence on Hugging Face.`
     : status.set
-      ? `Saved on this computer (${status.hint}). It is sent to huggingface.co only.`
-      : 'For gated models, after you accept their licence on Hugging Face. Create a read token under Settings › Access Tokens there. It stays on this computer and goes to huggingface.co only.');
+      ? `Saved on this computer (${status.hint}). Only sent to huggingface.co.`
+      : 'For gated models on Hugging Face. Create a read token there under Settings › Access Tokens; it’s only sent to huggingface.co.');
   return (
     <Group title="Downloads" note={status.mirror ? `Downloads come from ${status.mirror} (HF_ENDPOINT).` : undefined}>
       <Row label="Hugging Face token" description={description}>
@@ -52,7 +52,7 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
               type="password"
               value={value}
               onChange={(event) => setValue(event.target.value)}
-              placeholder={status.set ? 'Replace with a new token' : 'hf_…'}
+              placeholder={status.set ? 'New token' : 'hf_…'}
               aria-label="Hugging Face token"
               spellCheck={false}
               autoComplete="off"

@@ -110,7 +110,7 @@ function validateWorkflow(workflow, info = {}, profile = null) {
   }
   if (workflow.kind !== "image" && workflow.kind !== "video") issues.push(`Unsupported workflow kind: ${workflow.kind}`);
   if (workflow.graph && Object.keys(workflow.graph).length && !Object.values(workflow.graph).some((node) => /Save|Preview|Video/i.test(node?.class_type || ""))) {
-    warnings.push("No save/output node detected.");
+    warnings.push("The workflow has no Save Image or other output node.");
   }
   return {
     ok: issues.length === 0 && (profile ? true : !workflow.profileId || Boolean(profile)),
@@ -240,7 +240,7 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
 
 export function previewWorkflowImport(raw, filename = "", info = {}) {
   const format = detectWorkflowFormat(raw);
-  if (format === "unsupported") throw new Error("Unsupported JSON. Expected a ComfyUI API workflow or a visual workflow with nodes and links.");
+  if (format === "unsupported") throw new Error("This isn’t a ComfyUI workflow. Use one saved from ComfyUI, in the regular or API format.");
   const source = format === "comfyui-api-wrapper" ? raw.prompt : raw;
   const graph = graphFromJson(format === "comfyui-visual" ? { ...raw } : source, info);
   // A wrapper ({ prompt: graph }) or a visual file can carry the heissUi block beside the graph.

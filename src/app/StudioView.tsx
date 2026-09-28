@@ -89,10 +89,10 @@ function comfyStatusLabel(status: any) {
   if (status?.restarting) return "ComfyUI is restarting…";
   if (status?.checking) return "Checking ComfyUI…";
   if (status?.connected) {
-    const detail = [status.device, status.latencyMs ? `${status.latencyMs}ms` : "", status.version ? `v${status.version}` : ""].filter(Boolean).join(" • ");
-    return `ComfyUI connected${detail ? ` • ${detail}` : ""}`;
+    const detail = [status.device, status.latencyMs ? `${status.latencyMs}ms` : "", status.version ? `v${status.version}` : ""].filter(Boolean).join(" · ");
+    return `ComfyUI connected${detail ? ` · ${detail}` : ""}`;
   }
-  return `ComfyUI offline${status?.url ? ` • ${status.url}` : ""}${status?.error ? ` • ${status.error}` : ""}`;
+  return `ComfyUI offline${status?.url ? ` · ${status.url}` : ""}${status?.error ? ` · ${status.error}` : ""}`;
 }
 
 function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retrying: boolean; onClick: () => void }) {
@@ -419,7 +419,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           ) : null}
           {runningCount ? (
             <motion.div key="cancel" {...dockChip}>
-              <Tip content="Stop all running and queued generations and upscales" side="left">
+              <Tip content="Stop everything running and queued" side="left">
                 <button type="button" className="dock-chip is-cancel" onClick={cancelQueue}>
                   <CircleStop size={14} />
                   <span>Stop</span>
@@ -695,7 +695,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
-              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "This removes the uploaded image from your reference library.", action: "Delete upload", destructive: true })}
+              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "It’s removed from uploads.", action: "Delete", destructive: true })}
               onReferenceError={(message) => showToast(message, "error")}
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
@@ -801,7 +801,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
-              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "This removes the uploaded image from your reference library.", action: "Delete upload", destructive: true })}
+              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "It’s removed from uploads.", action: "Delete", destructive: true })}
               onReferenceError={(message) => showToast(message, "error")}
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
@@ -895,12 +895,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           </div>
                         </div>
                       ) : null}
-                      {active.library && !active.prompt ? null : <Tip content="Load this output's prompt and settings into the composer (you can undo)"><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Apply these settings</button></Tip>}
+                      {active.library && !active.prompt ? null : <Tip content="Load its prompt and settings. You can undo this."><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Use these settings</button></Tip>}
                       {/* An earlier image shown from another folder carries a prompt at most: Copy prompt above covers it. */}
-                      {active.library ? null : <Tip content="The prompt, model, steps, seed and size as plain text"><button className="copy-all-settings" onClick={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}><CopyIcon copied={viewerCopy.copied === "settings"} size={13} /> {viewerCopy.copied === "settings" ? "Copied" : "Copy settings"}</button></Tip>}
-                      {active.library ? null : <Tip content="Load this output's LoRA stack into the composer"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Apply its LoRAs</button></Tip>}
+                      {active.library ? null : <Tip content="Copy the prompt, model, steps, seed and size as text"><button className="copy-all-settings" onClick={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}><CopyIcon copied={viewerCopy.copied === "settings"} size={13} /> {viewerCopy.copied === "settings" ? "Copied" : "Copy settings"}</button></Tip>}
+                      {active.library ? null : <Tip content="Load its LoRAs"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Use its LoRAs</button></Tip>}
                       {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? (
-                        <Tip content="Use this output as the next reference image"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
+                        <Tip content="Use as the reference image for the next run"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
                       ) : null}
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>
@@ -945,12 +945,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       </button>
                     </Tip>
                   ) : null}
-                  {active.status === "done" && active.url && !active.vaultLocked && !active.library ? <Tip content="Vary this: same prompt and settings, new seed"><button className="icon-button" aria-label="Vary this" onClick={() => view.varyItem(active)}><Shuffle size={15} /></button></Tip> : null}
+                  {active.status === "done" && active.url && !active.vaultLocked && !active.library ? <Tip content="Vary with a new seed"><button className="icon-button" aria-label="Vary this" onClick={() => view.varyItem(active)}><Shuffle size={15} /></button></Tip> : null}
                   {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">
                     {upscaleNotices?.get(active.id) ? <UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /> : null}
-                    <Tip content={active.upscale?.status === "running" ? "Upscaling · click to stop" : active.upscale?.url ? (active.upscaleActive ? "Showing the upscale - click for the original" : "Showing the original - click for the upscale") : "Smart upscale"}>
+                    <Tip content={active.upscale?.status === "running" ? "Upscaling · click to stop" : active.upscale?.url ? (active.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale") : "Smart upscale"}>
                       <button
                         className={cn("icon-button", active.upscaleActive && active.upscale?.url && "active")}
                         aria-label="Smart upscale"
@@ -980,7 +980,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       ? <Tip content="Move to gallery"><button className="icon-button" aria-label="Move to gallery" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
                       : <Tip content="Move to Hidden"><button className="icon-button" aria-label="Move to Hidden" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
                   ) : null}
-                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download file"}><a className="icon-button" aria-label={active.upscaleActive ? "Download the upscale" : "Download file"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
+                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download"}><a className="icon-button" aria-label={active.upscaleActive ? "Download the upscale" : "Download"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
                   <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label={active.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />
                   <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>

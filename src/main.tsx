@@ -243,9 +243,9 @@ function App() {
       const status = await apiJson<UpdateStatus>("/api/update/status").catch(() => null);
       if (status) setUpdateStatus(status);
       const result = status?.result;
-      if (result && !result.ok) showToast(result.rolledBack ? `HEISS UI ${result.to} would not start, so it went back to ${result.from}${result.error ? ` (${result.error})` : ""}.` : result.error || "The update did not install", "error");
+      if (result && !result.ok) showToast(result.rolledBack ? `HEISS UI ${result.to} didn’t start. Back on ${result.from}${result.error ? ` (${result.error})` : ""}.` : result.error || "The update didn’t install", "error");
       else if (status?.release) setJustUpdated(result?.to || status.current || "");
-      else showToast("HEISS UI is updated and running the new version", "success");
+      else showToast("HEISS UI updated", "success");
     }).catch(() => null);
   }, []);
 
@@ -298,7 +298,7 @@ function App() {
       // Switched back on: look now rather than in six hours.
       if (next.autoCheck) apiJson<UpdateStatus>("/api/update/status?auto=1").then((status) => { if (status.ok && status.release) setUpdateStatus(status); }).catch(() => null);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not save that", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t save that", "error");
     }
   }
 
@@ -312,8 +312,8 @@ function App() {
     const offSync = subscribeLoraSync((sync: LoraSyncStatus) => {
       if (sync.failing && sync.pending > 0 && !loraSyncFailing.current) {
         showToast(sync.locked
-          ? "LoRA changes are saved on this device. Unlock HEISS UI to sync them."
-          : "Could not reach HEISS UI. LoRA changes are saved on this device and sync when it is back.", "error");
+          ? "LoRA changes are saved on this device. Sign in again to sync them."
+          : "Can’t reach HEISS UI. LoRA changes are saved on this device and sync when it’s back.", "error");
       } else if (!sync.failing && loraSyncFailing.current && !sync.pending) {
         showToast("LoRA changes synced", "success");
       }
@@ -380,8 +380,8 @@ function App() {
     if (lastRestart && lastRestart.startedAt === watchedRestart.current) {
       watchedRestart.current = 0;
       setComfyRestartResult(lastRestart);
-      if (lastRestart.outcome === "failed") showToast("ComfyUI didn’t come back after the restart. Check its window for errors; HEISS UI keeps trying to connect.", "error");
-      else if (lastRestart.failedPacks?.length) showToast(`ComfyUI is back, but ${listNames(lastRestart.failedPacks)} didn’t load. Its window says why.`, "error");
+      if (lastRestart.outcome === "failed") showToast("ComfyUI didn’t come back after the restart. Check its window for errors.", "error");
+      else if (lastRestart.failedPacks?.length) showToast(`ComfyUI is back, but ${listNames(lastRestart.failedPacks)} didn’t load. See its window for details.`, "error");
       else if (lastRestart.newPacks?.length) showToast(`ComfyUI is back with ${listNames(lastRestart.newPacks)}.`, "success");
     }
     setComfyRestarting(comfyRestarting);
@@ -674,7 +674,7 @@ function App() {
     try {
       localStorage.setItem("heiss-ui-prefs", JSON.stringify(merged));
     } catch {
-      showToast("Could not save settings", "error");
+      showToast("Couldn’t save settings", "error");
     }
   }
 
@@ -709,7 +709,7 @@ function App() {
       return false;
     }
     const copied = await copyText(text);
-    if (!copied) showToast("Copy failed", "error");
+    if (!copied) showToast("Couldn’t copy", "error");
     else if (announce) showToast(announce, "success");
     return copied;
   }
@@ -717,7 +717,7 @@ function App() {
   /** The viewer's copy button: the image itself, its link, or its details. */
   async function copyItemToClipboard(item: GalleryItem): Promise<boolean> {
     const copied = await copyImage(item);
-    if (!copied) showToast("Copy failed", "error");
+    if (!copied) showToast("Couldn’t copy", "error");
     return copied;
   }
 
@@ -734,7 +734,7 @@ function App() {
       })
       .catch((error) => {
         setStatus(error.message);
-        if (notify) showToast("Model refresh failed", "error", { action: { label: "Try again", onClick: () => refreshModels(true) } });
+        if (notify) showToast("Couldn’t refresh models", "error", { action: { label: "Try again", onClick: () => refreshModels(true) } });
       });
     modelsRefreshRef.current = request;
     return request;
@@ -764,7 +764,7 @@ function App() {
         if (typeof data.thisComputer === "boolean") setThisComputer(data.thisComputer);
         if (typeof data.atComputer === "boolean") setAtComputer(data.atComputer);
       })
-      .catch((error) => setHealth({ ok: false, error: error instanceof Error && !/fetch|load failed/i.test(error.message) ? error.message : "Can’t reach HEISS UI. Check that it’s still running." }));
+      .catch((error) => setHealth({ ok: false, error: error instanceof Error && !/fetch|load failed/i.test(error.message) ? error.message : "Can’t reach HEISS UI. Make sure it’s running." }));
   }
 
   /** The status poll mostly returns the same answer; a new object would re-render the whole app every five seconds. */
@@ -817,11 +817,11 @@ function App() {
       });
       setPaths(next);
       // The row shows the saved folder; only a folder that doesn't hold your images is worth a word.
-      if (next.report?.state === "mismatch") showToast("Folder saved, but your recent images aren’t in it", "warning");
+      if (next.report?.state === "mismatch") showToast("Folder saved. Recent images aren’t in it.", "warning");
       loadGallery().catch(() => null);
       return next.report || null;
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not save output folder", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t save the output folder", "error");
       return null;
     }
   }
@@ -887,9 +887,9 @@ function App() {
       // The check the person asks for always goes to GitHub; polling uses the server's cache.
       const data = await apiJson<UpdateStatus>("/api/update/status?fresh=1");
       setUpdateStatus(data);
-      if (notify) showToast(data.available ? "Update available" : data.ok ? "Already up to date" : data.error || "Update check failed", data.ok ? "success" : "error");
+      if (notify) showToast(data.available ? "Update available" : data.ok ? "Up to date" : data.error || "Couldn’t check for updates", data.ok ? "success" : "error");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Update check failed";
+      const message = error instanceof Error ? error.message : "Couldn’t check for updates";
       setUpdateStatus({ ok: false, error: message });
       if (notify) showToast(message, "error");
     } finally {
@@ -900,8 +900,8 @@ function App() {
   async function installUpdate({ confirm = true }: { confirm?: boolean } = {}) {
     const release = Boolean(updateStatus?.release);
     if (confirm && !await confirmAction(release
-      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads${updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : " the update"} and installs it when HEISS UI restarts.`, action: "Download update" }
-      : { title: "Update HEISS UI?", description: "Pulls the latest code, installs packages and rebuilds.", action: "Install update" })) return;
+      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads${updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : " the update"} and installs it when HEISS UI restarts.`, action: "Download" }
+      : { title: "Update HEISS UI?", description: "Pulls the latest code, installs packages and rebuilds.", action: "Update" })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
@@ -913,9 +913,9 @@ function App() {
       if (data.updated) {
         try { localStorage.setItem(updateInstalledKey, JSON.stringify({ at: Date.now() })); } catch { /* the success toast just won't show */ }
       }
-      showToast(data.updated ? "Update installed. Restart HEISS UI to use it." : data.message || "Already up to date", data.updated ? "success" : "default");
+      showToast(data.updated ? "Update installed. Restart HEISS UI to use it." : data.message || "Up to date", data.updated ? "success" : "default");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Update failed", "error", { action: { label: "Try again", onClick: () => installUpdate({ confirm: false }) } });
+      showToast(error instanceof Error ? error.message : "Couldn’t update", "error", { action: { label: "Try again", onClick: () => installUpdate({ confirm: false }) } });
     } finally {
       setUpdateBusy(false);
     }
@@ -930,7 +930,7 @@ function App() {
     try {
       await apiJson("/api/update/restart", { method: "POST" });
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not restart HEISS UI", "error", { action: { label: "Try again", onClick: () => restartHeiss({ update }) } });
+      showToast(error instanceof Error ? error.message : "Couldn’t restart HEISS UI", "error", { action: { label: "Try again", onClick: () => restartHeiss({ update }) } });
       return false;
     }
     // A downloaded update goes in with any restart, so say so when the page comes back.
@@ -945,7 +945,7 @@ function App() {
       if (data?.startedAt && data.startedAt >= at) { window.location.reload(); return; }
       if (Date.now() > deadline) {
         setRestarting(false);
-        showToast("HEISS UI did not come back. Start it again with its launcher.", "error", { duration: Infinity, action: { label: "Reload", onClick: () => window.location.reload() } });
+        showToast("HEISS UI didn’t come back. Start it again with its launcher.", "error", { duration: Infinity, action: { label: "Reload", onClick: () => window.location.reload() } });
         return;
       }
       window.setTimeout(poll, 1000);
@@ -1145,7 +1145,7 @@ function App() {
     const slow = gallery.find((item) => item.status === "done" && item.timing?.slow && watchedRuns.current.has(item.jobId || item.id));
     if (!slow) return;
     slowHintShown.current = true;
-    showToast("That run’s steps were much slower than usual for this model. ComfyUI may be short on video memory: close other apps using the GPU, or try a smaller size.", "warning");
+    showToast("That run was much slower than usual. ComfyUI may be short on graphics memory. Close other apps that use it, or try a smaller size.", "warning");
   }, [gallery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // What Generate would take with these settings, the way generate() would send them.
@@ -1158,7 +1158,7 @@ function App() {
   // Every Restart ComfyUI button asks first when it would stop running work.
   useEffect(() => {
     registerRestartConfirm(() => runningCount
-      ? confirmAction({ title: "Restart ComfyUI?", description: `${runningCount} generation${runningCount === 1 ? " is" : "s are"} still running and will stop. ComfyUI comes back in a few seconds.`, action: "Restart anyway", destructive: true })
+      ? confirmAction({ title: "Restart ComfyUI?", description: `${runningCount} running generation${runningCount === 1 ? "" : "s"} will stop.`, action: "Restart", destructive: true })
       : Promise.resolve(true));
     return () => registerRestartConfirm(null);
   }, [runningCount, confirmAction]);
@@ -1207,7 +1207,7 @@ function App() {
     if (next && profileId !== model) {
       // A switch loads the workflow's own defaults, which the composer shows; only
       // a reference image it had to drop is news.
-      if (referenceAssets.length > 0 && !imageInputsForProfile(next).length) showToast(`${next.displayName || next.label || "This model"} takes no reference image, so it was removed.`, "warning");
+      if (referenceAssets.length > 0 && !imageInputsForProfile(next).length) showToast(`Reference image removed. ${next.displayName || next.label || "This model"} doesn’t use one.`, "warning");
     }
     chooseModel(profileId);
     const lastUsed = { [profileId]: new Date().toISOString() };
@@ -1230,7 +1230,7 @@ function App() {
     }).then((data) => {
       if (data.preferences) setWorkflowPreferences(data.preferences);
       refreshWorkflows();
-    }).catch(() => showToast("Could not save the favorite", "error"));
+    }).catch(() => showToast("Couldn’t save the favorite", "error"));
   }
 
   toggleModelFavoriteRef.current = toggleModelFavorite;
@@ -1302,7 +1302,7 @@ function App() {
       selectReferenceAsset(referenceInput!.id, data.asset);
       setActive(null);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Could not use this image", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t use this image", "error");
     }
   }
 
@@ -1327,7 +1327,7 @@ function App() {
       refreshWorkflows();
       showToast("Workflow imported", "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Workflow import failed", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t import the workflow", "error");
     }
   }
 
@@ -1350,7 +1350,7 @@ function App() {
   const varyPending = useRef(false);
   function varyItem(item: GalleryItem) {
     if (!applyAllSettings(item, { vary: true })) {
-      showToast("Its model isn’t installed here, so it can’t be varied.", "error");
+      showToast("Its model isn’t installed, so it can’t be varied.", "error");
       return;
     }
     setActive(null);
@@ -1394,7 +1394,7 @@ function App() {
     pickModel(profile.id);
     const first = !prompt.trim();
     if (first) setPrompt(starterPromptsFor(profile.family, profile.kind)[0]);
-    showToast(`${starterPick.title || profile.displayName || "The model"} is ready.${first ? ` A prompt is waiting: ${generateShortcut(prefs.enterToGenerate)} makes your first image.` : ""}`, "success");
+    showToast(`${starterPick.title || profile.displayName || "The model"} is ready.${first ? ` Press ${generateShortcut(prefs.enterToGenerate)} to try the example prompt.` : ""}`, "success");
     window.setTimeout(() => zenPromptRef.current?.focus(), 0);
   }, [models, starterPick]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1438,7 +1438,7 @@ function App() {
     updateStack: (id: string) => { updateLoraStack(loraFamily, id, loras); bumpLoraLibrary(); showToast('Stack updated', 'success'); },
     renameStack: (id: string, name: string) => { renameLoraStack(loraFamily, id, name); bumpLoraLibrary(); },
     deleteStack: async (stack: LoraSnapshot) => {
-      if (!await confirmAction({ title: `Delete ${stack.name}?`, description: 'Only the saved stack goes away. The LoRAs stay installed and in use.', action: 'Delete stack', destructive: true })) return false;
+      if (!await confirmAction({ title: `Delete ${stack.name}?`, description: 'The LoRAs stay installed and in use.', action: 'Delete', destructive: true })) return false;
       deleteLoraStack(loraFamily, stack.id);
       bumpLoraLibrary();
       return true;

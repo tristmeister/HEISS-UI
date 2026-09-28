@@ -179,13 +179,13 @@ export function applyBundlesToItems(items, bundles, isCandidate, { domain, enabl
 
 export function setBundleCover(bundles, bundleId, itemId) {
   const bundle = bundles.find((entry) => entry.id === bundleId);
-  if (!bundle) throw new Error("Run was not found.");
-  if (!bundle.itemIds.includes(itemId)) throw new Error("That output is not part of this run.");
+  if (!bundle) throw new Error("That run is gone.");
+  if (!bundle.itemIds.includes(itemId)) throw new Error("That file isn’t part of this run.");
   return bundles.map((entry) => entry.id === bundleId ? { ...entry, coverId: itemId } : entry);
 }
 
 /** Ungroups a run: the record goes, the outputs it pointed at are untouched. */
 export function dissolveBundle(bundles, bundleId) {
-  if (!bundles.some((entry) => entry.id === bundleId)) throw new Error("Run was not found.");
+  if (!bundles.some((entry) => entry.id === bundleId)) throw new Error("That run is gone.");
   return bundles.filter((entry) => entry.id !== bundleId);
 }

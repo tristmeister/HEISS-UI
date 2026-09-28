@@ -133,7 +133,7 @@ export function readMultipartImage(req) {
     try {
       parser = Busboy({ headers: req.headers, limits: { files: 1, fileSize: maxUploadBytes, fields: 4 } });
     } catch (error) {
-      reject(new Error(`Invalid multipart upload: ${error.message}`));
+      reject(new Error(`The upload failed: ${error.message}`));
       return;
     }
     const fail = (error) => {
@@ -160,7 +160,7 @@ export function readMultipartImage(req) {
     parser.on("finish", () => {
       if (settled) return;
       if (!found) return fail(new Error("Choose an image to upload."));
-      if (limited || size > maxUploadBytes) return fail(new Error(`Reference image exceeds the ${Math.round(maxUploadBytes / 1024 / 1024)} MB limit.`));
+      if (limited || size > maxUploadBytes) return fail(new Error(`Reference images can be up to ${Math.round(maxUploadBytes / 1024 / 1024)} MB.`));
       settled = true;
       resolve({ buffer: Buffer.concat(chunks), name, mime, size });
     });
@@ -183,17 +183,17 @@ async function inspectImage(buffer, declaredMime = "") {
   const sharp = await loadSharp();
   const metadata = sharp ? await sharp(buffer, { limitInputPixels: maxPixels }).metadata() : sniffImage(buffer);
   const mime = metadata.format === "jpeg" ? "image/jpeg" : metadata.format === "webp" ? "image/webp" : metadata.format === "png" ? "image/png" : "";
-  if (!mime || !acceptedMimes.has(mime)) throw new Error("Reference image must be a PNG, JPEG, or WebP file.");
-  if (declaredMime && acceptedMimes.has(declaredMime) && declaredMime !== mime) throw new Error("The uploaded image type does not match its contents.");
+  if (!mime || !acceptedMimes.has(mime)) throw new Error("Choose a PNG, JPEG or WebP image.");
+  if (declaredMime && acceptedMimes.has(declaredMime) && declaredMime !== mime) throw new Error("That file isn’t the type of image its name says.");
   const width = Number(metadata.width || 0);
   const height = Number(metadata.height || 0);
-  if ((sharp || metadata.format === "png") && (!width || !height || width * height > maxPixels)) throw new Error("Reference image dimensions are invalid or too large.");
+  if ((sharp || metadata.format === "png") && (!width || !height || width * height > maxPixels)) throw new Error("That image is too large, or its size can’t be read.");
   return { mime, width, height };
 }
 
 export async function saveUploadedReference({ buffer, name, mime: declaredMime = "" }) {
-  if (!buffer?.length) throw new Error("Uploaded image is empty.");
-  if (buffer.length > maxUploadBytes) throw new Error(`Reference image exceeds the ${Math.round(maxUploadBytes / 1024 / 1024)} MB limit.`);
+  if (!buffer?.length) throw new Error("That image is empty.");
+  if (buffer.length > maxUploadBytes) throw new Error(`Reference images can be up to ${Math.round(maxUploadBytes / 1024 / 1024)} MB.`);
   const inspected = await inspectImage(buffer, declaredMime);
   const hash = crypto.createHash("sha256").update(buffer).digest("hex");
   const existing = loadManifest().find((item) => item.hash === hash && item.source === "upload");
@@ -239,7 +239,7 @@ export function readUploadedReference(id, variant = "media") {
 export function deleteUploadedReference(id) {
   const records = loadManifest();
   const record = records.find((item) => item.id === String(id || "") && item.source === "upload");
-  if (!record) throw new Error("Uploaded reference image was not found.");
+  if (!record) throw new Error("That reference image is gone.");
   for (const [baseDir, filename] of [[filesDir, record.file], [thumbsDir, record.thumbnail]]) {
     const base = path.resolve(baseDir);
     const target = path.resolve(baseDir, filename || "");
@@ -269,7 +269,7 @@ async function publicGalleryBuffer(item) {
     return base && isInside(base, resolved) && fs.existsSync(resolved) && fs.statSync(resolved).isFile();
   });
   if (file) return { buffer: fs.readFileSync(file), mime: mimeFromName(file), name: item.outputName || path.basename(file) };
-  if (!String(item.url || "").startsWith("/comfy/")) throw new Error("Generated reference image is no longer available.");
+  if (!String(item.url || "").startsWith("/comfy/")) throw new Error("That image is no longer in the gallery.");
   const relative = String(item.url).replace(/^\/comfy/, "");
   const data = await comfy(relative);
   return { buffer: Buffer.from(data), mime: mimeFromName(item.outputName || item.filename || item.url), name: item.outputName || item.filename || "generated-image.png" };
@@ -281,7 +281,7 @@ export function referenceAssetFromGallery(req, galleryItemId) {
   if (publicItem) return galleryAsset(publicItem);
   const vaultItem = vaultGalleryItemsForRequest(req, { bundles: false }).find((item) => item.type === "image" && item.status === "done" && item.id === galleryItemId);
   if (vaultItem) return galleryAsset(vaultItem);
-  throw new Error("Generated reference image was not found or is not accessible.");
+  throw new Error("That image is no longer in the gallery.");
 }
 
 /**
@@ -322,11 +322,11 @@ export async function bytesForReference(req, id) {
   const upload = loadManifest().find((item) => item.id === id && item.source === "upload");
   if (upload) {
     const file = path.resolve(filesDir, upload.file);
-    if (!file.startsWith(`${path.resolve(filesDir)}${path.sep}`) || !fs.existsSync(file)) throw new Error("Uploaded reference image is unavailable.");
+    if (!file.startsWith(`${path.resolve(filesDir)}${path.sep}`) || !fs.existsSync(file)) throw new Error("That reference image is gone.");
     return { buffer: fs.readFileSync(file), mime: upload.mime, name: upload.name };
   }
   const item = findGalleryItem(id);
-  if (!item || item.type !== "image" || item.status !== "done") throw new Error("Generated reference image is unavailable.");
+  if (!item || item.type !== "image" || item.status !== "done") throw new Error("That image is no longer in the gallery.");
   const original = await publicGalleryBuffer(item);
   if (!item.upscaleActive || item.upscale?.status !== "done" || !item.upscale.url) return original;
   const { url, outputName } = item.upscale;

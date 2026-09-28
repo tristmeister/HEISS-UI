@@ -62,7 +62,7 @@ export function inspectTls(certPath = "", keyPath = "") {
     tls.createSecureContext({ cert: certPem, key: keyPem });
     if (!x509.checkPrivateKey(crypto.createPrivateKey(keyPem))) throw new Error("The key doesn’t belong to this certificate.");
     if (report.expired) throw new Error(`The certificate expired on ${report.validTo.slice(0, 10)}. Renew it (for Tailscale: tailscale cert), then restart HEISS UI.`);
-    if (!report.names.length) throw new Error("The certificate names no host, so no browser will accept it.");
+    if (!report.names.length) throw new Error("The certificate has no host name, so browsers won’t accept it.");
     report.ok = true;
     report.pem = { cert: certPem, key: keyPem };
   } catch (error) {

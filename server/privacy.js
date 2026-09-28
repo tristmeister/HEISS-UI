@@ -322,7 +322,7 @@ export async function changePassword(key, password = "") {
 export function addDevicePasskey(key, { id = "", name = "", publicKey = "" } = {}) {
   const config = readConfig();
   if (!config?.enabled || config.version !== 2 || !key) throw new Error("Unlock Hidden first.");
-  if (!id || !publicKey) throw new Error("This passkey did not share its public key.");
+  if (!id || !publicKey) throw new Error("This passkey didn’t provide a public key.");
   try { crypto.createPublicKey({ key: fromBase64url(publicKey), format: "der", type: "spki" }); } catch { throw new Error("This passkey type isn’t supported."); }
   const secret = crypto.randomBytes(32);
   const salt = base64url(crypto.randomBytes(32));

@@ -111,7 +111,7 @@ function TriggerWords({ words }: { words: string[] }) {
     <p className="lora-triggers">
       <span>Trigger</span>
       {words.map((word) => (
-        <Tip key={word} content={copied === word ? 'Copied' : 'Copy for your prompt'}>
+        <Tip key={word} content={copied === word ? 'Copied' : 'Copy for the prompt'}>
           <button type="button" className={cn('lora-trigger', copied === word && 'is-copied')} onClick={() => copy(word)}>{word}</button>
         </Tip>
       ))}
@@ -161,9 +161,9 @@ function LoraCard({ item, index, count, missing, overLimit, info, otherModel, on
       </div>
       <StrengthControl label={label} value={item.strength} disabled={!item.enabled} onChange={(strength) => onChange({ strength })} />
       {!missing && item.enabled && info?.triggers?.length ? <TriggerWords words={info.triggers} /> : null}
-      {missing ? <p className="lora-warning"><AlertTriangle size={12} /> Not found in ComfyUI's LoRA folder</p> : null}
-      {!missing && overLimit ? <p className="lora-warning"><AlertTriangle size={12} /> Over this workflow's limit, so it won't be used</p> : null}
-      {!missing && !overLimit && otherModel ? <p className="lora-warning is-soft"><AlertTriangle size={12} /> Made for {otherModel}; it may do nothing here</p> : null}
+      {missing ? <p className="lora-warning"><AlertTriangle size={12} /> Not in ComfyUI’s LoRA folder</p> : null}
+      {!missing && overLimit ? <p className="lora-warning"><AlertTriangle size={12} /> Over this workflow’s limit, so it isn’t used</p> : null}
+      {!missing && !overLimit && otherModel ? <p className="lora-warning is-soft"><AlertTriangle size={12} /> Made for {otherModel}, so it may not work here</p> : null}
     </Reorder.Item>
   );
 }
@@ -306,7 +306,7 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
             </div>
           );
         })}
-        {!visibleRows.length && query ? <div className="lora-empty"><p>No LoRAs match "{query}".</p></div> : null}
+        {!visibleRows.length && query ? <div className="lora-empty"><p>No LoRAs match “{query}”.</p></div> : null}
       </div>
       {multi ? (
         <div className="lora-picker-foot">
@@ -539,10 +539,10 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
         <span className="lora-count">{loras.length ? <>{activeCount} active <em>· {loras.length}/{cap}</em></> : `Up to ${cap} LoRAs`}</span>
         {loras.length ? (
           <>
-            <Tip content={allOff ? 'Turn every LoRA back on' : 'Turn every LoRA off, keep the stack'}>
+            <Tip content={allOff ? 'Turn all LoRAs back on' : 'Turn all LoRAs off'}>
               <button type="button" className="lora-head-action" onClick={() => setLoras((current) => current.map((item) => ({ ...item, enabled: allOff })))}>{allOff ? 'All on' : 'All off'}</button>
             </Tip>
-            <Tip content="Remove every LoRA (you can undo)">
+            <Tip content="Remove all LoRAs">
               <button type="button" className="lora-head-action" onClick={clearAll}>Clear</button>
             </Tip>
           </>

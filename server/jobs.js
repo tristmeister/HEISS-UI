@@ -315,7 +315,7 @@ function learnFromFailure(body, message = "") {
   if (!noEncoder && !noVae) return "";
   rememberMissingParts(body.model, { encoder: noEncoder, vae: noVae });
   const part = noEncoder ? "text encoder" : "VAE";
-  return `This checkpoint has no ${part} built in. HEISS UI now uses a separate one: rescan models, pick it in Advanced (or download it), and generate again.`;
+  return `This checkpoint has no ${part} built in, so it now uses a separate one. Rescan models, pick one in Advanced (or download it), and generate again.`;
 }
 
 /** Waits before the next look at ComfyUI; a finished-run message on the socket ends the wait early. */
@@ -610,7 +610,7 @@ export function runMockJob(id, body) {
             })
             .catch((error) => {
               setTerminalJob(id, { status: "error", error: error.message });
-              updateGalleryJob(id, { status: "error", filename: "Could not save to Hidden" });
+              updateGalleryJob(id, { status: "error", filename: "Couldn’t save to Hidden" });
             });
           return;
         }

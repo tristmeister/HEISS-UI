@@ -8,54 +8,54 @@ const hints = [
   {
     test: /header is too large|incomplete metadata|MetadataIncompleteBuffer|invalid header|Error while deserializing header/i,
     title: "A model file is damaged or incomplete",
-    hint: "This usually means a download stopped early, or a web page was saved under a model's name. Delete the file and download it again.",
+    hint: "A download may have stopped early, or saved a web page instead of the model. Delete the file and download it again.",
     fix: "redownload"
   },
   {
     test: /out of memory|OutOfMemoryError|Allocation on device/i,
     title: "The GPU ran out of memory",
-    hint: "Free the memory ComfyUI still holds and try again, or try a smaller size, fewer images per run, or a lighter model.",
+    hint: "Free ComfyUI's memory and try again, or use a smaller size, fewer images per run, or a lighter model.",
     fix: "memory"
   },
   {
     test: /Value not in list/i,
-    title: "ComfyUI does not have a file this run asked for",
-    hint: "A model, LoRA, text encoder or VAE picked here is not in ComfyUI's folders (anymore). Rescan models, or pick another one.",
+    title: "ComfyUI can't find a file this run uses",
+    hint: "A model, LoRA, text encoder or VAE picked here isn't in ComfyUI's folders. Rescan models, or pick another one.",
     fix: "rescan"
   },
   {
     test: /mat1 and mat2 shapes cannot be multiplied|size mismatch|shape .* is invalid for input|Error\(s\) in loading state_dict/i,
-    title: "Parts that do not fit together",
-    hint: "The text encoder, VAE or a LoRA does not match this model's family. Check the picks in Advanced and the active LoRAs."
+    title: "A part doesn't match the model",
+    hint: "The text encoder, VAE or a LoRA is made for a different model family. Check the picks in Advanced and the active LoRAs."
   },
   {
     test: /No such file or directory|FileNotFoundError|could not find/i,
     title: "A file went missing",
-    hint: "Something this run needs was moved or deleted after ComfyUI listed it. Rescan models and try again.",
+    hint: "A file this run needs was moved or deleted. Rescan models and try again.",
     fix: "rescan"
   },
   {
     // ComfyUI-GGUF refuses architectures it doesn't know yet (Krea 2, Ideogram 4, MiniMax H3, Qwen-Image 2.1 in Sept 2026).
     test: /Unexpected (?:text model )?architecture type in GGUF file|This model is not currently supported/i,
     title: "ComfyUI-GGUF can't load this model yet",
-    hint: "HEISS UI knows this GGUF file, but the installed ComfyUI-GGUF doesn't support its model type yet. Update ComfyUI-GGUF, or use the model's safetensors version."
+    hint: "The installed ComfyUI-GGUF doesn't support this model type yet. Update ComfyUI-GGUF, or use the model's safetensors version."
   },
   {
     test: /Node .* does not exist|missing_node_type|Cannot execute because a node is missing|The custom node may not be installed/i,
     title: "A node is missing in ComfyUI",
-    hint: "The workflow uses a custom node ComfyUI does not have. Install it, restart ComfyUI, and try again.",
+    hint: "The workflow uses a custom node ComfyUI doesn't have. Install it, restart ComfyUI, and try again.",
     fix: "node"
   },
   {
     test: /no longer has this run/i,
     title: "ComfyUI dropped this run",
-    hint: "It is neither queued nor finished in ComfyUI anymore, so nothing will come of it. Generate again once ComfyUI is running.",
+    hint: "It's no longer in ComfyUI's queue or history. Generate again once ComfyUI is running.",
     fix: "retry"
   },
   {
     test: /ECONNREFUSED|fetch failed|socket hang up|ETIMEDOUT|TimeoutError|aborted due to timeout|stopped answering/i,
     title: "Lost the connection to ComfyUI",
-    hint: "ComfyUI stopped answering mid-run. Check that it is still running, then try again.",
+    hint: "ComfyUI stopped responding mid-run. Make sure it's running, then try again.",
     fix: "retry"
   }
 ];
@@ -119,7 +119,7 @@ export function describeFailure({ message = "", friendly = "", nodeType = "", no
       title: noOutputTitle,
       help: troubleshootingAnchor(noOutputTitle),
       summary: raw,
-      hint: "The run ended without an image HEISS UI can show. The workflow may end in a preview node instead of Save Image, or ComfyUI skipped a step. Check the workflow's output, or run it once in ComfyUI to see what it does.",
+      hint: "The run ended without an image to show. The workflow may end in a preview node instead of Save Image, or ComfyUI skipped a step. Run it once in ComfyUI to see what it does.",
       nodeType: "", nodeId: "", exceptionType: "", detail: raw, traceback: "", at: Date.now()
     };
   }
@@ -132,7 +132,7 @@ export function describeFailure({ message = "", friendly = "", nodeType = "", no
     title: learned ? learnedTitle : damaged && part ? `The ${part} file is damaged` : match?.title || genericTitle,
     // "The VAE file is damaged" is explained under the general damaged-file heading.
     help: troubleshootingAnchor(learned ? learnedTitle : match?.title || genericTitle),
-    summary: learned || (damaged ? `${file || "A model file"} could not be read. It may not have finished downloading.` : headline(friendly || raw)) || "ComfyUI execution failed",
+    summary: learned || (damaged ? `${file || "A model file"} couldn't be read. It may not have finished downloading.` : headline(friendly || raw)) || "ComfyUI execution failed",
     hint: learned ? "" : match?.hint || "",
     fix: learned ? "rescan" : match?.fix || "",
     ...(match?.fix === "node" && missingNodeIn(raw) ? { missingNode: missingNodeIn(raw) } : {}),

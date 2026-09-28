@@ -106,7 +106,7 @@ export function pruneRuntimes(root, log = () => {}) {
 /** Node's published SHA-256 for one of its files. */
 export async function publishedSha256(version, file) {
   const response = await fetch(`${distUrl}/v${version}/SHASUMS256.txt`, { signal: AbortSignal.timeout(30000) });
-  if (!response.ok) throw new Error(`Could not fetch Node.js checksums (${response.status}).`);
+  if (!response.ok) throw new Error(`Couldn’t get the Node.js checksums (${response.status}).`);
   const line = (await response.text()).split(/\r?\n/).find((row) => row.trim().endsWith(`  ${file}`));
   const sum = line?.split(/\s+/)[0]?.toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(sum || "")) throw new Error(`Node.js publishes no checksum for ${file}.`);

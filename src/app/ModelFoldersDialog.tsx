@@ -73,12 +73,12 @@ function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: Mo
           : `They’re in ${folders[0].name}, which ComfyUI doesn’t read.`
         : `They’re in ${plural(folders.length, 'folder')} ComfyUI doesn’t fully read.`
     };
-    case 'none': return { title: 'No models found outside ComfyUI', description: 'Keep models somewhere else? Choose the folder.' };
-    case 'remote': return { title: 'ComfyUI runs on another computer', description: 'HEISS UI can only look through the folders of the computer it runs on.' };
+    case 'none': return { title: 'No models found outside ComfyUI', description: 'If models are somewhere else, choose the folder.' };
+    case 'remote': return { title: 'ComfyUI runs on another computer', description: 'Only folders on the computer running HEISS UI can be searched.' };
     case 'offline': return comfyRestarting
-      ? { title: 'ComfyUI is restarting', description: 'The search carries on as soon as it’s back, usually in a few seconds.' }
+      ? { title: 'ComfyUI is restarting', description: 'The search continues when it’s back, usually in a few seconds.' }
       : { title: 'Waiting for ComfyUI', description: 'Start ComfyUI to continue.' };
-    case 'adding': return { title: 'Adding folders', description: 'The previous settings are kept as a backup.' };
+    case 'adding': return { title: 'Adding folders', description: 'ComfyUI’s previous settings are saved as a backup.' };
     case 'restarting': return { title: 'Restarting ComfyUI', description: 'ComfyUI reads its model folders when it starts. This takes a few seconds.' };
     case 'waiting': return { title: 'Restart ComfyUI to finish', description: 'ComfyUI reads its model folders when it starts. Quit ComfyUI and open it again.' };
     case 'done': return {
@@ -86,8 +86,8 @@ function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: Mo
       description: 'New files in it show up after a rescan.'
     };
     case 'error': return saved
-      ? { title: 'Folders saved, waiting for ComfyUI', description: 'ComfyUI’s settings now include them; it reads them the next time it starts.' }
-      : { title: 'Couldn’t add the folder', description: 'ComfyUI’s settings were not changed.' };
+      ? { title: 'Folders saved, waiting for ComfyUI', description: 'ComfyUI reads them the next time it starts.' }
+      : { title: 'Couldn’t add the folder', description: 'ComfyUI’s settings weren’t changed.' };
   }
 }
 
@@ -152,9 +152,9 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
         </ul>
         <p className="upscale-fine">
           Adds {chosen.length === 1 ? 'it' : 'them'} to <code title={report?.configPath}>extra_model_paths.yaml</code>.
-          {runningCount ? <> ComfyUI restarts once, which stops the {plural(runningCount, 'generation')} still running.</> : <> ComfyUI restarts once.</>}
+          {runningCount ? <> ComfyUI restarts once, stopping {plural(runningCount, 'running generation')}.</> : <> ComfyUI restarts once.</>}
         </p>
-        {report?.writable === false ? <p className="upscale-fine is-warn">HEISS UI may not change {report.configLabel}. Check its permissions, or add the folder in ComfyUI yourself.</p> : null}
+        {report?.writable === false ? <p className="upscale-fine is-warn">Can’t write to {report.configLabel}. Check its permissions, or add the folder in ComfyUI yourself.</p> : null}
       </>
     );
     footer = (
@@ -233,7 +233,7 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
   } else if (stage === 'error') {
     body = state.saved
       ? <><div className="upscale-callout"><strong>{error}</strong></div><ComfyRestart compact className="upscale-restart" onBack={() => state.scan()} /></>
-      : <div className="upscale-callout is-danger"><strong>{error || 'Something went wrong.'}</strong></div>;
+      : <div className="upscale-callout is-danger"><strong>{error || 'Try again, or add the folder in ComfyUI yourself.'}</strong></div>;
     footer = state.saved
       ? <button className="btn is-ghost" onClick={state.close}>Finish later</button>
       : <>{later}<button className="btn is-primary" onClick={() => state.scan()}>Try again</button></>;

@@ -69,6 +69,6 @@ export function verifyReleaseSignature({ sig, version, file, sha256, publicKey =
   } catch {
     ok = false;
   }
-  if (!ok) throw new Error("This release isn’t signed with HEISS UI’s release key.");
+  if (!ok) throw new Error("This release isn’t signed with the HEISS UI release key.");
   return true;
 }

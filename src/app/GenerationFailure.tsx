@@ -13,7 +13,7 @@ import type { GalleryItem, GenerationFailure } from './types';
 export function failureOf(item: GalleryItem): GenerationFailure {
   if (item.failure) return item.failure;
   const text = String(item.filename || '').trim();
-  return { title: 'Generation failed', summary: text || 'ComfyUI did not say why.', detail: text };
+  return { title: 'Generation failed', summary: text || 'ComfyUI didn’t say why.', detail: text };
 }
 
 function reportFor(item: GalleryItem, failure: GenerationFailure) {
@@ -69,8 +69,8 @@ function fixButtons(item: GalleryItem, failure: GenerationFailure, fixes: Failur
   const canRerun = Boolean(item.prompt && item.model && item.settings);
   if (failure.fix === 'memory' && canRerun) {
     return [
-      ...(admin ? [{ label: failure.retry?.tiledDecode ? 'Free memory, decode in tiles' : 'Free memory and retry', icon: <RotateCw size={14} />, run: () => fixes.freeMemoryAndRetry(item) }] : []),
-      { label: 'Retry smaller', icon: <Minimize2 size={14} />, run: () => fixes.retry(item, { smaller: true }) }
+      ...(admin ? [{ label: failure.retry?.tiledDecode ? 'Free memory, decode in tiles' : 'Free memory and try again', icon: <RotateCw size={14} />, run: () => fixes.freeMemoryAndRetry(item) }] : []),
+      { label: 'Try again smaller', icon: <Minimize2 size={14} />, run: () => fixes.retry(item, { smaller: true }) }
     ];
   }
   if (failure.fix === 'redownload' && failure.redownload && admin) return [{ label: 'Download again', icon: <Download size={14} />, run: () => fixes.redownload(item) }];

@@ -237,7 +237,7 @@ export function applyPending(root, log = () => {}) {
     const failed = moveAll(root, moved.map((name) => ({ from: path.join(path.relative(root, backup), name), to: name, replace: true })), log);
     clearStaging(root);
     const left = failed.length ? ` Some files could not be put back: ${describeLeftovers(failed)}.` : "";
-    writeResult(root, { ok: false, from, to: pending.version, error: `Could not swap the files in: ${error.message}.${left}`, leftovers: failed });
+    writeResult(root, { ok: false, from, to: pending.version, error: `Couldn’t swap the files in: ${error.message}.${left}`, leftovers: failed });
     throw error;
   }
 

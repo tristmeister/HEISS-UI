@@ -101,7 +101,7 @@ test("a section counts as read only once ComfyUI reads every folder it adds", as
 test("only folders the scan found, or a picked models folder, can be added", async () => {
   await modelFolderReport({ scan });
   await assert.rejects(() => linkModelFolders(["/etc"], { scan }), /Nothing to add/);
-  await assert.rejects(() => linkModelFolders([], { picked: path.join(home, "Downloads"), scan }), /does not look like a models folder/);
+  await assert.rejects(() => linkModelFolders([], { picked: path.join(home, "Downloads"), scan }), /doesn’t look like a models folder/);
   fs.rmSync(config, { force: true });
   const picked = await linkModelFolders([], { picked: path.join(home, "StabilityMatrix", "Models"), scan });
   assert.equal(picked.added.length, 1);

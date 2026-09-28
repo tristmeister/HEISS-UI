@@ -45,7 +45,7 @@ export function hfTokenStatus(env = process.env) {
 export function saveHfToken(value) {
   const token = String(value || "").trim();
   const current = hfToken();
-  if (current.source === "environment") throw new Error(`The token comes from ${current.key} in your environment; change it there.`);
+  if (current.source === "environment") throw new Error(`The token is set by ${current.key} in the environment. Change it there.`);
   if (token && !/^hf_[A-Za-z0-9]{16,}$/.test(token)) throw new Error("That doesn’t look like a Hugging Face token. They start with hf_.");
   if (token) {
     writeLocalEnvValue("HF_TOKEN", token);

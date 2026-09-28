@@ -221,7 +221,7 @@ async function toRecords(files, describe) {
 export async function importOutputFolder() {
   if (!comfyOutputDir) throw new Error("Set ComfyUI’s output folder first (Settings › Library).");
   const base = realPath(comfyOutputDir);
-  try { if (!fs.statSync(base).isDirectory()) throw new Error("missing"); } catch { throw new Error("The output folder is not there any more."); }
+  try { if (!fs.statSync(base).isDirectory()) throw new Error("missing"); } catch { throw new Error("The output folder can’t be found."); }
   const own = path.join(base, "heiss-ui");
   const { files, capped } = await walk(base, (dir) => isInside(own, dir, { orSame: true }) || isOwnFolder(dir));
   const records = await toRecords(files, (file) => {
@@ -247,7 +247,7 @@ export function scanLibraryFolder(id) {
   const folder = folders.find((entry) => entry.id === id);
   if (!folder) return Promise.reject(new Error("That folder is no longer added."));
   const run = (async () => {
-    if (!folderAvailable(folder)) throw new Error(`${folder.name} is not reachable right now. Is the drive connected?`);
+    if (!folderAvailable(folder)) throw new Error(`Can’t reach ${folder.name}. Check that its drive is connected.`);
     const base = folder.path;
     const { files, capped } = await walk(base, (dir) => isOwnFolder(dir) || isOutputFolder(dir));
     const records = await toRecords(files, (file) => {
@@ -272,10 +272,10 @@ export async function addLibraryFolder(input) {
   const dir = normalizeFolderInput(input);
   if (!dir) throw new Error("Choose a folder.");
   let stat;
-  try { stat = fs.statSync(dir); } catch { throw new Error("That folder does not exist on this computer."); }
-  if (!stat.isDirectory()) throw new Error("That is a file, not a folder.");
+  try { stat = fs.statSync(dir); } catch { throw new Error("That folder doesn’t exist on this computer."); }
+  if (!stat.isDirectory()) throw new Error("That’s a file. Choose a folder.");
   const real = realPath(dir);
-  if (isOwnFolder(real)) throw new Error("That is HEISS UI’s own folder. Choose the folder your earlier images are in.");
+  if (isOwnFolder(real)) throw new Error("That’s the HEISS UI folder. Choose the folder with your earlier images.");
   if (isOutputFolder(real)) return { output: true, ...(await importOutputFolder()) };
   const existing = folders.find((folder) => samePath(folder.path, real));
   if (existing) return scanLibraryFolder(existing.id);

@@ -36,7 +36,7 @@ export const nodePacks = {
     commit: "09e895cf35384979e0bb9a1ea01fe8f3db913516",
     ref: "main, 2025-06-06",
     nodes: ["SanaCheckpointLoader", "GemmaLoader", "SanaTextEncode", "GemmaTextEncode", "ExtraVAELoader"],
-    note: "Install it by Git URL: Manager's search finds the older city96 original."
+    note: "Install it by Git URL. Manager’s search finds the older city96 version."
   },
   impactpack: {
     name: "ComfyUI Impact Pack",

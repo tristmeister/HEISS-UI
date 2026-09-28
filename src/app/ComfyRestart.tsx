@@ -219,7 +219,7 @@ export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; conf
     } catch (reason) {
       if (!alive.current) return;
       setPhase('error');
-      setError(reason instanceof Error ? reason.message : 'Could not restart ComfyUI');
+      setError(reason instanceof Error ? reason.message : 'Couldn’t restart ComfyUI');
       refresh();
       return;
     }
@@ -248,7 +248,7 @@ export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; conf
     }
     if (!alive.current) return;
     setPhase('error');
-    setError('ComfyUI has not come back yet. Check its window for errors.');
+    setError('ComfyUI hasn’t come back yet. Check its window for errors.');
   };
 
   // A restart started anywhere (another button, a setup step, another tab) shows here too.
@@ -265,11 +265,11 @@ export function ComfyManagerNote({ info, refresh, className }: { info: ManagerIn
   return (
     <p className={cn('comfy-restart-note', className)}>
       {info?.stale
-        ? <>HEISS UI is running older code. Restart it to use this.</>
+        ? <>Restart HEISS UI to use this.</>
         : info?.connected
         ? <>Needs ComfyUI-Manager. Start ComfyUI with <code>--enable-manager</code>, or restart it yourself.</>
-        : info?.error ? <>Could not check ComfyUI: {info.error}</>
-        : <>ComfyUI is not answering.</>}{' '}
+        : info?.error ? <>Couldn’t check ComfyUI: {info.error}</>
+        : <>ComfyUI is offline.</>}{' '}
       <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
     </p>
   );
@@ -296,7 +296,7 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
         {phase === 'back' ? 'Back online' : busy ? 'Restarting…' : 'Restart ComfyUI'}
       </button>
       {off ? <ComfyManagerNote info={info} refresh={refresh} /> : null}
-      {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting and reads new nodes and folders as it starts. {eta?.text || 'Usually back in a few seconds.'}</p> : null}
+      {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting to pick up new nodes and folders. {eta?.text || 'Usually back in a few seconds.'}</p> : null}
       {phase === 'back' && !compact && result && restartResultLine(result) !== 'Back online' ? <p className={cn('comfy-restart-note', Boolean(result.failedPacks?.length) && 'is-error')}>{restartResultLine(result)}</p> : null}
       {phase === 'error' ? <p className="comfy-restart-note is-error">{error}</p> : null}
     </div>

@@ -82,7 +82,7 @@ export function setModelChoice(source, name, choice) {
   if (!safeName || safeName.length > 1024) throw new Error("Choose a model file.");
   if (safeChoice && !parseChoice(safeChoice, safeSource)) {
     const family = families[safeChoice.split("/")[0]];
-    throw new Error(family ? `${family.label} cannot load from this folder.` : "Unknown model type.");
+    throw new Error(family ? `${family.label} can’t load from this folder.` : "Unknown model type.");
   }
   const next = { ...loadModelChoices() };
   if (safeChoice) next[choiceKey(safeSource, safeName)] = safeChoice;

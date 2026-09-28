@@ -54,7 +54,7 @@ test("a build that fails goes back to the commit it came from and rebuilds that"
   });
   await assert.rejects(updateCheckout({ run }), (error) => {
     assert.match(error.message, /^Building the update failed: src\/main\.tsx\(1,1\): error TS2304/);
-    assert.match(error.message, /went back to the version it had, and it still works/);
+    assert.match(error.message, /went back to the version it had\.$/);
     assert.equal(error.rolledBack, true);
     return true;
   });

@@ -33,9 +33,9 @@ export function formatBytes(bytes = 0) {
 
 /** The three efforts, with what each first download weighs (DiT plus the shared VAE). */
 export const upscaleEfforts = [
-  { value: "fast", label: "Fast", scale: "1.5×", model: "SeedVR2 3B", detail: "1.5× with the 3B model. Lightest on VRAM.", downloadBytes: 3_892_869_510 },
+  { value: "fast", label: "Fast", scale: "1.5×", model: "SeedVR2 3B", detail: "1.5× with the 3B model. Uses the least graphics memory.", downloadBytes: 3_892_869_510 },
   { value: "balanced", label: "Balanced", scale: "2×", model: "SeedVR2 7B", detail: "2× with the 7B fp8 model.", downloadBytes: 8_967_621_152 },
-  { value: "high", label: "High", scale: "3×", model: "SeedVR2 7B fp16", detail: "3× with the 7B fp16 model. Slowest, needs the most VRAM.", downloadBytes: 16_980_659_238 }
+  { value: "high", label: "High", scale: "3×", model: "SeedVR2 7B fp16", detail: "3× with the 7B fp16 model. Slowest, and uses the most graphics memory.", downloadBytes: 16_980_659_238 }
 ] as const;
 
 export function upscaleQualityLabel(quality = "balanced") {
@@ -46,23 +46,23 @@ export function upscaleQualityLabel(quality = "balanced") {
 export type UpscaleNotice = { title: string; message: string; reason: string };
 
 const noticeTitles: Record<string, string> = {
-  missing: "This image is gone from the server",
+  missing: "The image file is missing",
   video: "Only images can be upscaled",
   unfinished: "Still rendering",
-  source: "Could not read the original",
-  switch: "Could not switch versions",
-  cancel: "Could not stop the upscale",
-  failed: "The upscale failed"
+  source: "Couldn’t read the original",
+  switch: "Couldn’t switch versions",
+  cancel: "Couldn’t stop the upscale",
+  failed: "Upscale failed"
 };
 
 export function upscaleNoticeFrom(error: unknown, fallbackReason = ""): UpscaleNotice {
   const reason = error instanceof ApiError && error.reason ? error.reason : fallbackReason;
-  const message = error instanceof Error ? error.message : "Upscale failed to start.";
+  const message = error instanceof Error ? error.message : "The upscale didn’t start.";
   const offline = error instanceof TypeError;
   return {
     reason,
-    title: noticeTitles[reason] || (offline ? "Could not reach HEISS UI" : "Upscale could not start"),
-    message: offline ? "Check that HEISS UI is still running, then try again." : message
+    title: noticeTitles[reason] || (offline ? "Can’t reach HEISS UI" : "Couldn’t start the upscale"),
+    message: offline ? "Make sure it’s running, then try again." : message
   };
 }
 
@@ -104,11 +104,11 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       const now = item.upscale?.status || "";
       const before = seen.get(item.id);
       if (before === "running" && now === "error") {
-        setNotice(item.id, { reason: "failed", title: noticeTitles.failed, message: item.upscale?.error || "ComfyUI stopped the upscale without saying why. Its window has the details." });
+        setNotice(item.id, { reason: "failed", title: noticeTitles.failed, message: item.upscale?.error || "ComfyUI stopped the upscale. Check its window for details." });
       }
       // Sealed into Hidden, but ComfyUI's own copy is still readable where HEISS UI could not reach it.
       if (before === "running" && now === "done" && item.upscale?.leftBehind) {
-        showToast("Upscaled in Hidden, but ComfyUI’s own copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library so HEISS UI can remove such copies.", "warning");
+        showToast("Upscaled in Hidden. ComfyUI’s copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library to remove these copies.", "warning");
       }
       seen.set(item.id, now);
     }
@@ -140,27 +140,27 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     try {
       response = await fetch(url);
     } catch {
-      return failStatus("Could not reach HEISS UI.", true);
+      return failStatus("Can’t reach HEISS UI.", true);
     }
     // Report what actually came back rather than guessing at a cause: a non-JSON
     // body means something other than this route answered (SPA shell, proxy).
     const contentType = response.headers.get("content-type") || "";
     if (!contentType.includes("application/json")) {
       console.warn(`Smart upscale status: ${contentType || "unknown type"} (HTTP ${response.status}) instead of JSON`);
-      return failStatus("HEISS UI is running older code. Restart it to finish updating.");
+      return failStatus("Restart HEISS UI to finish updating.");
     }
     let payload: UpscaleStatus & { error?: string; offline?: boolean };
     try {
       payload = await response.json();
     } catch {
-      return failStatus(`Could not read the smart upscale status (HTTP ${response.status}).`);
+      return failStatus(`Couldn’t read the smart upscale status (HTTP ${response.status}).`);
     }
     if (!response.ok) {
       if (payload?.install !== undefined) setInstall(payload.install);
-      return failStatus(payload?.error || `Smart upscale status failed (HTTP ${response.status}).`, Boolean(payload?.offline));
+      return failStatus(payload?.error || `Couldn’t check smart upscale (HTTP ${response.status}).`, Boolean(payload?.offline));
     }
     if (typeof payload?.nodesInstalled !== "boolean") {
-      return failStatus(`The smart upscale status was missing its node report (HTTP ${response.status}).`);
+      return failStatus(`Couldn’t check smart upscale’s nodes (HTTP ${response.status}).`);
     }
     setStatus(payload);
     setInstall(payload.install);
@@ -267,7 +267,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       });
       setInstall(started.install);
     } catch (error) {
-      setStartError(error instanceof Error ? error.message : "Could not start the download");
+      setStartError(error instanceof Error ? error.message : "Couldn’t start the download");
     } finally {
       startingRef.current = false;
     }

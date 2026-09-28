@@ -57,8 +57,8 @@ function meta(entry: PromptEntry) {
 
 /** Pin and forget, told plainly when the server says no. */
 function useRowActions(onError: (message: string) => void) {
-  const pin = (entry: PromptEntry) => pinPrompt(entry.text, !entry.pinned).catch((error) => onError(error instanceof Error ? error.message : 'Could not save that'));
-  const forget = (entry: PromptEntry) => forgetPrompt(entry.text).catch((error) => onError(error instanceof Error ? error.message : 'Could not forget that'));
+  const pin = (entry: PromptEntry) => pinPrompt(entry.text, !entry.pinned).catch((error) => onError(error instanceof Error ? error.message : 'Couldn’t save that'));
+  const forget = (entry: PromptEntry) => forgetPrompt(entry.text).catch((error) => onError(error instanceof Error ? error.message : 'Couldn’t remove that prompt'));
   return { pin, forget };
 }
 
@@ -164,7 +164,7 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
           className="is-framed"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={prompts.length ? `Search ${prompts.length === 1 ? 'your prompt' : `${prompts.length} prompts`}` : 'Recent prompts'}
+          placeholder={prompts.length ? `Search ${prompts.length === 1 ? '1 prompt' : `${prompts.length} prompts`}` : 'Recent prompts'}
           aria-label="Search recent prompts"
           aria-controls={`${id}-list`}
           aria-activedescendant={cursor >= 0 ? `${id}-row-${cursor}` : undefined}
@@ -189,7 +189,7 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
                   <button type="button" className="prompt-history-icon is-pin" tabIndex={-1} aria-pressed={Boolean(row.entry.pinned)} aria-label={row.entry.pinned ? 'Unstar this prompt' : 'Star this prompt to keep it'} title={row.entry.pinned ? 'Unstar' : 'Star to keep'} onClick={() => pin(row.entry)}>
                     <Star size={13} fill={row.entry.pinned ? 'currentColor' : 'none'} />
                   </button>
-                  <button type="button" className="prompt-history-icon is-forget" tabIndex={-1} aria-label="Forget this prompt" title="Forget" onClick={() => forget(row.entry)}>
+                  <button type="button" className="prompt-history-icon is-forget" tabIndex={-1} aria-label="Remove this prompt" title="Remove" onClick={() => forget(row.entry)}>
                     <X size={13} />
                   </button>
                 </div>
@@ -207,7 +207,7 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
         <span><kbd>↑</kbd><kbd>↓</kbd> choose</span>
         <span><kbd>↵</kbd> use</span>
         <span><kbd>esc</kbd> close</span>
-        {hiddenSpace ? <em>From the gallery. Hidden prompts are never kept.</em> : null}
+        {hiddenSpace ? <em>From the gallery. Prompts from Hidden aren’t saved.</em> : null}
       </footer>
     </div>
   );
@@ -242,7 +242,7 @@ export function PromptHistorySheet({ open, onClose, onPick, onError }: { open: b
                 <button type="button" className={cn('phone-icon', row.entry.pinned && 'is-on')} aria-pressed={Boolean(row.entry.pinned)} aria-label={row.entry.pinned ? 'Unstar this prompt' : 'Star this prompt to keep it'} onClick={() => { haptic('tap'); pin(row.entry); }}>
                   <Star size={18} fill={row.entry.pinned ? 'currentColor' : 'none'} />
                 </button>
-                <button type="button" className="phone-icon" aria-label="Forget this prompt" onClick={() => forget(row.entry)}>
+                <button type="button" className="phone-icon" aria-label="Remove this prompt" onClick={() => forget(row.entry)}>
                   <X size={18} />
                 </button>
               </div>

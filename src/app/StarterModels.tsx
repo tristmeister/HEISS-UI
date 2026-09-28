@@ -94,7 +94,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
       for (const item of version.downloads) if (!item.onDisk && !landed.has(item.file)) await start(item.id);
       onStarted({ family: version.family, file: version.file, title: family.title });
     } catch (error) {
-      showToast(error instanceof Error ? error.message : 'The download could not start', 'error');
+      showToast(error instanceof Error ? error.message : 'Couldn’t start the download', 'error');
     }
   };
   const stop = async (version: StarterVersion) => {
@@ -107,7 +107,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   return (
     <div className={cn('starter-models', compact && 'is-compact')}>
       <p className="starter-note">
-        {sentence ? <>{sentence} </> : null}Each version shows the {memoryWord(hardware)} it runs in.
+        {sentence ? <>{sentence} </> : null}Each version shows the {memoryWord(hardware)} it needs.
       </p>
       <div className="starter-grid">
         {plan.families.map((family) => {
@@ -136,7 +136,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
                     onClick={() => setChosen((current) => ({ ...current, [family.family]: item.id }))}
                   >
                     <span className="starter-version-name">
-                      <strong>{item.label}{item.id === family.best ? <i className="starter-best-dot" aria-label="Suits this computer" /> : null}</strong>
+                      <strong>{item.label}{item.id === family.best ? <i className="starter-best-dot" aria-label="Best on this computer" /> : null}</strong>
                       <small>{item.detail}</small>
                     </span>
                     <span className="starter-version-memory">{item.installed ? <Check size={13} strokeWidth={2.6} aria-label="Installed" /> : formatGB(item.memoryGB)}</span>
@@ -144,14 +144,14 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
                 ))}
               </div>
               <p className="starter-caption">
-                <span>{ready ? 'In place' : `${formatDownload(version.remainingBytes || version.totalBytes)} download`}</span>
+                <span>{ready ? 'Installed' : `${formatDownload(version.remainingBytes || version.totalBytes)} download`}</span>
                 {fitNote ? <span className="starter-fit"><i aria-hidden="true" />{fitNote}</span> : null}
               </p>
               <footer className="starter-card-foot">
                 {ready ? (
                   <button type="button" className="btn" onClick={() => onUse(version.file)}><Check size={14} /> Use {family.title}</button>
                 ) : !canDownload ? (
-                  <p className="starter-remote">{thisComputer ? 'ComfyUI runs on another computer. Get it there.' : 'Get it on the computer running HEISS UI.'}</p>
+                  <p className="starter-remote">{thisComputer ? 'ComfyUI runs on another computer. Download it there.' : 'Get it on the computer running HEISS UI.'}</p>
                 ) : progress.state === 'moving' || progress.state === 'paused' ? (
                   <div className="starter-progress">
                     <CellBar value={progress.total ? progress.received / progress.total : 0} />
@@ -198,7 +198,7 @@ export function GetModelsSheet({ open, onOpenChange, showToast, onStarted, onUse
       open={open}
       onOpenChange={onOpenChange}
       title="Get a model"
-      description="Each one downloads with everything it needs, and is selected once it’s in place."
+      description="Each downloads with everything it needs and is selected when it’s done."
       className="starter-sheet"
       footer={onFindModels ? <button type="button" className="btn is-ghost" onClick={() => { onOpenChange(false); onFindModels(); }}>Find models on this computer</button> : undefined}
     >

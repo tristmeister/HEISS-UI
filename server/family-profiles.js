@@ -221,7 +221,7 @@ export function familyProfiles(info, helpers) {
 
     if (!family || !family.sources.includes(source)) {
       fileEntry.reason = knownFamilies[info2.family] && info2.family !== "other"
-        ? `${knownFamilies[info2.family]} can’t run in HEISS UI yet.`
+        ? `${knownFamilies[info2.family]} isn’t supported yet.`
         : "Unknown type. Choose one to use it.";
       continue;
     }
@@ -309,12 +309,12 @@ export function familyProfiles(info, helpers) {
     // A family that runs on a custom node pack names it (family.pack, or its runner's); a
     // quantized file, its format's loader pack.
     const needs = runner || family;
-    const packPart = (quant && missingPackPart(info, quant.pack, { detail: `This is a ${quant.label} file; ComfyUI reads it through these nodes.` }))
+    const packPart = (quant && missingPackPart(info, quant.pack, { detail: `This is a ${quant.label} file. ComfyUI reads it through these nodes.` }))
       || (needs.pack && missingPackPart(info, needs.pack, { extra: needs.variantNodes?.[variant.id] || [], detail: needs.note }));
     if (packPart) {
       missing.push(packPart);
     } else if (!packPart && (nodes.length || !clipTypeAvailable(info, family))) {
-      missing.push({ part: "comfy", label: "Newer ComfyUI", detail: `This ComfyUI can’t run ${family.label} yet${nodes.length ? ` (it lacks ${nodes.join(", ")})` : ""}. Update ComfyUI, then restart it.`, downloads: [] });
+      missing.push({ part: "comfy", label: "Newer ComfyUI", detail: `This version of ComfyUI can’t run ${family.label} yet${nodes.length ? ` (missing ${nodes.join(", ")})` : ""}. Update ComfyUI, then restart it.`, downloads: [] });
     }
     // What ComfyUI itself lacks comes first: the files are no use until it can run them.
     missing.sort((a, b) => Number(b.part === "comfy") - Number(a.part === "comfy"));

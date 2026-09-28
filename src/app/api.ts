@@ -96,12 +96,12 @@ export async function apiJson<T>(url: string, options?: RequestInit): Promise<T>
   // The browser's own wording ("Failed to fetch", "Load failed") means nothing to people.
   const response = await apiFetch(url, options).catch((error) => {
     if (error?.name === "AbortError") throw error;
-    throw new Error("Can’t reach HEISS UI. Check that it’s still running, then try again.");
+    throw new Error("Can’t reach HEISS UI. Make sure it’s running, then try again.");
   });
   noteServerClock(response, sentAt);
   // A server started before an update answers new routes with the app page.
   if (response.ok && (response.headers.get("content-type") || "").includes("text/html")) {
-    throw new Error("HEISS UI is running older code. Restart it to use this.");
+    throw new Error("Restart HEISS UI to use this.");
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

@@ -200,5 +200,5 @@ test("face detail on an imported workflow's image loads the workflow's model fil
   assert.deepEqual(graph["2"].inputs.image, ["17", 0], "SeedVR2 upscales the redrawn image");
   assert.deepEqual(graph["9"].inputs.images, ["5", 0]);
   assert.equal(graph["17"].inputs.force_inpaint, false, "a face already past guide_size is left alone, not sampled at full size");
-  assert.throws(() => upscaleGraph({ ...body, sourceModel: "custom:flux2-real-dream-image-edit" }, info), /no diffusion model named custom:flux2-real-dream-image-edit/);
+  assert.throws(() => upscaleGraph({ ...body, sourceModel: "custom:flux2-real-dream-image-edit" }, info), /custom:flux2-real-dream-image-edit, and ComfyUI doesn’t have it/);
 });

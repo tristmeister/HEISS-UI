@@ -112,7 +112,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
           {copy === 'offline' && restarting ? (
             <>
               <h2>Restarting ComfyUI</h2>
-              <p>It reads new nodes and model folders as it starts, and the studio reconnects by itself. <RestartEtaText fallback="Usually a few seconds." /></p>
+              <p>It picks up new nodes and model folders, then reconnects. <RestartEtaText fallback="Usually a few seconds." /></p>
             </>
           ) : copy === 'looking' ? (
             <>
@@ -122,14 +122,14 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
           ) : copy === 'offline' ? (
             <>
               <h2>{retrying ? 'Looking for ComfyUI…' : 'ComfyUI is offline'}</h2>
-              <p>Start ComfyUI to connect your studio.{where ? <> HEISS UI looks for it at <code className="stage-code">{where}</code>{ports.length ? <> and on port {ports.join(', ')}</> : null}, and connects by itself.</> : null}</p>
+              <p>Start ComfyUI and it connects.{where ? <> Checking <code className="stage-code">{where}</code>{ports.length ? <> and port {ports.join(', ')}</> : null}.</> : null}</p>
               <div className="empty-actions">
                 <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? 'Checking…' : 'Check again'}</button>
                 {thisComputer ? <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} /> Change address</button> : null}
               </div>
               {onNoComfy
                 ? <button type="button" className="stage-link" onClick={onNoComfy}>No ComfyUI yet?</button>
-                : <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">Don’t have ComfyUI yet? <ExternalLink size={11} /></a>}
+                : <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">No ComfyUI yet? <ExternalLink size={11} /></a>}
             </>
           ) : copy === 'connected' ? (
             <>
@@ -138,14 +138,14 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
             </>
           ) : copy === 'empty' && noModels && starter && thisComputer ? (
             <>
-              <h2>Pick a first model</h2>
-              <p>One tap gets it with everything it needs.{onFindModels ? <> Already have models on this computer? <button type="button" className="stage-inline-link" onClick={onFindModels}>Find them</button>.</> : null}</p>
+              <h2>Choose a first model</h2>
+              <p>It downloads with everything it needs.{onFindModels ? <> Already have models on this computer? <button type="button" className="stage-inline-link" onClick={onFindModels}>Find them</button>.</> : null}</p>
               {starter}
             </>
           ) : copy === 'empty' && noModels ? (
             <>
               <h2>No models yet</h2>
-              <p>{thisComputer ? 'HEISS UI runs the checkpoints and diffusion models in ComfyUI’s models folder. Put one there, or let HEISS UI look for models elsewhere on this computer.' : 'Add a checkpoint or diffusion model to ComfyUI on the computer running HEISS UI, and it shows up here.'}</p>
+              <p>{thisComputer ? 'Put a checkpoint or diffusion model in ComfyUI’s models folder, or find models elsewhere on this computer.' : 'Add a checkpoint or diffusion model to ComfyUI on the computer running HEISS UI, and it shows up here.'}</p>
               <div className="empty-actions">
                 {onFindModels && thisComputer ? <button className="reconnect-btn primary" onClick={onFindModels}><FolderSearch size={13} /> Find models</button> : null}
                 <a className="reconnect-btn" href={`${githubUrl}#supported-models`} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Which models work</a>
@@ -154,7 +154,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
           ) : copy === 'empty' ? (
             <>
               <h2>No outputs yet</h2>
-              <p>Write a prompt below to get started.</p>
+              <p>Write a prompt below to start.</p>
             </>
           ) : null}
         </div>

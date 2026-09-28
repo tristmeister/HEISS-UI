@@ -109,7 +109,7 @@ export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenS
         <div className="stage-copy">
           <h2>{notSetUp ? "Hidden" : stage === "opening" ? "Unlocked" : "Hidden is locked"}</h2>
           <p>{notSetUp
-            ? atComputer ? "Images you keep to yourself, encrypted on this computer." : "Images you keep to yourself, encrypted on the computer running HEISS UI. Set it up there first."
+            ? atComputer ? "Images you keep to yourself, encrypted on this computer." : "Images you keep to yourself. Set up Hidden on the computer running HEISS UI."
             : hidden.usablePasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
           <div className="empty-actions">
             {notSetUp && !atComputer ? <div className="hidden-unlock-spacer" /> : notSetUp ? (
@@ -139,7 +139,7 @@ export function HiddenUnlockSheet({ hidden }: { hidden: HiddenState }) {
       className="upscale-modal hidden-modal hidden-unlock-modal"
       hero={<div className="upscale-hero-wrap hidden-hero-wrap is-short"><VaultHero className="upscale-hero hidden-hero" stage={stage} /></div>}
       title={stage === "unlocking" ? "Unlocked" : "Unlock Hidden"}
-      description={stage === "unlocking" ? "One moment." : what ? `Unlock ${what}.` : "Hidden is locked."}
+      description={stage === "unlocking" ? "Opening…" : what ? `Unlock ${what}.` : "Hidden is locked."}
     >
       {stage !== "unlocking" ? <UnlockControls hidden={hidden} autoFocus compact /> : <div className="hidden-unlock-spacer" />}
     </Modal>

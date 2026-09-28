@@ -88,11 +88,11 @@ export function useGenerationActions(view: any) {
   async function runGeneration(retry?: RetryRequest) {
     if (generatePostingRef.current) return;
     if (comfyRestarting) {
-      showToast("ComfyUI is restarting. Generate again once it’s back, in a few seconds.", "warning");
+      showToast("ComfyUI is restarting. Try again in a few seconds.", "warning");
       return;
     }
     if (comfyOffline) {
-      showToast("ComfyUI isn’t reachable, so nothing was sent. Start it, then try again.", "error", retryComfyStatus ? { action: { label: "Check again", onClick: retryComfyStatus } } : undefined);
+      showToast("ComfyUI is offline, so nothing was sent. Start it, then try again.", "error", retryComfyStatus ? { action: { label: "Check again", onClick: retryComfyStatus } } : undefined);
       return;
     }
     if (!retry && !prompt.trim()) {
@@ -208,7 +208,7 @@ export function useGenerationActions(view: any) {
           } catch {
             misses += 1;
             if (misses < 12) continue;
-            galleryPatch((item: GalleryItem) => item.jobId === jobId && item.status === "pending" ? { ...item, status: "error", optimistic: false, filename: "Lost contact with HEISS UI. The image may still finish; reload to check." } : item);
+            galleryPatch((item: GalleryItem) => item.jobId === jobId && item.status === "pending" ? { ...item, status: "error", optimistic: false, filename: "Lost the connection to HEISS UI. The image may still finish. Reload to check." } : item);
             return null;
           }
           if (job.status === "missing") {
@@ -258,7 +258,7 @@ export function useGenerationActions(view: any) {
           setZenSelectedId(latest.id);
         }
       }
-      setStatus(runMode === "image" ? "Finished. Your images are in the gallery." : "Finished. Your video is in the gallery.");
+      setStatus(runMode === "image" ? "Finished. The images are in the gallery." : "Finished. The video is in the gallery.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Generation failed";
       galleryPatch((item: GalleryItem) => {
@@ -279,8 +279,8 @@ export function useGenerationActions(view: any) {
     const many = runSize > 1;
     if (!await confirmAction({
       title: many ? `Stop all ${runSize} variants?` : "Stop generation?",
-      description: many ? "They belong to one run, so they stop together. Nothing from it is saved." : "It won’t be saved.",
-      action: many ? "Stop all" : "Stop generation",
+      description: many ? "They’re one run, so they stop together. Nothing is saved." : "It won’t be saved.",
+      action: many ? "Stop all" : "Stop",
       destructive: true
     })) return;
     await stopJob(jobId);
@@ -297,7 +297,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function cancelQueue() {
-    if (!await confirmAction({"title": "Stop all generations?", "description": "All queued and running generations and upscales will be canceled.", "action": "Stop all", "destructive": true})) return;
+    if (!await confirmAction({"title": "Stop all generations?", "description": "Running and queued generations and upscales stop.", "action": "Stop all", "destructive": true})) return;
     await stopQueue();
   }
 
@@ -314,8 +314,8 @@ export function useGenerationActions(view: any) {
   async function clearGallery() {
     const where = outputDir ? ` in ${outputDir}` : " in ComfyUI’s output folder";
     if (!await confirmAction({
-      title: "Delete every finished image?",
-      description: `Their files${where} move to HEISS UI’s trash there, where they stay for 30 days in case you want them back. Hidden isn’t affected.`,
+      title: "Delete all finished images?",
+      description: `Their files${where} move to HEISS UI’s trash there for 30 days. Hidden isn’t affected.`,
       action: "Delete all",
       destructive: true
     })) return;
@@ -336,15 +336,15 @@ export function useGenerationActions(view: any) {
   async function restoreCleared(batch: string) {
     const data = await apiJson<GalleryPayload & { restored: number; missing: number }>("/api/gallery/trash/restore", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ batch }) }).catch(() => null);
     if (!data) {
-      showToast("Couldn’t bring them back. They’re still in the trash; try again from Settings › Library.", "error");
+      showToast("Couldn’t restore them. They’re still in the trash. Try again from Settings › Library.", "error");
       return;
     }
     setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
-    showToast(data.missing ? `${data.restored} back in the gallery. ${data.missing} file${data.missing === 1 ? "" : "s"} stayed in the trash because something new has the same name.` : `${data.restored} back in the gallery`, data.missing ? "warning" : "success");
+    showToast(data.missing ? `${data.restored} back in the gallery. ${data.missing} file${data.missing === 1 ? "" : "s"} stayed in the trash because newer files have the same name.` : `${data.restored} back in the gallery`, data.missing ? "warning" : "success");
   }
 
   async function clearFailedItems() {
-    if (!await confirmAction({"title": "Clear failed generations?", "description": "Removes failed and interrupted items from your gallery.", "action": "Clear failed", "destructive": true})) return;
+    if (!await confirmAction({"title": "Clear failed generations?", "description": "Removes failed and interrupted items from the gallery.", "action": "Clear", "destructive": true})) return;
     const data = await apiJson<GalleryPayload>("/api/gallery/errors/clear", { method: "POST" }).catch(() => null);
     if (!data) { showToast("Couldn’t clear failed generations", "error"); return; }
     setGallery(payloadItems(data).filter((item: GalleryItem) => item.status !== "canceled"));
@@ -352,7 +352,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function resetAllSettings() {
-    if (!await confirmAction({"title": "Reset all settings?", "description": "Your preferences, prompt drafts and saved LoRA stacks and strengths are deleted, here and on the server. The app reloads. This can’t be undone.", "action": "Reset settings", "destructive": true, "irreversible": true})) return;
+    if (!await confirmAction({"title": "Reset all settings?", "description": "Preferences, prompt drafts and saved LoRA stacks are deleted here and on the server. The page reloads. This can’t be undone.", "action": "Reset", "destructive": true, "irreversible": true})) return;
     localStorage.removeItem("heiss-ui-draft");
     localStorage.removeItem("heiss-ui-prefs");
     localStorage.removeItem("j-ai-studio-draft");
@@ -368,7 +368,7 @@ export function useGenerationActions(view: any) {
   }
 
   async function clearAllCache() {
-    if (!await confirmAction({"title": "Clear cache?", "description": "Clear cached previews and free ComfyUI memory. Finished gallery items will stay.", "action": "Clear cache", "destructive": false})) return;
+    if (!await confirmAction({"title": "Clear cache?", "description": "Clears cached previews and frees ComfyUI’s memory. The gallery isn’t affected.", "action": "Clear", "destructive": false})) return;
     await clearCaches();
   }
 
@@ -385,7 +385,7 @@ export function useGenerationActions(view: any) {
 
   async function openOutputFolder() {
     const response = await apiFetch("/api/open-output-folder", { method: "POST" }).catch(() => null);
-    if (!response?.ok) showToast("Could not open folder", "error");
+    if (!response?.ok) showToast("Couldn’t open the folder", "error");
   }
 
   // Deletes wait out the undo toast before the file is actually removed: they
@@ -417,8 +417,8 @@ export function useGenerationActions(view: any) {
     if (!confirmed && !await confirmAction(item.privateVault
       ? {"title": "Delete from Hidden?", "description": "This image and its upscale are erased. There’s no other copy.", "action": "Delete", "destructive": true}
       : item.library
-        ? {"title": "Remove from the gallery?", "description": "The file stays in its folder; it just stops showing here.", "action": "Remove"}
-        : {"title": "Delete this image?", "description": "The file is deleted from disk, not only from the gallery.", "action": "Delete", "destructive": true})) return;
+        ? {"title": "Remove from the gallery?", "description": "The file stays in its folder.", "action": "Remove"}
+        : {"title": "Delete this image?", "description": "The file is deleted from disk.", "action": "Delete", "destructive": true})) return;
     // In the viewer, step to the next image rather than closing, so culling a batch stays in place.
     if (active?.id === item.id) {
       const items = ((visibleGallery || []) as GalleryItem[]).filter((entry) => entry.status === "pending" || entry.status === "done" || entry.status === "error");
@@ -464,7 +464,7 @@ export function useGenerationActions(view: any) {
     const hiddenOnes = targets.some((item) => item.privateVault);
     if (!await confirmAction({
       title: `Delete ${targets.length} images?`,
-      description: hiddenOnes ? "They and their upscales are erased. There’s no other copy." : "Their files are deleted from disk, not only from the gallery.",
+      description: hiddenOnes ? "They and their upscales are erased. There’s no other copy." : "Their files are deleted from disk.",
       action: `Delete ${targets.length}`,
       destructive: true
     })) return;
@@ -497,7 +497,7 @@ export function useGenerationActions(view: any) {
     if (!download) return;
     try {
       await downloadActions.replace(download.id);
-      showToast(`Downloading ${download.label} again. Generate once it’s in place.`, "default");
+      showToast(`Downloading ${download.label} again. Generate when it’s done.`, "default");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Couldn’t start the download", "error");
     }
@@ -506,7 +506,7 @@ export function useGenerationActions(view: any) {
   /** A file ComfyUI no longer lists: look again, so the pickers show what is really there. */
   function rescanModels() {
     refreshModels?.(true);
-    showToast("Looking for models again", "default");
+    showToast("Rescanning models", "default");
   }
 
   const failureFixes = { retry: retryFailed, freeMemoryAndRetry, redownload: redownloadDamaged, rescan: rescanModels };

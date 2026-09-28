@@ -125,7 +125,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
           <div>
             {/* Files alone do not make an imported workflow ready while its custom nodes are missing. */}
             <strong>{alsoNeedsNodes ? `${shownDone.length === 1 ? 'Its file is' : 'Its files are'} in place` : `${name} is ready`}</strong>
-            <span>{alsoNeedsNodes ? 'Only the custom nodes below are left.' : shownDone.length === 1 ? 'What it was missing is in place.' : shownDone.length === 2 ? 'Both missing parts are in place.' : `All ${shownDone.length} missing parts are in place.`}</span>
+            <span>{alsoNeedsNodes ? 'Only the custom nodes below are missing.' : shownDone.length === 1 ? 'The missing part is in place.' : shownDone.length === 2 ? 'Both missing parts are in place.' : `All ${shownDone.length} missing parts are in place.`}</span>
           </div>
         </header>
         <ul className="model-setup-list">
@@ -175,7 +175,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const short = startable.length > 1 ? [...perDisk.values()].find((disk) => disk.need > disk.free) : undefined;
   const getAll = () => {
     if (short) {
-      showToast(`Not enough space for all of them: they need ${formatBytes(short.need)}, and the disk has ${formatBytes(short.free)} free. Free some space, or get them one at a time.`, 'error');
+      showToast(`Not enough space. These need ${formatBytes(short.need)} and the disk has ${formatBytes(short.free)} free. Free up space or get them one at a time.`, 'error');
       return;
     }
     run(async () => { for (const row of startable) await start(row.download!.id); });
@@ -193,11 +193,11 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     : outdated ? 'Update ComfyUI first'
     : pack ? `Add ${pack.name} to ComfyUI`
     : fetchable === missing.length ? `Needs ${missing.length} more file${missing.length === 1 ? '' : 's'}` : 'Not ready yet';
-  const subtitle = outdated ? `This ComfyUI is too old for ${name}. Update it before downloading the rest.`
-    : pack ? `${name} runs on custom nodes that ComfyUI does not ship. They install once.`
+  const subtitle = outdated ? `${name} needs a newer ComfyUI. Update it before downloading the rest.`
+    : pack ? `${name} needs custom nodes that don’t come with ComfyUI.`
     : alsoNeedsNodes ? `${name} needs ${missing.length === 1 ? 'this file' : 'these files'} and the custom nodes listed below.`
     : profile.encoderBuiltIn === false && profile.source === 'checkpoint'
-    ? 'This checkpoint ships without everything it needs.'
+    ? 'This checkpoint doesn’t include everything it needs.'
     : `${name} runs once ${missing.length === 1 ? 'this is' : 'these are'} in place.`;
   // Parts already in place keep their place in the list, ticked, until the set is done.
   const order = [...(memory?.keys() || [])];
@@ -208,7 +208,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       <header className="model-setup-head">
         <div>
           <strong>{title}</strong>
-          <span>{short && !moving ? `Together they need ${formatBytes(short.need)}, and the disk has ${formatBytes(short.free)} free.` : subtitle}</span>
+          <span>{short && !moving ? `These need ${formatBytes(short.need)} and the disk has ${formatBytes(short.free)} free.` : subtitle}</span>
         </div>
         {startable.length > 1 && !outdated ? (
           <button type="button" className={cn('btn', short ? 'is-ghost' : 'is-primary')} onClick={getAll}>
@@ -243,7 +243,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
             {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'}</p> : null}
             {rowState === 'error' && current?.needsBrowser ? <p className="model-setup-detail">Or add a Hugging Face token in Settings › Models, then try again here.</p> : null}
             {download && download.id !== item.downloads[0]?.id && downloadFor(state, item.downloads[0].file)?.status === 'error' && (rowState === 'downloading' || rowState === 'queued')
-              ? <p className="model-setup-detail">{item.downloads[0].file} wasn’t available, so this build is coming instead.</p>
+              ? <p className="model-setup-detail">{item.downloads[0].file} wasn’t available, so this version is downloading instead.</p>
               : null}
             {download && item.downloads.length > 1 && !remote && rowState !== 'landed' && rowState !== 'downloading' && rowState !== 'queued' ? (
               <OtherVersions
@@ -265,14 +265,14 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       </ul>
       {stuck && !moving && !remote ? (
         <div className="model-setup-restart">
-          <p>Downloaded and in place, but ComfyUI has not listed it yet. A restart makes it look again.</p>
+          <p>Downloaded, but ComfyUI hasn’t listed it yet. Restart ComfyUI to load it.</p>
           <ComfyRestart compact onBack={onInstalled} />
         </div>
       ) : null}
       {manual && !moving ? (
         <button type="button" className="btn is-ghost model-setup-recheck" onClick={onInstalled}><RefreshCw size={13} /> Check again</button>
       ) : null}
-      {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer, so put these files into its models folders there, then rescan.' : 'Add these on the computer running HEISS UI; this model is ready here once they are in place.'}</p> : null}
+      {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer. Put these files in its model folders there, then rescan.' : 'Add these on the computer running HEISS UI.'}</p> : null}
     </section>
   );
 }
@@ -306,7 +306,7 @@ function OtherVersions({ downloads, current, onPick }: { downloads: PartDownload
           </li>
           {others.map((entry) => (
             <li key={entry.id}>
-              <span><strong>{breakable(entry.file)}</strong><small>{sourceLine(entry)}{entry.onDisk ? ' · already here' : ''}</small></span>
+              <span><strong>{breakable(entry.file)}</strong><small>{sourceLine(entry)}{entry.onDisk ? ' · already downloaded' : ''}</small></span>
               <button type="button" className="btn is-ghost" onClick={() => { setOpen(false); onPick(entry); }}><Download size={13} /> Get this</button>
             </li>
           ))}
@@ -348,7 +348,7 @@ function SetupRowShell({ item, rowState }: { item: MissingPart; rowState: RowSta
 
 function progressLine(current: ModelDownload, rowState: RowState) {
   const pct = current.totalBytes ? Math.floor((current.receivedBytes / current.totalBytes) * 100) : 0;
-  if (rowState === 'queued') return current.receivedBytes ? `Waiting · resumes at ${pct}%` : 'Waiting for the file before it';
+  if (rowState === 'queued') return current.receivedBytes ? `Waiting · resumes at ${pct}%` : 'Waiting for the previous file';
   if (rowState === 'paused') return `Paused at ${pct}% · ${formatBytes(current.receivedBytes)} of ${formatBytes(current.totalBytes)}`;
   if (current.reconnecting) return `Connection dropped at ${pct}% · reconnecting (try ${current.reconnecting} of 3)…`;
   if (current.verifying) return `${formatBytes(current.totalBytes)} · checking the file…`;
@@ -368,7 +368,7 @@ function DiscardButton({ file, receivedBytes, onDiscard }: { file: string; recei
   if (asking) {
     return <button type="button" className="btn is-danger-soft" onClick={() => { setAsking(false); onDiscard(); }}>Discard {formatBytes(receivedBytes) || 'it'}?</button>;
   }
-  return <button type="button" className="btn is-ghost is-icon" aria-label={`Discard the partial ${file}`} title="Discard" onClick={() => setAsking(true)}><X size={14} /></button>;
+  return <button type="button" className="btn is-ghost is-icon" aria-label={`Discard partial download of ${file}`} title="Discard" onClick={() => setAsking(true)}><X size={14} /></button>;
 }
 
 function RowActions({ rowState, download, current, remote, run, start, pause, discard }: {

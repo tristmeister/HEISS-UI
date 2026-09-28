@@ -166,7 +166,7 @@ export async function shareItem(item: GalleryItem, showToast: ShowToast) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  if (!canShareFiles) showToast('Saved to your downloads', 'success');
+  if (!canShareFiles) showToast('Saved to downloads', 'success');
 }
 
 /** Several files: one share sheet where possible, otherwise one download after another. */
@@ -199,7 +199,7 @@ export async function shareItems(items: GalleryItem[], showToast: ShowToast) {
     // Browsers drop downloads fired in one burst.
     await new Promise((resolve) => setTimeout(resolve, 450));
   }
-  showToast(`Saved ${ready.length} images to your downloads`, 'success');
+  showToast(`Saved ${ready.length} images to downloads`, 'success');
 }
 
 /* ------------------------------------------------------------ Item actions */
@@ -248,7 +248,7 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
               <Star size={20} fill={item.favorite ? 'currentColor' : 'none'} /><span>{item.favorite ? 'Unstar' : 'Star'}</span><HapticTarget />
             </button>
           ) : null}
-          {item.prompt ? <button type="button" className="phone-row" onClick={() => run(() => actions.reuse(item))}><Wand2 size={20} /><span>Make another like this</span></button> : null}
+          {item.prompt ? <button type="button" className="phone-row" onClick={() => run(() => actions.reuse(item))}><Wand2 size={20} /><span>Use these settings</span></button> : null}
           {done && actions.useAsReference && item.type === 'image' && !item.vaultLocked && !item.library ? <button type="button" className="phone-row" onClick={() => run(() => actions.useAsReference!(item))}><ImagePlus size={20} /><span>Use as reference</span></button> : null}
           {done && !item.library ? (
             item.privateVault
@@ -277,7 +277,7 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, co
         </button>
       ) : null}
       {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
-      {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Again</span></button> : null}
+      {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Reuse</span></button> : null}
       {canStar(item) ? (
         <button type="button" className={cn(item.favorite && 'is-starred')} aria-pressed={Boolean(item.favorite)} onClick={() => { haptic('tap'); actions.star(item); }}>
           <Star size={21} fill={item.favorite ? 'currentColor' : 'none'} /><span>{item.favorite ? 'Starred' : 'Star'}</span><HapticTarget />
@@ -356,7 +356,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
   const [searchOpen, setSearchOpen] = React.useState(false);
   const restarting = Boolean(comfyStatus?.restarting);
   const connected = Boolean(comfyStatus?.connected);
-  const statusText = restarting ? 'ComfyUI is restarting' : connected ? `Connected${comfyStatus?.device ? ` · ${comfyStatus.device}` : ''}` : comfyStatus?.checked ? 'ComfyUI is offline' : 'Checking ComfyUI…';
+  const statusText = restarting ? 'ComfyUI is restarting' : connected ? `ComfyUI connected${comfyStatus?.device ? ` · ${comfyStatus.device}` : ''}` : comfyStatus?.checked ? 'ComfyUI is offline' : 'Checking ComfyUI…';
   const workflowName = currentProfile?.displayName || currentProfile?.label || 'Choose a model';
   const quickGo = Boolean(prompt.trim()) && !generateDisabled && !comfyOffline && !restarting;
 
@@ -443,7 +443,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
             exit={{ opacity: 0, y: 16, scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 420, damping: 34 }}
             onClick={() => { setPeek(null); openItem(peek); }}
-            aria-label="Your image is ready. Open it"
+            aria-label="Image ready. Open it"
           >
             <span className="phone-peek-thumb"><Media item={peek} muted /></span>
             <span className="phone-peek-text"><strong>Ready</strong><small>Tap to open</small></span>
@@ -539,7 +539,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
           selected={referenceAssets || []}
           onSelect={selectReferenceAsset}
           onRemove={removeReferenceAsset}
-          confirmDelete={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: 'This removes the uploaded image from your reference library.', action: 'Delete upload', destructive: true })}
+          confirmDelete={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: 'It’s removed from uploads.', action: 'Delete', destructive: true })}
           onError={(message) => showToast(message, 'error')}
         />
         <textarea
@@ -566,17 +566,17 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
       {canUseNegativePrompt ? (
         showNegative ? (
           <label className="phone-field">
-            <span>Avoid</span>
-            <textarea value={negative} rows={2} placeholder="What to leave out…" onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+            <span>Negative prompt</span>
+            <textarea value={negative} rows={2} placeholder="What to avoid…" onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
           </label>
         ) : (
-          <button type="button" className="phone-link" onClick={() => setShowNegative(true)}>+ Something to avoid</button>
+          <button type="button" className="phone-link" onClick={() => setShowNegative(true)}>+ Negative prompt</button>
         )
       ) : null}
 
       {String(seed || '').trim() ? (
         <button type="button" className="phone-row phone-seed" onClick={() => setSeed('')}>
-          <Dices size={20} /><span>Seed {String(seed).trim()} is fixed<small>Tap for a new picture each time</small></span>
+          <Dices size={20} /><span>Seed {String(seed).trim()} is fixed<small>Tap for a random seed</small></span>
         </button>
       ) : null}
 
@@ -659,7 +659,7 @@ function WorkflowSheet({ view, open, onClose }: { view: Record<string, any>; ope
           <input className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" spellCheck={false} autoComplete="off" />
         </label>
       ) : null}
-      {!profiles.length ? <p className="phone-empty">{(view.comfyStatus?.connected) ? 'No models yet. Get one on the computer running HEISS UI.' : 'ComfyUI isn’t answering, so its models can’t be listed right now.'}</p> : null}
+      {!profiles.length ? <p className="phone-empty">{(view.comfyStatus?.connected) ? 'No models yet. Get one on the computer running HEISS UI.' : 'ComfyUI is offline. Models show up when it’s back.'}</p> : null}
       {starred.length ? <><h3 className="phone-section">Favorites</h3><div className="phone-group">{starred.map(row)}</div></> : null}
       {recent.length ? <><h3 className="phone-section">Recent</h3><div className="phone-group">{recent.map(row)}</div></> : null}
       {rest.some((profile) => !profile.id.startsWith('custom:')) ? <><h3 className="phone-section">{starred.length || recent.length ? 'All models' : ''}</h3><div className="phone-group">{rest.filter((profile) => !profile.id.startsWith('custom:')).map(row)}</div></> : null}
@@ -673,7 +673,7 @@ function AspectSheet({ view, open, onClose }: { view: Record<string, any>; open:
   const { aspectOptions, aspectPickerValue, applyAspect, defaultAspectSize } = view as { aspectOptions: AspectPreset[]; aspectPickerValue: string; applyAspect: (value: string) => void; defaultAspectSize: string };
   const pick = (value: string) => { applyAspect(value); onClose(); };
   return (
-    <Sheet open={open} onClose={onClose} title="Shape">
+    <Sheet open={open} onClose={onClose} title="Aspect ratio">
       <div className="phone-group phone-aspects">
         <button type="button" className={cn('phone-row', aspectPickerValue === 'default' && 'is-current')} onClick={() => pick('default')}>
           <span className="aspect-shape default phone-aspect" />
@@ -712,20 +712,20 @@ function MoreSheet({ view, open, onClose, statusText }: { view: Record<string, a
       <h3 className="phone-section">Hidden</h3>
       <div className="phone-group">
         {!hidden.enabled
-          ? <p className="phone-note">Set up Hidden on the computer running HEISS UI (Settings › Hidden). It then opens here with its password.</p>
+          ? <p className="phone-note">Set up Hidden on the computer running HEISS UI, in Settings › Hidden. Then unlock it here with its password.</p>
           : hidden.unlocked
-            ? <button type="button" className="phone-row" onClick={() => { hidden.lock(); onClose(); }}><LockKeyhole size={20} /><span>Lock Hidden<small>It also locks by itself when idle</small></span></button>
+            ? <button type="button" className="phone-row" onClick={() => { hidden.lock(); onClose(); }}><LockKeyhole size={20} /><span>Lock Hidden<small>Also locks when idle</small></span></button>
             : <button type="button" className="phone-row" onClick={() => { onClose(); hidden.requestUnlock(null); }}><LockKeyhole size={20} /><span>Unlock Hidden</span></button>}
       </div>
       <h3 className="phone-section">Studio</h3>
       <div className="phone-group">
-        {toggle('Upscale button', 'One tap makes a larger, sharper copy', prefs.smartUpscale !== false, (next) => setPrefs({ smartUpscale: next }))}
-        {toggle('Show failed generations', 'Keep them in the gallery to see why', prefs.showFailedItems !== false, (next) => setPrefs({ showFailedItems: next }))}
-        {toggle('Ask before deleting', 'Deletes can be undone for a few seconds either way', prefs.confirmActions !== false, (next) => setPrefs({ confirmActions: next }))}
+        {toggle('Smart upscale', 'Shows an upscale arrow on finished images', prefs.smartUpscale !== false, (next) => setPrefs({ smartUpscale: next }))}
+        {toggle('Show failed generations', 'Keeps them in the gallery so you can see why', prefs.showFailedItems !== false, (next) => setPrefs({ showFailedItems: next }))}
+        {toggle('Ask before deleting', 'Also asks before stopping generations', prefs.confirmActions !== false, (next) => setPrefs({ confirmActions: next }))}
       </div>
       <div className="phone-group">
         <button type="button" className="phone-row" onClick={() => { onClose(); setPrefs({ fullStudioOnPhone: true }); }}>
-          <SlidersHorizontal size={20} /><span>Use the full studio<small>Every control, laid out for a larger screen</small></span>
+          <SlidersHorizontal size={20} /><span>Use the full studio<small>All controls, laid out for a larger screen</small></span>
         </button>
       </div>
       <p className="phone-note">Models, folders, downloads and updates are managed on the computer running HEISS UI.</p>

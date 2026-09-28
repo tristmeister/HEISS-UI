@@ -34,7 +34,7 @@ export function ensureOption(info, node, key, value, label) {
   if (!selected) throw new Error(`${label} is required for this workflow.`);
   const options = optionsFor(info, node, key);
   if (options.length && !options.includes(selected)) {
-    throw new Error(`${label} is not installed or ComfyUI cannot see it: ${selected}`);
+    throw new Error(`${label} “${selected}” isn’t available in ComfyUI.`);
   }
 }
 
@@ -49,7 +49,7 @@ function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", ma
   for (const item of raw.filter((entry) => entry && entry.enabled !== false).slice(0, maxLoras)) {
     const name = String(item.name || "").trim();
     if (!name) continue;
-    if (!installed.includes(name)) throw new Error(`LoRA is not installed or ComfyUI cannot see it: ${name}`);
+    if (!installed.includes(name)) throw new Error(`LoRA “${name}” isn’t available in ComfyUI.`);
     sanitized.push({
       name,
       enabled: true,
@@ -67,23 +67,23 @@ function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", ma
 function sanitizeFamilyBody(input, info, stats) {
   const kind = input.kind === "video" ? "video" : "image";
   const prompt = String(input.prompt || "").trim();
-  if (!prompt) throw new Error("Prompt is required.");
+  if (!prompt) throw new Error("Enter a prompt.");
   const profiles = inferModels(info, stats).profiles || [];
   const profile = profiles.find((item) => item.id === input.profileId)
     || profiles.find((item) => item.workflow === input.workflow && item.model === input.model);
-  if (!profile) throw new Error("ComfyUI does not currently expose this model. Rescan models and try again.");
-  if (profile.kind !== kind) throw new Error(`The selected model is not a ${kind} model.`);
+  if (!profile) throw new Error("ComfyUI doesn’t list this model. Rescan models and try again.");
+  if (profile.kind !== kind) throw new Error(`The selected model isn’t a ${kind} model.`);
   if (!profile.ready) {
     throw new Error(`${profile.displayName} still needs: ${profile.missing.map((item) => item.label).join(", ")}.`);
   }
   const requested = Array.isArray(input.textEncoders) ? input.textEncoders : [input.textEncoder];
   const encoders = profile.encoderSlots.map((slot, index) => {
     const wanted = String(requested[index] || "");
-    if (wanted && !slot.options.includes(wanted)) throw new Error(`${wanted} does not fit the ${slot.label} slot of this model.`);
+    if (wanted && !slot.options.includes(wanted)) throw new Error(`${wanted} doesn’t fit this model’s ${slot.label} slot.`);
     return wanted || slot.default;
   });
   const vae = String(input.vae || "");
-  if (vae && !profile.options.vaes.includes(vae)) throw new Error(`${vae} is not a VAE this model can use.`);
+  if (vae && !profile.options.vaes.includes(vae)) throw new Error(`${vae} isn’t a VAE this model can use.`);
   const resolvedVae = vae || (profile.vaeBuiltIn ? "" : profile.defaults.vae);
   if (input.sampler) ensureOption(info, "KSampler", "sampler_name", input.sampler, "Sampler");
   if (input.scheduler) ensureOption(info, "KSampler", "scheduler", input.scheduler, "Scheduler");
@@ -154,11 +154,11 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
   const customWorkflow = workflow.startsWith("custom:") ? getCustomWorkflow(workflow) : null;
   const workflowInfo = workflowFor(workflow) || customWorkflow;
   const prompt = String(input.prompt || "").trim();
-  if (!prompt) throw new Error("Prompt is required.");
+  if (!prompt) throw new Error("Enter a prompt.");
   if (!String(input.model || "").trim()) throw new Error("Choose a supported model first.");
-  if (!workflowInfo) throw new Error("This model does not have a supported workflow.");
-  if (!customWorkflow && !workflowIds().includes(workflow)) throw new Error("This model does not have a supported workflow.");
-  if (kind !== workflowInfo.kind) throw new Error(`The selected model is not a ${kind} workflow.`);
+  if (!workflowInfo) throw new Error("There’s no workflow for this model.");
+  if (!customWorkflow && !workflowIds().includes(workflow)) throw new Error("There’s no workflow for this model.");
+  if (kind !== workflowInfo.kind) throw new Error(`The selected model isn’t a ${kind} workflow.`);
   const referenceAssets = Array.isArray(input.referenceAssets)
     ? input.referenceAssets.slice(0, 8).map((item) => ({
       slot: String(item?.slot || "reference").replace(/[^a-z0-9._-]/gi, "").slice(0, 80) || "reference",
@@ -175,10 +175,10 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     if (supplied > Number(mediaInput.max || 1)) throw new Error(`${mediaInput.label || "Reference image"} accepts at most ${mediaInput.max || 1} image.`);
   }
   const missing = missingNodes(info, workflowInfo.requiredNodes);
-  if (missing.length) throw new Error(`ComfyUI is missing required nodes for this model: ${missing.join(", ")}`);
+  if (missing.length) throw new Error(`ComfyUI is missing nodes this model needs: ${missing.join(", ")}`);
   const profiles = inferModels(info, stats).profiles || [];
   const profile = profiles.find((item) => item.kind === kind && item.workflow === workflow && item.model === input.model);
-  if (!profile) throw new Error("ComfyUI does not currently expose this model as a runnable workflow.");
+  if (!profile) throw new Error("ComfyUI doesn’t list this model. Rescan models and try again.");
   if ((workflowInfo.needsTextEncoder && !input.textEncoder) || (workflowInfo.needsVae && !input.vae)) {
     throw new Error("This workflow needs a text encoder and VAE.");
   }

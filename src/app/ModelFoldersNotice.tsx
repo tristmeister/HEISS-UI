@@ -51,7 +51,7 @@ export function ModelFoldersNotice({ folders: state }: { folders: ModelFolders }
               </span>
               <span className="mf-notice-cta">Add</span>
             </button>
-            <button type="button" className="mf-notice-close" aria-label="Hide this" onClick={state.dismissNotice}><X size={12} /></button>
+            <button type="button" className="mf-notice-close" aria-label="Dismiss" onClick={state.dismissNotice}><X size={12} /></button>
           </div>
         </motion.div>
       ) : null}

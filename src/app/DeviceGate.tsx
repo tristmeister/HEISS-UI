@@ -42,7 +42,7 @@ export function DeviceGate({ children }: React.PropsWithChildren) {
       if (error instanceof ApiError && error.status === 403) {
         setState(error.reason === 'host'
           ? { kind: 'refused', title: 'Open HEISS UI by its address', text: error.message }
-          : { kind: 'refused', title: 'Not open to other devices', text: 'HEISS UI only answers the computer it runs on right now. On that computer, open Settings › Connection and turn on “Open on other devices”, then reload this page.' });
+          : { kind: 'refused', title: 'Not open to other devices', text: 'On the computer running HEISS UI, turn on “Open on other devices” in Settings › Connection, then reload this page.' });
         return;
       }
       // Not reachable at all: the studio has its own offline screens.
@@ -62,7 +62,7 @@ export function DeviceGate({ children }: React.PropsWithChildren) {
   if (state.kind === 'refused') return <GateMessage title={state.title} text={state.text} />;
   const { studioPassword } = state.status;
   if (!studioPassword.set && !studioPassword.hidden) {
-    return <GateMessage title="Finish setting up on the computer" text="Other devices open the studio with a studio password. On the computer running HEISS UI, open Settings › Connection and set one, then reload this page." />;
+    return <GateMessage title="Set a studio password" text="Other devices sign in with a studio password. Set one on the computer running HEISS UI in Settings › Connection, then reload this page." />;
   }
   return <SignIn legacy={studioPassword.hidden} onSignedIn={() => { window.location.reload(); }} />;
 }
@@ -117,7 +117,7 @@ function SignIn({ legacy, onSignedIn }: { legacy: boolean; onSignedIn: () => voi
         <div className="stage-copy">
           <h2>{stage === 'opening' ? 'Signed in' : 'Sign in to HEISS UI'}</h2>
           <p>{legacy
-            ? 'Enter the studio password. Until one is set on the computer running HEISS UI, that’s its Hidden password.'
+            ? 'Enter the studio password. Until one is set, it’s the Hidden password.'
             : 'Enter the studio password set on the computer running HEISS UI.'}</p>
           <div className="empty-actions">
             {stage !== 'opening' ? (

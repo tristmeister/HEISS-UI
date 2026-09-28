@@ -58,17 +58,17 @@ function ImportFit({ item }: { item: ImportDraft }) {
   const notes: React.ReactNode[] = [];
   const guessedPrompt = guessed.filter((key) => key === "prompt" || key === "negative");
   if (guessedPrompt.length) notes.push(guessedPrompt.length === 2
-    ? "Prompt and negative were picked by order: the first text node gets your prompt, the second the negative. Check they’re the right way round."
+    ? "Prompt and negative were picked by node order. Check they’re the right way round."
     : `The ${guessedPrompt[0] === "prompt" ? "prompt" : "negative"} was picked by node order. Check it’s the right one.`);
-  if (encoders.length > 2) notes.push(`${encoders.length} prompt nodes: only the connected ones get your text, the others keep what’s saved.`);
-  if (samplers.length > 1 && samplerNode) notes.push(`${samplers.length} samplers: only ${nodeName(nodes, samplerNode)} follows seed, steps and CFG. The others keep their saved values.`);
-  if (loraStack?.node) notes.push(`LoRA picker: connected to ${nodeName(nodes, loraStack.node)}.`);
+  if (encoders.length > 2) notes.push(`${encoders.length} prompt nodes. Only the connected ones get your text; the others keep their saved text.`);
+  if (samplers.length > 1 && samplerNode) notes.push(`${samplers.length} samplers. Only ${nodeName(nodes, samplerNode)} follows seed, steps and CFG; the others keep their saved values.`);
+  if (loraStack?.node) notes.push(`LoRA picker connected to ${nodeName(nodes, loraStack.node)}.`);
   else if (rgthree) notes.push(`${rgthree.classType} found, but not connected to the LoRA picker. An AI agent can connect it (see below).`);
-  else if (loraLoaders.length) notes.push("The LoRA picker only drives rgthree LoRA loaders. This workflow’s own LoRAs stay as saved.");
-  else notes.push("No LoRA picker: it needs an rgthree Power Lora Loader or Lora Loader Stack in the workflow.");
+  else if (loraLoaders.length) notes.push("The LoRA picker only works with rgthree LoRA loaders. This workflow’s LoRAs stay as saved.");
+  else notes.push("No LoRA picker. It needs an rgthree Power Lora Loader or Lora Loader Stack in the workflow.");
 
   return (
-    <section className="wf-fit" aria-label="What HEISS UI can change">
+    <section className="wf-fit" aria-label="Connected controls">
       <div className="wf-fit-cols">
         <div>
           <h5>Follows the studio</h5>
@@ -82,7 +82,7 @@ function ImportFit({ item }: { item: ImportDraft }) {
                 </li>
               ))}
             </ul>
-          ) : <p>Nothing yet. It runs exactly as saved, whatever you type.</p>}
+          ) : <p>Nothing connected. It runs as saved, whatever you type.</p>}
         </div>
         <div>
           <h5>Stays as saved</h5>
@@ -95,7 +95,7 @@ function ImportFit({ item }: { item: ImportDraft }) {
       </div>
       <ul className="wf-fit-notes">
         {notes.map((note, index) => <li key={index}>{note}</li>)}
-        <li>Everything else in the workflow runs exactly as saved.</li>
+        <li>Everything else runs as saved.</li>
       </ul>
     </section>
   );
@@ -117,7 +117,7 @@ function ImportRisks({ risks }: { risks: WorkflowRisk[] }) {
           </li>
         ))}
       </ul>
-      <p>A workflow runs every node in it, with the same access to this computer as ComfyUI. Import it only if you trust where it came from.</p>
+      <p>Its nodes run with the same access to this computer as ComfyUI. Import it only if you trust the source.</p>
     </div>
   );
 }
@@ -128,10 +128,10 @@ function AgentGuide({ onCopy, copied, forWorkflow }: { onCopy: () => void; copie
     <div className="wf-agent">
       <span className="wf-agent-icon" aria-hidden="true"><Bot size={16} /></span>
       <div className="wf-agent-text">
-        <strong>{forWorkflow ? "Let an AI agent fix the connections" : "Make a workflow fit with an AI agent"}</strong>
+        <strong>{forWorkflow ? "Let an AI agent fix the connections" : "Prepare a workflow with an AI agent"}</strong>
         <span>{forWorkflow
-          ? "Copies a prompt with this workflow and what HEISS UI found. Paste it into Claude, ChatGPT or another agent, then import the JSON it gives back."
-          : "Copies a prompt that tells an agent what HEISS UI can connect. Paste it into Claude, ChatGPT or another agent with your workflow JSON, then import what it gives back."}</span>
+          ? "Copies a prompt with this workflow and its connections. Paste it into Claude, ChatGPT or another agent, then import the JSON it returns."
+          : "Copies a prompt that explains what can be connected. Paste it into Claude, ChatGPT or another agent with your workflow JSON, then import what it returns."}</span>
       </div>
       <button type="button" className="btn" onClick={onCopy}><CopyIcon copied={copied} size={13} /> {copied ? "Copied" : forWorkflow ? "Copy for an agent" : "Copy prompt"}</button>
     </div>
@@ -254,7 +254,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     // A built-in model that only lacks parts can be picked: its setup panel then sits in the sidebar.
     const settingUp = models?.profiles.some((profile) => profile.id === workflow.profileId && profile.missing?.length);
     if (!workflow.validation.ok && !settingUp) {
-      showToast("This workflow needs setup before it can run", "error");
+      showToast("This workflow needs setup first", "error");
       return;
     }
     selectWorkflow(workflow.profileId);
@@ -263,7 +263,7 @@ export function WorkflowGallery({ view }: { view: any }) {
 
   const deleteWorkflow = async (workflow: WorkflowSummary) => {
     if (!workflow.deleteId) return;
-    if (!await confirmAction({ title: `Delete ${workflow.name}?`, description: "This removes the workflow from your library. Import its JSON again to restore it.", action: "Delete workflow", destructive: true })) return;
+    if (!await confirmAction({ title: `Delete ${workflow.name}?`, description: "To get it back, import its JSON again.", action: "Delete", destructive: true })) return;
     setBusy(true);
     try {
       await apiJson(`/api/workflows/${encodeURIComponent(workflow.deleteId)}`, { method: "DELETE" });
@@ -280,7 +280,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       refreshModels(false);
       refreshWorkflows();
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Workflow deletion failed", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t delete the workflow", "error");
     } finally {
       setBusy(false);
     }
@@ -305,7 +305,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       setImportOpen(true);
       setImportStep("review");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Workflow import preview failed", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t read the workflow", "error");
     } finally {
       setBusy(false);
     }
@@ -319,7 +319,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       setPasteJson("");
       setImportStep("review");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Paste is not valid workflow JSON", "error");
+      showToast(error instanceof Error ? error.message : "That isn’t valid workflow JSON", "error");
     } finally {
       setBusy(false);
     }
@@ -342,7 +342,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       refreshWorkflows();
       showToast(count === 1 ? "Workflow imported" : `${count} workflows imported`, "success");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Workflow import failed", "error");
+      showToast(error instanceof Error ? error.message : "Couldn’t import the workflow", "error");
     } finally {
       setBusy(false);
     }
@@ -380,7 +380,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       className="workflow-gallery"
       bodyClassName="wf-layout"
       title="Workflows"
-      description="Pick what your next generation runs on, or bring your own ComfyUI workflow."
+      description="Choose what the next generation runs on, or import a ComfyUI workflow."
       headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button> : undefined}
       contentProps={{
         onDragEnter: (event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } },
@@ -429,7 +429,7 @@ export function WorkflowGallery({ view }: { view: any }) {
           <div className="wf-empty">
             <Search size={20} />
             <h3>{query ? "Nothing matches" : filter === "favorites" ? "No favorites yet" : `No ${kind} workflows yet`}</h3>
-            <p>{query ? "Try another name or clear the search." : filter === "favorites" ? "Heart a workflow to keep it at hand." : "Import a ComfyUI workflow to get started."}</p>
+            <p>{query ? "Try another name or clear the search." : filter === "favorites" ? "Tap the heart on a workflow to add it here." : "Import a ComfyUI workflow."}</p>
             {query ? <button className="btn" onClick={() => setQuery("")}>Clear search</button> : filter === "favorites" ? <button className="btn" onClick={() => setFilter("all")}>Show all</button> : thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={14} /> Import workflow</button> : null}
           </div>
         )}
@@ -442,7 +442,7 @@ export function WorkflowGallery({ view }: { view: any }) {
             <div className="wf-detail-thumb"><WorkflowThumbnail key={selected.thumbnail} src={selected.thumbnail} /></div>
             <div className="wf-detail-head">
               <h3>{selected.name}</h3>
-              <button type="button" className={cn("wf-heart", selected.favorite && "active")} aria-pressed={Boolean(selected.favorite)} aria-label={selected.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Could not update favorites", "error"))}>
+              <button type="button" className={cn("wf-heart", selected.favorite && "active")} aria-pressed={Boolean(selected.favorite)} aria-label={selected.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Couldn’t update favorites", "error"))}>
                 <Heart size={16} fill={selected.favorite ? "currentColor" : "none"} />
               </button>
             </div>
@@ -482,7 +482,7 @@ export function WorkflowGallery({ view }: { view: any }) {
             </dl>
           </>
         ) : (
-          <div className="wf-empty"><Wand2 size={22} /><h3>No workflow selected</h3><p>Pick one on the left to see what it needs.</p></div>
+          <div className="wf-empty"><Wand2 size={22} /><h3>No workflow selected</h3><p>Choose one to see its details.</p></div>
         )}
       </aside>
 
@@ -496,12 +496,12 @@ export function WorkflowGallery({ view }: { view: any }) {
         className="wf-import"
         title={<>{importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}</>}
         description={importStep === "choose"
-          ? "HEISS UI runs a workflow as saved and changes only the inputs it’s connected to. ComfyUI’s Export (API) JSON reads most reliably; the visual format works too."
-          : "Check what follows the studio. Anything that stays as saved keeps the workflow’s own value on every run."}
+          ? "Workflows run as saved, except for the inputs connected to the studio. ComfyUI’s Export (API) JSON works best; the visual format works too."
+          : "Check what follows the studio. Everything else keeps the workflow’s saved values."}
         footer={importStep === "choose" ? (
           <>
             <button className="btn" disabled={busy} onClick={closeImport}>Cancel</button>
-            <button className="btn is-primary" onClick={previewPaste} disabled={busy || !pasteJson.trim()}>{busy ? "Reading…" : "Review paste"}</button>
+            <button className="btn is-primary" onClick={previewPaste} disabled={busy || !pasteJson.trim()}>{busy ? "Reading…" : "Review"}</button>
           </>
         ) : (
           <>
@@ -515,7 +515,7 @@ export function WorkflowGallery({ view }: { view: any }) {
             <button type="button" className="wf-dropzone" onClick={() => fileInput.current?.click()} disabled={busy}>
               <FileJson size={22} />
               <strong>Choose JSON files</strong>
-              <span>or drop them anywhere on the workflow gallery</span>
+              <span>or drop them anywhere in this window</span>
             </button>
             <input ref={fileInput} hidden type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files?.length) readFiles(event.target.files); event.currentTarget.value = ""; }} />
             <Field label={<><ClipboardPaste size={13} /> Or paste the JSON</>}>
@@ -534,7 +534,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                     <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>
                     <button type="button" className="modal-close" aria-label="Remove from import" onClick={() => setImports((current) => current.filter((_, i) => i !== index))}><X size={14} /></button>
                   </div>
-                  {status.state === "missing-nodes" ? <p className="wf-issue">Imports fine, but it won't run until ComfyUI has: {item.preview.validation.missingNodes?.join(", ")}</p> : null}
+                  {status.state === "missing-nodes" ? <p className="wf-issue">Imports, but won’t run until ComfyUI has these nodes: {item.preview.validation.missingNodes?.join(", ")}</p> : null}
                   {item.preview.risks?.length ? <ImportRisks risks={item.preview.risks} /> : null}
                   <Field label="Name"><input className="modal-input" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
                   <div className="wf-review-row">
@@ -563,7 +563,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                 </div>
               );
             })}
-            {!imports.length ? <div className="wf-empty"><FileJson size={20} /><h3>Nothing to import</h3><p>Go back and add a file or paste some JSON.</p></div> : null}
+            {!imports.length ? <div className="wf-empty"><FileJson size={20} /><h3>Nothing to import</h3><p>Add a file or paste JSON.</p></div> : null}
           </div>
         )}
       </Modal>

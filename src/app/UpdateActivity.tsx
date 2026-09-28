@@ -108,7 +108,7 @@ export function useUpdateActivity({ status, thisComputer, restarting, justUpdate
         title: `HEISS UI ${latest} is here`,
         meta: status?.highlight
           ? <>{status.highlight}{status.more ? <span className="uup-more"> · {status.more} more</span> : null}</>
-          : `A ${status?.size ? `${formatBytes(status.size)} ` : ''}download, in the background`,
+          : status?.size ? `${formatBytes(status.size)}, downloads in the background` : 'Downloads in the background',
         metaTitle: status?.highlight,
         metaLines: 2,
         action: { label: 'Update', run: onUpdate },
@@ -121,7 +121,7 @@ export function useUpdateActivity({ status, thisComputer, restarting, justUpdate
         title: `Updating to ${latest}`,
         figure: total ? <><AnimatedNumber value={Math.floor(progress * 100)} />%</> : undefined,
         progress,
-        meta: total ? `${formatBytes(received)} of ${formatBytes(total)} · keep working` : 'Starting the download'
+        meta: total ? `${formatBytes(received)} of ${formatBytes(total)}` : 'Starting the download'
       };
     case 'verifying':
       return { ...base, glyph, title: `Getting ${latest} ready`, meta: 'Checking the download' };
@@ -161,7 +161,7 @@ export function useUpdateActivity({ status, thisComputer, restarting, justUpdate
         state: 'error',
         glyph,
         title: 'The update stopped',
-        meta: download?.error || 'The download did not finish',
+        meta: download?.error || 'The download didn’t finish',
         metaTitle: download?.error,
         action: { label: 'Try again', run: onUpdate },
         dismiss: { label: 'Dismiss', run: () => setPutAway(errorKey) }

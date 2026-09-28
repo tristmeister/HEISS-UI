@@ -40,7 +40,7 @@ const tailLimit = 4000;
 const stepTimeoutMs = 15 * 60 * 1000;
 
 // What to do about it, since Manager itself only says "not allowed" (TROUBLESHOOTING.md has the steps).
-export const managerRefusedMessage = "ComfyUI-Manager refused the install: its security level doesn’t allow it. Set security_level = normal in Manager’s config.ini (ComfyUI/user/__manager/config.ini, or user/default/ComfyUI-Manager/config.ini in older versions), restart ComfyUI and try again, or use the terminal command instead.";
+export const managerRefusedMessage = "ComfyUI-Manager’s security level blocks this install. Set security_level = normal in Manager’s config.ini (ComfyUI/user/__manager/config.ini, or user/default/ComfyUI-Manager/config.ini in older versions), restart ComfyUI and try again, or use the terminal command.";
 
 function snapshot(state) {
   if (!state) return null;
@@ -144,7 +144,7 @@ async function installLocally(state, pack) {
       // Only what this install created goes; a folder that was already there is never touched.
       fs.rmSync(target, { recursive: true, force: true });
       throw new Error(/reviewed|did not match|reference is not a tree|pathspec/i.test(`${error.message}\n${state.log}`)
-        ? `The reviewed version of ${pack.name} (${pack.ref || pack.commit}) isn’t on GitHub any more, so nothing was installed.`
+        ? `The reviewed version of ${pack.name} (${pack.ref || pack.commit}) is no longer on GitHub, so it wasn’t installed.`
         : error.message);
     }
   }
@@ -154,7 +154,7 @@ async function installLocally(state, pack) {
     try {
       freeze = await run(state, python, [...pipArgs(python), "list", "--format=freeze", "--disable-pip-version-check"], target, pythonEnv(python));
     } catch {
-      throw new Error("Could not read which PyTorch ComfyUI uses, so its packages were left alone. Use the terminal steps instead.");
+      throw new Error("Couldn’t check ComfyUI’s PyTorch version, so the pack’s packages weren’t installed. Use the terminal steps instead.");
     }
     const constraints = path.join(os.tmpdir(), `heiss-constraints-${crypto.randomUUID()}.txt`);
     fs.writeFileSync(constraints, `${constraintsFrom(freeze)}\n`);
@@ -162,7 +162,7 @@ async function installLocally(state, pack) {
     try {
       await run(state, python, [...pipArgs(python), "install", "-r", "requirements.txt", "-c", constraints, "--disable-pip-version-check"], target, pythonEnv(python));
     } catch (error) {
-      if (/ResolutionImpossible|conflict/i.test(state.log)) throw new Error(`${pack.name} wants a different PyTorch or NumPy than ComfyUI has, so its packages weren’t installed. Its folder is there; see its page for a version that fits.`);
+      if (/ResolutionImpossible|conflict/i.test(state.log)) throw new Error(`${pack.name} needs a different PyTorch or NumPy than ComfyUI has, so its packages weren’t installed. Check its page for a version that fits.`);
       throw error;
     } finally {
       fs.rmSync(constraints, { force: true });
@@ -191,7 +191,7 @@ async function installWithManager(state, pack) {
       })
     });
   } catch (error) {
-    if (/\b403\b/.test(error.message) || securityWords.test(error.message)) throw managerRefused(new Error("ComfyUI-Manager refused the install because of its security level."));
+    if (/\b403\b/.test(error.message) || securityWords.test(error.message)) throw managerRefused(new Error("ComfyUI-Manager’s security level blocks this install."));
     throw error;
   }
   await comfy("/v2/manager/queue/start", { method: "POST" }).catch(() => null);
@@ -205,9 +205,9 @@ async function installWithManager(state, pack) {
     if (item.status?.status_str === "success" || item.result === "success") return;
     const message = [item.result, ...(item.status?.messages || [])].filter((text) => text && text !== "failed").join(" ");
     if (!message || securityWords.test(message) || /not allowed/i.test(message)) throw managerRefused(new Error(managerRefusedMessage));
-    throw new Error(message || "ComfyUI-Manager could not install it.");
+    throw new Error(message || "ComfyUI-Manager couldn’t install it.");
   }
-  throw new Error("ComfyUI-Manager did not finish in time.");
+  throw new Error("ComfyUI-Manager didn’t finish in time.");
 }
 
 /**
@@ -244,9 +244,9 @@ async function installWithManager3(state, pack) {
     const installed = await comfy("/customnode/installed").catch(() => null);
     const packs = Object.entries(installed || {});
     if (packs.some(([name, info]) => name === pack.manager || info?.cnr_id === pack.manager || info?.aux_id === pack.manager)) return;
-    throw new Error("ComfyUI-Manager did not install it. Its window says why.");
+    throw new Error("ComfyUI-Manager didn’t install it. The ComfyUI log shows why.");
   }
-  throw new Error("ComfyUI-Manager did not finish in time.");
+  throw new Error("ComfyUI-Manager didn’t finish in time.");
 }
 
 /**
@@ -263,7 +263,7 @@ export async function startPackInstall(id, { overrideManager = false } = {}) {
   const generation = routes.manager && !overrideManager ? await managerGeneration() : 0;
   const viaManager = generation > 0;
   if (!viaManager && !routes.local) {
-    throw new Error("ComfyUI runs on another computer and Manager cannot install this pack, so it needs the steps below.");
+    throw new Error("ComfyUI runs on another computer and ComfyUI-Manager can’t install this pack. Use the steps below.");
   }
   const state = { id, name: pack.name, route: viaManager ? "manager" : "local", status: "running", step: "Starting", log: "", error: "", startedAt: Date.now(), finishedAt: 0 };
   installs.set(id, state);

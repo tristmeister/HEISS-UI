@@ -125,7 +125,7 @@ async function recoverGalleryFromHistory() {
 function requireLocal(req, res) {
   const client = clientOf(req);
   if (client.thisComputer || (client.network && deviceSession(req))) return true;
-  res.status(403).json({ ok: false, error: "This action is only allowed from this computer or a signed-in device." });
+  res.status(403).json({ ok: false, error: "Only this computer or a signed-in device can do this." });
   return false;
 }
 
@@ -140,7 +140,7 @@ function requireSignedIn(req, res, next) {
   const client = clientOf(req);
   if (client.thisComputer) return next();
   if (!client.network) {
-    res.status(403).json({ ok: false, reason: "lan-off", error: "This app is only available from this computer unless it’s opened to other devices (Settings › Connection)." });
+    res.status(403).json({ ok: false, reason: "lan-off", error: "Only this computer can open the studio. To use it on other devices, turn them on in Settings › Connection." });
     return;
   }
   if (req.path.startsWith("/api/access/")) return next();
@@ -169,7 +169,7 @@ async function runRepoCommand(command, args) {
 async function updateStatus({ fresh = false, auto = false } = {}) {
   if (!fs.existsSync(path.join(root, ".git"))) {
     if (fs.existsSync(path.join(root, "release.json"))) return releaseStatus(root, { fresh, auto, dataDir });
-    return { ok: false, available: false, current: "", latest: "", branch: "", error: "This copy is not a Git checkout." };
+    return { ok: false, available: false, current: "", latest: "", branch: "", error: "This copy isn’t a Git checkout." };
   }
   // A checkout updates by hand with git: the automatic check leaves it alone.
   if (auto) return { ok: true, available: false, release: false };
@@ -273,7 +273,7 @@ function networkTls(thisComputer) {
 app.post("/api/network/tls", (req, res) => {
   if (!requireThisComputer(req, res)) return;
   if (tlsFromShell) {
-    res.status(409).json({ ok: false, error: "HTTPS is set where HEISS UI was started (HEISS_TLS_CERT and HEISS_TLS_KEY), so change it there." });
+    res.status(409).json({ ok: false, error: "HTTPS is set with HEISS_TLS_CERT and HEISS_TLS_KEY where HEISS UI starts. Change it there." });
     return;
   }
   const off = !req.body?.cert && !req.body?.key;
@@ -319,14 +319,14 @@ function sessionSeconds(req) {
  */
 function requireAdmin(req, res) {
   if (canAdmin(req)) return true;
-  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer HEISS UI runs on. Its owner can trust other devices with this in Settings › Connection." });
+  res.status(403).json({ ok: false, reason: "computer-only", error: "Do this on the computer running HEISS UI. Other devices can be allowed in Settings › Connection." });
   return false;
 }
 
 /** Creating, erasing or re-keying Hidden happens at the computer it runs on, never from the network. */
 function requireThisComputer(req, res) {
   if (clientOf(req).thisComputer) return true;
-  res.status(403).json({ ok: false, reason: "this-computer", error: "Only the computer HEISS UI runs on can do this." });
+  res.status(403).json({ ok: false, reason: "this-computer", error: "Only the computer running HEISS UI can do this." });
   return false;
 }
 
@@ -468,7 +468,7 @@ app.get("/api/hidden/gallery", (req, res) => {
     res.setHeader("Cache-Control", "private, no-store, max-age=0");
     res.json(page);
   } catch {
-    res.status(500).json({ ok: false, error: "Could not open Hidden with this key." });
+    res.status(500).json({ ok: false, error: "Can’t open Hidden with this key." });
   }
 });
 
@@ -479,7 +479,7 @@ app.post("/api/hidden/hide", async (req, res) => {
   const ids = new Set((Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
   const items = filterVisibleGallery(gallery).filter((item) => item.status === "done" && (ids.has(item.id) || ids.has(item.url)));
   if (items.some((item) => item.library)) {
-    res.status(400).json({ ok: false, error: "Images added from another folder stay in that folder, so they can’t move into Hidden." });
+    res.status(400).json({ ok: false, error: "Images from an added folder stay in that folder, so they can’t move into Hidden." });
     return;
   }
   if (!items.length) {
@@ -632,7 +632,7 @@ function adoptFoundComfy(found) {
     return false; // .env could not be written; the saved address stays.
   }
   comfyCache = { info: null, stats: null, fetchedAt: 0 };
-  console.log(`    Found ComfyUI at ${found}; HEISS UI uses it from now on.\n`);
+  console.log(`    Found ComfyUI at ${found}. Using it from now on.\n`);
   return true;
 }
 
@@ -744,7 +744,7 @@ function watchComfyRestart() {
 /** What to say when ComfyUI does not answer: restarting on purpose, or simply not there. */
 function comfyDownMessage(detail = "") {
   if (comfyRestarting()) return "ComfyUI is restarting. Try again in a few seconds.";
-  return `ComfyUI is not reachable at ${comfyUrl}. Start it, then try again.${detail ? ` (${detail})` : ""}`;
+  return `Can’t reach ComfyUI at ${comfyUrl}. Start it, then try again.${detail ? ` (${detail})` : ""}`;
 }
 
 app.get("/api/models", async (_req, res) => {
@@ -1173,7 +1173,7 @@ app.put("/api/loras/library", (req, res) => {
   try {
     res.json({ ok: true, library: saveLoraLibrary(req.body?.library) });
   } catch (error) {
-    res.status(500).json({ ok: false, error: `Could not save the LoRA library: ${error.message}` });
+    res.status(500).json({ ok: false, error: `Couldn’t save the LoRA library: ${error.message}` });
   }
 });
 
@@ -1324,7 +1324,7 @@ app.post("/api/library/output", async (req, res) => {
 
 app.get("/api/library/file", (req, res) => {
   const file = libraryFile(req.query.folder, req.query.path);
-  if (!file) { res.status(404).json({ ok: false, error: "That image is not there any more." }); return; }
+  if (!file) { res.status(404).json({ ok: false, error: "That image is gone." }); return; }
   const disposition = req.query.download === "1" ? "attachment" : "inline";
   res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate", "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(path.basename(file))}` } });
 });
@@ -1391,14 +1391,14 @@ app.post("/api/reference-assets/from-gallery", (req, res) => {
 
 app.get("/api/reference-assets/:id/media", (req, res) => {
   const asset = readUploadedReference(req.params.id, "media");
-  if (!asset) return res.status(404).json({ ok: false, error: "Reference image was not found." });
+  if (!asset) return res.status(404).json({ ok: false, error: "That reference image is gone." });
   res.type(asset.mime).setHeader("Cache-Control", "private, max-age=3600");
   res.sendFile(asset.file);
 });
 
 app.get("/api/reference-assets/:id/thumbnail", (req, res) => {
   const asset = readUploadedReference(req.params.id, "thumbnail");
-  if (!asset) return res.status(404).json({ ok: false, error: "Reference thumbnail was not found." });
+  if (!asset) return res.status(404).json({ ok: false, error: "That reference image is gone." });
   res.type(asset.mime).setHeader("Cache-Control", "private, max-age=86400");
   res.sendFile(asset.file);
 });
@@ -1428,7 +1428,7 @@ app.post("/api/comfy-url", async (req, res) => {
   try {
     const response = await fetch(`${candidate}/system_stats`, { signal: AbortSignal.timeout(4000) });
     reachable = response.ok;
-    if (!response.ok) detail = `It answered with HTTP ${response.status}; is that ComfyUI?`;
+    if (!response.ok) detail = `It answered with HTTP ${response.status}. Is that ComfyUI?`;
   } catch (error) {
     detail = error?.name === "TimeoutError" ? "Nothing answered there within 4 seconds." : "Nothing is listening at that address.";
   }
@@ -1478,7 +1478,7 @@ app.post("/api/generate", async (req, res) => {
   } else {
     const prompt = String(req.body?.prompt || "").trim();
     if (!prompt) {
-      res.status(400).json({ error: "Prompt is required." });
+      res.status(400).json({ error: "Enter a prompt." });
       return;
     }
     isMockJob = true;
@@ -1558,7 +1558,7 @@ async function upscaleContext(res, { force = false } = {}) {
     const { info } = await loadComfyContext({ force });
     return info;
   } catch {
-    res.status(503).json({ ok: false, offline: true, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting; smart upscale is back with it." : "ComfyUI is offline, so smart upscale is unavailable.", install: installState() });
+    res.status(503).json({ ok: false, offline: true, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting. Smart upscale is back when it’s done." : "ComfyUI is offline, so smart upscale isn’t available.", install: installState() });
     return null;
   }
 }
@@ -1620,7 +1620,7 @@ app.post("/api/upscale", async (req, res) => {
   const faceDetail = Boolean(req.body?.faceDetail);
   const status = upscaleStatus(info, quality);
   if (!status.ready) {
-    res.status(400).json({ ok: false, error: status.nodesInstalled ? "The SeedVR2 models are not installed yet." : `ComfyUI is missing the SeedVR2 nodes: ${status.missingNodes.join(", ")}.`, status });
+    res.status(400).json({ ok: false, error: status.nodesInstalled ? "The SeedVR2 models aren’t installed yet." : `ComfyUI is missing the SeedVR2 nodes: ${status.missingNodes.join(", ")}.`, status });
     return;
   }
   if (faceDetail && !status.faceDetail.nodesInstalled) {
@@ -1634,19 +1634,19 @@ app.post("/api/upscale", async (req, res) => {
   const hiddenItem = findUpscaleTarget(itemId) ? null : findVaultItem(hiddenKey, itemId);
   const item = findUpscaleTarget(itemId) || hiddenItem;
   if (!item) {
-    res.status(404).json({ ok: false, reason: "missing", error: "The server no longer has this image in its gallery. It may have been deleted or cleared on another device; reload to catch up." });
+    res.status(404).json({ ok: false, reason: "missing", error: "This image is no longer in the gallery. It may have been deleted on another device. Reload the page." });
     return;
   }
   if (item.type !== "image") {
-    res.status(400).json({ ok: false, reason: "video", error: "Only images can be upscaled. Video upscaling is not built in yet." });
+    res.status(400).json({ ok: false, reason: "video", error: "Only images can be upscaled." });
     return;
   }
   if (item.library) {
-    res.status(400).json({ ok: false, reason: "library", error: "Images added from another folder open here but stay where they are, so they can’t be upscaled." });
+    res.status(400).json({ ok: false, reason: "library", error: "Images from an added folder stay in that folder, so they can’t be upscaled." });
     return;
   }
   if (item.status !== "done") {
-    res.status(409).json({ ok: false, reason: "unfinished", error: "This image has not finished rendering yet. Upscale it once it is done." });
+    res.status(409).json({ ok: false, reason: "unfinished", error: "This image is still rendering. Upscale it when it’s done." });
     return;
   }
   if (item.upscale?.status === "running") {
@@ -1659,11 +1659,11 @@ app.post("/api/upscale", async (req, res) => {
     const [staged] = await stageReferenceAssets(req, [{ assetId: asset.id, slot: "upscale", source: asset.source }]);
     imageName = staged?.comfyName || "";
   } catch (error) {
-    res.status(400).json({ ok: false, reason: "source", error: `Could not read the original file to send to ComfyUI: ${error.message}` });
+    res.status(400).json({ ok: false, reason: "source", error: `Couldn’t read the original image: ${error.message}` });
     return;
   }
   if (!imageName) {
-    res.status(502).json({ ok: false, reason: "source", error: "ComfyUI did not accept the original image. Check that ComfyUI is running and its input folder is writable." });
+    res.status(502).json({ ok: false, reason: "source", error: "ComfyUI didn’t accept the original image. Make sure ComfyUI is running and can write to its input folder." });
     return;
   }
   const jobId = crypto.randomUUID();
@@ -1922,7 +1922,7 @@ app.post("/api/comfy/restart", async (req, res) => {
   // up to begin with; otherwise "restarting" would show for minutes over nothing.
   const up = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(4000) }).then((response) => response.ok, () => false);
   if (!up) {
-    res.status(503).json({ ok: false, error: "ComfyUI isn’t running, so there’s nothing to restart. Start it, and the studio connects by itself." });
+    res.status(503).json({ ok: false, error: "ComfyUI isn’t running. Start it and the studio connects." });
     return;
   }
   // What ComfyUI has loaded now, so the restart can tell what it brought in.
@@ -1952,12 +1952,12 @@ app.post("/api/comfy/restart", async (req, res) => {
       return;
     }
     if (response.status === 403) {
-      res.status(403).json({ ok: false, error: "ComfyUI-Manager refused the restart. Lower its security_level to normal in the Manager config, or restart ComfyUI by hand." });
+      res.status(403).json({ ok: false, error: "ComfyUI-Manager’s security level blocks the restart. Set security_level = normal in Manager’s config.ini, or restart ComfyUI yourself." });
       return;
     }
     if (response.status !== 404 && response.status !== 405) sawManager = true;
   }
-  res.status(501).json({ ok: false, error: sawManager ? "ComfyUI-Manager could not restart ComfyUI." : "Restarting needs ComfyUI-Manager. Newer ComfyUI ships it switched off: start ComfyUI with --enable-manager." });
+  res.status(501).json({ ok: false, error: sawManager ? "ComfyUI-Manager couldn’t restart ComfyUI." : "Restarting needs ComfyUI-Manager, which newer ComfyUI versions turn off. Start ComfyUI with --enable-manager." });
 });
 
 app.delete("/api/gallery/:id", (req, res) => {
@@ -1985,7 +1985,7 @@ app.delete("/api/gallery/:id", (req, res) => {
 app.post("/api/open-output-folder", (req, res) => {
   if (!requireAdmin(req, res)) return;
   if (!comfyOutputDir || !fs.existsSync(comfyOutputDir)) {
-    res.status(404).json({ ok: false, error: "Output folder is not configured." });
+    res.status(404).json({ ok: false, error: "Set ComfyUI’s output folder first (Settings › Library)." });
     return;
   }
   openFolder(comfyOutputDir);
@@ -2029,8 +2029,8 @@ app.post("/api/update/install", async (req, res) => {
       // A release copy has no git to pull: download the new release, swap it in on restart.
       if (!before.canInstall && before.download?.status !== "ready") {
         res.json({ ...before, updated: false, message: before.unsigned
-          ? `HEISS UI ${before.latest} isn’t signed with the release key, so it won’t install itself. If you trust it, download it from ${before.url} and replace this folder (keep your data folder).`
-          : `HEISS UI ${before.latest} is out. Download it from ${before.url} and replace this folder (keep your data folder).` });
+          ? `HEISS UI ${before.latest} isn’t signed with the release key, so it wasn’t installed. To install it anyway, download it from ${before.url} and replace this folder, keeping the data folder.`
+          : `HEISS UI ${before.latest} is available. Download it from ${before.url} and replace this folder, keeping the data folder.` });
         return;
       }
       if (before.download?.status === "ready") { res.json({ ...before, updated: false }); return; }
@@ -2051,7 +2051,7 @@ app.post("/api/update/install", async (req, res) => {
 app.post("/api/update/restart", (req, res) => {
   if (!requireAdmin(req, res)) return;
   if (!requestRestart()) {
-    res.status(409).json({ ok: false, error: "This copy was not started with its launcher, so it cannot restart itself. Stop it and start it again." });
+    res.status(409).json({ ok: false, error: "This copy wasn’t started with its launcher, so it can’t restart from here. Stop it and start it again." });
     return;
   }
   res.json({ ok: true });
@@ -2186,7 +2186,7 @@ app.get("/comfy/*path", async (req, res) => {
 
 const dist = path.join(root, "dist");
 // An unknown API route must fail as JSON, never fall through to the app page.
-app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "Unknown API route. Restart HEISS UI if it was just updated." }));
+app.all("/api/*splat", (_req, res) => res.status(404).json({ ok: false, error: "Unknown API route. If HEISS UI was updated, restart it." }));
 
 if (fs.existsSync(dist)) serveApp(app, dist);
 
@@ -2205,7 +2205,7 @@ startServers(app, {
   port,
   fallback: !dev,
   onFatal(error) {
-    let message = `\n  HEISS UI could not start: ${error.message}\n`;
+    let message = `\n  HEISS UI couldn’t start: ${error.message}\n`;
     // Where the running copy answered: this computer, or the one address HOST names.
     const runningHost = !error.host || error.host === "127.0.0.1" ? "localhost" : error.host.includes(":") ? `[${error.host}]` : error.host;
     if (error.heissRunning) message = `\n  HEISS UI is already running: http://${runningHost}:${error.port}\n`;
@@ -2222,7 +2222,7 @@ startServers(app, {
   onListening({ plan, port: listening, moved }) {
     // From here on everything that names the address (banner, phone links in Settings) uses this one.
     setListeningPort(listening);
-    if (moved) console.log(`\n  Port ${requestedPort} is taken by another program, so HEISS UI uses ${listening} this time.`);
+    if (moved) console.log(`\n  Port ${requestedPort} is in use, so HEISS UI is on ${listening} this time.`);
     // localhost rather than 127.0.0.1: same server, but browsers only allow passkeys
     // (Touch ID, Windows Hello for Hidden) on a name, never on an address.
     const shownHost = host === "0.0.0.0" || host === "::" || host === "127.0.0.1" ? "localhost" : host;
@@ -2243,7 +2243,7 @@ startServers(app, {
       // Starting before ComfyUI is fine, but say so instead of leaving people to guess.
       const answering = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => response.ok, () => false);
       const found = answering || demoMode ? "" : await findComfy({ current: comfyUrl });
-      if (!(found && adoptFoundComfy(found)) && !answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. Start it; the studio connects by itself.\n`);
+      if (!(found && adoptFoundComfy(found)) && !answering && !demoMode) console.log(`    ComfyUI isn’t answering at ${comfyUrl} yet. The studio connects once it starts.\n`);
     }).catch(() => {});
     // Tells scripts/start.mjs this version runs, so a fresh update is kept, and where to open it.
     process.send?.({ type: "ready", version: appVersion, url: `http://${shownHost}:${pagePort}` });

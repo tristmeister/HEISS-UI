@@ -341,7 +341,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
           const index = items.indexOf(document.activeElement as HTMLButtonElement);
           items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
         }} ref={(node) => { if (node && !node.contains(document.activeElement)) (node.querySelector<HTMLButtonElement>("button.aspect-option.active") || node.querySelector<HTMLButtonElement>("button.aspect-option"))?.focus({ preventScroll: true }); }}>
-          <Tip content="Use the model's detected default size"><button
+          <Tip content="Use the model’s default size"><button
               type="button"
               className={cn("aspect-option", value === "default" && "active")}
               role="option"
@@ -532,7 +532,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
           {profiles.length ? null : (
             <div className="model-menu-empty">
               <strong>No models yet</strong>
-              <span>{emptyHint || "ComfyUI has no model HEISS UI can run yet."}</span>
+              <span>{emptyHint || "No usable models in ComfyUI yet."}</span>
               {onGetModels && !strayCount ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onGetModels(); }}>Get a model</button>
                 : onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
             </div>

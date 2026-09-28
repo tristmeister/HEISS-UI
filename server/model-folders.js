@@ -467,7 +467,7 @@ export async function modelFolderReport({ local = true, scan = {} } = {}) {
  */
 export async function linkModelFolders(paths = [], { picked = "", scan = {} } = {}) {
   const report = lastReport?.ok ? lastReport : await modelFolderReport({ scan });
-  if (!report.local) throw new Error("ComfyUI runs on another computer, so HEISS UI can’t change its settings.");
+  if (!report.local) throw new Error("ComfyUI runs on another computer, so its settings can’t be changed from here.");
   const chosen = [];
   for (const wanted of paths.map(String)) {
     // The same folder can come back spelled differently (case, 8.3 short names on Windows).
@@ -478,7 +478,7 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
     const setup = await comfyModelSetup();
     const dir = realpath(picked);
     const layout = readLayout(dir, Object.keys(setup?.kinds || {}));
-    if (!layout) throw new Error("That folder does not look like a models folder. Pick the one that holds checkpoints, loras or diffusion_models.");
+    if (!layout) throw new Error("That doesn’t look like a models folder. Choose the one with checkpoints, loras or diffusion_models in it.");
     chosen.push({ path: dir, kinds: layout.map.map(({ name, kind }) => ({ name, kind })) });
   }
   if (!chosen.length) throw new Error("Nothing to add. Scan again and pick a folder.");
@@ -516,10 +516,10 @@ export async function linkModelFolders(paths = [], { picked = "", scan = {} } = 
 /** Takes a folder HEISS added back out of ComfyUI's model paths. */
 export async function unlinkModelFolder(dir) {
   const setup = await comfyModelSetup();
-  if (!setup?.configPath) throw new Error("ComfyUI is not reachable.");
+  if (!setup?.configPath) throw new Error("Can’t reach ComfyUI.");
   const text = fs.readFileSync(setup.configPath, "utf8");
   const section = heissSections(text).find((item) => item.path === String(dir)) || heissSections(text).find((item) => samePath(item.path, String(dir)) || samePath(item.path, realpath(String(dir))));
-  if (!section) throw new Error("HEISS UI didn’t add this folder, so it can’t remove it.");
+  if (!section) throw new Error("Only folders added here can be removed here.");
   const eol = text.includes("\r\n") ? "\r\n" : "\n";
   // The blank line that went in before the section goes out with it.
   let next = text.replace(section.block, "").replace(/(\r?\n){3,}/g, eol + eol).replace(/(\r?\n)+$/, eol);

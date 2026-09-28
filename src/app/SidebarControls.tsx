@@ -57,9 +57,9 @@ function loraSetup(view: any) {
   const loraUnavailable = currentProfile && !currentProfile.capabilities.lora && mode !== "image"
     ? "This video workflow has no LoRA loader. Built-in video models take LoRAs."
     : currentProfile && !currentProfile.capabilities.lora
-      ? "This workflow has no LoRA loader, so it can't take LoRAs. Pick one that does in the workflow gallery."
+      ? "This workflow has no LoRA loader, so it can’t use LoRAs."
       : !loraOptions.length
-        ? "No LoRAs found. Put .safetensors files in ComfyUI's models/loras folder, then rescan in Settings › Models."
+        ? "No LoRAs found. Put .safetensors files in ComfyUI’s models/loras folder, then rescan in Settings › Models."
         : "";
   return { loraOptions, loraLimit, loraUnavailable };
 }
@@ -180,7 +180,7 @@ export function SidebarControls({ view }: { view: any }) {
   const { loraOptions, loraLimit, loraUnavailable } = loraSetup(view);
   // What the model's makers ship, one tap away once anything has moved from it.
   const backToRecommended = recommended?.differs ? (
-    <button type="button" className="btn is-ghost sidebar-recommended" onClick={recommended.restore} title={`Steps, prompt strength, sampler and scheduler as ${recommended.family || "this model"} ships them`}>
+    <button type="button" className="btn is-ghost sidebar-recommended" onClick={recommended.restore} title={`The steps, prompt strength, sampler and scheduler recommended for ${recommended.family || "this model"}`}>
       <RotateCcw size={13} /> Back to recommended
     </button>
   ) : null;
@@ -189,7 +189,7 @@ export function SidebarControls({ view }: { view: any }) {
     <>
       <div className="mode-tabs" role="tablist" aria-label="Generation mode">
         <Tip content="Image generation"><button type="button" role="tab" aria-selected={mode === "image"} className={cn(mode === "image" && "active")} onClick={() => changeMode("image")}>Image</button></Tip>
-        <Tip content="Video generation · beta, expect rough edges"><button type="button" role="tab" aria-selected={mode === "video"} className={cn(mode === "video" && "active")} onClick={() => changeMode("video")}>Video<BetaTag /></button></Tip>
+        <Tip content="Video generation (beta)"><button type="button" role="tab" aria-selected={mode === "video"} className={cn(mode === "video" && "active")} onClick={() => changeMode("video")}>Video<BetaTag /></button></Tip>
       </div>
 
       <WorkflowPreviewCard workflow={currentWorkflow} onOpen={() => setWorkflowGalleryOpen(true)} />

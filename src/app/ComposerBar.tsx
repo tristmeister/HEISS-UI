@@ -279,7 +279,7 @@ export function ComposerBar(props: ComposerBarProps) {
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
-    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "ComfyUI isn't reachable. Start it and your models show up here." : strayModelCount ? "Your models are in a folder ComfyUI doesn’t read." : "ComfyUI has no model HEISS UI can run yet. Add one to its models folder, or search for yours."} />
+    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "Start ComfyUI to see your models." : strayModelCount ? "Some models are in a folder ComfyUI doesn’t read." : "No usable models in ComfyUI yet. Add one to its models folder, or find yours."} />
     : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
   const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (
@@ -364,7 +364,7 @@ export function ComposerBar(props: ComposerBarProps) {
       </AnimatePresence>
       <div className="zen-prompt-actions" ref={rowRef} data-density-level={level}>
         <div className="prompt-left-actions" data-fluid-group>
-          <Tip content={!canUseNegativePrompt ? "Negative prompt is unavailable for this model" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}>
+          <Tip content={!canUseNegativePrompt ? "This model doesn’t use a negative prompt" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}>
             <button
               data-open-trigger
               type="button"
@@ -432,14 +432,14 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyRestarting ? "ComfyUI is restarting. Generate is back in a few seconds." : comfyOffline ? "ComfyUI isn't reachable. Click to try again." : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}${generateKey ? ` · ${generateKey}` : ""}`}>
+        <Tip content={comfyRestarting ? "ComfyUI is restarting. Back in a few seconds." : comfyOffline ? "ComfyUI is offline. Click to check again." : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}${generateKey ? ` · ${generateKey}` : ""}`}>
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && !comfyRestarting && "is-working", comfyRestarting ? "is-restarting" : comfyOffline && "is-offline")}
             onClick={comfyRestarting ? undefined : comfyOffline ? refreshComfyStatus : generate}
             disabled={comfyRestarting || (comfyOffline ? comfyRetrying : false)}
             blocked={!comfyOffline && !comfyRestarting && generateDisabled}
             busy={comfyRestarting || (comfyOffline && comfyRetrying) || undefined}
-            aria-label={comfyRestarting ? "ComfyUI is restarting" : comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, retry connection") : generateDisabledReason || "Generate"}
+            aria-label={comfyRestarting ? "ComfyUI is restarting" : comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, check again") : generateDisabledReason || "Generate"}
           >
             {comfyRestarting
               ? <><RefreshCw size={14} className="spin" /><span>Restarting…</span></>
