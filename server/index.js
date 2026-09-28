@@ -43,6 +43,7 @@ import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, pickFolder } f
 import { compressJson, serveApp } from './http-assets.js';
 import { listenWithFallback } from './launch.js';
 import { describeGitError, updateCheckout } from './git-update.js';
+import { diagnostics, diagnosticsText } from './diagnostics.js';
 
 const app = express();
 app.use(express.json({ limit: "25mb" }));
@@ -508,6 +509,17 @@ app.get("/api/estimate", (req, res) => {
 app.get("/api/stats", async (_req, res) => {
   const since = await commitsSinceRelease();
   res.json({ ok: true, version: appVersion, sinceRelease: since, stats: galleryStats(gallery) });
+});
+
+// Versions, system and GPU for a bug report (Settings › About, and a failed card's Copy report).
+app.get("/api/diagnostics", async (_req, res) => {
+  const since = await commitsSinceRelease();
+  const install = fs.existsSync(path.join(root, ".git"))
+    ? `Git checkout${since?.commits ? `, ${since.tag} + ${since.commits}` : ""}`
+    : fs.existsSync(path.join(root, "release.json")) ? "release" : "";
+  const stats = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(3000) }).then((response) => (response.ok ? response.json() : null), () => null);
+  const report = diagnostics({ version: appVersion, install, stats, comfyLocal: comfyIsLocal() });
+  res.json({ ok: true, ...report, text: diagnosticsText(report) });
 });
 
 // When this server process started, so the app can tell a restart (e.g. after an update) happened.

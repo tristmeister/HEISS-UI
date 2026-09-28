@@ -57,6 +57,14 @@ test("the server says who it is, and an unknown API route fails as JSON", async 
   assert.match(unknown.body.error, /Unknown API route/);
 });
 
+test("diagnostics name this setup for a bug report", async () => {
+  const { body } = await api("/api/diagnostics");
+  assert.match(body.text, /^HEISS UI \d+\.\d+\.\d+/);
+  assert.match(body.text, /\nComfyUI 0\.34\.1, on this computer; Python 3\.12, PyTorch 2\.8\.0\n/);
+  assert.match(body.text, /\nGPU: Fake GPU \[cuda\], 22\.4 GB VRAM/);
+  assert.equal(body.text.includes(dataDir), false);
+});
+
 test("the page is served and always checked again", { skip: !fs.existsSync(path.join(here, "..", "dist", "index.html")) && "dist/ is not built" }, async () => {
   const page = await fetch(`${base}/`);
   assert.equal(page.status, 200);

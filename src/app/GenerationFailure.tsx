@@ -1,6 +1,7 @@
 import React from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, LifeBuoy, RotateCcw } from 'lucide-react';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
+import { knownDiagnostics, loadDiagnostics, troubleshootingUrl, withDiagnostics } from './diagnostics';
 import { cn } from './format';
 import type { GalleryItem, GenerationFailure } from './types';
 
@@ -49,6 +50,9 @@ export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onC
   const raw = [failure.detail !== failure.summary ? failure.detail : '', failure.traceback].filter(Boolean).join('\n\n');
   const hasDetail = Boolean(raw || failure.nodeType || failure.exceptionType);
   const [open, setOpen] = React.useState(false);
+  // The report carries the setup (versions, system, GPU); fetched now so the copy needs no wait.
+  React.useEffect(() => { void loadDiagnostics(); }, []);
+  const copyReport = async () => onCopy(withDiagnostics(reportFor(item, failure), knownDiagnostics() || await loadDiagnostics()));
   return (
     <div className="failure-panel" onClick={(event) => event.stopPropagation()} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
       <div className="failure-icon is-large" aria-hidden="true"><AlertTriangle size={22} strokeWidth={2} /></div>
@@ -57,7 +61,8 @@ export function FailurePanel({ item, onCopy, onReuse }: { item: GalleryItem; onC
       {failure.hint ? <p className="failure-hint">{failure.hint}</p> : null}
       <div className="failure-actions">
         {onReuse ? <button type="button" className="btn is-primary" onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
-        <button type="button" className="btn" onClick={() => copyWith(() => onCopy(reportFor(item, failure)))}><CopyIcon copied={Boolean(copied)} /> {copied ? 'Copied' : 'Copy report'}</button>
+        <button type="button" className="btn" onClick={() => copyWith(copyReport)}><CopyIcon copied={Boolean(copied)} /> {copied ? 'Copied' : 'Copy report'}</button>
+        <a className="btn is-ghost" href={troubleshootingUrl(failure.help)} target="_blank" rel="noreferrer"><LifeBuoy size={14} /> Troubleshooting</a>
       </div>
       {hasDetail ? (
         <div className={cn('failure-detail', open && 'is-open')}>
