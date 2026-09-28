@@ -8,7 +8,7 @@ export function modelBasename(name = "") {
 }
 
 export function prettyModelName(name = "") {
-  const base = modelBasename(name).replace(/\.(safetensors|ckpt|pt|bin)$/i, "");
+  const base = modelBasename(name).replace(/\.(safetensors|ckpt|pt|bin|gguf)$/i, "");
   return base
     .replace(/distill/ig, "")
     .replace(/aio/ig, "")

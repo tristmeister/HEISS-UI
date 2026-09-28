@@ -3,6 +3,7 @@ import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
 import { encoderDownloads, families, knownFamilies, modelDownloads, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
+import { ggufEncoderNames, ggufModelNames, isGguf } from './gguf.js';
 import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel } from './model-families.js';
 import { classifyEncoder, classifyVae, encoderKinds, rankEncoders, rankVaes, vaeKinds } from './model-components.js';
@@ -158,9 +159,10 @@ function sanaSettings(info, name, variant, detail, cuda) {
  */
 export function familyProfiles(info, helpers) {
   const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false } = helpers;
-  const unets = optionsFor(info, "UNETLoader", "unet_name");
+  // GGUF files load through ComfyUI-GGUF's twins of the core loaders (see gguf.js).
+  const unets = [...optionsFor(info, "UNETLoader", "unet_name"), ...ggufModelNames(info)];
   const checkpoints = optionsFor(info, "CheckpointLoaderSimple", "ckpt_name");
-  const encoderFiles = optionsFor(info, "CLIPLoader", "clip_name").map(classifyEncoder);
+  const encoderFiles = [...optionsFor(info, "CLIPLoader", "clip_name"), ...ggufEncoderNames(info)].map(classifyEncoder);
   const vaeFiles = optionsFor(info, "VAELoader", "vae_name")
     .filter((name) => !/^(pixel_space|taesd|taesdxl|taesd3|taef1)$/i.test(name))
     .map(classifyVae);
@@ -266,6 +268,8 @@ export function familyProfiles(info, helpers) {
       const key = family.pair.download?.(base);
       missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`) : [] });
     }
+    const ggufPart = isGguf(name) && missingPackPart(info, "gguf", { detail: "ComfyUI loads GGUF models through the ComfyUI-GGUF custom nodes." });
+    if (ggufPart) missing.push(ggufPart);
     const nodes = runner ? [] : missingNodes(info, nodesFor(family, variant, !encoderBuiltIn, !bundled.vae));
     // A family that runs on a custom node pack names it (family.pack, or its runner's).
     const needs = runner || family;
@@ -339,7 +343,7 @@ export function familyProfiles(info, helpers) {
         variations: family.kind === "image" && family.sampling !== "pair",
         textEncoder: encoderSlots.length > 0,
         vae: !family.ownLoaders,
-        weightDtype: source === "unet",
+        weightDtype: source === "unet" && !isGguf(name),
         // ComfyUI-SANA runs the whole diffusers pipeline in one node, with its own scheduler.
         ...(diffusersRunner ? { sampler: false, scheduler: false } : {}),
         // ComfyUI's LoRA loader cannot patch a model it did not build.

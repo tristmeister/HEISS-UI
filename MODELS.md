@@ -19,6 +19,7 @@ catalog, so a family that is described correctly needs no UI work.
 | Node packs | `server/node-packs.js` → `nodePacks` | Every custom node pack HEISS may ask for: name, Git URL, folder, the node classes that prove it loaded |
 | Graph | `server/family-graph.js` → `familyGraph` | One builder for every family; special sampling styles branch off it |
 | Profiles | `server/family-profiles.js` | Turns every model file into a runnable profile and lists exactly what is missing |
+| GGUF | `server/gguf.js` | Reads GGUF headers as safetensors-style headers (so detection needs no GGUF rules), lists GGUF models and encoders, and swaps core loaders for ComfyUI-GGUF's twins in the graph. See `docs/gguf-research.md` |
 
 ## Recipe
 

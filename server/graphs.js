@@ -3,6 +3,7 @@ import { comfy } from './comfy.js';
 import { getCustomWorkflow } from './custom-workflows.js';
 import { startImageDataUrl } from './start-images.js';
 import { familyGraph } from './family-graph.js';
+import { withGgufLoaders } from './gguf.js';
 
 export async function uploadReferenceImage(dataUrl) {
   if (!dataUrl || !dataUrl.includes(",")) return "";
@@ -51,7 +52,7 @@ async function builtInGraph(body) {
   const referenceImages = (body.referenceAssets || []).map((item) => item?.comfyName).filter(Boolean);
   const staged = referenceImages[0] || "";
   const startImageComfy = staged || ((body.startImage || body.startImageId) ? await uploadBodyStartImage(body) : "");
-  return familyGraph({ ...body, startImageComfy, referenceImages });
+  return withGgufLoaders(familyGraph({ ...body, startImageComfy, referenceImages }));
 }
 
 function cloneGraph(graph) {
