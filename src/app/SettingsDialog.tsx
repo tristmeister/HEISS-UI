@@ -2,7 +2,7 @@ import React from 'react';
 import { ComfyManagerNote, ComfyRestart, restartResultLine, useComfyRestart, useComfyRestartEta, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
-import { usePhone, useThisComputer } from './device';
+import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
 import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LifeBuoy, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
@@ -625,6 +625,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   const restartEta = useComfyRestartEta();
   // Folders, models, updates and wiping the gallery are looked after at the computer itself.
   const thisComputer = useThisComputer();
+  // Earlier images opens a folder picker on the computer itself; the server takes it from nowhere else.
+  const atComputer = useAtComputer();
   const phoneDevice = usePhone();
   const updateLabel = updateStatus?.error || (updateStatus?.available ? `${updateStatus.behind || 1} update${updateStatus.behind === 1 ? '' : 's'} available` : updateStatus?.ok ? 'Up to date' : 'Not checked yet');
 
@@ -794,7 +796,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               </Row>
               {thisComputer ? <TrashRow confirmAction={confirmAction} showToast={showToast} Row={Row} /> : null}
             </Group>
-            {thisComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
+            {atComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
             <CivitaiGroup Group={Group} Row={Row} Switch={Switch} showToast={showToast} canChange={thisComputer} />
           </>
         ) : null}
