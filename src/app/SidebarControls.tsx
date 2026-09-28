@@ -44,7 +44,7 @@ function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary |
   );
 }
 
-export type SidebarTab = "basics" | "advanced" | "loras";
+export type SidebarTab = "basics" | "loras" | "advanced";
 
 /** What LoRAs the current workflow can take, shared by the sidebar and the phone's Advanced sheet. */
 function loraSetup(view: any) {
@@ -94,6 +94,20 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
       </div>
 
       {currentProfile ? <ModelSetup key={currentProfile.id} profile={currentProfile} showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : null}
+
+      <h3 className="phone-section">LoRAs</h3>
+      <div className="phone-loras">
+        <LoraPanel
+          loras={loras}
+          setLoras={setLoras}
+          options={loraOptions}
+          profile={currentProfile}
+          limit={loraLimit}
+          library={loraLibrary}
+          rememberedStrength={rememberedLoraStrength}
+          unavailableReason={loraUnavailable}
+        />
+      </div>
 
       <h3 className="phone-section">Sampling</h3>
       <div className="phone-group">
@@ -146,20 +160,6 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
           </div>
         </>
       ) : null}
-
-      <h3 className="phone-section">LoRAs</h3>
-      <div className="phone-loras">
-        <LoraPanel
-          loras={loras}
-          setLoras={setLoras}
-          options={loraOptions}
-          profile={currentProfile}
-          limit={loraLimit}
-          library={loraLibrary}
-          rememberedStrength={rememberedLoraStrength}
-          unavailableReason={loraUnavailable}
-        />
-      </div>
     </div>
   );
 }
@@ -202,7 +202,7 @@ export function SidebarControls({ view }: { view: any }) {
       ) : null}
 
       <div className="sidebar-subtabs" role="tablist" aria-label="Sidebar sections">
-        {(["basics", "advanced", "loras"] as SidebarTab[]).map((id) => (
+        {(["basics", "loras", "advanced"] as SidebarTab[]).map((id) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className={cn("sidebar-subtab", tab === id && "active")} onClick={() => setTab(id)}>
             {id === "basics" ? "Basics" : id === "advanced" ? "Advanced" : "LoRAs"}
             {id === "loras" && loraActiveCount > 0 ? <span className="sidebar-subtab-count">{loraActiveCount}</span> : null}

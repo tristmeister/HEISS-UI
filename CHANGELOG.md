@@ -11,6 +11,10 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Changed
+- **LoRAs come right after Basics** in the sidebar, and right after the model
+  in the phone's Advanced settings, where they're easier to reach.
+
 ### Fixed
 - **The sidebar and other glass stay readable over the video gallery on
   Windows**, where Chrome can hand playing videos to a layer the blur can't
