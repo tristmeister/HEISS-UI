@@ -101,18 +101,26 @@ export function VirtualMasonryGallery({
   // still named the previous shell's detached <main>: the grid measured that
   // as 0px tall and drew no tiles until something re-rendered it.
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null);
+  // The grid's own column gap, which the stylesheets set and which isn't the
+  // spacing between rows (8px against 7px on a computer): tiles line up on the
+  // grid's tracks, where the per-column lists used to sit.
+  const [columnGap, setColumnGap] = useState<number | null>(null);
   React.useLayoutEffect(() => {
     const next = scrollParent(containerRef.current) || scrollRef.current;
     setScrollElement((current) => (current === next ? current : next));
+    const gap = containerRef.current ? parseFloat(getComputedStyle(containerRef.current).columnGap) : NaN;
+    if (Number.isFinite(gap)) setColumnGap((current) => (current === gap ? current : gap));
   });
   const safeColumns = Math.max(1, columns);
   const spacing = containerWidth < 620 ? 4 : 7;
-  // Columns sit where a CSS grid would put them, equal tracks with the gap
-  // between; a tile is its track's width rounded down, a wide one two tracks
-  // and the gap between them.
-  const track = containerWidth ? (containerWidth - spacing * (safeColumns - 1)) / safeColumns : 240;
-  const columnWidth = Math.floor(track);
-  const wideWidth = Math.floor(track * 2 + spacing);
+  const columnWidth = containerWidth ? Math.floor((containerWidth - spacing * (safeColumns - 1)) / safeColumns) : 240;
+  // Columns sit where the grid's tracks start (browsers lay tracks out in
+  // 1/64 px steps), each tile as wide as it always was; a wide tile reaches
+  // the right edge of the tile beside it.
+  const gutter = columnGap ?? spacing;
+  const track = containerWidth ? (containerWidth - gutter * (safeColumns - 1)) / safeColumns : columnWidth;
+  const columnLeft = (column: number) => Math.floor(column * track * 64) / 64 + column * gutter;
+  const wideWidth = Math.floor(track + gutter + columnWidth);
   // The grid is newest first, each tile in the shortest column: the newest top
   // left, the same layout a reload gives. That places every tile by the ones
   // before it, so a tile that goes (deleted, hidden, stopped) only moves the
@@ -224,7 +232,7 @@ export function VirtualMasonryGallery({
             <div
               key={itemKey(item) || `tile-${index}`}
               className={wide ? "virtual-gallery-cell is-wide" : "virtual-gallery-cell"}
-              style={{ width, height: height + spacing, transform: `translate(${layout.column[index] * (track + spacing)}px, ${layout.top[index]}px)` }}
+              style={{ left: columnLeft(layout.column[index]), width, height: height + spacing, transform: `translateY(${layout.top[index]}px)` }}
             >
               {item.bundle ? (
                 <BundleTile
