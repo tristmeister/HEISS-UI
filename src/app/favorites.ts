@@ -54,8 +54,11 @@ export function useFavorites({ patchGalleryItems, removeGalleryItems, setActive,
         post("/api/gallery/favorite", targets.filter((item) => !item.privateVault)),
         post("/api/hidden/favorite", targets.filter((item) => item.privateVault))
       ]);
-      // Showing only favourites: an image unstarred there leaves the list.
-      if (!favorite && latest.current.search.favorites) latest.current.removeGalleryItems([...ids]);
+      // Showing only favourites: an image unstarred there leaves the list. The
+      // gallery's list is the server's filtered page, so it goes from it; Hidden
+      // keeps its whole list here and filters in memory, so it stays in it.
+      const leaving = targets.filter((item) => !item.privateVault).map((item) => item.id);
+      if (!favorite && latest.current.search.favorites && leaving.length) latest.current.removeGalleryItems(leaving);
     } catch (error) {
       apply(!favorite);
       latest.current.showToast(error instanceof Error ? error.message : "Could not save the star", "error");
