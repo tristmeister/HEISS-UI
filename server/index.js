@@ -28,7 +28,7 @@ import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
 import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
-import { clearPromptHistory, forgetPrompts, listPrompts, promptKey, recordPrompt, setPromptPinned } from './prompt-history.js';
+import { clearPromptHistory, forgetPrompts, listPrompts, promptHistoryEnabled, promptKey, recordPrompt, setPromptHistoryEnabled, setPromptPinned } from './prompt-history.js';
 import { addLibraryFolder, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
 import { civitaiPrefs, saveCivitaiPrefs } from './civitai.js';
 import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
@@ -1245,7 +1245,12 @@ app.post("/api/hidden/favorite", (req, res) => {
 
 app.get("/api/prompts", (_req, res) => {
   res.setHeader("Cache-Control", "private, no-store, max-age=0");
-  res.json({ prompts: listPrompts() });
+  res.json({ prompts: listPrompts(), enabled: promptHistoryEnabled() });
+});
+
+app.post("/api/prompts/enabled", (req, res) => {
+  const prompts = setPromptHistoryEnabled(req.body?.enabled !== false);
+  res.json({ ok: true, prompts, enabled: promptHistoryEnabled() });
 });
 
 app.post("/api/prompts/pin", (req, res) => {

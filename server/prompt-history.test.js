@@ -73,3 +73,22 @@ test("prompts still sealed by the old privacy scheme never seed the list", () =>
   ], { persist: false });
   assert.deepEqual(history.listPrompts().map((entry) => entry.text), ["a grey cat"]);
 });
+
+test("turned off, nothing new is kept and the recent prompts go; starred ones stay, and it survives a restart", () => {
+  history.clearPromptHistory({ keepPinned: false });
+  history.recordPrompt("a kept star");
+  history.setPromptPinned("a kept star", true);
+  history.recordPrompt("a passing thought");
+  history.setPromptHistoryEnabled(false);
+  assert.equal(history.promptHistoryEnabled(), false);
+  assert.deepEqual(history.listPrompts().map((entry) => entry.text), ["a kept star"]);
+  history.recordPrompt("not remembered");
+  assert.deepEqual(history.listPrompts().map((entry) => entry.text), ["a kept star"]);
+  assert.equal(fs.readFileSync(`${history.promptHistoryPath}.bak`, "utf8").includes("a passing thought"), false, "gone from the backup too");
+
+  history.resetPromptHistoryCache();
+  assert.equal(history.promptHistoryEnabled(), false, "still off after a restart");
+  history.setPromptHistoryEnabled(true);
+  history.recordPrompt("remembered again");
+  assert.deepEqual(history.listPrompts().map((entry) => entry.text), ["remembered again", "a kept star"]);
+});

@@ -8,6 +8,9 @@ import { hasLegacyPrompt } from "./privacy.js";
  * device on it sees the same list. A prompt used again moves to the top
  * instead of appearing twice; pinned ones stay no matter how many follow.
  *
+ * It can be turned off (Settings › Generation): then nothing new is kept and
+ * the recent ones are forgotten; starred prompts stay until unstarred.
+ *
  * Nothing from Hidden is ever written here: the generate route records only
  * runs that land in the gallery, and hiding an image takes its prompt out
  * unless the gallery still shows it elsewhere.
@@ -70,6 +73,7 @@ export function addPrompt(entries, text, at = new Date()) {
 }
 
 let cache = null;
+let enabled = true;
 
 /**
  * The saved list. The very first time there is none, it starts from the
@@ -78,7 +82,9 @@ let cache = null;
 export function loadPromptHistory(seedItems = gallery) {
   if (cache) return cache;
   try {
-    cache = cleanEntries(readJsonFile(promptHistoryPath));
+    const saved = readJsonFile(promptHistoryPath);
+    enabled = saved?.enabled !== false;
+    cache = cleanEntries(saved);
   } catch {
     let entries = [];
     const seeds = seedItems
@@ -97,8 +103,22 @@ export function loadPromptHistory(seedItems = gallery) {
  * (forgotten, cleared, or hidden along with its image) must not stay in it.
  */
 function save({ forget = false } = {}) {
-  writeJsonFile(promptHistoryPath, { version: 1, entries: cache || [] });
-  if (forget) writeJsonFile(promptHistoryPath, { version: 1, entries: cache || [] });
+  writeJsonFile(promptHistoryPath, { version: 1, enabled, entries: cache || [] });
+  if (forget) writeJsonFile(promptHistoryPath, { version: 1, enabled, entries: cache || [] });
+}
+
+export function promptHistoryEnabled() {
+  loadPromptHistory();
+  return enabled;
+}
+
+/** Turning it off forgets the recent prompts (starred ones stay) and keeps no new ones. */
+export function setPromptHistoryEnabled(on) {
+  loadPromptHistory();
+  enabled = Boolean(on);
+  if (!enabled) cache = cache.filter((entry) => entry.pinned);
+  save({ forget: !enabled });
+  return cache;
 }
 
 export function listPrompts() {
@@ -106,6 +126,7 @@ export function listPrompts() {
 }
 
 export function recordPrompt(text) {
+  if (!promptHistoryEnabled()) return cache;
   const entries = addPrompt(loadPromptHistory(), text);
   if (entries === cache) return cache;
   cache = entries;

@@ -717,7 +717,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Run variants as" description={prefs.variationQueueMode === 'separate' ? 'One job per variant. Easier to cancel one at a time.' : 'One ComfyUI prompt with a larger batch. Usually faster.'}>
                 <Segmented label="Run variants as" value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: 'One batch' }, { value: 'separate', label: 'Separate jobs' }]} />
               </Row>
-              <PromptHistoryRow Row={Row} showToast={showToast} confirmAction={confirmAction} />
+              <PromptHistoryRow Row={Row} Switch={Switch} showToast={showToast} confirmAction={confirmAction} />
             </Group>
             <Group title="Previews">
               <Row label="While generating" description={prefs.generationPreviewMode === 'simple' ? 'Each sampler step as it arrives. Lighter on the GPU.' : 'Early steps resolve through an animated pixel mosaic. Reduced motion always uses simple.'}>

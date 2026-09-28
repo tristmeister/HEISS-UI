@@ -2,7 +2,7 @@ import React from 'react';
 import { FolderPlus, RefreshCw } from 'lucide-react';
 import { apiJson } from './api';
 import { BetaTag } from './components';
-import { clearPrompts, usePromptHistory } from './recentPrompts';
+import { clearPrompts, setPromptHistoryEnabled, usePromptHistory } from './recentPrompts';
 import type { ConfirmAction } from './useConfirmation';
 import type { ShowToast } from './toast';
 
@@ -133,19 +133,32 @@ export function CivitaiGroup({ Group, Row, Switch, showToast, canChange }: Parts
   );
 }
 
-/** Recent prompts: what the list is, and the way to empty it. */
-export function PromptHistoryRow({ Row, showToast, confirmAction }: Pick<Parts, 'Row' | 'showToast'> & { confirmAction: ConfirmAction }) {
-  const { prompts } = usePromptHistory(true);
+/** Recent prompts: whether to keep them, what the list holds, and the way to empty it. */
+export function PromptHistoryRow({ Row, Switch, showToast, confirmAction }: Pick<Parts, 'Row' | 'Switch' | 'showToast'> & { confirmAction: ConfirmAction }) {
+  const { prompts, enabled } = usePromptHistory(true);
   const starred = prompts.filter((entry) => entry.pinned).length;
+  const recent = prompts.length - starred;
+  const fail = (error: unknown) => showToast(error instanceof Error ? error.message : 'Could not change recent prompts', 'error');
+  const toggle = async (next: boolean) => {
+    if (!next && recent && !await confirmAction({ title: 'Stop keeping recent prompts?', description: `${plural(recent, 'recent prompt')} ${recent === 1 ? 'is' : 'are'} forgotten.${starred ? ' Starred prompts stay.' : ''}`, action: 'Stop keeping' })) return;
+    setPromptHistoryEnabled(next).catch(fail);
+  };
   return (
-    <Row
-      label="Recent prompts"
-      description={`Press ↑ in an empty prompt, or the clock beside Negative. ${prompts.length ? `${plural(prompts.length - starred, 'recent prompt')}${starred ? `, ${starred} starred` : ''}. ` : ''}Prompts from Hidden are never kept.`}
-    >
-      <button className="btn" disabled={prompts.length === starred} onClick={async () => {
-        if (!await confirmAction({ title: 'Forget recent prompts?', description: starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.', action: 'Forget' })) return;
-        clearPrompts().catch((error) => showToast(error instanceof Error ? error.message : 'Could not forget them', 'error'));
-      }}>Forget</button>
-    </Row>
+    <>
+      <Row
+        label="Keep recent prompts"
+        description={`Press ↑ in an empty prompt, or the clock beside Negative, to use one again. Kept on this computer for every device; prompts from Hidden never are.${enabled && prompts.length ? ` ${plural(recent, 'recent prompt')}${starred ? `, ${starred} starred` : ''}.` : ''}`}
+      >
+        <Switch label="Keep recent prompts" checked={enabled} onChange={toggle} />
+      </Row>
+      {enabled && recent ? (
+        <Row label="Forget recent prompts" description={starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.'}>
+          <button className="btn" onClick={async () => {
+            if (!await confirmAction({ title: 'Forget recent prompts?', description: starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.', action: 'Forget' })) return;
+            clearPrompts().catch(fail);
+          }}>Forget</button>
+        </Row>
+      ) : null}
+    </>
   );
 }

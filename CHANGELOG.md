@@ -12,6 +12,9 @@ version opens with a `> ` summary line, which the update pill shows.
 ## [Unreleased]
 
 ### Changed
+- **Workflow import is no longer beta.**
+- **Recent prompts can be turned off** in Settings › Generation. Off, nothing
+  new is kept and the recent ones are forgotten; starred prompts stay.
 - **The model menu offers starter models only while there are none.** Once a
   model is installed, "Get more models" no longer shows.
 - **LoRAs come right after Basics** in the sidebar, and right after the model

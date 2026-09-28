@@ -10,12 +10,14 @@ import { apiJson } from './api';
 export type PromptEntry = { text: string; at: string; uses: number; pinned?: boolean };
 
 let entries: PromptEntry[] = [];
+let enabled = true;
 let loaded = false;
 let loading: Promise<void> | null = null;
 const listeners = new Set<() => void>();
 
-function publish(next: PromptEntry[]) {
+function publish(next: PromptEntry[], on?: boolean) {
   entries = next;
+  if (typeof on === "boolean") enabled = on;
   loaded = true;
   listeners.forEach((listener) => listener());
 }
@@ -27,8 +29,8 @@ function subscribe(listener: () => void) {
 
 /** Asks the server for the list; concurrent callers share one request. */
 export function refreshPrompts() {
-  loading ||= apiJson<{ prompts: PromptEntry[] }>("/api/prompts")
-    .then((data) => publish(Array.isArray(data.prompts) ? data.prompts : []))
+  loading ||= apiJson<{ prompts: PromptEntry[]; enabled?: boolean }>("/api/prompts")
+    .then((data) => publish(Array.isArray(data.prompts) ? data.prompts : [], data.enabled !== false))
     .catch(() => { loaded = true; })
     .finally(() => { loading = null; });
   return loading;
@@ -61,9 +63,16 @@ export async function clearPrompts() {
   publish(data.prompts || []);
 }
 
+/** Keeps new prompts or not, for every device; off forgets the recent ones, starred stay. */
+export async function setPromptHistoryEnabled(on: boolean) {
+  const data = await apiJson<{ prompts: PromptEntry[]; enabled: boolean }>("/api/prompts/enabled", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: on }) });
+  publish(data.prompts || [], data.enabled);
+}
+
 /** The list, kept current; `refresh` asks the server again. */
 export function usePromptHistory(active = true) {
   const list = useSyncExternalStore(subscribe, () => entries, () => entries);
+  const on = useSyncExternalStore(subscribe, () => enabled, () => enabled);
   const [ready, setReady] = useState(loaded);
   useEffect(() => {
     if (!active) return;
@@ -72,7 +81,7 @@ export function usePromptHistory(active = true) {
     return () => { live = false; };
   }, [active]);
   const refresh = useCallback(() => refreshPrompts(), []);
-  return { prompts: list, ready: ready || loaded, refresh };
+  return { prompts: list, enabled: on, ready: ready || loaded, refresh };
 }
 
 /* ------------------------------------------------------------ Search */
