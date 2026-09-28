@@ -12,6 +12,11 @@ const json = { "content-type": "application/json" };
 /** A queue entry is [number, prompt_id, prompt, extra_data, outputs]; only the id matters here. */
 const idsIn = (list) => (Array.isArray(list) ? list.map((item) => (Array.isArray(item) ? item[1] : item?.prompt_id)).filter(Boolean) : []);
 
+/** Every prompt id in ComfyUI's queue, running or waiting. */
+export function queuedIds(queue) {
+  return [...idsIn(queue?.queue_running), ...idsIn(queue?.queue_pending)];
+}
+
 /** Where a prompt stands in ComfyUI's queue: "running", "pending" or "" when it is in neither. */
 export function queuePlace(queue, promptId) {
   if (idsIn(queue?.queue_running).includes(promptId)) return "running";
@@ -73,6 +78,9 @@ export function isTransientComfyError(error) {
     || /fetch failed|socket hang up|terminated|other side closed/i.test(error.message || "");
 }
 
+// How long ComfyUI may stay silent before a run is given up on (shorter in tests).
+const defaultLostAfterMs = Number(process.env.HEISS_COMFY_LOST_AFTER_MS) > 0 ? Number(process.env.HEISS_COMFY_LOST_AFTER_MS) : 60_000;
+
 export const lostConnectionMessage = "ComfyUI stopped answering for over a minute, so HEISS UI stopped waiting for this run.";
 export const droppedRunMessage = "ComfyUI no longer has this run. It may have restarted, or the run was removed from its queue.";
 
@@ -87,7 +95,7 @@ export const droppedRunMessage = "ComfyUI no longer has this run. It may have re
  * or removed from ComfyUI's own queue). Any sign of life (a request that
  * answered, a progress message on the socket via `alive()`) resets the clock.
  */
-export function promptTracker(promptId, { request = comfy, now = Date.now, lostAfterMs = 60_000, verifyEvery = 10, pollTimeoutMs = 15_000 } = {}) {
+export function promptTracker(promptId, { request = comfy, now = Date.now, lostAfterMs = defaultLostAfterMs, verifyEvery = 10, pollTimeoutMs = 15_000 } = {}) {
   let lastAlive = now();
   let downSince = null;
   let failures = 0;

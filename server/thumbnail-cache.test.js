@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 process.env.HEISS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-thumbs-"));
-const { sweepThumbnails } = await import("./thumbnails.js");
+const { getFileThumbnail, sweepThumbnails } = await import("./thumbnails.js");
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-thumb-cache-"));
 test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -45,4 +45,22 @@ test("a cache under its cap, or none at all, is left alone", async () => {
   fs.writeFileSync(path.join(dir, "notes.txt"), Buffer.alloc(5000));
   assert.equal((await sweepThumbnails({ dir, limitBytes: 2000, now: Date.now() })).removed, 0, "only thumbnails count, and these are in use");
   assert.equal(fs.existsSync(path.join(dir, "notes.txt")), true);
+});
+
+test("a library image's thumbnail served from the cache counts as in use", async () => {
+  const sharp = (await import("sharp")).default;
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-library-"));
+  const photo = path.join(folder, "photo.png");
+  await sharp({ create: { width: 16, height: 16, channels: 3, background: "#c33" } }).png().toFile(photo);
+  const built = await getFileThumbnail(photo);
+  assert.ok(built.file);
+  // Made two days ago, before a restart: only being served again says it is on screen.
+  const old = new Date(Date.now() - 48 * hour);
+  fs.utimesSync(built.file, old, old);
+  const restarted = await import("./thumbnails.js?restarted");
+  assert.equal((await restarted.getFileThumbnail(photo)).file, built.file);
+  const result = await restarted.sweepThumbnails({ limitBytes: 1, now: Date.now() });
+  assert.equal(result.removed, 0);
+  assert.equal(fs.existsSync(built.file), true);
+  fs.rmSync(folder, { recursive: true, force: true });
 });

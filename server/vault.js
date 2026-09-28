@@ -78,7 +78,7 @@ function writeManifest(manifest, key) {
 }
 
 /** Encrypts one file under a fresh key; returns what the manifest keeps about it. */
-function sealAsset(buffer) {
+export function sealAsset(buffer) {
   const assetKey = crypto.randomBytes(32);
   const assetFile = `${crypto.randomUUID()}.bin`;
   fs.mkdirSync(assetsDir, { recursive: true });
@@ -96,6 +96,13 @@ function dropAssets(item) {
   }
 }
 
+/** Removes sealed files no manifest item came to hold (a late run's, when it cannot join Hidden). */
+export function discardLooseAssets(files = []) {
+  for (const file of files) {
+    if (file && path.basename(String(file)) === String(file)) { try { fs.unlinkSync(path.join(assetsDir, file)); } catch { /* already gone */ } }
+  }
+}
+
 function mimeFor(filename, type) {
   const ext = path.extname(String(filename || "")).toLowerCase();
   if (type === "video" || ext === ".mp4") return "video/mp4";
@@ -107,11 +114,26 @@ function mimeFor(filename, type) {
 }
 
 /**
+ * Where ComfyUI saved one of its outputs on this computer, or "" when that is
+ * not known here (no output folder set, or not an output file).
+ */
+export function outputFileOf(output) {
+  const source = String(output?.url || "");
+  if (!comfyOutputDir || !source || source.startsWith("data:")) return "";
+  const parsed = new URL(source, "http://heiss.local");
+  const filename = String(parsed.searchParams.get("filename") || "");
+  if (!filename || path.basename(filename) !== filename || (parsed.searchParams.get("type") || "output") !== "output") return "";
+  const base = path.resolve(comfyOutputDir);
+  const candidate = path.resolve(base, String(parsed.searchParams.get("subfolder") || ""), filename);
+  return isInside(base, candidate) ? candidate : "";
+}
+
+/**
  * The bytes of something ComfyUI just made, and the file it made them in so
  * that copy can go. Without a known output folder the bytes still come over
  * ComfyUI's API, and `sourcePath` stays empty: the caller says a copy was left.
  */
-async function sourceFromOutput(output) {
+export async function sourceFromOutput(output) {
   const source = String(output?.url || "");
   if (source.startsWith("data:")) {
     const match = source.match(/^data:([^;,]+)?((?:;[^,]+)*),(.*)$/s);
@@ -269,6 +291,33 @@ function removeSourceFiles(paths) {
   return left;
 }
 
+/** The manifest record for one file a Hidden run made, already sealed as `asset`. */
+function runItem(body, asset, index, { createdAt, durationMs = 0 }) {
+  return {
+    id: crypto.randomUUID(),
+    jobId: body.clientJobId || "",
+    index,
+    assetFile: asset.assetFile,
+    assetKey: asset.assetKey,
+    mime: asset.mime,
+    outputName: asset.outputName || "",
+    filename: promptTitle(body.prompt),
+    type: asset.type === "video" ? "video" : "image",
+    status: "done",
+    prompt: body.prompt || "",
+    negative: body.negative || "",
+    createdAt,
+    durationMs,
+    width: Number(body.width || 0),
+    height: Number(body.height || 0),
+    model: body.model || "",
+    referenceImage: body.startImageId || "",
+    referenceImageName: body.startImageName || "",
+    startImageId: body.startImageId || "",
+    settings: generationSettings(body)
+  };
+}
+
 /**
  * Encrypts what a Hidden run made. Returns the items as the browser sees them
  * and how many plaintext copies ComfyUI kept that could not be removed.
@@ -285,28 +334,10 @@ export async function storeHiddenOutputs(key, outputs, body, existing = []) {
       const source = sources[index];
       const sealed = sealAsset(source.buffer);
       sealedFiles.push(sealed.assetFile);
-      created.push({
-        id: crypto.randomUUID(),
-        jobId: body.clientJobId || "",
-        index,
-        ...sealed,
-        mime: source.mime,
-        outputName: output.filename || "",
-        filename: promptTitle(body.prompt),
-        type: output.type === "video" ? "video" : "image",
-        status: "done",
-        prompt: body.prompt || "",
-        negative: body.negative || "",
+      created.push(runItem(body, { ...sealed, mime: source.mime, outputName: output.filename, type: output.type }, index, {
         createdAt: existing[index]?.createdAt || body.createdAt || new Date().toISOString(),
-        durationMs: Number(body.startedAt ? Date.now() - body.startedAt : 0),
-        width: Number(body.width || 0),
-        height: Number(body.height || 0),
-        model: body.model || "",
-        referenceImage: body.startImageId || "",
-        referenceImageName: body.startImageName || "",
-        startImageId: body.startImageId || "",
-        settings: generationSettings(body)
-      });
+        durationMs: Number(body.startedAt ? Date.now() - body.startedAt : 0)
+      }));
     }
     manifest.items.unshift(...created);
     writeManifest(manifest, key);
@@ -316,6 +347,39 @@ export async function storeHiddenOutputs(key, outputs, body, existing = []) {
   }
   const leftBehind = removeSourceFiles(sources.map((source) => source.sourcePath).filter((_, index) => !String(outputs[index]?.url || "").startsWith("data:")));
   return { items: created.map(viewItem), leftBehind };
+}
+
+/**
+ * Brings in what a Hidden run made after HEISS UI lost track of it. Its files
+ * were sealed as they came, maybe while Hidden was locked (hidden-runs.js);
+ * here they join the manifest with the run's prompt and settings.
+ */
+export function adoptSealedOutputs(key, assets, body = {}) {
+  if (!key) throw new Error("Unlock Hidden first.");
+  if (!assets.length) return [];
+  const manifest = readManifest(key);
+  const createdAt = body.createdAt || new Date().toISOString();
+  const created = assets.map((asset, index) => runItem(body, asset, index, { createdAt }));
+  manifest.items.unshift(...created);
+  writeManifest(manifest, key);
+  return created.map(viewItem);
+}
+
+/** The same for an upscale of a Hidden item that finished late; it replaces any earlier one. */
+export function adoptSealedUpscale(key, itemId, asset, state = {}) {
+  if (!key) throw new Error("Unlock Hidden first.");
+  const manifest = readManifest(key);
+  const item = manifest.items.find((entry) => entry.id === itemId);
+  if (!item) {
+    discardLooseAssets([asset.assetFile]);
+    return null;
+  }
+  const previous = item.upscale?.assetFile;
+  item.upscale = { ...state, assetFile: asset.assetFile, assetKey: asset.assetKey, mime: asset.mime, outputName: asset.outputName || "", status: "done", error: "" };
+  item.upscaleActive = true;
+  writeManifest(manifest, key);
+  if (previous && previous !== asset.assetFile) discardLooseAssets([previous]);
+  return viewItem(item);
 }
 
 /** Changes an item's own fields, such as which of original and upscale it shows. */

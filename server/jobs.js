@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { comfy, comfyUrl, normalizeComfyError } from './comfy.js';
 import { cancelPrompt, promptTracker } from './comfy-queue.js';
 import { describeFailure } from './failures.js';
@@ -5,8 +6,9 @@ import { withFixes } from './failure-fixes.js';
 import { nextProgress } from './progress-phase.js';
 import { rememberMissingParts } from './model-families.js';
 import { imageGraph, videoGraph } from './graphs.js';
-import { gallery, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
+import { gallery, hideGalleryItems, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
 import { forgetComfyRun } from './hidden-traces.js';
+import { releaseHiddenRun, rememberHiddenRun } from './hidden-runs.js';
 import { storeHiddenOutputs } from './vault.js';
 import { writeCivitaiParameters } from './civitai.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
@@ -288,10 +290,13 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
   return socket;
 }
 
-/** A Hidden run that stopped early still leaves its graph and inputs in ComfyUI. */
-function forgetHiddenRun(body, promptId) {
-  if (body?.privateVault) forgetComfyRun({ promptIds: [promptId], inputNames: body.stagedInputNames }).catch(() => null);
-  else if (body?.hiddenInputNames?.length) forgetComfyRun({ inputNames: body.hiddenInputNames }).catch(() => null);
+/**
+ * A normal run that used a Hidden image as its reference: the staged copy
+ * goes. A Hidden run itself is finished by hidden-runs.js once ComfyUI lets
+ * go of it (see the end of runJob).
+ */
+function forgetHiddenInputs(body) {
+  if (!body?.privateVault && body?.hiddenInputNames?.length) forgetComfyRun({ inputNames: body.hiddenInputNames }).catch(() => null);
 }
 
 // What each running job asked for, so a failure can be read against it.
@@ -349,6 +354,10 @@ async function runJob(id, body) {
   runTimings.set(id, timing);
   refreshQueueEstimates();
   let socket = null;
+  // A Hidden run is written down before ComfyUI has it, so it is finished
+  // even when this job loses it; `hiddenDone` says how far this job got.
+  let hiddenPromptId = "";
+  let hiddenDone = {};
   try {
     const prompt = body.kind === "video" ? await videoGraph(body) : await imageGraph(body);
     timing.timer = new RunTimer(prompt);
@@ -357,11 +366,22 @@ async function runJob(id, body) {
     sendSocketFeatureFlags(socket);
     const run = { promptId: null, wake: null, alive: null };
     watchProgress(id, run, socket, prompt);
+    if (body.privateVault) {
+      hiddenPromptId = crypto.randomUUID();
+      rememberHiddenRun(jobs.get(id)?.vaultKey, hiddenPromptId, { body, inputNames: body.stagedInputNames });
+    }
     const queued = await comfy("/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt, client_id: id, extra_data: { preview_method: "auto" } })
+      // heiss_hidden stays with the run in ComfyUI's history, so no recovery ever takes it for a gallery image.
+      body: JSON.stringify({ prompt, client_id: id, ...(hiddenPromptId ? { prompt_id: hiddenPromptId } : {}), extra_data: { preview_method: "auto", ...(hiddenPromptId ? { heiss_hidden: true } : {}) } })
     });
+    // An older ComfyUI names the run itself.
+    if (hiddenPromptId && queued.prompt_id && queued.prompt_id !== hiddenPromptId) {
+      rememberHiddenRun(jobs.get(id)?.vaultKey, queued.prompt_id, { body, inputNames: body.stagedInputNames });
+      releaseHiddenRun(hiddenPromptId, { clean: true });
+      hiddenPromptId = queued.prompt_id;
+    }
     if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
       // It may already have started on an idle ComfyUI; this stops it either way, and only it.
       await cancelPrompt(queued.prompt_id).catch(() => null);
@@ -380,13 +400,13 @@ async function runJob(id, body) {
         updateGalleryJob(id, { status: "canceled" });
         setTerminalJob(id, { status: "canceled" });
         socket?.close();
-        forgetHiddenRun(body, queued.prompt_id);
+        forgetHiddenInputs(body);
         return;
       }
       // The socket already recorded the failure; history would only add an empty result.
       if (jobs.get(id)?.status === "error") {
         socket?.close();
-        forgetHiddenRun(body, queued.prompt_id);
+        forgetHiddenInputs(body);
         return;
       }
       const checked = await tracker.check();
@@ -424,7 +444,10 @@ async function runJob(id, body) {
           // No thumbnail for the workflow card: that list is not encrypted.
           markWorkflowUsed(body.profileId || body.model || body.workflow || "", "");
           setTerminalJob(id, { status: "done", outputs: items, leftBehind });
-          await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
+          // A copy that could not be removed is marked, so no import of the output folder brings it in.
+          if (leftBehind) hideGalleryItems(outputs);
+          const historyGone = await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
+          hiddenDone = { stored: true, clean: historyGone };
         } else {
           // Before the gallery shows them, so no browser reads a file mid-write.
           writeCivitaiParameters(outputs, body);
@@ -451,8 +474,10 @@ async function runJob(id, body) {
     setTerminalJob(id, { status: "error", error: failure.summary, failure });
     updateGalleryJob(id, { status: "error", filename: failure.title, failure });
     socket?.close();
-    forgetHiddenRun(body, jobs.get(id)?.promptId);
+    forgetHiddenInputs(body);
   } finally {
+    // Anything short of sealed and cleaned up is finished later, from the list of Hidden runs.
+    if (hiddenPromptId) releaseHiddenRun(hiddenPromptId, hiddenDone);
     // The progress socket can report an error a moment after this loop ends.
     setTimeout(() => jobBodies.delete(id), 60_000).unref?.();
     runTimings.delete(id);

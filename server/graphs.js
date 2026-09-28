@@ -151,6 +151,23 @@ function applyRgthreeLoraStack(graph, body, config) {
   }
 }
 
+/**
+ * Points every save node (SaveImage, SaveVideo, VHS_VideoCombine and anything
+ * else with a filename_prefix) at the heiss-ui folder. A Hidden run from an
+ * imported workflow must save where HEISS UI's own runs do: a copy Hidden
+ * cannot remove then stays out of "Everything in the output folder" too.
+ */
+export function saveIntoHeissFolder(graph) {
+  for (const node of Object.values(graph || {})) {
+    const inputs = node?.inputs;
+    if (!inputs || !Object.hasOwn(inputs, "filename_prefix")) continue;
+    // Only the name part is kept; a linked or empty prefix becomes a plain one.
+    const name = typeof inputs.filename_prefix === "string" ? inputs.filename_prefix.split(/[\\/]/).filter((part) => part && part !== "." && part !== "..").pop() : "";
+    inputs.filename_prefix = `heiss-ui/${name || "hidden"}`;
+  }
+  return graph;
+}
+
 export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
   if (!workflow) throw new Error("Custom workflow is not installed.");
@@ -158,5 +175,5 @@ export async function customWorkflowGraph(body) {
   await applyMappedInputs(graph, workflow, body);
   if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);
   else applyPowerLoraStack(graph, body, workflow.loraStack);
-  return graph;
+  return body.privateVault ? saveIntoHeissFolder(graph) : graph;
 }

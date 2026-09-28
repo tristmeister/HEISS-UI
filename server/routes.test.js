@@ -60,6 +60,15 @@ test("the server says who it is, and an unknown API route fails as JSON", async 
   assert.match(unknown.body.error, /Unknown API route/);
 });
 
+test("health says whether ComfyUI answers, and keeps its system stats (command line, paths) to itself", async () => {
+  const { status, body } = await api("/api/health");
+  assert.equal(status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.comfyUrl, fake.url);
+  assert.equal("stats" in body, false);
+  assert.equal(JSON.stringify(body).includes("Fake GPU"), false);
+});
+
 test("diagnostics name this setup for a bug report", async () => {
   const { body } = await api("/api/diagnostics");
   assert.match(body.text, /^HEISS UI \d+\.\d+\.\d+/);

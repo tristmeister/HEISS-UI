@@ -47,6 +47,7 @@ import { saveStartImage } from './start-images.js';
 import { addDevicePasskey, addPasskey, changePassword, issueChallenge, unlockWithDevicePasskey, clearUnlockCookie, encryptionKeyFromRequest, erasePrivacy, isPrivacyEnabled, passkeyUnlockOptions, privacyStatusFor, removePasskey, revealGalleryItemsForRequest, setupPrivacy, setUnlockCookie, unlockWithPasskey, unlockWithPassword } from './privacy.js';
 import { compactVaultBundles, deleteVaultItems, dissolveVaultBundle, eraseVault, retireVault, exportVaultBackup, findVaultItem, hideItems, patchVaultItem, readVaultAsset, setVaultBundleCover, unhideItems, vaultAssetsForExport, vaultBundlePendingSummary, vaultConfigured, vaultItems, vaultRevision } from './vault.js';
 import { forgetComfyRun } from './hidden-traces.js';
+import { adoptHiddenRuns, forgetHiddenRunKeys, settleHiddenRuns, withoutHiddenRuns } from './hidden-runs.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
@@ -111,7 +112,9 @@ function refreshComfyContextSoon() {
 
 async function recoverGalleryFromHistory() {
   cleanupGalleryState(jobs);
-  const history = await comfy(`/history?max_items=${Math.min(galleryLimit, 500)}`).catch(() => ({}));
+  // Hidden runs HEISS UI lost track of are sealed first, and never join the gallery either way.
+  await settleHiddenRuns().catch(() => null);
+  const history = withoutHiddenRuns(await comfy(`/history?max_items=${Math.min(galleryLimit, 500)}`).catch(() => ({})));
   const recovered = recordsFromComfyHistory(history);
   if (!recovered.length) return;
   const pending = gallery.filter((item) => item.status === "pending");
@@ -217,6 +220,8 @@ async function privacyPayload(req, key = encryptionKeyFromRequest(req)) {
   if (unlocked) {
     migrateLegacyPrompts(key);
     forgetOldHiddenThumbnails(key);
+    // What Hidden runs made after HEISS UI lost track of them joins Hidden now.
+    try { adoptHiddenRuns(key); } catch { /* the next unlocked request tries again */ }
   }
   return {
     ...status,
@@ -426,6 +431,7 @@ app.post("/api/privacy/erase", (req, res) => {
   }
   eraseVault();
   erasePrivacy();
+  forgetHiddenRunKeys();
   // Copies taken before an update may still hold Hidden's older records.
   try { dropSnapshots(); } catch { /* held open (Windows); they go within 14 days anyway */ }
   clearUnlockCookie(res);
@@ -452,6 +458,7 @@ app.get("/api/hidden/gallery", (req, res) => {
   const key = requireHiddenKey(req, res);
   if (!key) return;
   cleanupGalleryState(jobs);
+  try { adoptHiddenRuns(key); } catch { /* tried again with the next page */ }
   try {
     const page = hiddenPage(req, key);
     if (Number(req.query.since || 0) && Number(req.query.since) === page.revision) {
@@ -609,8 +616,9 @@ const serverStartedAt = Date.now();
 
 app.get("/api/health", async (req, res) => {
   try {
-    const stats = await comfy("/system_stats");
-    res.json({ ok: true, comfyUrl, stats, startedAt: serverStartedAt, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer });
+    // Only whether ComfyUI answers: its system_stats (command line, paths) stay here.
+    await comfy("/system_stats");
+    res.json({ ok: true, comfyUrl, startedAt: serverStartedAt, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer });
   } catch (error) {
     res.status(503).json({ ok: false, thisComputer: canAdmin(req), atComputer: clientOf(req).thisComputer, restarting: comfyRestarting(), error: comfyRestarting() ? "ComfyUI is restarting." : error.message, startedAt: serverStartedAt });
   }
@@ -2193,7 +2201,9 @@ startServers(app, {
   fallback: !dev,
   onFatal(error) {
     let message = `\n  HEISS UI could not start: ${error.message}\n`;
-    if (error.heissRunning) message = `\n  HEISS UI is already running: http://localhost:${error.port}\n`;
+    // Where the running copy answered: this computer, or the one address HOST names.
+    const runningHost = !error.host || error.host === "127.0.0.1" ? "localhost" : error.host.includes(":") ? `[${error.host}]` : error.host;
+    if (error.heissRunning) message = `\n  HEISS UI is already running: http://${runningHost}:${error.port}\n`;
     else if (error.code === "EADDRINUSE") message = dev
       ? `\n  Port ${port} is already in use. Stop what uses it, or set another PORT in .env.\n`
       : `\n  Ports ${port} to ${port + 9} are all in use. Set another PORT in .env.\n`;
@@ -2201,7 +2211,7 @@ startServers(app, {
     // A distinct code, so scripts/start.mjs does not blame (and roll back) a fresh update for it.
     const exit = () => process.exit(error.code === "EADDRINUSE" ? PORT_IN_USE_CODE : 1);
     // The launcher opens the copy that is already running instead.
-    if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://localhost:${error.port}` }, exit);
+    if (error.heissRunning && process.send) process.send({ type: "already-running", url: `http://${runningHost}:${error.port}` }, exit);
     else exit();
   },
   onListening({ plan, port: listening, moved }) {

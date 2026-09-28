@@ -2,7 +2,7 @@ import http from "node:http";
 import https from "node:https";
 import tls from "node:tls";
 import { Readable } from "node:stream";
-import { envFileKeys, writeLocalEnvValue } from "./env.js";
+import { envFileKeys, removeLocalEnvValue, writeLocalEnvValue } from "./env.js";
 
 /**
  * How HEISS reaches Hugging Face for model downloads, the way the Hugging Face
@@ -30,21 +30,32 @@ export function hfToken(env = process.env) {
 // Keys this process wrote itself, so they read as "saved in Settings" before a restart too.
 const savedHere = new Set();
 
-/** What Settings may show: whether a token is set and where from, never the token itself. */
+/** What Settings may show: whether a token is set, where from and under which name, never the token itself. */
 export function hfTokenStatus(env = process.env) {
-  const { token, source } = hfToken(env);
-  return { set: Boolean(token), source, editable: source !== "environment", ...(token ? { hint: `hf_…${token.slice(-4)}` } : {}) };
+  const { token, source, key } = hfToken(env);
+  return { set: Boolean(token), source, editable: source !== "environment", ...(token ? { key, hint: `hf_…${token.slice(-4)}` } : {}) };
 }
 
-/** Saves (or with "" clears) the token in .env, next to the other local settings. */
+/**
+ * Saves the token in .env, next to the other local settings. With "" it
+ * clears every token .env holds, under either name, so none comes back at the
+ * next start. One set in the shell cannot be cleared from here; the status
+ * that comes back then names it.
+ */
 export function saveHfToken(value) {
   const token = String(value || "").trim();
-  if (hfToken().source === "environment") throw new Error("The token comes from HF_TOKEN in your environment; change it there.");
+  const current = hfToken();
+  if (current.source === "environment") throw new Error(`The token comes from ${current.key} in your environment; change it there.`);
   if (token && !/^hf_[A-Za-z0-9]{16,}$/.test(token)) throw new Error("That doesn’t look like a Hugging Face token. They start with hf_.");
-  writeLocalEnvValue("HF_TOKEN", token);
-  savedHere.add("HF_TOKEN");
-  // A token set the other way would win over the one just saved.
-  if (!token) for (const key of tokenKeys) delete process.env[key];
+  if (token) {
+    writeLocalEnvValue("HF_TOKEN", token);
+    savedHere.add("HF_TOKEN");
+    return hfTokenStatus();
+  }
+  for (const key of tokenKeys) {
+    removeLocalEnvValue(key);
+    if (savedHere.delete(key)) delete process.env[key];
+  }
   return hfTokenStatus();
 }
 
