@@ -134,3 +134,13 @@ test("clearing the gallery leaves images shown from another folder where they ar
     fs.rmSync(folder, { recursive: true, force: true });
   }
 });
+
+test("the gallery's trash and other dot folders are never served, not even through ComfyUI", async () => {
+  for (const route of ["view", "thumb"]) {
+    for (const query of ["subfolder=.heiss-trash%2Fbatch%2Ffiles%2Fheiss-ui", "subfolder=heiss-ui%2F.hidden", "subfolder=heiss-ui&subfolder=.heiss-trash"]) {
+      const response = await fetch(`${base}/comfy/${route}?filename=image_00001_.png&type=output&${query}`);
+      assert.equal(response.status, 404, `${route}?${query}`);
+      assert.equal((await response.json()).error, "Not an output.");
+    }
+  }
+});
