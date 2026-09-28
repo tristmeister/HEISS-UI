@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { readJsonFile, removeJsonFile, writeJsonFile } from "./json-store.js";
+import { readJsonFile, removeJsonFile, removeStaleTemporaries, writeJsonFile, writeJsonFileAsync } from "./json-store.js";
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-json-"));
 test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -36,6 +36,39 @@ test("a crash between backup and rename still reads the backup", () => {
 
 test("missing with no backup still throws, so callers use their defaults", () => {
   assert.throws(() => readJsonFile(path.join(dir, "never.json")), { code: "ENOENT" });
+});
+
+test("a background write is exactly compact JSON, with the same backup", async () => {
+  const file = path.join(dir, "gallery.json");
+  const items = Array.from({ length: 1234 }, (_, index) => ({ id: `item-${index}`, prompt: `a "quoted" prompt\n${index}` }));
+  items[7] = undefined;
+  assert.equal(await writeJsonFileAsync(file, items, { sliceSize: 100 }), true);
+  assert.equal(fs.readFileSync(file, "utf8"), JSON.stringify(items));
+  await writeJsonFileAsync(file, []);
+  assert.equal(fs.readFileSync(file, "utf8"), "[]");
+  assert.equal(fs.readFileSync(`${file}.bak`, "utf8"), JSON.stringify(items));
+  await writeJsonFileAsync(file, { plain: true });
+  assert.deepEqual(readJsonFile(file), { plain: true });
+  assert.deepEqual(fs.readdirSync(dir).filter((name) => name.includes(".tmp-")), []);
+});
+
+test("a background write that is no longer the newest leaves the file alone", async () => {
+  const file = path.join(dir, "newest.json");
+  writeJsonFile(file, ["newer"], { compact: true });
+  assert.equal(fs.readFileSync(file, "utf8"), '["newer"]');
+  assert.equal(await writeJsonFileAsync(file, ["older"], { shouldCommit: () => false }), false);
+  assert.deepEqual(readJsonFile(file), ["newer"]);
+  assert.deepEqual(fs.readdirSync(dir).filter((name) => name.includes(".tmp-")), []);
+});
+
+test("temporary files a killed process left behind are cleared, not ones still being written", () => {
+  const file = path.join(dir, "stale.json");
+  fs.writeFileSync(`${file}.tmp-1`, "{");
+  fs.writeFileSync(`${file}.tmp-99999-3`, "[");
+  fs.writeFileSync(`${file}.tmp-${process.pid}-1`, "[");
+  removeStaleTemporaries(file);
+  assert.deepEqual(fs.readdirSync(dir).filter((name) => name.startsWith("stale.json")), [`stale.json.tmp-${process.pid}-1`]);
+  fs.rmSync(`${file}.tmp-${process.pid}-1`);
 });
 
 test("removing on purpose takes the backup too", () => {
