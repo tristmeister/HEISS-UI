@@ -132,6 +132,32 @@
     }
   }
 
+  /* ── Scene art: "Phone studio" QR code ────────────────────────────── */
+
+  // Looks like a QR code: three finder squares, timing rows, noise for the rest.
+  const qr = $("[data-qr]");
+  if (qr) {
+    const x0 = +qr.dataset.x, y0 = +qr.dataset.y, c = +qr.dataset.cell, n = 21;
+    const finder = (i, j) => {
+      for (const [fx, fy] of [[0, 0], [n - 7, 0], [0, n - 7]]) {
+        const u = i - fx, v = j - fy;
+        if (u >= -1 && u <= 7 && v >= -1 && v <= 7) {
+          if (u < 0 || v < 0 || u > 6 || v > 6) return 0;
+          const ring = Math.min(u, v, 6 - u, 6 - v);
+          return ring === 1 ? 0 : 1;
+        }
+      }
+      return -1;
+    };
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        let on = finder(i, j);
+        if (on < 0) on = i === 6 || j === 6 ? (i + j) % 2 === 0 : hash(i * 1.3 + 7, j * 0.7 + 3) > 0.52;
+        if (on) qr.append(el("rect", { x: x0 + i * c, y: y0 + j * c, width: c, height: c, "shape-rendering": "crispEdges" }));
+      }
+    }
+  }
+
   /* ── Scene art: "Upscale and compare" (smooth vs. low-res) ────────── */
 
   const smoothLayer = $("[data-u-smooth]");

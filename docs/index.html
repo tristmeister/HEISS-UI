@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>HEISS UI · ComfyUI, without the graph</title>
-    <meta name="description" content="HEISS UI is a free, open source, local front end for ComfyUI. Bring your own workflows, write a prompt, watch it render." />
+    <meta name="description" content="A free, open source studio on top of your own ComfyUI. 28 image and video model families work out of the box, and missing parts download with one click." />
     <meta name="theme-color" content="#0a0a0a" />
     <meta property="og:title" content="HEISS UI" />
-    <meta property="og:description" content="ComfyUI, without the graph. A free, open source, local front end for image and video generation. Bring your own workflows." />
+    <meta property="og:description" content="ComfyUI, without the graph. 28 model families work out of the box, in a studio on top of your own ComfyUI. Free and open source." />
     <meta property="og:image" content="https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
@@ -86,13 +86,13 @@
             <span class="chip-tile" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             <span class="chip-kicker">Open source</span>
             <span class="chip-rule" aria-hidden="true"></span>
-            <span class="chip-text">Bring your own ComfyUI workflows</span>
+            <span class="chip-text">28 model families out of the box</span>
             <svg class="icon chip-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
             <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           </a>
           <h1 id="hero-title" class="enter" style="--d: 1">ComfyUI,<br /> without the graph.</h1>
           <p class="hero-lead enter" style="--d: 2">
-            A local front end for ComfyUI. Bring your own workflows or use the built-in ones, write a prompt, and watch it render.
+            A studio on top of your own ComfyUI. Drop in a model and it runs with its makers’ settings. Anything missing downloads with one click.
           </p>
         </div>
 
@@ -103,7 +103,7 @@
                 src="./screenshots/hero.jpg"
                 width="2000"
                 height="1317"
-                alt="HEISS UI in use: a masonry gallery of analog-style photographs, two new images still resolving as pixel mosaics, and the prompt composer floating at the bottom with the workflow, aspect ratio, steps, variants and LoRA controls."
+                alt="HEISS UI in use: a masonry gallery of analog-style photographs, two new images still resolving as pixel mosaics, and the prompt composer floating at the bottom with the model, aspect ratio, steps, variants and LoRA controls."
                 fetchpriority="high"
                 decoding="async"
               />
@@ -132,7 +132,7 @@
         <div class="features-head" data-reveal>
           <p class="label">Features</p>
           <h2 id="features-title">Made for the everyday loop.</h2>
-          <p class="section-lead">Prompt, render, look, tweak. HEISS UI keeps that loop quick and saves the node graph for when you need it.</p>
+          <p class="section-lead">Prompt, render, look, tweak. The loop stays quick, and the node graph is there when you need it.</p>
         </div>
 
         <div class="features-body">
@@ -140,12 +140,369 @@
             <div class="stage-card">
               <div class="stage-bar">
                 <span class="stage-idx" data-stage-idx>01</span>
-                <span class="stage-name" data-stage-name>Bring your own workflow</span>
+                <span class="stage-name" data-stage-name>Models that work out of the box</span>
               </div>
 
               <div class="stage-arts">
-                <!-- 01 · Bring your own workflow -->
-                <svg class="art art-flow is-active" viewBox="0 0 480 400" data-art>
+                <!-- 01 · Models that work out of the box -->
+                <svg class="art art-model is-active" viewBox="0 0 480 400" data-art>
+                  <g class="ai" style="--s: 0">
+                    <rect x="148" y="28" width="184" height="32" rx="10" class="f-raised" />
+                    <rect x="164" y="40" width="8" height="8" rx="1.5" class="f-ok" />
+                    <text x="182" y="48.5" class="f-hi" font-size="11">ComfyUI connected</text>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="60" y="76" width="360" height="72" rx="18" class="f-card" />
+                    <rect x="76" y="92" width="40" height="40" rx="10" class="f-pill" />
+                    <rect x="84" y="100" width="12" height="12" rx="2" fill="#d9a066" />
+                    <rect x="96" y="100" width="12" height="12" rx="2" fill="#8a5a3c" />
+                    <rect x="84" y="112" width="12" height="12" rx="2" fill="#4a3a33" />
+                    <rect x="96" y="112" width="12" height="12" rx="2" fill="#e8c9a0" />
+                    <text x="132" y="109" class="f-hi f-strong" font-size="13">Krea 2 Turbo</text>
+                    <text x="132" y="129" class="f-lo" font-size="11">Image · Diffusion model</text>
+                    <g class="m-need">
+                      <rect x="326" y="100" width="78" height="24" rx="8" class="f-tint-ember" />
+                      <text x="365" y="116" class="f-ember" font-size="10.5" text-anchor="middle">2 missing</text>
+                    </g>
+                    <g class="m-ready">
+                      <rect x="326" y="100" width="78" height="24" rx="8" class="f-tint-ok" />
+                      <text x="365" y="116" class="f-ok" font-size="10.5" text-anchor="middle">Ready</text>
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 2">
+                    <rect x="60" y="164" width="360" height="34" rx="10" class="f-pill" />
+                    <text x="76" y="185" class="f-lo" font-size="11">Model</text>
+                    <text x="164" y="185" class="f-mono f-hi" font-size="10">krea2_turbo_fp8</text>
+                    <text x="372" y="185" class="f-lo" font-size="10.5" text-anchor="end">in ComfyUI</text>
+                    <rect x="388" y="173" width="16" height="16" rx="5" class="f-tint-ok" />
+                    <path d="M392 181.5l2.6 2.6 5-5.6" class="f-ok-stroke" />
+                  </g>
+                  <g class="ai" style="--s: 3">
+                    <rect x="60" y="206" width="360" height="34" rx="10" class="f-pill" />
+                    <text x="76" y="227" class="f-lo" font-size="11">Text encoder</text>
+                    <text x="164" y="227" class="f-mono f-hi" font-size="10">qwen3-vl-4b-heretic</text>
+                    <rect x="300" y="221" width="72" height="4" rx="2" class="f-track" />
+                    <rect x="300" y="221" width="72" height="4" rx="2" class="f-ember m-fill m-fill-a" />
+                    <g class="m-tick m-tick-a">
+                      <rect x="388" y="215" width="16" height="16" rx="5" class="f-tint-ok" />
+                      <path d="M392 223.5l2.6 2.6 5-5.6" class="f-ok-stroke" />
+                    </g>
+                  </g>
+                  <g class="ai" style="--s: 4">
+                    <rect x="60" y="248" width="360" height="34" rx="10" class="f-pill" />
+                    <text x="76" y="269" class="f-lo" font-size="11">VAE</text>
+                    <text x="164" y="269" class="f-mono f-hi" font-size="10">qwen_image_vae</text>
+                    <rect x="300" y="263" width="72" height="4" rx="2" class="f-track" />
+                    <rect x="300" y="263" width="72" height="4" rx="2" class="f-ember m-fill m-fill-b" />
+                    <g class="m-tick m-tick-b">
+                      <rect x="388" y="257" width="16" height="16" rx="5" class="f-tint-ok" />
+                      <path d="M392 265.5l2.6 2.6 5-5.6" class="f-ok-stroke" />
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 5">
+                    <rect x="60" y="308" width="360" height="60" rx="18" class="f-card" />
+                    <g class="m-getting">
+                      <rect x="80" y="334" width="8" height="8" rx="1.5" class="f-ember r-blink" />
+                      <text x="98" y="342.5" class="f-hi" font-size="11.5">Getting 2 parts</text>
+                      <rect x="236" y="335" width="168" height="6" rx="3" class="f-track" />
+                      <rect x="236" y="335" width="168" height="6" rx="3" class="f-white m-fill m-fill-t" />
+                    </g>
+                    <g class="m-done">
+                      <rect x="80" y="334" width="8" height="8" rx="1.5" class="f-ok" />
+                      <text x="98" y="342.5" class="f-hi" font-size="11.5">Krea 2 is ready</text>
+                      <text x="358" y="342" class="f-mono f-lo" font-size="10" text-anchor="end">8 steps · CFG 1 · euler</text>
+                      <rect x="372" y="322" width="32" height="32" rx="10" class="f-white" />
+                      <path d="M388 344v-12M383 336.5l5-5 5 5" class="f-ink-stroke" />
+                    </g>
+                  </g>
+                </svg>
+
+                <!-- 02 · Watch it render -->
+                <svg class="art art-render" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <linearGradient id="r-sky" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0" stop-color="#1c2550" />
+                      <stop offset=".55" stop-color="#6a4a8c" />
+                      <stop offset="1" stop-color="#f4a36b" />
+                    </linearGradient>
+                    <radialGradient id="r-sun">
+                      <stop offset="0" stop-color="#fff1d6" />
+                      <stop offset=".45" stop-color="#ffc98f" />
+                      <stop offset="1" stop-color="#ffc98f" stop-opacity="0" />
+                    </radialGradient>
+                    <clipPath id="r-clip"><rect x="96" y="36" width="260" height="260" rx="18" /></clipPath>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="92" y="32" width="268" height="268" rx="22" class="f-card" />
+                    <g clip-path="url(#r-clip)">
+                      <rect x="96" y="36" width="260" height="260" fill="url(#r-sky)" />
+                      <circle cx="252" cy="196" r="72" fill="url(#r-sun)" />
+                      <circle cx="252" cy="196" r="26" fill="#fff4e0" />
+                      <path d="M96 232C150 204 196 220 236 230S318 206 356 222V296H96Z" fill="#3d2c5c" />
+                      <path d="M96 258C146 242 208 266 262 254S330 240 356 250V296H96Z" fill="#1c1a33" />
+                      <path d="M170 276h56M244 284h40M196 288h28" stroke="#ffc98f" stroke-opacity=".35" stroke-width="2" stroke-linecap="round" />
+                      <rect class="r-veil" x="96" y="36" width="260" height="260" />
+                      <g class="r-cells" data-cells></g>
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="384" y="36" width="56" height="56" rx="14" class="f-pill" />
+                    <rect x="390" y="42" width="44" height="44" rx="9" fill="#24406a" />
+                    <rect x="384" y="104" width="56" height="56" rx="14" class="f-pill" />
+                    <rect x="390" y="110" width="44" height="44" rx="9" fill="#6d3b3b" />
+                    <g class="r-new">
+                      <rect x="384" y="172" width="56" height="56" rx="14" class="f-pill" />
+                      <rect x="390" y="178" width="44" height="44" rx="9" fill="url(#r-sky)" />
+                      <circle cx="419" cy="206" r="6" fill="#fff4e0" />
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 2">
+                    <rect x="116" y="320" width="220" height="44" rx="14" class="f-card" />
+                    <g class="r-label-gen"><rect x="134" y="338" width="8" height="8" rx="1.5" class="f-ember r-blink" /><text x="152" y="346.5" class="f-hi" font-size="11.5">Generating</text></g>
+                    <g class="r-label-done"><rect x="134" y="338" width="8" height="8" rx="1.5" class="f-ok" /><text x="152" y="346.5" class="f-hi" font-size="11.5">Done</text></g>
+                    <rect x="238" y="339" width="82" height="6" rx="3" class="f-pill" />
+                    <rect x="238" y="339" width="82" height="6" rx="3" class="f-white r-bar" />
+                  </g>
+                </svg>
+
+                <!-- 03 · Phone studio -->
+                <svg class="art art-phone" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <linearGradient id="p-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d5b7a" /><stop offset="1" stop-color="#d7a86e" /></linearGradient>
+                    <linearGradient id="p-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a3a1f" /><stop offset="1" stop-color="#f0cf6a" /></linearGradient>
+                    <linearGradient id="p-g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f3b2d" /><stop offset="1" stop-color="#9fcf8a" /></linearGradient>
+                    <linearGradient id="p-g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a2d4a" /><stop offset="1" stop-color="#f09a6a" /></linearGradient>
+                    <linearGradient id="p-g5" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2550" /><stop offset=".6" stop-color="#6a4a8c" /><stop offset="1" stop-color="#f4a36b" /></linearGradient>
+                    <linearGradient id="p-g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a2d7a" /><stop offset="1" stop-color="#6ac3f0" /></linearGradient>
+                    <clipPath id="p-screen"><rect x="280" y="32" width="152" height="336" rx="23" /></clipPath>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="28" y="44" width="184" height="312" rx="18" class="f-card" />
+                    <text x="44" y="70" class="f-lo" font-size="11">Connection</text>
+                    <path d="M28 84h184" class="f-rule" />
+                    <text x="44" y="108" class="f-hi" font-size="11">Open on other devices</text>
+                    <rect x="172" y="96" width="28" height="16" rx="8" class="f-ember" />
+                    <circle cx="192" cy="104" r="6" class="f-white" />
+                    <rect x="62" y="124" width="116" height="116" rx="12" class="f-white" />
+                    <g class="p-qr" data-qr data-x="67" data-y="129" data-cell="5"></g>
+                    <text x="120" y="262" class="f-mono f-hi" font-size="10.5" text-anchor="middle">192.168.1.20:8787</text>
+                    <rect x="44" y="278" width="152" height="30" rx="9" class="f-pill" />
+                    <text x="56" y="297" class="f-lo" font-size="10.5">Studio password</text>
+                    <rect x="164" y="290.5" width="5" height="5" rx="1" class="f-dot" />
+                    <rect x="172" y="290.5" width="5" height="5" rx="1" class="f-dot" />
+                    <rect x="180" y="290.5" width="5" height="5" rx="1" class="f-dot" />
+                    <rect x="46" y="326" width="7" height="7" rx="1.5" class="f-ok" />
+                    <text x="60" y="333" class="f-lo" font-size="10.5">Phone signed in</text>
+                  </g>
+
+                  <g class="f-link">
+                    <path d="M178 182C222 182 228 182 272 182" />
+                  </g>
+                  <g class="map">
+                    <path pathLength="1" style="--w: 0" d="M178 182C222 182 228 182 272 182" />
+                  </g>
+                  <g class="map-pulse">
+                    <path pathLength="1" style="--w: 0" d="M178 182C222 182 228 182 272 182" />
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="272" y="24" width="168" height="352" rx="31" class="f-raised" />
+                    <rect x="280" y="32" width="152" height="336" rx="23" class="f-screen" />
+                    <g clip-path="url(#p-screen)">
+                      <rect x="336" y="40" width="40" height="10" rx="5" class="f-notch" />
+                      <rect x="286" y="60" width="67" height="84" rx="9" fill="url(#p-g1)" />
+                      <rect x="286" y="150" width="67" height="66" rx="9" fill="url(#p-g2)" />
+                      <rect x="286" y="222" width="67" height="90" rx="9" fill="url(#p-g3)" />
+                      <rect x="359" y="60" width="67" height="58" rx="9" fill="url(#p-g4)" />
+                      <g class="p-press">
+                        <rect x="359" y="124" width="67" height="94" rx="9" fill="url(#p-g5)" />
+                        <rect x="359" y="124" width="67" height="94" rx="9" class="p-press-ring" />
+                      </g>
+                      <rect x="359" y="224" width="67" height="88" rx="9" fill="url(#p-g6)" />
+
+                      <rect x="286" y="322" width="140" height="32" rx="16" class="f-pill" />
+                      <text x="300" y="342" class="f-lo" font-size="11">Describe…</text>
+                      <circle cx="410" cy="338" r="11" class="f-white" />
+                      <path d="M410 343v-10M406 336.5l4-4 4 4" class="f-ink-stroke" />
+                      <circle cx="410" cy="338" r="14.5" pathLength="1" class="p-ring" transform="rotate(-90 410 338)" />
+
+                      <rect x="280" y="32" width="152" height="336" class="p-dim" />
+                      <g class="p-sheet">
+                        <rect x="280" y="222" width="152" height="160" rx="18" class="f-raised" />
+                        <rect x="342" y="230" width="28" height="4" rx="2" class="f-grab" />
+                        <rect x="288" y="244" width="136" height="24" rx="8" class="f-pill p-pick" />
+                        <text x="300" y="260" class="f-hi" font-size="11">Share</text>
+                        <text x="300" y="286" class="f-hi" font-size="11">Upscale</text>
+                        <text x="300" y="312" class="f-hi" font-size="11">Reuse</text>
+                        <text x="300" y="338" class="f-hi" font-size="11">Hide</text>
+                        <path d="M296 270h120M296 296h120M296 322h120" class="f-rule" />
+                      </g>
+                    </g>
+                  </g>
+                </svg>
+
+                <!-- 04 · Find it again -->
+                <svg class="art art-find" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <linearGradient id="s-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2550" /><stop offset=".6" stop-color="#6a4a8c" /><stop offset="1" stop-color="#f4a36b" /></linearGradient>
+                    <linearGradient id="s-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#24406a" /><stop offset="1" stop-color="#c9d6e0" /></linearGradient>
+                    <linearGradient id="s-g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3d2c5c" /><stop offset="1" stop-color="#ffc98f" /></linearGradient>
+                    <linearGradient id="s-g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d2d2d" /><stop offset="1" stop-color="#8fb3c9" /></linearGradient>
+                    <clipPath id="s-type"><rect class="s-type" x="100" y="36" width="72" height="20" /></clipPath>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="60" y="28" width="360" height="36" rx="12" class="f-raised" />
+                    <rect x="72" y="37" width="18" height="18" rx="5" class="f-pill" />
+                    <text x="81" y="50" class="f-mono f-lo" font-size="10.5" text-anchor="middle">/</text>
+                    <text x="100" y="50.5" class="f-mono f-hi" font-size="11.5" clip-path="url(#s-type)">lighthouse</text>
+                    <rect x="101" y="39" width="1.5" height="15" class="f-ember s-caret" />
+                    <text x="406" y="50.5" class="f-lo" font-size="11" text-anchor="end">Search</text>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="60" y="78" width="84" height="100" rx="12" fill="url(#s-g1)" />
+                    <rect x="152" y="78" width="84" height="100" rx="12" fill="url(#s-g2)" />
+                    <rect x="244" y="78" width="84" height="100" rx="12" fill="url(#s-g3)" />
+                    <rect x="336" y="78" width="84" height="100" rx="12" fill="url(#s-g4)" />
+                    <g class="s-star" style="--k: 0">
+                      <circle cx="128" cy="94" r="10" class="f-badge" />
+                      <use href="#i-star" x="122" y="88" width="12" height="12" class="f-star" />
+                    </g>
+                    <g class="s-star" style="--k: 1">
+                      <circle cx="312" cy="94" r="10" class="f-badge" />
+                      <use href="#i-star" x="306" y="88" width="12" height="12" class="f-star" />
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 2">
+                    <rect x="60" y="192" width="360" height="106" rx="16" class="f-card" />
+                    <text x="76" y="212" class="f-lo" font-size="11">Recent prompts</text>
+                    <text x="404" y="212" class="f-mono f-lo" font-size="10.5" text-anchor="end">↑ ↓</text>
+                    <rect x="68" y="220" width="344" height="22" rx="7" class="f-pill s-pick" />
+                    <text x="80" y="235" class="f-hi" font-size="11">lighthouse at dusk, 35 mm film</text>
+                    <text x="80" y="259" class="f-hi" font-size="11">portrait by a window, soft grain</text>
+                    <text x="80" y="283" class="f-hi" font-size="11">pine forest in fog, early morning</text>
+                    <use href="#i-star" x="390" y="225" width="12" height="12" class="f-star" />
+                    <use href="#i-star" x="390" y="249" width="12" height="12" class="f-star-off" />
+                    <use href="#i-star" x="390" y="273" width="12" height="12" class="f-star" />
+                  </g>
+
+                  <g class="ai" style="--s: 3">
+                    <rect x="60" y="308" width="360" height="60" rx="18" class="f-card" />
+                    <rect x="78" y="329" width="18" height="18" rx="5" class="f-pill" />
+                    <text x="87" y="342" class="f-mono f-lo" font-size="10.5" text-anchor="middle">↑</text>
+                    <text x="106" y="342" class="f-hi s-c s-c0" font-size="12">lighthouse at dusk, 35 mm film</text>
+                    <text x="106" y="342" class="f-hi s-c s-c1" font-size="12">portrait by a window, soft grain</text>
+                    <text x="106" y="342" class="f-hi s-c s-c2" font-size="12">pine forest in fog, early morning</text>
+                    <rect x="372" y="322" width="32" height="32" rx="10" class="f-white" />
+                    <path d="M388 344v-12M383 336.5l5-5 5 5" class="f-ink-stroke" />
+                  </g>
+                </svg>
+
+                <!-- 05 · Hidden -->
+                <svg class="art art-vault" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <linearGradient id="v-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d5b7a" /><stop offset="1" stop-color="#d7a86e" /></linearGradient>
+                    <linearGradient id="v-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a2d4a" /><stop offset="1" stop-color="#f09a6a" /></linearGradient>
+                    <linearGradient id="v-g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f3b2d" /><stop offset="1" stop-color="#9fcf8a" /></linearGradient>
+                    <linearGradient id="v-g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a2d7a" /><stop offset="1" stop-color="#6ac3f0" /></linearGradient>
+                    <linearGradient id="v-g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a3a1f" /><stop offset="1" stop-color="#f0cf6a" /></linearGradient>
+                    <linearGradient id="v-g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d2d2d" /><stop offset="1" stop-color="#b8b8b8" /></linearGradient>
+                    <pattern id="v-mosaic" width="13" height="13" patternUnits="userSpaceOnUse">
+                      <rect x="2" y="2" width="9" height="9" rx="1.5" fill="#fff" fill-opacity=".05" />
+                    </pattern>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="72" y="36" width="104" height="104" rx="14" fill="url(#v-g1)" />
+                    <rect x="188" y="36" width="104" height="104" rx="14" fill="url(#v-g2)" />
+                    <rect x="304" y="36" width="104" height="104" rx="14" fill="url(#v-g3)" />
+                    <rect x="72" y="152" width="104" height="104" rx="14" fill="url(#v-g4)" />
+                    <rect x="188" y="152" width="104" height="104" rx="14" fill="url(#v-g5)" />
+                    <rect x="304" y="152" width="104" height="104" rx="14" fill="url(#v-g6)" />
+                  </g>
+
+                  <g class="v-lock" style="--v: 0">
+                    <rect x="188" y="36" width="104" height="104" rx="14" fill="#141414" />
+                    <rect x="188" y="36" width="104" height="104" rx="14" fill="url(#v-mosaic)" />
+                    <g class="f-lockglyph" transform="translate(228 70)">
+                      <rect x="6" y="0" width="12" height="4" /><rect x="2" y="4" width="4" height="8" /><rect x="18" y="4" width="4" height="8" />
+                      <rect x="0" y="12" width="24" height="18" rx="2" /><rect x="10" y="18" width="4" height="6" class="f-keyhole" />
+                    </g>
+                    <text x="240" y="122" class="f-lo" font-size="10" text-anchor="middle">Hidden</text>
+                  </g>
+                  <g class="v-lock" style="--v: 1">
+                    <rect x="304" y="152" width="104" height="104" rx="14" fill="#141414" />
+                    <rect x="304" y="152" width="104" height="104" rx="14" fill="url(#v-mosaic)" />
+                    <g class="f-lockglyph" transform="translate(344 186)">
+                      <rect x="6" y="0" width="12" height="4" /><rect x="2" y="4" width="4" height="8" /><rect x="18" y="4" width="4" height="8" />
+                      <rect x="0" y="12" width="24" height="18" rx="2" /><rect x="10" y="18" width="4" height="6" class="f-keyhole" />
+                    </g>
+                    <text x="356" y="238" class="f-lo" font-size="10" text-anchor="middle">Hidden</text>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="88" y="288" width="304" height="52" rx="16" class="f-card" />
+                    <g class="f-lockglyph small" transform="translate(106 305) scale(.62)">
+                      <rect x="6" y="0" width="12" height="4" /><rect x="2" y="4" width="4" height="8" /><rect x="18" y="4" width="4" height="8" />
+                      <rect x="0" y="12" width="24" height="18" rx="2" />
+                    </g>
+                    <g class="v-dots">
+                      <rect x="136" y="310" width="8" height="8" rx="1.5" style="--k: 0" />
+                      <rect x="150" y="310" width="8" height="8" rx="1.5" style="--k: 1" />
+                      <rect x="164" y="310" width="8" height="8" rx="1.5" style="--k: 2" />
+                      <rect x="178" y="310" width="8" height="8" rx="1.5" style="--k: 3" />
+                      <rect x="192" y="310" width="8" height="8" rx="1.5" style="--k: 4" />
+                      <rect x="206" y="310" width="8" height="8" rx="1.5" style="--k: 5" />
+                    </g>
+                    <rect x="300" y="298" width="80" height="32" rx="10" class="f-white v-btn" />
+                    <text x="340" y="318" class="f-ink f-strong" font-size="11" text-anchor="middle">Unlock</text>
+                  </g>
+                </svg>
+
+                <!-- 06 · Upscale and compare -->
+                <svg class="art art-upscale" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <clipPath id="u-frame"><rect x="40" y="36" width="400" height="260" rx="18" /></clipPath>
+                    <clipPath id="u-split"><rect class="u-split" x="40" y="36" width="400" height="260" /></clipPath>
+                    <linearGradient id="u-sky" x1="0" y1="0" x2="0" y2="1" data-u-sky></linearGradient>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="36" y="32" width="408" height="268" rx="22" class="f-card" />
+                    <g clip-path="url(#u-frame)">
+                      <g data-u-smooth></g>
+                      <g clip-path="url(#u-split)"><g data-u-pixels></g></g>
+                    </g>
+                    <g class="u-handle">
+                      <path d="M40 36v260" class="u-line" />
+                      <rect x="26" y="152" width="28" height="28" rx="8" class="f-white" />
+                      <path d="M36 161l-4 5 4 5M44 161l4 5-4 5" class="f-ink-stroke" />
+                    </g>
+                    <rect x="52" y="48" width="64" height="22" rx="7" class="u-tag" />
+                    <text x="84" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">1024 px</text>
+                    <rect x="364" y="48" width="64" height="22" rx="7" class="u-tag" />
+                    <text x="396" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">4096 px</text>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="146" y="320" width="188" height="44" rx="14" class="f-card" />
+                    <rect x="164" y="338" width="8" height="8" rx="1.5" class="f-ember" />
+                    <text x="182" y="346.5" class="f-hi" font-size="11.5">4× upscale</text>
+                    <text x="316" y="346.5" class="f-mono f-lo" font-size="10.5" text-anchor="end">compare</text>
+                  </g>
+                </svg>
+
+                <!-- 07 · Bring your own workflow -->
+                <svg class="art art-flow" viewBox="0 0 480 400" data-art>
                   <g class="ai" style="--s: 0">
                     <rect x="24" y="28" width="184" height="34" rx="10" class="f-raised" />
                     <rect x="37" y="40" width="10" height="10" rx="2" class="f-ember" />
@@ -238,208 +595,9 @@
                     <text x="426" y="323" class="f-mono f-hi" font-size="10.5" text-anchor="end">euler</text>
                   </g>
                 </svg>
-
-                <!-- 02 · Controls that fit the model -->
-                <svg class="art art-model" viewBox="0 0 480 400" data-art>
-                  <g class="ai" style="--s: 0">
-                    <rect x="148" y="28" width="184" height="32" rx="10" class="f-raised" />
-                    <rect x="164" y="40" width="8" height="8" rx="1.5" class="f-ok" />
-                    <text x="182" y="48.5" class="f-hi" font-size="11">ComfyUI connected</text>
-                  </g>
-
-                  <g class="ai" style="--s: 1">
-                    <rect x="60" y="80" width="360" height="72" rx="18" class="f-card" />
-                    <g class="m-tile">
-                      <rect x="76" y="96" width="40" height="40" rx="10" class="f-pill" />
-                      <g class="st st-a"><rect x="84" y="104" width="12" height="12" rx="2" fill="#7c6cf2" /><rect x="96" y="104" width="12" height="12" rx="2" fill="#f2a46c" /><rect x="84" y="116" width="12" height="12" rx="2" fill="#f2c26c" /><rect x="96" y="116" width="12" height="12" rx="2" fill="#5a4fb8" /></g>
-                      <g class="st st-b"><rect x="84" y="104" width="12" height="12" rx="2" fill="#e8e8e8" /><rect x="96" y="104" width="12" height="12" rx="2" fill="#6b6b6b" /><rect x="84" y="116" width="12" height="12" rx="2" fill="#3a3a3a" /><rect x="96" y="116" width="12" height="12" rx="2" fill="#bdbdbd" /></g>
-                      <g class="st st-c"><rect x="84" y="104" width="12" height="12" rx="2" fill="#4fb3c9" /><rect x="96" y="104" width="12" height="12" rx="2" fill="#2a6f86" /><rect x="84" y="116" width="12" height="12" rx="2" fill="#ff9a52" /><rect x="96" y="116" width="12" height="12" rx="2" fill="#4fb3c9" /></g>
-                    </g>
-                    <g class="st st-a"><text x="132" y="113" class="f-hi f-strong" font-size="13">SDXL Lightning</text><text x="132" y="133" class="f-lo" font-size="11">Image · Checkpoint</text></g>
-                    <g class="st st-b"><text x="132" y="113" class="f-hi f-strong" font-size="13">FLUX.1 Schnell</text><text x="132" y="133" class="f-lo" font-size="11">Image · Diffusion model</text></g>
-                    <g class="st st-c"><text x="132" y="113" class="f-hi f-strong" font-size="13">Wan 2.2</text><text x="132" y="133" class="f-lo" font-size="11">Video · Image to video</text></g>
-                    <path d="M392 113l6 6 6-6" class="f-chev" />
-                  </g>
-
-                  <text x="60" y="186" class="f-lo ai" style="--s: 2" font-size="11">Controls for this model</text>
-
-                  <g class="st st-a">
-                    <rect x="60" y="200" width="112" height="36" rx="10" class="f-pill" /><text x="74" y="222" class="f-lo" font-size="11">Steps</text><text x="158" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">8</text>
-                    <rect x="180" y="200" width="100" height="36" rx="10" class="f-pill" /><text x="194" y="222" class="f-lo" font-size="11">CFG</text><text x="266" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">2.0</text>
-                    <rect x="288" y="200" width="132" height="36" rx="10" class="f-pill" /><text x="302" y="222" class="f-lo" font-size="11">Sampler</text><text x="406" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">dpmpp</text>
-                    <rect x="60" y="244" width="176" height="36" rx="10" class="f-pill" /><text x="74" y="266" class="f-lo" font-size="11">Negative prompt</text>
-                    <rect x="244" y="244" width="176" height="36" rx="10" class="f-pill" /><text x="258" y="266" class="f-lo" font-size="11">Size</text><text x="406" y="266" class="f-mono f-hi" font-size="10.5" text-anchor="end">1024²</text>
-                  </g>
-                  <g class="st st-b">
-                    <rect x="60" y="200" width="112" height="36" rx="10" class="f-pill" /><text x="74" y="222" class="f-lo" font-size="11">Steps</text><text x="158" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">4</text>
-                    <rect x="180" y="200" width="140" height="36" rx="10" class="f-pill" /><text x="194" y="222" class="f-lo" font-size="11">Guidance</text><text x="306" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">3.5</text>
-                    <rect x="328" y="200" width="92" height="36" rx="10" class="f-pill" /><text x="342" y="222" class="f-lo" font-size="11">LoRA</text><text x="406" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">+2</text>
-                    <rect x="60" y="244" width="176" height="36" rx="10" class="f-pill" /><text x="74" y="266" class="f-lo" font-size="11">Size</text><text x="222" y="266" class="f-mono f-hi" font-size="10.5" text-anchor="end">1024²</text>
-                    <rect x="244" y="244" width="176" height="36" rx="10" class="f-pill" /><text x="258" y="266" class="f-lo" font-size="11">Seed</text><text x="406" y="266" class="f-mono f-hi" font-size="10.5" text-anchor="end">random</text>
-                  </g>
-                  <g class="st st-c">
-                    <rect x="60" y="200" width="112" height="36" rx="10" class="f-pill" /><text x="74" y="222" class="f-lo" font-size="11">Frames</text><text x="158" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">81</text>
-                    <rect x="180" y="200" width="100" height="36" rx="10" class="f-pill" /><text x="194" y="222" class="f-lo" font-size="11">FPS</text><text x="266" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">16</text>
-                    <rect x="288" y="200" width="132" height="36" rx="10" class="f-pill" /><text x="302" y="222" class="f-lo" font-size="11">Length</text><text x="406" y="222" class="f-mono f-hi" font-size="10.5" text-anchor="end">5s</text>
-                    <rect x="60" y="244" width="176" height="36" rx="10" class="f-pill" /><rect x="72" y="254" width="16" height="16" rx="4" class="f-ember" /><text x="96" y="266" class="f-lo" font-size="11">Start image</text>
-                    <rect x="244" y="244" width="176" height="36" rx="10" class="f-pill" /><text x="258" y="266" class="f-lo" font-size="11">Size</text><text x="406" y="266" class="f-mono f-hi" font-size="10.5" text-anchor="end">832×480</text>
-                  </g>
-
-                  <g class="ai" style="--s: 3">
-                    <rect x="60" y="308" width="360" height="60" rx="18" class="f-card" />
-                    <text x="80" y="342" class="f-lo" font-size="12">Describe what to make…</text>
-                    <rect x="372" y="322" width="32" height="32" rx="10" class="f-white" />
-                    <path d="M388 344v-12M383 336.5l5-5 5 5" class="f-ink-stroke" />
-                  </g>
-                </svg>
-
-                <!-- 03 · Watch it render -->
-                <svg class="art art-render" viewBox="0 0 480 400" data-art>
-                  <defs>
-                    <linearGradient id="r-sky" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0" stop-color="#1c2550" />
-                      <stop offset=".55" stop-color="#6a4a8c" />
-                      <stop offset="1" stop-color="#f4a36b" />
-                    </linearGradient>
-                    <radialGradient id="r-sun">
-                      <stop offset="0" stop-color="#fff1d6" />
-                      <stop offset=".45" stop-color="#ffc98f" />
-                      <stop offset="1" stop-color="#ffc98f" stop-opacity="0" />
-                    </radialGradient>
-                    <clipPath id="r-clip"><rect x="96" y="36" width="260" height="260" rx="18" /></clipPath>
-                  </defs>
-
-                  <g class="ai" style="--s: 0">
-                    <rect x="92" y="32" width="268" height="268" rx="22" class="f-card" />
-                    <g clip-path="url(#r-clip)">
-                      <rect x="96" y="36" width="260" height="260" fill="url(#r-sky)" />
-                      <circle cx="252" cy="196" r="72" fill="url(#r-sun)" />
-                      <circle cx="252" cy="196" r="26" fill="#fff4e0" />
-                      <path d="M96 232C150 204 196 220 236 230S318 206 356 222V296H96Z" fill="#3d2c5c" />
-                      <path d="M96 258C146 242 208 266 262 254S330 240 356 250V296H96Z" fill="#1c1a33" />
-                      <path d="M170 276h56M244 284h40M196 288h28" stroke="#ffc98f" stroke-opacity=".35" stroke-width="2" stroke-linecap="round" />
-                      <rect class="r-veil" x="96" y="36" width="260" height="260" />
-                      <g class="r-cells" data-cells></g>
-                    </g>
-                  </g>
-
-                  <g class="ai" style="--s: 1">
-                    <rect x="384" y="36" width="56" height="56" rx="14" class="f-pill" />
-                    <rect x="390" y="42" width="44" height="44" rx="9" fill="#24406a" />
-                    <rect x="384" y="104" width="56" height="56" rx="14" class="f-pill" />
-                    <rect x="390" y="110" width="44" height="44" rx="9" fill="#6d3b3b" />
-                    <g class="r-new">
-                      <rect x="384" y="172" width="56" height="56" rx="14" class="f-pill" />
-                      <rect x="390" y="178" width="44" height="44" rx="9" fill="url(#r-sky)" />
-                      <circle cx="419" cy="206" r="6" fill="#fff4e0" />
-                    </g>
-                  </g>
-
-                  <g class="ai" style="--s: 2">
-                    <rect x="116" y="320" width="220" height="44" rx="14" class="f-card" />
-                    <g class="r-label-gen"><rect x="134" y="338" width="8" height="8" rx="1.5" class="f-ember r-blink" /><text x="152" y="346.5" class="f-hi" font-size="11.5">Generating</text></g>
-                    <g class="r-label-done"><rect x="134" y="338" width="8" height="8" rx="1.5" class="f-ok" /><text x="152" y="346.5" class="f-hi" font-size="11.5">Done</text></g>
-                    <rect x="238" y="339" width="82" height="6" rx="3" class="f-pill" />
-                    <rect x="238" y="339" width="82" height="6" rx="3" class="f-white r-bar" />
-                  </g>
-                </svg>
-
-                <!-- 04 · Hidden -->
-                <svg class="art art-vault" viewBox="0 0 480 400" data-art>
-                  <defs>
-                    <linearGradient id="v-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d5b7a" /><stop offset="1" stop-color="#d7a86e" /></linearGradient>
-                    <linearGradient id="v-g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a2d4a" /><stop offset="1" stop-color="#f09a6a" /></linearGradient>
-                    <linearGradient id="v-g3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f3b2d" /><stop offset="1" stop-color="#9fcf8a" /></linearGradient>
-                    <linearGradient id="v-g4" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3a2d7a" /><stop offset="1" stop-color="#6ac3f0" /></linearGradient>
-                    <linearGradient id="v-g5" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a3a1f" /><stop offset="1" stop-color="#f0cf6a" /></linearGradient>
-                    <linearGradient id="v-g6" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d2d2d" /><stop offset="1" stop-color="#b8b8b8" /></linearGradient>
-                    <pattern id="v-mosaic" width="13" height="13" patternUnits="userSpaceOnUse">
-                      <rect x="2" y="2" width="9" height="9" rx="1.5" fill="#fff" fill-opacity=".05" />
-                    </pattern>
-                  </defs>
-
-                  <g class="ai" style="--s: 0">
-                    <rect x="72" y="36" width="104" height="104" rx="14" fill="url(#v-g1)" />
-                    <rect x="188" y="36" width="104" height="104" rx="14" fill="url(#v-g2)" />
-                    <rect x="304" y="36" width="104" height="104" rx="14" fill="url(#v-g3)" />
-                    <rect x="72" y="152" width="104" height="104" rx="14" fill="url(#v-g4)" />
-                    <rect x="188" y="152" width="104" height="104" rx="14" fill="url(#v-g5)" />
-                    <rect x="304" y="152" width="104" height="104" rx="14" fill="url(#v-g6)" />
-                  </g>
-
-                  <g class="v-lock" style="--v: 0">
-                    <rect x="188" y="36" width="104" height="104" rx="14" fill="#141414" />
-                    <rect x="188" y="36" width="104" height="104" rx="14" fill="url(#v-mosaic)" />
-                    <g class="f-lockglyph" transform="translate(228 70)">
-                      <rect x="6" y="0" width="12" height="4" /><rect x="2" y="4" width="4" height="8" /><rect x="18" y="4" width="4" height="8" />
-                      <rect x="0" y="12" width="24" height="18" rx="2" /><rect x="10" y="18" width="4" height="6" class="f-keyhole" />
-                    </g>
-                    <text x="240" y="122" class="f-lo" font-size="10" text-anchor="middle">Hidden</text>
-                  </g>
-                  <g class="v-lock" style="--v: 1">
-                    <rect x="304" y="152" width="104" height="104" rx="14" fill="#141414" />
-                    <rect x="304" y="152" width="104" height="104" rx="14" fill="url(#v-mosaic)" />
-                    <g class="f-lockglyph" transform="translate(344 186)">
-                      <rect x="6" y="0" width="12" height="4" /><rect x="2" y="4" width="4" height="8" /><rect x="18" y="4" width="4" height="8" />
-                      <rect x="0" y="12" width="24" height="18" rx="2" /><rect x="10" y="18" width="4" height="6" class="f-keyhole" />
-                    </g>
-                    <text x="356" y="238" class="f-lo" font-size="10" text-anchor="middle">Hidden</text>
-                  </g>
-
-                  <g class="ai" style="--s: 1">
-                    <rect x="88" y="288" width="304" height="52" rx="16" class="f-card" />
-                    <g class="f-lockglyph small" transform="translate(106 305) scale(.62)">
-                      <rect x="6" y="0" width="12" height="4" /><rect x="2" y="4" width="4" height="8" /><rect x="18" y="4" width="4" height="8" />
-                      <rect x="0" y="12" width="24" height="18" rx="2" />
-                    </g>
-                    <g class="v-dots">
-                      <rect x="136" y="310" width="8" height="8" rx="1.5" style="--k: 0" />
-                      <rect x="150" y="310" width="8" height="8" rx="1.5" style="--k: 1" />
-                      <rect x="164" y="310" width="8" height="8" rx="1.5" style="--k: 2" />
-                      <rect x="178" y="310" width="8" height="8" rx="1.5" style="--k: 3" />
-                      <rect x="192" y="310" width="8" height="8" rx="1.5" style="--k: 4" />
-                      <rect x="206" y="310" width="8" height="8" rx="1.5" style="--k: 5" />
-                    </g>
-                    <rect x="300" y="298" width="80" height="32" rx="10" class="f-white v-btn" />
-                    <text x="340" y="318" class="f-ink f-strong" font-size="11" text-anchor="middle">Unlock</text>
-                  </g>
-                </svg>
-
-                <!-- 05 · Upscale and compare -->
-                <svg class="art art-upscale" viewBox="0 0 480 400" data-art>
-                  <defs>
-                    <clipPath id="u-frame"><rect x="40" y="36" width="400" height="260" rx="18" /></clipPath>
-                    <clipPath id="u-split"><rect class="u-split" x="40" y="36" width="400" height="260" /></clipPath>
-                    <linearGradient id="u-sky" x1="0" y1="0" x2="0" y2="1" data-u-sky></linearGradient>
-                  </defs>
-
-                  <g class="ai" style="--s: 0">
-                    <rect x="36" y="32" width="408" height="268" rx="22" class="f-card" />
-                    <g clip-path="url(#u-frame)">
-                      <g data-u-smooth></g>
-                      <g clip-path="url(#u-split)"><g data-u-pixels></g></g>
-                    </g>
-                    <g class="u-handle">
-                      <path d="M40 36v260" class="u-line" />
-                      <rect x="26" y="152" width="28" height="28" rx="8" class="f-white" />
-                      <path d="M36 161l-4 5 4 5M44 161l4 5-4 5" class="f-ink-stroke" />
-                    </g>
-                    <rect x="52" y="48" width="64" height="22" rx="7" class="u-tag" />
-                    <text x="84" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">1024 px</text>
-                    <rect x="364" y="48" width="64" height="22" rx="7" class="u-tag" />
-                    <text x="396" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">4096 px</text>
-                  </g>
-
-                  <g class="ai" style="--s: 1">
-                    <rect x="146" y="320" width="188" height="44" rx="14" class="f-card" />
-                    <rect x="164" y="338" width="8" height="8" rx="1.5" class="f-ember" />
-                    <text x="182" y="346.5" class="f-hi" font-size="11.5">4× upscale</text>
-                    <text x="316" y="346.5" class="f-mono f-lo" font-size="10.5" text-anchor="end">compare</text>
-                  </g>
-                </svg>
               </div>
 
-              <div class="stage-ticks" data-stage-ticks><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="stage-ticks" data-stage-ticks><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
@@ -447,31 +605,77 @@
           <ol class="feature-list">
             <li class="feature is-active">
               <span class="feature-idx">01</span>
-              <h3>Bring your own workflow</h3>
-              <p>Built something good in ComfyUI? Import its JSON and HEISS UI detects the controls. You get a clean set of controls with your graph running underneath.</p>
-              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">Workflow guide <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+              <h3>Models that work out of the box</h3>
+              <p>Drop a model into ComfyUI and it runs with its makers’ settings. Missing text encoders, VAEs and nodes download with one click, and the controls show only what the model uses.</p>
+              <p>No model yet? Pick Krea 2, Flux.2 or SDXL, each in three sizes. The one that fits your computer is marked.</p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#supported-models">Supported models <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </li>
             <li class="feature">
               <span class="feature-idx">02</span>
-              <h3>Controls that fit the model</h3>
-              <p>HEISS UI reads what your ComfyUI has installed and only shows what the selected model uses. Switch from an image model to a video one and the controls follow.</p>
-            </li>
-            <li class="feature">
-              <span class="feature-idx">03</span>
               <h3>Watch it render</h3>
               <p>Previews stream in while ComfyUI works, resolving from a pixel mosaic into the final image. Queue the next one while you wait.</p>
             </li>
             <li class="feature">
+              <span class="feature-idx">03</span>
+              <h3>Phone studio</h3>
+              <p>On a phone, the studio is laid out for your thumb. Prompt, browse, share and upscale from the couch while the computer renders.</p>
+              <p>Turn on Open on other devices in Settings › Connection, set a studio password and scan the code.</p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#on-your-phone">Phone setup <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            </li>
+            <li class="feature">
               <span class="feature-idx">04</span>
-              <h3>Hidden</h3>
-              <p>A locked place for images you keep to yourself. Generate into it or hide anything later, and unlock it with Touch ID, Windows Hello or a password.</p>
+              <h3>Find it again</h3>
+              <p>Press <kbd>↑</kbd> in an empty prompt for recent prompts, or <kbd>/</kbd> to search the gallery by prompt, model or LoRA. Star the prompts and images worth keeping.</p>
+              <p>Older ComfyUI, AUTOMATIC1111 or Forge folders can join the gallery where they are.</p>
             </li>
             <li class="feature">
               <span class="feature-idx">05</span>
+              <h3>Hidden</h3>
+              <p>A locked place for images you keep to yourself. Generate into it or hide anything later, and unlock it with Touch ID, Windows Hello or a password. While it’s locked, nothing shows.</p>
+            </li>
+            <li class="feature">
+              <span class="feature-idx">06</span>
               <h3>Upscale and compare</h3>
-              <p>Upscale any image in one click with SeedVR2, then drag across it to see exactly what changed.</p>
+              <p>Upscale any image in one click with SeedVR2, then drag across it to see what changed. An optional face detail pass (beta) redraws small faces first.</p>
+            </li>
+            <li class="feature">
+              <span class="feature-idx">07</span>
+              <h3>Bring your own workflow</h3>
+              <p>Built something good in ComfyUI? Import its JSON and it turns into a clean set of controls, with your graph running underneath. The import review shows what each control is connected to, and you can change any of them.</p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">Workflow guide <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </li>
           </ol>
+        </div>
+
+        <div class="also" data-reveal>
+          <p class="label">Also</p>
+          <ul class="also-list">
+            <li>
+              <h3>LoRA stacks</h3>
+              <p>Grouped by folder, stacked per run and saved per model family. A LoRA made for another model says so.</p>
+            </li>
+            <li>
+              <h3>Reference and start images</h3>
+              <p>Flux.2 and Qwen-Image 2.1 edit from reference images. Other image models start from an image, with a slider for how much may change.</p>
+            </li>
+            <li>
+              <h3>Zen mode</h3>
+              <p>A fullscreen prompt and the image, without the panels.</p>
+            </li>
+            <li>
+              <h3>A trash for Delete all</h3>
+              <p>Delete all moves images to a trash you can restore for 30 days.</p>
+            </li>
+            <li>
+              <h3>Sharing, with or without settings</h3>
+              <p>Shared and downloaded images can leave out the prompt, seed and workflow, on by default for Hidden. New PNGs can also carry them the way Civitai reads them <span class="tag">Beta</span>.</p>
+            </li>
+            <li>
+              <h3>Wide images</h3>
+              <p>Landscape images can span two gallery columns. Settings › General › Layout.</p>
+            </li>
+          </ul>
+          <p class="trust">Runs on your computer, with no account and no telemetry. Updates are signed, and Hidden is encrypted on disk.</p>
         </div>
       </section>
 
@@ -496,7 +700,7 @@
                   <span class="step-n" aria-hidden="true">1</span>
                   <div>
                     <h3>Start ComfyUI</h3>
-                    <p>HEISS UI finds it on this computer by itself, including ComfyUI Desktop. No ComfyUI yet? <a class="inline" href="https://www.comfy.org/download">Get ComfyUI Desktop</a>; the app tells you more if you need it.</p>
+                    <p>ComfyUI on this computer connects on its own, ComfyUI Desktop included. No ComfyUI yet? <a class="inline" href="https://www.comfy.org/download">Get ComfyUI Desktop</a>, or start HEISS UI first and <strong>No ComfyUI yet?</strong> says which one fits your system.</p>
                   </div>
                 </li>
                 <li>
@@ -519,7 +723,6 @@
 <pre id="cmd-quick" class="shell"><span class="ln">git clone https://github.com/tristmeister/HEISS-UI.git heiss-ui</span>
 <span class="ln">cd heiss-ui</span>
 <span class="ln">npm install</span>
-<span class="ln">npm run build</span>
 <span class="ln">npm start</span></pre>
                     </div>
                     <p class="note">ComfyUI on another machine? Set its address in <strong>Settings › Connection</strong>.</p>
@@ -529,7 +732,7 @@
                   <span class="step-n" aria-hidden="true">3</span>
                   <div>
                     <h3>Open it</h3>
-                    <p>Your browser opens <a class="inline" href="http://localhost:8787">localhost:8787</a> by itself. Your models are already there; with none yet, pick a first one and HEISS UI downloads everything it needs.</p>
+                    <p>The studio opens in your browser at <a class="inline" href="http://localhost:8787">localhost:8787</a>, or the next free port if that one’s taken. Your models are already there. With none yet, pick a first one and it downloads with everything it needs.</p>
                   </div>
                 </li>
               </ol>
@@ -537,7 +740,7 @@
 
             <div class="panel" id="panel-agent" role="tabpanel" aria-labelledby="tab-agent" tabindex="0" hidden>
               <p class="panel-intro">
-                Paste this into <strong>Claude Code</strong>, <strong>Codex</strong> or any coding agent that can use your terminal. It checks your setup, installs everything and confirms the app can reach ComfyUI. Model downloads only happen if you ask for them.
+                Paste this into <strong>Claude Code</strong>, <strong>Codex</strong> or another coding agent that can use your terminal. It gets the right download, starts the app and checks that it reaches ComfyUI. Models only download if you ask.
               </p>
               <div class="code code-prompt">
                 <div class="code-head">
@@ -550,29 +753,24 @@
                     <span class="copy-label">Copy prompt</span>
                   </button>
                 </div>
-<pre id="agent-prompt" class="prompt" tabindex="0">Install and run HEISS UI from GitHub: https://github.com/tristmeister/HEISS-UI
+<pre id="agent-prompt" class="prompt" tabindex="0">Set up HEISS UI on this computer: https://github.com/tristmeister/HEISS-UI
 
-Please do the full local setup for me:
+1. Check my operating system and CPU. From https://github.com/tristmeister/HEISS-UI/releases/latest, download the matching zip: heiss-ui-&lt;version&gt;-windows-x64.zip, -macos-arm64.zip or -linux-x64.zip. Skip the plain heiss-ui-&lt;version&gt;.zip; that one is for in-app updates.
+2. Unpack it into a plain folder, such as ~/HEISS-UI or C:\HEISS-UI (on Windows, not a folder synced by OneDrive). Node.js and all packages are inside, and the app updates itself from Settings › About.
+3. Check that ComfyUI is running on this computer: http://127.0.0.1:8188, or http://127.0.0.1:8000 for ComfyUI Desktop. Either one connects on its own. If it isn't running, help me start my existing install. If I have none, tell me which one to get for my system and stop there.
+4. Start HEISS UI with the launcher in the folder: Start HEISS UI.bat on Windows, .command on macOS, .desktop on Linux. It opens http://localhost:8787, or the next free port if 8787 is taken.
+5. Check that the page loads, shows ComfyUI as connected and lists my models.
 
-1. Check whether Node.js 20+ is installed.
-2. Check whether ComfyUI is installed and running at http://127.0.0.1:8188.
-3. If ComfyUI is not running, help me start my existing ComfyUI install. Do not download models unless I explicitly ask.
-4. Clone https://github.com/tristmeister/HEISS-UI into a normal projects folder.
-5. Run npm install.
-6. Copy .env.example to .env only if configuration changes are needed.
-7. Set COMFY_URL to my ComfyUI URL, usually http://127.0.0.1:8188.
-8. Run npm run build.
-9. Start the app with npm start.
-10. Open http://127.0.0.1:8787 and verify the app can reach ComfyUI, detect models, and load the gallery.
-11. For future updates, use Settings -> About -> Updates, or run git pull, npm install, and npm run build.
+Only if I ask to run from source: check for Node.js 20.9 or newer, clone the repository, then run npm install and npm start.
+Only if ComfyUI runs on another machine: set its address in Settings › Connection, or COMFY_URL in .env.
 
-Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN access. If something fails, read the error, check ComfyUI /object_info and /system_stats, and fix the setup instead of guessing.</pre>
+Don't download models unless I ask. Keep it on this computer: opening it to a phone or other devices is a switch in Settings › Connection, and only if I ask for it. If something fails, read the error and check ComfyUI's /system_stats and /object_info before changing anything.</pre>
               </div>
             </div>
           </div>
 
           <p class="update-note">
-            <span>Updating later:</span> <strong>Settings → About</strong> inside the app, or <code>git pull</code>, <code>npm install</code>, <code>npm run build</code>.
+            <span>Updating later:</span> <strong>Settings › About</strong> in the app. From source, <code>git pull</code>, <code>npm install</code>, <code>npm run build</code>.
           </p>
         </div>
       </section>
@@ -586,44 +784,44 @@ Keep everything local. Do not expose HOST=0.0.0.0 unless I ask for phone or LAN 
 
         <div class="section-body faq" data-reveal>
           <details name="faq">
-            <summary>What is HEISS UI, exactly?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>A local web front end for ComfyUI. You get a prompt box, a gallery and only the settings that matter for the model you picked. ComfyUI still runs every job. HEISS UI is a nicer place to drive it from.</p></div>
+            <summary>What is HEISS UI?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+            <div class="answer"><p>A local web front end for ComfyUI: a prompt box, a gallery and the settings the chosen model uses. ComfyUI still runs every job.</p></div>
           </details>
           <details name="faq">
-            <summary>Can I bring my own workflows?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>Yes, and for anything custom it's the way to go. Build and test the graph in ComfyUI, export it (API or visual format) and import it in the <strong>Workflows</strong> panel. HEISS UI detects the controls, and you can adjust the mapping before saving. The <a class="inline" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">workflow guide</a> covers the details.</p></div>
-          </details>
-          <details name="faq">
-            <summary>Why not just use ComfyUI directly?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>For building workflows, you should. The node graph is great for that and less great for the everyday loop of prompt, wait, look, tweak. HEISS UI is for that loop, and your workflows come along.</p></div>
-          </details>
-          <details name="faq">
-            <summary>Do I still need ComfyUI installed?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>Yes. ComfyUI runs every job; HEISS UI reads what it has installed (checkpoints, samplers, schedulers, text encoders, VAEs) and builds its controls from that. If you don't have it yet, the app says which ComfyUI to get and finds it once it runs.</p></div>
+            <summary>What do I need?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+            <div class="answer"><p>ComfyUI, and a graphics card or a Mac with Apple Silicon. ComfyUI runs every job, and the controls come from what it has installed; parts and node packs you download go into its own folders. No ComfyUI yet? Start HEISS UI and <strong>No ComfyUI yet?</strong> says which one to get. ComfyUI connects once it runs.</p><p>A graphics card with 8 GB runs SDXL and the compact Flux.2 Klein, 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything. On a Mac, count the unified memory: 16 GB runs SDXL, 18 GB Flux.2 Klein and 48 GB Krea 2. <a class="inline" href="https://github.com/tristmeister/HEISS-UI#what-runs-where">What runs where</a> has the details.</p></div>
           </details>
           <details name="faq">
             <summary>Which models work?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>28 image and video families work out of the box, GGUF files included, and missing text encoders, VAEs and nodes download with one click. For a model that needs special wiring, get it running in ComfyUI first and bring it over as your own workflow.</p></div>
+            <div class="answer"><p>28 families out of the box, 21 for images and 7 for video, from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2 and Wan 2.2. Missing text encoders, VAEs and nodes download with one click. GGUF files run through the ComfyUI-GGUF nodes, which install with one click too, though that pack doesn’t load every family yet. Anything else runs as your own workflow. See the <a class="inline" href="https://github.com/tristmeister/HEISS-UI#supported-models">full list</a>.</p></div>
           </details>
           <details name="faq">
             <summary>Does it do video?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>It does, as long as your ComfyUI has video nodes and a workflow for them. Images and videos get their own galleries.</p></div>
+            <div class="answer"><p>Yes, marked Beta for now. Wan 2.1, Wan 2.2 5B, Wan 2.2 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, no workflow needed, and Wan 2.2 14B and HunyuanVideo 1.5 also start from an image. Videos get their own gallery.</p></div>
+          </details>
+          <details name="faq">
+            <summary>Can I bring my own workflows?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+            <div class="answer"><p>Yes, and for anything custom it’s the way to go. Build and test the graph in ComfyUI, export it (API or regular format) and drop it on the <strong>Workflow Gallery</strong>. The review shows which inputs follow the studio’s controls and marks the guessed ones, and you can change any of them before importing. The <a class="inline" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">workflow guide</a> covers the rest.</p></div>
+          </details>
+          <details name="faq">
+            <summary>Why not use ComfyUI directly?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+            <div class="answer"><p>For building workflows, do. The node graph is great for that and less great for the everyday loop of prompt, wait, look, tweak. HEISS UI is for that loop, and your workflows come along.</p></div>
           </details>
           <details name="faq">
             <summary>Where do my images go?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>Into your normal ComfyUI output folder. HEISS UI keeps its gallery metadata in its own local data folder. No account, no cloud in between, and your prompts and images stay on your machine.</p></div>
+            <div class="answer"><p>Into your normal ComfyUI output folder, with gallery details in a local data folder next to the app. No account, no cloud in between, no telemetry.</p></div>
           </details>
           <details name="faq">
-            <summary>What's Hidden?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>A separate, encrypted place for images you keep to yourself, opened from the lock in the dock. Images, prompts and settings are encrypted on your computer, and nothing shows while it's locked. Good for keeping things out of casual view on a shared computer, though it's not a forensic guarantee.</p></div>
+            <summary>What’s Hidden?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+            <div class="answer"><p>A separate, encrypted place for images you keep to yourself, opened from the lock in the dock. Images, prompts and settings are encrypted on your computer, and nothing shows while it’s locked. It keeps things out of casual view on a shared computer. It isn’t a forensic guarantee.</p></div>
           </details>
           <details name="faq">
             <summary>Can I use it from my phone?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>On your own network, yes. Turn on <b>Open on other devices</b> in Settings › Connection, and HEISS UI restarts and lists the addresses to open on your phone. Only do this on a network you trust.</p></div>
+            <div class="answer"><p>On your own network, yes. Turn on <strong>Open on other devices</strong> in Settings › Connection, set a studio password and scan the code with your phone. The phone gets a studio for your thumb: prompt, browse, share and upscale.</p><p>Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust.</p></div>
           </details>
           <details name="faq">
             <summary>Where does HEISS UI come from?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>It started as a fork of <a class="inline" href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a> by Jasper. The core idea of a calm, prompt-first front end for ComfyUI, and a big part of the foundation, are his work. HEISS UI takes it in its own direction from there. Go give the original a star too.</p></div>
+            <div class="answer"><p>It started as a fork of <a class="inline" href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a> by Jasper. The idea of a prompt-first front end for ComfyUI, and a big part of the foundation, are his work. HEISS UI takes it in its own direction from there. Go give the original a star too.</p></div>
           </details>
           <details name="faq">
             <summary>Why “HEISS”?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>

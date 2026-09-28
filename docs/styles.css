@@ -614,6 +614,68 @@ code {
 .feature-link .icon { width: 14px; height: 14px; transition: translate 220ms var(--ease); }
 .feature-link:hover .icon { translate: 3px 0; }
 
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.1em 0.4em;
+  border-radius: 6px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line), inset 0 -1px 0 var(--line-strong);
+  color: var(--text);
+  font: 500 0.84em/1.4 var(--mono);
+  text-align: center;
+}
+
+/* Also: the smaller things, no art */
+.also {
+  max-width: var(--content);
+  margin: clamp(8px, 2vw, 24px) auto 0;
+}
+.also-list {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 0 clamp(24px, 4vw, 48px);
+}
+.also-list li {
+  padding: 18px 0 20px;
+  box-shadow: inset 0 1px 0 var(--line);
+}
+.also-list h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.4;
+}
+.also-list p {
+  margin-top: 4px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+.tag {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgb(255 154 82 / 0.12);
+  color: var(--ember);
+  font: 500 11px/1.3 var(--mono);
+  letter-spacing: 0;
+}
+.trust {
+  margin-top: 28px;
+  padding-top: 24px;
+  box-shadow: inset 0 1px 0 var(--line);
+  color: var(--text-3);
+  font-size: 14.5px;
+  text-wrap: pretty;
+}
+
 .stage {
   grid-column: 2;
   grid-row: 1;
@@ -741,7 +803,7 @@ code {
 }
 @keyframes ai-in { from { opacity: 0; transform: translateY(8px); } }
 
-/* 01 · workflow → controls */
+/* 07 · workflow → controls */
 .map path { fill: none; stroke: var(--ember); stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 0; }
 .map-pulse path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 0.07 1.2; stroke-dashoffset: 1.1; opacity: 0; }
 .ctl rect { stroke: var(--ember); stroke-opacity: 0; }
@@ -776,21 +838,31 @@ code {
 }
 @keyframes port { from { fill: #3a3a3a; } }
 
-/* 02 · the controls follow the model */
-.art-model .st { opacity: 0; }
-.art-model .st-a { opacity: 1; }
-.stage.in-view .is-active.art-model .st {
-  animation: st 9s var(--ease-ui) infinite both;
-}
-.stage.in-view .is-active.art-model .st-b { animation-delay: 3s; }
-.stage.in-view .is-active.art-model .st-c { animation-delay: 6s; }
-@keyframes st {
-  0% { opacity: 0; transform: translateY(5px); }
-  4%, 30% { opacity: 1; transform: none; }
-  33.33%, 100% { opacity: 0; transform: translateY(-5px); }
-}
+/* 01 · a model's parts download, tick off, and it's ready */
+.f-track { fill: #2c2c2c; }
+.f-tint-ok { fill: rgb(94 224 138 / 0.14); }
+.f-tint-ember { fill: rgb(255 154 82 / 0.14); }
+.f-ok-stroke { fill: none; stroke: #5ee08a; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.m-fill { transform-box: fill-box; transform-origin: left center; }
+.m-tick { transform-box: fill-box; transform-origin: center; }
+.m-need, .m-getting { opacity: 0; }
+.stage.in-view .is-active .m-fill-a { animation: m-fill-a 9s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .m-fill-b { animation: m-fill-b 9s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .m-fill-t { animation: m-fill-b 9s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .m-tick-a { animation: m-tick-a 9s var(--ease) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .m-tick-b { animation: m-tick-b 9s var(--ease) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .m-need,
+.stage.in-view .is-active .m-getting { animation: m-before 9s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .m-ready,
+.stage.in-view .is-active .m-done { animation: m-after 9s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+@keyframes m-fill-a { 0%, 4% { transform: scaleX(0.03); } 36%, 92% { transform: scaleX(1); } 97%, 100% { transform: scaleX(0.03); } }
+@keyframes m-fill-b { 0%, 8% { transform: scaleX(0.03); } 52%, 92% { transform: scaleX(1); } 97%, 100% { transform: scaleX(0.03); } }
+@keyframes m-tick-a { 0%, 36% { opacity: 0; transform: scale(0.5); } 40%, 92% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes m-tick-b { 0%, 52% { opacity: 0; transform: scale(0.5); } 56%, 92% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
+@keyframes m-before { 0%, 55% { opacity: 1; } 58%, 94% { opacity: 0; } 97%, 100% { opacity: 1; } }
+@keyframes m-after { 0%, 55% { opacity: 0; transform: translateY(4px); } 59%, 93% { opacity: 1; transform: none; } 96%, 100% { opacity: 0; } }
 
-/* 03 · render: gray cells clear in organic order, then come back */
+/* 02 · render: gray cells clear in organic order, then come back */
 .r-veil { fill: #0f0f0f; opacity: 0; }
 .r-cells rect { opacity: 0; }
 .r-label-gen { opacity: 0; }
@@ -821,7 +893,59 @@ code {
   78%, 100% { opacity: 0; transform: scale(0.9); }
 }
 
-/* 04 · vault: lock, type, unlock */
+/* 03 · phone: scan the code, long press a tile, the share sheet comes up */
+.f-screen { fill: #0c0c0c; }
+.f-notch { fill: #1f1f1f; }
+.f-grab { fill: #3a3a3a; }
+.f-dot { fill: #d8d8d8; }
+.p-qr rect { fill: #0a0a0a; }
+.p-press { transform-box: fill-box; transform-origin: center; }
+.p-press-ring { fill: none; stroke: var(--ember); stroke-width: 1.5; opacity: 0; }
+.p-ring { fill: none; stroke: var(--ember); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 0.35; }
+.p-dim { fill: #000; opacity: 0.45; }
+.p-pick { opacity: 0; }
+.stage.in-view .is-active .p-ring { animation: p-ring 8s linear infinite both; }
+.stage.in-view .is-active .p-press { animation: p-press 8s var(--ease) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .p-press-ring { animation: p-press-ring 8s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .p-dim { animation: p-dim 8s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .p-sheet { animation: p-sheet 8s var(--ease) infinite both; animation-delay: 0.6s; }
+.stage.in-view .is-active .p-pick { animation: p-pick 8s var(--ease-ui) infinite both; animation-delay: 0.6s; }
+@keyframes p-ring { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes p-press { 0%, 14% { transform: none; } 20%, 30% { transform: scale(0.95); } 36%, 100% { transform: none; } }
+@keyframes p-press-ring { 0%, 14% { opacity: 0; } 20%, 76% { opacity: 1; } 82%, 100% { opacity: 0; } }
+@keyframes p-dim { 0%, 24% { opacity: 0; } 32%, 76% { opacity: 0.45; } 84%, 100% { opacity: 0; } }
+@keyframes p-sheet { 0%, 24% { transform: translateY(160px); } 34%, 76% { transform: none; } 86%, 100% { transform: translateY(160px); } }
+@keyframes p-pick { 0%, 52% { opacity: 0; } 56%, 70% { opacity: 1; } 74%, 100% { opacity: 0; } }
+
+/* 04 · find: type to search, stars pop, walk through recent prompts */
+.f-badge { fill: rgb(10 10 10 / 0.6); }
+.f-star { color: var(--ember); }
+.f-star-off { color: #4a4a4a; }
+.s-type { transform-box: fill-box; transform-origin: left center; }
+.s-caret { transform: translateX(69px); }
+.s-star { transform-box: fill-box; transform-origin: center; }
+.stage.in-view .is-active .s-type { animation: s-type 9s steps(10, end) infinite both; animation-delay: 0.5s; }
+.stage.in-view .is-active .s-caret { animation: s-caret 9s steps(10, end) infinite both, blink 1s steps(2) infinite; animation-delay: 0.5s, 0s; }
+.stage.in-view .is-active .s-star { animation: s-star 9s var(--ease) infinite both; animation-delay: calc(1.9s + var(--k) * 0.2s); }
+.stage.in-view .is-active .s-pick { animation: s-pick 9s var(--ease) infinite both; animation-delay: 0.5s; }
+.s-c1, .s-c2 { opacity: 0; }
+.stage.in-view .is-active .s-c0 { animation: s-c0 9s steps(1) infinite both; animation-delay: 0.5s; }
+.stage.in-view .is-active .s-c1 { animation: s-c1 9s steps(1) infinite both; animation-delay: 0.5s; }
+.stage.in-view .is-active .s-c2 { animation: s-c2 9s steps(1) infinite both; animation-delay: 0.5s; }
+@keyframes s-c0 { 0% { opacity: 1; } 38% { opacity: 0; } 78%, 100% { opacity: 1; } }
+@keyframes s-c1 { 0% { opacity: 0; } 38% { opacity: 1; } 58%, 100% { opacity: 0; } }
+@keyframes s-c2 { 0% { opacity: 0; } 58% { opacity: 1; } 78%, 100% { opacity: 0; } }
+@keyframes s-type { 0% { transform: scaleX(0); } 14%, 100% { transform: scaleX(1); } }
+@keyframes s-caret { 0% { transform: none; } 14%, 100% { transform: translateX(69px); } }
+@keyframes s-star { 0% { opacity: 0; transform: scale(0.4); } 5%, 88% { opacity: 1; transform: none; } 94%, 100% { opacity: 0; transform: scale(0.8); } }
+@keyframes s-pick {
+  0%, 36% { transform: none; }
+  40%, 56% { transform: translateY(24px); }
+  60%, 76% { transform: translateY(48px); }
+  80%, 100% { transform: none; }
+}
+
+/* 05 · vault: lock, type, unlock */
 .v-lock { transform-box: fill-box; transform-origin: center; }
 .v-dots rect { fill: #d8d8d8; transform-box: fill-box; transform-origin: center; }
 .v-btn { transform-box: fill-box; transform-origin: center; }
@@ -849,7 +973,7 @@ code {
 .stage.in-view .is-active .v-btn { animation: press 7s var(--ease-ui) infinite both; }
 @keyframes press { 0%, 38% { transform: none; } 40% { transform: scale(0.92); } 44%, 100% { transform: none; } }
 
-/* 05 · upscale compare */
+/* 06 · upscale compare */
 .u-split { transform-box: fill-box; transform-origin: left center; transform: scaleX(0.5); }
 .u-handle { transform: translateX(200px); }
 .u-line { stroke: #fff; stroke-width: 2; }
@@ -1207,6 +1331,7 @@ code {
 }
 .faq details[open] .answer { opacity: 1; translate: 0 0; transition-delay: 60ms; }
 .answer em { color: var(--text); font-style: italic; }
+.answer p + p { margin-top: 12px; }
 
 /* ── Footer ───────────────────────────────────────────────────────────── */
 
