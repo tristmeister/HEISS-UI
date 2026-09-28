@@ -349,6 +349,30 @@
 .lora-remove:hover { background: var(--danger-fill); color: var(--danger-ink); }
 .lora-card-top .switch { margin-left: 4px; }
 .lora-warning { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11.5px; color: var(--ember); }
+/* Made for another model: worth knowing, not an error. */
+.lora-warning.is-soft { color: hsl(var(--muted-foreground)); }
+.lora-warning.is-soft svg { color: var(--ember); opacity: .8; }
+
+/* Trigger words, each a quiet chip that copies itself. */
+.lora-triggers { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0; font-size: 11px; color: hsl(var(--muted-foreground)); }
+.lora-triggers > span { margin-right: 2px; }
+.lora-trigger {
+  max-width: 100%;
+  padding: 1px 7px;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .06);
+  font: 500 11px/1.6 var(--font-mono);
+  color: hsl(var(--foreground) / .85);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: copy;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.lora-trigger:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+.lora-trigger:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.lora-trigger.is-copied { color: hsl(var(--foreground)); background: rgb(255 255 255 / .12); }
 
 /* Strength: a slim slider and a value that reads as text until you edit it. */
 .lora-strength { display: flex; align-items: center; gap: 8px; transition: opacity var(--dur-fast); }
@@ -499,6 +523,9 @@
 .lora-option-copy strong { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lora-option-copy span { font-size: 11px; color: hsl(var(--muted-foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lora-option > em { flex: none; font-size: 11px; font-style: normal; color: hsl(var(--muted-foreground)); }
+/* Made for another model: named, a little dimmer, never hidden. */
+.lora-option > em.lora-fit { max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: .75; }
+.lora-option:has(> em.lora-fit) .lora-option-copy strong { color: hsl(var(--foreground) / .7); }
 .lora-option-star {
   flex: none;
   width: 30px;

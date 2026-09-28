@@ -20,6 +20,7 @@ import { addGalleryItems, dedupeGallery, deleteGalleryFiles, filterVisibleGaller
 import { getThumbnail, resizeInMemory } from './thumbnails.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
 import { cancelPrompt, cancelPrompts } from './comfy-queue.js';
+import { loraInfos } from './lora-info.js';
 import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
@@ -1017,6 +1018,16 @@ app.post("/api/loras/library/ops", (req, res) => {
     res.json({ ok: true, library: applyLoraOps(req.body?.ops) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+// What each LoRA ComfyUI lists was trained for and its trigger words, from the files themselves.
+app.get("/api/loras/info", async (_req, res) => {
+  try {
+    const { info } = await loadComfyContext();
+    res.json({ ok: true, loras: await loraInfos(optionsFor(info, "LoraLoader", "lora_name")) });
+  } catch (error) {
+    res.status(503).json({ ok: false, loras: {}, error: comfyDownMessage(error?.message) });
   }
 });
 
