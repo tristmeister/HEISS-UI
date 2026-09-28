@@ -52,9 +52,14 @@ catalog, so a family that is described correctly needs no UI work.
    remote ComfyUI gets.
 
 4. **Describe the family** in `families`. Settings live on variants; the last
-   variant is the fallback. `match(name, header, detail)` picks a variant, so
-   let the weights decide where they can (see Flux Schnell and Sana Sprint)
-   and the filename only where they cannot.
+   variant is the fallback, so make it the full-step one (a renamed base model
+   run at 4 steps is ruined; a distilled one at 30 only slow). `match(name,
+   header, detail)` picks a variant, so let the weights decide where they can
+   (see Flux Schnell and Sana Sprint), then the file's own metadata
+   (`distillationFromMetadata`), and the filename only where they cannot.
+   Mark few-step variants `fast: true`: a speed LoRA stacked on the base model
+   (Lightning, Hyper, lightx2v, …) switches to them. `denoise` sets the
+   family's img2img strength.
 
 5. **Teach detection.** Add the tensor-key signature to `familyFromHeader` at
    the same position ComfyUI checks it, so no file is read two ways. Watch for
@@ -84,6 +89,14 @@ catalog, so a family that is described correctly needs no UI work.
    the partner from the model list and offers its download when missing.
    `promptPrefix` and `negativePrefix` put the system prompt a model was
    trained with in front of the user's text (Lumina 2 and its fine-tunes).
+
+   Image-to-video is a family of its own with `imageToVideo: true`: its
+   `latent` names the node that takes both conditionings, the VAE and the start
+   image (`WanImageToVideo`, `HunyuanVideo15ImageToVideo`), `startImage:
+   "required"` makes the composer ask for the picture, and `clipVision` adds a
+   vision encoder (with its download) where the template reads the image
+   twice. When the weights cannot tell it from its text-to-video sibling,
+   `refines` narrows the detected family by name (HunyuanVideo 1.5 I2V).
 
 8. **Capabilities.** Turn off what the model cannot do: `ownLoaders` (encoder
    and VAE come with the pack, so no pickers and no LoRAs), `negative: "none"`,
