@@ -84,28 +84,24 @@ const bigGallery = (count) => {
 test("paging through 50,000 items reads each page from one sorted list, without repeats", () => {
   const items = bigGallery(50_000);
   setGallery(items, { persist: false });
-  // The first page builds the sorted list; the rest only cut from it. Timed
-  // against each other, so a busy machine slows both alike.
-  const firstStarted = performance.now();
+  // The first page builds the sorted list; every later page only cuts from it.
+  const buildsBefore = store.visibleListBuildCount();
   const first = pageGallery({ limit: 220 });
-  const firstPage = performance.now() - firstStarted;
   const seen = first.items.map((item) => item.id);
   let cursor = first.nextCursor;
   let pages = 1;
-  const started = performance.now();
   do {
     const page = pageGallery({ limit: 220, cursor });
     seen.push(...page.items.map((item) => item.id));
     cursor = page.nextCursor;
     pages += 1;
   } while (cursor && pages < 1000);
-  const elapsed = performance.now() - started;
   assert.equal(new Set(seen).size, seen.length, "no item is served twice");
   assert.equal(seen.length, 50_000);
   assert.deepEqual(seen.slice(0, 4), ["local-49996", "local-49997", "local-49998", "local-49999"], "newest first, a batch in its own order");
-  // Re-filtering and re-sorting per page made each of the ${pages} pages cost as much as
-  // the first; from the cached list all the rest together cost a few first pages at most.
-  assert.ok(elapsed < Math.max(50, firstPage * 10), `the other ${pages - 1} pages took ${Math.round(elapsed)} ms, the first ${Math.round(firstPage)} ms`);
+  // Re-filtering and re-sorting per page made every page cost as much as the whole
+  // gallery; all of them are now cut from the one list the first page built.
+  assert.equal(store.visibleListBuildCount() - buildsBefore, 1, `the list was rebuilt while paging through ${pages} pages`);
 
   const videos = pageGallery({ type: "video", limit: 500, includeFailed: false });
   assert.ok(videos.items.every((item) => item.type === "video" && item.status !== "error"));

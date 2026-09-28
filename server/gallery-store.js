@@ -250,6 +250,10 @@ export function listedInFolder(file) {
 let visibleCache = { key: "", lists: new Map() };
 
 /** Drops the cached page lists, e.g. when a library folder is added or removed. */
+let visibleListBuilds = 0;
+/** How often a page list was built from the whole gallery; the paging test counts it. */
+export const visibleListBuildCount = () => visibleListBuilds;
+
 export function invalidateVisibleCache() {
   visibleCache = { key: "", lists: new Map() };
 }
@@ -269,6 +273,7 @@ function visibleItems({ type = "", includeFailed = true, filter = null } = {}) {
       return item.status !== "canceled";
     });
     entry = { items, positions: null };
+    visibleListBuilds += 1;
     visibleCache.lists.set(listKey, entry);
   }
   // A search filters the cached list; its positions are its own, so it is not kept.
