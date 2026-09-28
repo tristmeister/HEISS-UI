@@ -1743,12 +1743,15 @@ app.post("/api/queue/cancel", async (_req, res) => {
 
 app.post("/api/gallery/clear", (req, res) => {
   if (!requireAdmin(req, res)) return;
-  // Clearing the gallery never touches Hidden; that has its own erase.
-  const cleared = gallery.filter((item) => item.status === "done" && !item.privateVault);
+  // Clearing the gallery never touches Hidden; that has its own erase. Nor images
+  // shown from another folder (library.js): their files are not in the output
+  // folder, so no trash could bring them back; Settings › Library removes those.
+  const clears = (item) => item.status === "done" && !item.privateVault && !item.library;
+  const cleared = gallery.filter(clears);
   // Into the trash, not deleted: it can be put back until the trash empties itself (gallery-trash.js).
   const trash = trashGalleryItems(cleared);
   hideGalleryItems(cleared);
-  setGallery(gallery.filter((item) => item.status !== "done" || item.privateVault));
+  setGallery(gallery.filter((item) => !clears(item)));
   saveGallery();
   res.json({ ok: true, files: { deleted: trash.moved, skipped: trash.skipped }, trash: { batch: trash.batch, moved: trash.moved, days: trashSummary().days }, outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) });
 });

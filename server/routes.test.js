@@ -116,3 +116,21 @@ test("a generate request with no prompt is refused plainly", async () => {
   assert.equal(refused.status, 400);
   assert.ok(refused.body.error);
 });
+
+test("clearing the gallery leaves images shown from another folder where they are", async () => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-routes-library-"));
+  try {
+    fs.writeFileSync(path.join(folder, "earlier.png"), "not really a png");
+    const added = await api("/api/library/folders", { method: "POST", body: { path: folder } });
+    assert.equal(added.status, 200, JSON.stringify(added.body));
+    const shown = async () => (await api("/api/gallery?limit=200")).body.items.filter((item) => item.library);
+    assert.equal((await shown()).length, 1);
+    const cleared = await api("/api/gallery/clear", { method: "POST" });
+    assert.equal(cleared.status, 200);
+    assert.equal((await shown()).length, 1, "no trash could bring it back, so a clear does not take it");
+    const id = added.body.folders.find((entry) => entry.path === fs.realpathSync(folder)).id;
+    await api(`/api/library/folders/${id}`, { method: "DELETE" });
+  } finally {
+    fs.rmSync(folder, { recursive: true, force: true });
+  }
+});
