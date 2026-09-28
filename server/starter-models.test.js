@@ -96,3 +96,10 @@ test("unknown hardware: sizes, and no verdicts", () => {
     assert.ok(item.versions.every((entry) => entry.fits === null && entry.totalBytes > 0));
   }
 });
+
+test("on a Mac an fp8 version is described by the download it saves, not as compact", () => {
+  const onMac = plan(mac(32));
+  assert.equal(version(onMac, "flux2_klein_4b", "klein-fp8").detail, "4 steps · smaller download");
+  assert.equal(version(onMac, "krea2", "turbo-fp8").detail, "8 steps · smaller download");
+  assert.equal(version(plan(card(12)), "flux2_klein_4b", "klein-fp8").detail, "4 steps · compact");
+});

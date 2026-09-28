@@ -46,7 +46,8 @@ export function starterPlan({ hardware = null, info = null, onDisk = existingCop
         id: version.id,
         family: familyId,
         label: version.label,
-        detail: version.detail,
+        // On a Mac an fp8 file loads at full precision: it saves download, not memory.
+        detail: hardware?.unified && version.appleDetail ? version.appleDetail : version.detail,
         memoryGB,
         ...(version.ram ? { ramGB: version.ram } : {}),
         fp8: Boolean(version.fp8),

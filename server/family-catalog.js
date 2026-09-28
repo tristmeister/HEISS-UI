@@ -124,7 +124,8 @@ export const checkpointDownloads = {
  * model: the catalog download of the model file. encoders: a slot's download
  * when it is not the slot's first. memory: GPU memory (GB) the version runs
  * comfortably in. appleMemory: what a Mac needs instead, where that differs
- * (fp8 weights load at full precision there; docs/hardware-notes.md). ram:
+ * (fp8 weights load at full precision there; docs/hardware-notes.md), and
+ * appleDetail how it is described there, since "compact" saves no memory. ram:
  * system memory it wants besides. The studio highlights the largest version
  * that fits and never hides the others.
  */
@@ -132,7 +133,7 @@ export const starterModels = [
   {
     family: "krea2", title: "Krea 2", blurb: "Photographic, with natural light and real texture.",
     versions: [
-      { id: "turbo-fp8", label: "Turbo", detail: "8 steps · compact", model: "model:krea2_turbo_fp8:0", memory: 16, appleMemory: 32, fp8: true },
+      { id: "turbo-fp8", label: "Turbo", detail: "8 steps · compact", appleDetail: "8 steps · smaller download", model: "model:krea2_turbo_fp8:0", memory: 16, appleMemory: 32, fp8: true },
       { id: "turbo", label: "Turbo", detail: "8 steps · full precision", model: "model:krea2_turbo_bf16:0", memory: 32, ram: 48 },
       { id: "raw", label: "Raw", detail: "28 steps · follows a negative prompt", model: "model:krea2_raw_bf16:0", memory: 32, ram: 48 }
     ]
@@ -140,7 +141,7 @@ export const starterModels = [
   {
     family: "flux2_klein_4b", title: "Flux.2", blurb: "Quick and versatile, and it can work from reference images.",
     versions: [
-      { id: "klein-fp8", label: "Klein 4B", detail: "4 steps · compact", model: "model:flux2_klein_4b_fp8:0", memory: 8, appleMemory: 12, fp8: true },
+      { id: "klein-fp8", label: "Klein 4B", detail: "4 steps · compact", appleDetail: "4 steps · smaller download", model: "model:flux2_klein_4b_fp8:0", memory: 8, appleMemory: 12, fp8: true },
       { id: "klein", label: "Klein 4B", detail: "4 steps · full precision", model: "model:flux2_klein_4b:0", memory: 12 },
       { id: "dev", label: "Dev", family: "flux2_dev", detail: "28 steps · the largest Flux", model: "model:flux2_dev_fp8:0", encoders: { encoder: "encoder:mistral3_24b:0" }, memory: 32, appleMemory: 80, ram: 64, fp8: true }
     ]
