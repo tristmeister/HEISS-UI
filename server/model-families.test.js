@@ -305,6 +305,7 @@ test("Krea 2 Raw patches the shift after the LoRAs, behind the enhancer", () => 
   assert.equal(graph[ids.ModelSamplingFlux].inputs.max_shift, krea2RawShift(1024, 1024));
   assert.deepEqual(graph[ids.KSampler].inputs.model, [ids.ModelSamplingFlux, 0]);
   assert.equal(krea2RawShift(1024, 1024), 0.906);
+  assert.equal(graph[ids["ComfyUI-Krea2T-Enhancer"]].inputs.strength, 1, "the node's own default");
 });
 
 test("MiniMax H3 decodes video and audio from the same latent", () => {

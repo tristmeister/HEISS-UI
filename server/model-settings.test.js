@@ -16,7 +16,7 @@ const dirs = Object.fromEntries(["diffusion_models", "checkpoints", "text_encode
 test.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
 const { classifyModel } = await import("./model-families.js");
-const { variantFor } = await import("./family-catalog.js");
+const { stepsInName, variantFor } = await import("./family-catalog.js");
 const { inferModels } = await import("./models.js");
 const { sanitizeGenerateBody } = await import("./validation.js");
 
@@ -44,7 +44,7 @@ function objectInfo({ unets = [], checkpoints = [], clips = [], vaeFiles = [], l
     DualCLIPLoader: list({ clip_name1: [clips], clip_name2: [clips], type: [["sdxl"]] }),
     VAELoader: list({ vae_name: [vaeFiles] }),
     LoraLoader: list({ lora_name: [loras], strength_model: ["FLOAT", { default: 1, min: -100, max: 100, step: 0.01 }] }),
-    KSampler: list({ sampler_name: [["euler", "res_multistep", "lcm", "ddim", "dpmpp_2m", "euler_ancestral", "uni_pc"]], scheduler: [["simple", "sgm_uniform", "karras", "normal", "beta"]] })
+    KSampler: list({ sampler_name: [["euler", "res_multistep", "lcm", "ddim", "dpmpp_2m", "euler_ancestral", "uni_pc", "er_sde"]], scheduler: [["simple", "sgm_uniform", "karras", "normal", "beta"]] })
   };
 }
 
@@ -81,4 +81,140 @@ test("a stacked speed LoRA leaves the model's variant and settings as they are",
   assert.equal("speedLoras" in profile, false);
   const request = { kind: "video", workflow: profile.workflow, profileId: profile.id, model: high, prompt: "waves", steps: 20, cfg: 3.5 };
   assert.equal(sanitizeGenerateBody({ ...request, loras: [{ name: speed, strength: 1 }] }, info).variant, "standard");
+});
+
+const mps = { devices: [{ type: "mps", name: "mps" }] };
+const cuda = { devices: [{ type: "cuda", name: "cuda:0 NVIDIA GeForce RTX 4090" }] };
+const profileFor = (info, model, stats = cuda) => inferModels(info, stats).profiles.find((item) => item.model === model);
+
+test("on a Mac, Wan video starts on euler: uni_pc corrupts video on Apple Silicon", () => {
+  const info = objectInfo({ unets: ["wan2.1_t2v_1.3B_fp16.safetensors", "wan2.2_ti2v_5B_fp16.safetensors"] });
+  for (const model of ["wan2.1_t2v_1.3B_fp16.safetensors", "wan2.2_ti2v_5B_fp16.safetensors"]) {
+    assert.equal(profileFor(info, model).defaults.sampler, "uni_pc", model);
+    assert.equal(profileFor(info, model, mps).defaults.sampler, "euler", model);
+  }
+});
+
+test("on a Mac, a part's other build comes before its quantized fp8 one", () => {
+  const info = objectInfo({ unets: ["sd3.5_large.safetensors", "wan2.1_t2v_1.3B_fp16.safetensors"] });
+  const t5 = (stats) => profileFor(info, "sd3.5_large.safetensors", stats).missing.find((item) => item.slot === "t5").downloads;
+  assert.deepEqual(t5(cuda).map((item) => item.id), ["encoder:t5xxl:0", "encoder:t5xxl:1"]);
+  assert.deepEqual(t5(mps).map((item) => [item.id, item.file]), [["encoder:t5xxl:1", "t5xxl_fp16.safetensors"], ["encoder:t5xxl:0", "t5xxl_fp8_e4m3fn_scaled.safetensors"]]);
+  const umt5 = profileFor(info, "wan2.1_t2v_1.3B_fp16.safetensors", mps).missing.find((item) => item.part === "encoder").downloads;
+  assert.equal(umt5[0].file, "umt5_xxl_fp16.safetensors");
+});
+
+test("a step count in the file name is read as written", () => {
+  assert.equal(stepsInName("sdxl_lightning_4step.safetensors"), 4);
+  assert.equal(stepsInName("models/sdxl_lightning_8step_unet.safetensors"), 8);
+  assert.equal(stepsInName("Qwen-Image-Lightning-8steps-V1.1.safetensors"), 8);
+  assert.equal(stepsInName("qwen_image_lightning_4-steps_merged.safetensors"), 4);
+  assert.equal(stepsInName("RealVisXL_V5.0_Lightning_fp16.safetensors"), 0);
+  assert.equal(stepsInName("juggernautXL_v9Rdphoto2Lightning.safetensors"), 0);
+});
+
+test("files distilled for a step count start at that count; the rest at their variant's", () => {
+  const info = objectInfo({
+    checkpoints: ["sdxl_lightning_2step.safetensors", "sdxl_lightning_8step.safetensors", "juggernautXL_lightning.safetensors", "dmd2_sdxl_merge.safetensors"],
+    unets: ["qwen_image_lightning_4steps_merged.safetensors", "qwen_image_lightning_merged.safetensors", "minimax_h3_turbo_4step.safetensors", "minimax_h3_turbo.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors"]
+  });
+  const steps = (model) => profileFor(info, model).defaults.steps;
+  assert.deepEqual(["sdxl_lightning_2step.safetensors", "sdxl_lightning_8step.safetensors", "juggernautXL_lightning.safetensors"].map(steps), [2, 8, 6]);
+  assert.equal(steps("dmd2_sdxl_merge.safetensors"), 4, "DMD2's card: 4 steps");
+  assert.deepEqual(["qwen_image_lightning_4steps_merged.safetensors", "qwen_image_lightning_merged.safetensors"].map(steps), [4, 8]);
+  assert.deepEqual(["minimax_h3_turbo_4step.safetensors", "minimax_h3_turbo.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors"].map(steps), [4, 8, 20]);
+  assert.equal(profileFor(info, "minimax_h3_fl2va_pruned_int8_convrot.safetensors").defaults.frames, 124, "5 seconds, H3's shortest trained length");
+});
+
+test("HunyuanVideo 1.5 takes Tencent's shift per resolution and task, and 50 steps when CFG-distilled", async () => {
+  const { families, variantFor } = await import("./family-catalog.js");
+  const settings = (name) => {
+    const family = classifyModel("unet", `remote/${name}`).family;
+    const variant = variantFor(family, name);
+    return [family, variant.id, (variant.modelSampling || families[family].modelSampling).shift, variant.defaults.steps, variant.defaults.cfg];
+  };
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_t2v_fp16.safetensors"), ["hunyuan15", "standard", 5, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_720p_t2v_fp16.safetensors"), ["hunyuan15", "p720", 9, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_t2v_cfg_distilled_fp8_scaled.safetensors"), ["hunyuan15", "cfg_distilled", 5, 50, 1]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_i2v_fp16.safetensors"), ["hunyuan15_i2v", "standard", 5, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_720p_i2v_fp16.safetensors"), ["hunyuan15_i2v", "p720", 7, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_720p_i2v_cfg_distilled_fp16.safetensors"), ["hunyuan15_i2v", "cfg_distilled_720", 7, 50, 1]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_i2v_cfg_distilled_fp16.safetensors"), ["hunyuan15_i2v", "cfg_distilled", 5, 50, 1]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_i2v_step_distilled_fp16.safetensors"), ["hunyuan15_i2v", "step_distilled", 7, 8, 1]);
+  assert.equal(variantFor("hunyuan15", "hunyuanvideo1.5_t2v_step_distilled.safetensors").id, "standard", "no step-distilled text-to-video from Tencent");
+  assert.deepEqual(settings("hunyuanvideo1.5_t2v_480p_lightx2v_4step.safetensors").slice(1), ["fast", 9, 4, 1]);
+  assert.equal(families.hunyuan15.frames, 121);
+});
+
+test("Anima runs on er_sde, and its Turbo files at CFG 1 and 10 steps without a negative prompt", () => {
+  const info = objectInfo({ unets: ["anima-base-v1.0.safetensors", "anima-turbo-v1.1.safetensors"] });
+  const base = profileFor(info, "anima-base-v1.0.safetensors");
+  const turbo = profileFor(info, "anima-turbo-v1.1.safetensors");
+  assert.deepEqual([base.variant, base.defaults.steps, base.defaults.cfg, base.defaults.sampler], ["standard", 30, 4, "er_sde"]);
+  assert.deepEqual([turbo.variant, turbo.defaults.steps, turbo.defaults.cfg, turbo.defaults.sampler], ["turbo", 10, 1, "euler"]);
+  assert.equal(turbo.capabilities.negativePrompt, false, "at CFG 1 the negative has no effect");
+  assert.equal(base.capabilities.negativePrompt, true);
+});
+
+test("by name, only Pony V7 itself is AuraFlow; SDXL merges called Pony v7 stay SDXL", async () => {
+  const { familyFromName } = await import("./family-catalog.js");
+  for (const name of ["pony-v7-base.safetensors", "pony_v7_base_fp8.safetensors", "ponyDiffusionV7.gguf", "auraflow_0.3.safetensors"]) {
+    assert.equal(familyFromName(name, "checkpoint"), "auraflow", name);
+  }
+  for (const name of ["cyberrealisticPony_v70.safetensors", "CyberRealistic Pony v7.safetensors", "WAI-ANI-NSFW-PONYXL v7.safetensors", "ponyXL_v7.safetensors", "Nova Anime XL pony v7.safetensors"]) {
+    assert.equal(familyFromName(name, "checkpoint"), "sdxl", name);
+  }
+});
+
+test("Pony V7 pads its T5 to 768 tokens and starts at 1280×1536, as its own workflow does", async () => {
+  const { familyGraph } = await import("./family-graph.js");
+  const info = objectInfo({ unets: ["pony-v7-base.safetensors"] });
+  info.T5TokenizerOptions = list({});
+  const pony = profileFor(info, "pony-v7-base.safetensors");
+  assert.deepEqual([pony.variant, pony.defaults.width, pony.defaults.height], ["standard", 1280, 1536]);
+  assert.equal(pony.aspectPresets.find((item) => item.default)?.label, "5:6");
+  const padding = (family, variant) => Object.values(familyGraph({ family, variant, source: "unet", model: "m.safetensors", encoders: ["t5.safetensors"], vae: "vae.safetensors", prompt: "a fox", steps: 30, cfg: 3.5, seed: 1 }))
+    .filter((item) => item.class_type === "T5TokenizerOptions").map((item) => [item.inputs.min_padding, item.inputs.min_length]);
+  assert.deepEqual(padding("auraflow", "standard"), [[768, 768]]);
+  assert.deepEqual(padding("auraflow", "auraflow"), [], "AuraFlow itself keeps ComfyUI's padding");
+  assert.deepEqual(padding("chroma", "standard"), [[0, 0]]);
+});
+
+test("Sana 1.0 1.6B runs at NVlabs' CFG 2, SANA 1.5 at 4.5, and ComfyUI-SANA at its pipeline's own", () => {
+  const cfg = (name, header = null, detail = null) => variantFor("sana", name, header, detail).defaults.cfg;
+  assert.equal(cfg("Efficient-Large-Model/Sana_1600M_1024px_MultiLing"), 2);
+  assert.equal(cfg("Efficient-Large-Model/Sana_1600M_2Kpx_BF16"), 2);
+  assert.equal(cfg("Efficient-Large-Model/Sana_1600M_4Kpx_BF16"), 2);
+  assert.equal(cfg("Efficient-Large-Model/SANA1.5_1.6B_1024px"), 4.5);
+  assert.equal(cfg("Efficient-Large-Model/SANA1.5_4.8B_1024px"), 4.5);
+  assert.equal(cfg("mySanaTune.safetensors", {}, { depth: 20, sprint: false, qkNorm: false }), 2, "1.0 1.6B by its weights");
+  assert.equal(cfg("mySanaTune.safetensors", {}, { depth: 20, sprint: false, qkNorm: true }), 4.5, "1.5 by its q/k norms");
+  const info = objectInfo();
+  info.SanaModelLoader = list({ model: [["Sana_1600M_1024px_BF16_diffusers"]] });
+  info.SanaGenerate = list({});
+  const diffusers = inferModels(info).profiles.find((item) => item.family === "sana");
+  assert.deepEqual([diffusers.variant, diffusers.defaults.steps, diffusers.defaults.cfg], ["1600m", 20, 4.5]);
+});
+
+test("SD 2.x base models start at 512, the 768 ones at 768", () => {
+  assert.deepEqual(variantFor("sd2", "v2-1_512-ema-pruned.safetensors").size, [512, 512]);
+  assert.deepEqual(variantFor("sd2", "512-base-ema.safetensors").size, [512, 512]);
+  assert.equal(variantFor("sd2", "v2-1_768-ema-pruned.safetensors").id, "standard");
+  assert.equal(variantFor("sd2", "768-v-ema.safetensors").id, "standard");
+});
+
+test("HiDream takes only its own CLIPs, and says so when they are missing", () => {
+  const flux = ["clip_l.safetensors", "clip_g.safetensors", "t5xxl_fp16.safetensors", "llama_3.1_8b_instruct_fp8_scaled.safetensors"];
+  const withFlux = profileFor(objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors"], clips: flux }), "hidream_i1_dev_fp8.safetensors");
+  assert.deepEqual(withFlux.encoderSlots.map((slot) => slot.options), [[], [], ["t5xxl_fp16.safetensors"], ["llama_3.1_8b_instruct_fp8_scaled.safetensors"]]);
+  const clipL = withFlux.missing.find((item) => item.slot === "clip_l");
+  assert.deepEqual([clipL.label, clipL.downloads[0].file], ["CLIP-L (HiDream) text encoder", "clip_l_hidream.safetensors"]);
+  assert.match(clipL.detail, /own CLIP-L/);
+  const own = profileFor(objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors"], clips: [...flux, "clip_l_hidream.safetensors", "clip_g_hidream.safetensors"] }), "hidream_i1_dev_fp8.safetensors");
+  assert.deepEqual(own.encoderSlots.slice(0, 2).map((slot) => slot.options), [["clip_l_hidream.safetensors"], ["clip_g_hidream.safetensors"]]);
+});
+
+test("HiDream Dev and Fast hide the negative prompt: at CFG 1 it has no effect; Full keeps it", () => {
+  const info = objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors", "hidream_i1_fast_fp8.safetensors", "hidream_i1_full_fp8.safetensors"] });
+  assert.deepEqual(["dev", "fast", "full"].map((name) => profileFor(info, `hidream_i1_${name}_fp8.safetensors`).capabilities.negativePrompt), [false, false, true]);
 });

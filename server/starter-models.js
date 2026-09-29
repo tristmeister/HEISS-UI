@@ -1,6 +1,6 @@
 import { optionsFor } from "./comfy.js";
 import { families, starterModels } from "./family-catalog.js";
-import { catalogDownload } from "./family-profiles.js";
+import { catalogDownload, preferredDownload } from "./family-profiles.js";
 import { fitsHardware } from "./hardware.js";
 import { classifyEncoder, classifyVae, rankEncoders, rankVaes } from "./model-components.js";
 import { existingCopy } from "./model-downloads.js";
@@ -19,6 +19,7 @@ export function starterPlan({ hardware = null, info = null, onDisk = existingCop
   const vaes = info ? optionsFor(info, "VAELoader", "vae_name").map(classifyVae) : [];
   const listed = new Set(info ? [...optionsFor(info, "UNETLoader", "unet_name"), ...optionsFor(info, "CheckpointLoaderSimple", "ckpt_name")] : []);
   const withDisk = (spec) => ({ ...spec, onDisk: Boolean(onDisk(spec)) });
+  const device = { apple: Boolean(hardware?.unified) };
 
   return starterModels.map((card) => {
     const versions = card.versions.map((version) => {
@@ -31,11 +32,11 @@ export function starterPlan({ hardware = null, info = null, onDisk = existingCop
       if (!version.model.startsWith("checkpoint:")) {
         for (const slot of family.slots) {
           if (rankEncoders(encoders, slot).length) continue;
-          const spec = catalogDownload(version.encoders?.[slot.slot] || `encoder:${slot.download || slot.kinds[0]}:0`);
+          const spec = version.encoders?.[slot.slot] ? catalogDownload(version.encoders[slot.slot]) : preferredDownload("encoder", slot.download || slot.kinds[0], device);
           if (spec) parts.push({ ...withDisk(spec), part: "encoder" });
         }
         if (!rankVaes(vaes, family.vae).length) {
-          const spec = catalogDownload(`vae:${family.vae[0]}:0`);
+          const spec = preferredDownload("vae", family.vae[0], device);
           if (spec) parts.push({ ...withDisk(spec), part: "vae" });
         }
       }
@@ -46,32 +47,27 @@ export function starterPlan({ hardware = null, info = null, onDisk = existingCop
         id: version.id,
         family: familyId,
         label: version.label,
-        // On a Mac an fp8 file loads at full precision: it saves download, not memory.
         detail: hardware?.unified && version.appleDetail ? version.appleDetail : version.detail,
         memoryGB,
         ...(version.ram ? { ramGB: version.ram } : {}),
-        fp8: Boolean(version.fp8),
+        fp8: Boolean(model.fp8),
         file: model.file,
         downloads,
         totalBytes: downloads.reduce((sum, item) => sum + (item.bytes || 0), 0),
         remainingBytes: downloads.reduce((sum, item) => sum + (item.onDisk ? 0 : item.bytes || 0), 0),
         installed: listed.has(model.file) || downloads.at(-1).onDisk,
-        fits: fitsHardware(hardware, { memoryGB, ramGB: version.ram || 0 })
+        // A Mac cannot load a quantized fp8 file at all, whatever its memory.
+        fits: hardware?.unified && model.fp8 ? false : fitsHardware(hardware, { memoryGB, ramGB: version.ram || 0 })
       };
     });
-    return { family: card.family, title: card.title, blurb: card.blurb, versions, best: bestVersion(versions, hardware) };
+    return { family: card.family, title: card.title, blurb: card.blurb, versions, best: bestVersion(versions) };
   });
 }
 
-/**
- * The largest version that fits. On a Mac an fp8 file takes the memory of the
- * full-precision one, so a tie there goes to the version that is not fp8;
- * otherwise to the one listed first.
- */
-export function bestVersion(versions, hardware) {
+/** The largest version that fits; on a tie, the one listed first. */
+export function bestVersion(versions) {
   const fitting = versions.filter((version) => version.fits);
   if (!fitting.length) return null;
   const top = Math.max(...fitting.map((version) => version.memoryGB));
-  const tied = fitting.filter((version) => version.memoryGB === top);
-  return (hardware?.unified ? tied.find((version) => !version.fp8) : null)?.id || tied[0].id;
+  return fitting.find((version) => version.memoryGB === top).id;
 }

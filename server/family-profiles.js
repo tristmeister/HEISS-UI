@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, visionDownloads, visionKinds } from './family-catalog.js';
+import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { ggufEncoderNames, ggufModelNames, isGguf } from './gguf.js';
 import { missingPackPart } from './node-install.js';
@@ -31,9 +31,20 @@ export function downloadSource(url = "") {
   return match ? { source: match[1], repo: `${match[1]}/${match[2]}` } : {};
 }
 
-function downloadsFor(list = [], folder, prefix) {
+function downloadsFor(list = [], folder, prefix, { apple = false } = {}) {
   const [kind, key] = prefix.split(":");
-  return list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...downloadSource(item.url), ...item }));
+  return forDevice(list.map((item, index) => withDisk({ id: `${prefix}:${index}`, folder, label: partLabel(kind, key, item.file), ...downloadSource(item.url), ...item })), { apple });
+}
+
+/**
+ * A part's downloads in the order to offer them. MPS has no float8, and
+ * ComfyUI keeps quantized fp8 files (`fp8` in the catalog) in fp8, so on a Mac
+ * they fail to load ("Trying to convert Float8_e4m3fn to the MPS backend"):
+ * there any other build of the same part goes first. Otherwise the catalog's order.
+ */
+export function forDevice(downloads, { apple = false } = {}) {
+  if (!apple) return downloads;
+  return [...downloads].sort((a, b) => Number(Boolean(a.fp8)) - Number(Boolean(b.fp8)));
 }
 
 /** `onDisk`: fetched already (even before a restart), ComfyUI just has not listed it yet. */
@@ -90,6 +101,14 @@ export function catalogDownload(id = "") {
   return { ...spec(entry, at), alternatives: list.slice(at + 1).map((item, offset) => spec(item, at + 1 + offset)) };
 }
 
+/** A part's first download on this device (see forDevice), as catalogDownload gives it. */
+export function preferredDownload(kind, key, device = {}) {
+  const [source] = downloadSources[kind] || [];
+  const list = source && Object.hasOwn(source, key) ? source[key] : [];
+  const [first] = forDevice(list.map((item, index) => ({ fp8: item.fp8, index })), device);
+  return first ? catalogDownload(`${kind}:${key}:${first.index}`) : null;
+}
+
 /**
  * Catalog downloads for one exact file name in one models folder, so a file an
  * imported workflow names gets the same Download button as a family's parts.
@@ -119,7 +138,7 @@ export function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
   if (sampling) nodes.add(sampling.node);
   if (variant.rawShift) nodes.add("ModelSamplingFlux");
   if (variant.vpred) nodes.add("ModelSamplingDiscrete");
-  if (family.t5Padding) nodes.add("T5TokenizerOptions");
+  if (variant.t5Padding || family.t5Padding) nodes.add("T5TokenizerOptions");
   if (family.sampling === "pair") nodes.add("KSamplerAdvanced");
   if (family.kind === "video") ["CreateVideo", "SaveVideo"].forEach((node) => nodes.add(node));
   return [...nodes];
@@ -172,10 +191,12 @@ function sanaSettings(info, name, variant, detail, cuda) {
 }
 
 /**
- * @param helpers { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda }
+ * @param helpers { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda, apple }
+ * cuda / apple: ComfyUI runs on an NVIDIA GPU / on Apple Silicon (MPS).
  */
 export function familyProfiles(info, helpers) {
-  const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false } = helpers;
+  const { prettyModelName, buildProfile, aspectSet, textMeta, samplerRange, samplers, schedulers, weightDtypes, loras, canUseLoras, incompatible, cuda = false, apple = false } = helpers;
+  const device = { apple };
   // GGUF files load through ComfyUI-GGUF's twins of the core loaders (see gguf.js).
   const unets = [...optionsFor(info, "UNETLoader", "unet_name"), ...ggufModelNames(info)];
   const checkpoints = optionsFor(info, "CheckpointLoaderSimple", "ckpt_name");
@@ -265,8 +286,8 @@ export function familyProfiles(info, helpers) {
         const key = slot.download || slot.kinds[0];
         missing.push({
           part: "encoder", slot: slot.slot, label: `${slot.label} text encoder`, kind: slot.kinds[0],
-          detail: `Any ${encoderKinds[slot.kinds[0]]?.label || slot.label} text encoder in ComfyUI/models/text_encoders works.`,
-          downloads: downloadsFor(encoderDownloads[key], "text_encoders", `encoder:${key}`)
+          detail: slot.detail || `Any ${encoderKinds[slot.kinds[0]]?.label || slot.label} text encoder in ComfyUI/models/text_encoders works.`,
+          downloads: downloadsFor(encoderDownloads[key], "text_encoders", `encoder:${key}`, device)
         });
       }
       return { slot: slot.slot, label: slot.label, options, default: options[0] || "" };
@@ -278,7 +299,7 @@ export function familyProfiles(info, helpers) {
       missing.push({
         part: "vae", label: vaeKinds[key]?.label || "VAE", kind: key,
         detail: `Put a ${vaeKinds[key]?.label || "matching VAE"} in ComfyUI/models/vae.`,
-        downloads: downloadsFor(vaeDownloads[key], "vae", `vae:${key}`)
+        downloads: downloadsFor(vaeDownloads[key], "vae", `vae:${key}`, device)
       });
     }
     let audioVae = "";
@@ -287,7 +308,7 @@ export function familyProfiles(info, helpers) {
       audioVae = audioOptions[0] || "";
       if (!audioVae) {
         const key = family.audioVae[0];
-        missing.push({ part: "vae", label: vaeKinds[key].label, kind: key, detail: "H3 decodes its sound with a separate VAE.", downloads: downloadsFor(vaeDownloads[key], "vae", `vae:${key}`) });
+        missing.push({ part: "vae", label: vaeKinds[key].label, kind: key, detail: "H3 decodes its sound with a separate VAE.", downloads: downloadsFor(vaeDownloads[key], "vae", `vae:${key}`, device) });
       }
     }
     // An image-to-video model that also reads its start image with a vision encoder.
@@ -296,12 +317,12 @@ export function familyProfiles(info, helpers) {
       clipVision = visionFiles.find((file) => family.clipVision.some((kind) => visionKinds[kind]?.test.test(file))) || "";
       if (!clipVision) {
         const key = family.clipVision[0];
-        missing.push({ part: "vision", label: `${visionKinds[key].label} encoder`, kind: key, detail: `${family.label} reads the start image with it. Put it in ComfyUI/models/clip_vision.`, downloads: downloadsFor(visionDownloads[key], "clip_vision", `vision:${key}`) });
+        missing.push({ part: "vision", label: `${visionKinds[key].label} encoder`, kind: key, detail: `${family.label} reads the start image with it. Put it in ComfyUI/models/clip_vision.`, downloads: downloadsFor(visionDownloads[key], "clip_vision", `vision:${key}`, device) });
       }
     }
     if (family.pair && !pairModel) {
       const key = family.pair.download?.(base);
-      missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`) : [] });
+      missing.push({ part: "model", label: family.pair.label, detail: family.pair.detail(base), downloads: key ? downloadsFor(modelDownloads[key], "diffusion_models", `model:${key}`, device) : [] });
     }
     const ggufPart = isGguf(name) && missingPackPart(info, "gguf", { detail: "ComfyUI loads GGUF models through the ComfyUI-GGUF custom nodes." });
     if (ggufPart) missing.push(ggufPart);
@@ -341,6 +362,8 @@ export function familyProfiles(info, helpers) {
     if (missing.length) fileEntry.reason = `Needs ${missing.map((item) => item.label).join(", ")}.`;
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
+    // A runner that samples in its own way (ComfyUI-SANA) sets its own steps and CFG.
+    const settings = { ...variantDefaults(variant, name, device), ...(variant.id !== "sprint" ? runner?.defaults : null) };
     const references = canReference(family, info) ? family.references : 0;
     // Image-to-video runs from a picture: one start image, and no run without it.
     const startSlot = family.startImage === "required"
@@ -361,10 +384,9 @@ export function familyProfiles(info, helpers) {
       family: info2.family,
       defaults: {
         width, height,
-        // The diffusers pipeline's flow DPM-solver needs fewer steps than KSampler's Euler.
-        steps: diffusersRunner && variant.id !== "sprint" ? 20 : variant.defaults.steps, cfg: variant.defaults.cfg,
-        sampler: pick(samplers, variant.defaults.sampler, samplers.includes("euler") ? "euler" : ""),
-        scheduler: pick(schedulers, variant.defaults.scheduler, schedulers.includes("simple") ? "simple" : ""),
+        steps: settings.steps, cfg: settings.cfg,
+        sampler: pick(samplers, settings.sampler, samplers.includes("euler") ? "euler" : ""),
+        scheduler: pick(schedulers, settings.scheduler, schedulers.includes("simple") ? "simple" : ""),
         textEncoder: encoderSlots[0]?.default || "",
         vae: bundled.vae ? "" : vaeOptions[0] || "",
         clipType: family.clipType || "",

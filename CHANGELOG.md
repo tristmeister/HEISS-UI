@@ -16,6 +16,38 @@ version opens with a `> ` summary line, which the update pill shows.
   new guides for every model family, popular graphics cards and Macs, and
   comparisons with other ComfyUI front ends. The Website link in Settings goes
   there, and old links forward.
+- **Pony V7 runs as its makers' own workflow does:** its text encoder reads
+  prompts padded to 768 tokens, and pictures start at 1280×1536.
+- **The Krea 2 enhancer runs at its own default strength** of 1 instead of
+  1.5, where its author says to start.
+- **The original Sana 1.6B models run at CFG 2**, as NVIDIA's own ComfyUI
+  workflows do. SANA 1.5 keeps 4.5.
+
+### Fixed
+- **Wan video comes out clean on a Mac.** Wan 2.1 and Wan 2.2 5B start on the
+  euler sampler there, since uni_pc corrupts video on Apple Silicon.
+- **A Mac gets files it can load.** Where a text encoder comes in full
+  precision too (T5-XXL for SD 3.5, UMT5 for Wan), a Mac downloads that one,
+  since Macs can't load quantized fp8 files. The fp8 starter models say
+  they're not for Macs and are never picked there.
+- **Speed models start at the step count they're made for.** An
+  SDXL-Lightning, Qwen-Image Lightning or MiniMax H3 Turbo file with its step
+  count in the name (like `4step`) runs at exactly that many steps. DMD2 starts
+  at 4 steps, H3 Turbo at 8.
+- **MiniMax H3 clips start at 5 seconds** (124 frames), the shortest length
+  it's trained for, instead of 2.3 seconds.
+- **HunyuanVideo 1.5 runs with Tencent's settings.** The shift follows the
+  model (5 at 480p, 9 for 720p text to video, 7 for 720p image to video), the
+  CFG-distilled models take the 50 steps they need for a clean result, and
+  text to video starts at 121 frames. A 4-step lightx2v file runs as Fast.
+- **Anima Turbo runs as Turbo:** 10 steps at CFG 1, as its card says, instead
+  of 30 steps at CFG 4. Other Anima files start on er_sde, the card's sampler.
+- **HiDream no longer makes black images with Flux's CLIP-L.** It takes only
+  its own CLIP-L and CLIP-G, and offers their download when they're missing.
+  Dev and Fast hide the negative prompt, which has no effect at their CFG 1.
+- **SDXL merges named "Pony v7" stay SDXL** on a ComfyUI on another computer,
+  where only the file name can tell. Only Pony V7 itself runs as AuraFlow.
+- **SD 2.x base models start at 512**, the size they're made for.
 
 ## [0.13.0] - 2026-09-28
 

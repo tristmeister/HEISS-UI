@@ -56,11 +56,19 @@ and no budget is given.
   multiply `recommendedMaxWorkingSetSize`
   ([PyTorch](https://docs.pytorch.org/docs/stable/mps_environment_variables.html)).
   Past the recommended size it still runs, but macOS starts swapping.
-- **fp8 files do not save memory on a Mac.** MPS cannot compute in float8
+- **Quantized fp8 files do not run on a Mac.** MPS cannot hold float8
   (converting a `float8_e4m3fn` tensor on MPS fails, checked with PyTorch
-  2.12), and ComfyUI's `unet_dtype()` loads fp8 weights as fp16/bf16 when they
-  fit. An fp8 download is half the disk space, but it takes as much memory as
-  the full-precision file once loaded.
+  2.12). ComfyUI's `unet_dtype()` loads a plain fp8 file as fp16/bf16 when it
+  fits, but the "scaled" and "mixed" fp8 files Comfy-Org and BFL ship carry
+  per-layer quantization (`_quantization_metadata` or `scaled_fp8` keys), and
+  those stay in fp8 and are converted layer by layer on the device
+  (`comfy/ops.py`, `mixed_precision_ops`). On MPS that fails with "Trying to
+  convert Float8_e4m3fn to the MPS backend"
+  ([#12202](https://github.com/Comfy-Org/ComfyUI/issues/12202),
+  [#13200](https://github.com/Comfy-Org/ComfyUI/issues/13200),
+  [#14358](https://github.com/Comfy-Org/ComfyUI/issues/14358)). The fp8
+  starter files (Krea 2 Turbo, Flux.2 Klein 4B, Flux.2 Dev) are all of that
+  kind (checked from their headers), and so is the fp8 T5-XXL.
 
 **Policy.** On a Mac the budget is:
 
@@ -69,10 +77,11 @@ and no budget is given.
 2. otherwise **70% of the unified memory** (`APPLE_UNIFIED_SHARE`), a little
    under what Metal itself recommends, so macOS and the apps around keep room.
 
-Starter models give an fp8 version a Mac-specific memory figure (the size of
-its full-precision equivalent), so a Mac is never pointed at an fp8 file it
-would have to expand anyway. Budgets are only ever used to highlight what fits;
-nothing is hidden, blocked or warned about.
+On a Mac an fp8 starter version never counts as fitting, so the studio never
+points a Mac at one, and wherever a part has a full-precision download next to
+an fp8 one, the full-precision file comes first (`forDevice` in
+`server/family-profiles.js`). Budgets are only ever used to highlight what
+fits; nothing is hidden or blocked.
 
 The Metal number itself is not readable from Node without native code, and
 ComfyUI does not report `torch.mps.recommended_max_memory()`. If it ever does,
