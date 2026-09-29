@@ -11,7 +11,12 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Generated images in the feature mockups
+
 ### Changed
+- **The existing animated feature mockups now show real generated images** in
+  their image areas, including the model thumbnail, render preview, phone
+  gallery, search results, Hidden grid and upscale comparison.
 - **The website moved to [heiss-ui.vercel.app](https://heiss-ui.vercel.app/)**, with
   new guides for every model family, popular graphics cards and Macs, and
   comparisons with other ComfyUI front ends. The Website link in Settings goes
