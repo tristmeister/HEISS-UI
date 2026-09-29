@@ -614,7 +614,8 @@ export const families = {
   },
   // NVIDIA's Sana is not native to ComfyUI; one of two custom node packs runs
   // it (see sanaRunners), each loading its own Gemma 2 2B encoder and DC-AE VAE.
-  // Settings follow NVlabs/Sana's ComfyUI workflows.
+  // Settings follow NVlabs/Sana's ComfyUI workflows: CFG 2 for the 1.6B Sana 1.0
+  // models (1K, 2K, 4K), 4.5 for SANA 1.5.
   sana: {
     label: "Sana", kind: "image", sources: ["sana", "sana_diffusers", "checkpoint"], ownLoaders: true,
     slots: [], clipType: null, vae: [],
@@ -622,9 +623,14 @@ export const families = {
     variants: [
       // Sprint is a consistency model: its CFG goes in through ScmModelSampling, KSampler stays at 1.
       { id: "sprint", label: "Sprint", match: (name, header, detail) => detail?.sprint ?? /sprint/i.test(name), negative: "none", dtype: "FP32", defaults: { steps: 2, cfg: 4.5, sampler: "scm", scheduler: "sgm_uniform" } },
-      { id: "4k", label: "4K", match: (name) => /4k/i.test(name), size: [4096, 4096], defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
-      { id: "2k", label: "2K", match: (name) => /2k/i.test(name), size: [2048, 2048], defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
+      { id: "4k", label: "4K", match: (name) => /4k/i.test(name), size: [4096, 4096], defaults: { steps: 28, cfg: 2, sampler: "euler", scheduler: "normal" } },
+      { id: "2k", label: "2K", match: (name) => /2k/i.test(name), size: [2048, 2048], defaults: { steps: 28, cfg: 2, sampler: "euler", scheduler: "normal" } },
       { id: "512", label: "512px", match: (name) => /512px/i.test(name), size: [512, 512], defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
+      // Sana 1.0 1.6B at 1024: 20 blocks without SANA 1.5's q/k norms.
+      {
+        id: "1600m", label: "1.6B", defaults: { steps: 28, cfg: 2, sampler: "euler", scheduler: "normal" },
+        match: (name, header, detail) => (detail?.depth ? detail.depth === 20 && !detail.qkNorm : /1600m|1[._]6b/i.test(name) && !/1[._]5/.test(name))
+      },
       { id: "standard", label: "Sana", defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "normal" } }
     ],
     size: [1024, 1024]
@@ -654,7 +660,11 @@ export const sanaRunners = {
   },
   sana_diffusers: {
     pack: "comfyui_sana", note: "Sana isn’t built into ComfyUI. These custom nodes run it, on Apple Silicon too.",
-    sizeNode: "SanaGenerate"
+    sizeNode: "SanaGenerate",
+    // The diffusers pipeline's flow DPM-solver needs fewer steps than KSampler's
+    // Euler, at the pipeline's own guidance (ComfyUI-SANA's README: ~20, ~4.5).
+    // Sprint keeps its own.
+    defaults: { steps: 20, cfg: 4.5 }
   }
 };
 

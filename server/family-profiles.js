@@ -362,7 +362,8 @@ export function familyProfiles(info, helpers) {
     if (missing.length) fileEntry.reason = `Needs ${missing.map((item) => item.label).join(", ")}.`;
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
-    const settings = variantDefaults(variant, name, device);
+    // A runner that samples in its own way (ComfyUI-SANA) sets its own steps and CFG.
+    const settings = { ...variantDefaults(variant, name, device), ...(variant.id !== "sprint" ? runner?.defaults : null) };
     const references = canReference(family, info) ? family.references : 0;
     // Image-to-video runs from a picture: one start image, and no run without it.
     const startSlot = family.startImage === "required"
@@ -383,8 +384,7 @@ export function familyProfiles(info, helpers) {
       family: info2.family,
       defaults: {
         width, height,
-        // The diffusers pipeline's flow DPM-solver needs fewer steps than KSampler's Euler.
-        steps: diffusersRunner && variant.id !== "sprint" ? 20 : settings.steps, cfg: settings.cfg,
+        steps: settings.steps, cfg: settings.cfg,
         sampler: pick(samplers, settings.sampler, samplers.includes("euler") ? "euler" : ""),
         scheduler: pick(schedulers, settings.scheduler, schedulers.includes("simple") ? "simple" : ""),
         textEncoder: encoderSlots[0]?.default || "",

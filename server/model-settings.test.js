@@ -180,6 +180,22 @@ test("Pony V7 pads its T5 to 768 tokens and starts at 1280×1536, as its own wor
   assert.deepEqual(padding("chroma", "standard"), [[0, 0]]);
 });
 
+test("Sana 1.0 1.6B runs at NVlabs' CFG 2, SANA 1.5 at 4.5, and ComfyUI-SANA at its pipeline's own", () => {
+  const cfg = (name, header = null, detail = null) => variantFor("sana", name, header, detail).defaults.cfg;
+  assert.equal(cfg("Efficient-Large-Model/Sana_1600M_1024px_MultiLing"), 2);
+  assert.equal(cfg("Efficient-Large-Model/Sana_1600M_2Kpx_BF16"), 2);
+  assert.equal(cfg("Efficient-Large-Model/Sana_1600M_4Kpx_BF16"), 2);
+  assert.equal(cfg("Efficient-Large-Model/SANA1.5_1.6B_1024px"), 4.5);
+  assert.equal(cfg("Efficient-Large-Model/SANA1.5_4.8B_1024px"), 4.5);
+  assert.equal(cfg("mySanaTune.safetensors", {}, { depth: 20, sprint: false, qkNorm: false }), 2, "1.0 1.6B by its weights");
+  assert.equal(cfg("mySanaTune.safetensors", {}, { depth: 20, sprint: false, qkNorm: true }), 4.5, "1.5 by its q/k norms");
+  const info = objectInfo();
+  info.SanaModelLoader = list({ model: [["Sana_1600M_1024px_BF16_diffusers"]] });
+  info.SanaGenerate = list({});
+  const diffusers = inferModels(info).profiles.find((item) => item.family === "sana");
+  assert.deepEqual([diffusers.variant, diffusers.defaults.steps, diffusers.defaults.cfg], ["1600m", 20, 4.5]);
+});
+
 test("SD 2.x base models start at 512, the 768 ones at 768", () => {
   assert.deepEqual(variantFor("sd2", "v2-1_512-ema-pruned.safetensors").size, [512, 512]);
   assert.deepEqual(variantFor("sd2", "512-base-ema.safetensors").size, [512, 512]);

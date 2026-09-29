@@ -20,6 +20,8 @@ version opens with a `> ` summary line, which the update pill shows.
   prompts padded to 768 tokens, and pictures start at 1280×1536.
 - **The Krea 2 enhancer runs at its own default strength** of 1 instead of
   1.5, where its author says to start.
+- **The original Sana 1.6B models run at CFG 2**, as NVIDIA's own ComfyUI
+  workflows do. SANA 1.5 keeps 4.5.
 
 ### Fixed
 - **Wan video comes out clean on a Mac.** Wan 2.1 and Wan 2.2 5B start on the
