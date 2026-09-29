@@ -20,3 +20,115 @@
   .g-only .g-pick ul { display: block; columns: 2; column-gap: 32px; }
   .g-only .g-pick li { break-inside: avoid; margin-bottom: 11px; }
 }
+
+/* ── Matrix: tools across, features down (hub) ─────────────────────────
+   Breaks out of the text column to the page width. Our column is lifted: tinted, outlined, "Best pick" on top.
+   On a phone each feature becomes its own card listing every tool, ours first. */
+
+.g-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+.g-prose > .g-matrix { width: min(var(--content), calc(100vw - var(--gutter) * 2)); max-width: none; }
+
+.g-matrix {
+  padding: 8px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 0.045) 0.8px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(180deg, #131313, #0e0e0e);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.05), 0 40px 100px -40px rgb(0 0 0 / 0.9);
+}
+.g-matrix table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.g-matrix col, .g-matrix th:first-child { width: 25%; }
+.g-matrix th,
+.g-matrix td { padding: 14px 12px; text-align: left; vertical-align: top; }
+.g-matrix tbody tr:not(.g-matrix-group) + tr:not(.g-matrix-group) > * { box-shadow: inset 0 1px 0 var(--line); }
+
+/* Header: tool names, ours with the pick label. */
+.g-matrix thead th { padding-top: 18px; padding-bottom: 16px; vertical-align: bottom; }
+.g-matrix-tool { display: block; color: var(--text-2); font-size: 14.5px; font-weight: 600; letter-spacing: -0.015em; }
+.g-matrix thead .is-us .g-matrix-tool { color: var(--text); font-size: 16px; }
+.g-matrix-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 3px 9px 3px 8px;
+  border-radius: 999px;
+  background: var(--ember);
+  color: #1a0d03;
+  font: 700 14px/1 var(--pixel);
+  letter-spacing: 0.02em;
+}
+.g-matrix-pick::before { content: ""; width: 6px; height: 6px; background: currentColor; }
+
+/* Row labels. */
+.g-matrix tbody th { padding-left: 16px; }
+.g-matrix-feature { display: block; color: var(--text); font-size: 14.5px; font-weight: 550; letter-spacing: -0.01em; }
+.g-matrix tbody th small { display: block; margin-top: 3px; color: var(--text-3); font-size: 12.5px; font-weight: 400; line-height: 1.4; }
+
+/* Cells. */
+.g-matrix td { color: var(--text-3); }
+.g-matrix td small { display: block; margin-top: 3px; padding-left: 15px; color: var(--text-3); font-size: 12px; line-height: 1.35; }
+.g-matrix .g-mark { font-size: 14px; }
+
+/* Our column: one lifted strip from header to last row. */
+.g-matrix .is-us { background: rgb(255 154 82 / 0.07); box-shadow: inset 1px 0 0 rgb(255 154 82 / 0.32), inset -1px 0 0 rgb(255 154 82 / 0.32) !important; }
+.g-matrix thead .is-us { border-radius: 18px 18px 0 0; box-shadow: inset 1px 0 0 rgb(255 154 82 / 0.32), inset -1px 0 0 rgb(255 154 82 / 0.32), inset 0 1px 0 rgb(255 154 82 / 0.32) !important; }
+.g-matrix tbody tr:last-child .is-us { border-radius: 0 0 18px 18px; box-shadow: inset 1px 0 0 rgb(255 154 82 / 0.32), inset -1px 0 0 rgb(255 154 82 / 0.32), inset 0 -1px 0 rgb(255 154 82 / 0.32) !important; }
+.g-matrix tbody tr:not(.g-matrix-group) + tr:not(.g-matrix-group) > .is-us { box-shadow: inset 1px 0 0 rgb(255 154 82 / 0.32), inset -1px 0 0 rgb(255 154 82 / 0.32), inset 0 1px 0 rgb(255 154 82 / 0.12) !important; }
+.g-matrix td.is-us { color: var(--text-2); }
+.g-matrix td.is-us .g-mark { font-weight: 550; }
+
+/* Group divider: a pixel label across the table, our strip runs through it. */
+.g-matrix-group th {
+  padding: 30px 16px 10px;
+  color: var(--text-3);
+  font: 700 16px/1 var(--pixel);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: bottom;
+  box-shadow: none !important;
+}
+.g-matrix-group td:not(.is-us) { box-shadow: none !important; }
+
+/* Phone: one card per feature, every tool listed, ours first and lifted. */
+@media (max-width: 760px) {
+  .g-prose > .g-matrix { width: auto; }
+  .g-matrix { padding: 0; background: none; box-shadow: none; }
+  .g-matrix table, .g-matrix tbody, .g-matrix tr, .g-matrix th, .g-matrix td { display: block; width: auto; }
+  .g-matrix thead { display: none; }
+  .g-matrix tbody { display: grid; gap: 10px; }
+  .g-matrix tbody tr:not(.g-matrix-group) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 1px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--line);
+    box-shadow: 0 0 0 1px var(--line);
+  }
+  .g-matrix tbody tr > * { box-shadow: none !important; border-radius: 0 !important; }
+  .g-matrix tbody th, .g-matrix th:first-child { grid-column: 1 / -1; width: auto; padding: 16px 16px 14px; background: var(--surface); }
+  .g-matrix tbody td:last-child { grid-column: 1 / -1; }
+  .g-matrix td { padding: 12px 14px 13px; background: var(--surface); }
+  .g-matrix td::before {
+    content: attr(data-tool);
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-3);
+    font: 700 14px/1 var(--pixel);
+    letter-spacing: 0.02em;
+  }
+  .g-matrix td.is-us { grid-column: 1 / -1; background: linear-gradient(rgb(255 154 82 / 0.09), rgb(255 154 82 / 0.09)), var(--surface); }
+  .g-matrix td.is-us::before { content: attr(data-tool) " · Best pick"; color: var(--ember); }
+  .g-matrix td.is-us small { display: inline; padding-left: 8px; }
+  .g-matrix-group th { padding: 22px 2px 4px; background: none; }
+  .g-matrix-group td { display: none; }
+}
