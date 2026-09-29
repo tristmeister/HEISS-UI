@@ -98,7 +98,7 @@
           "name": "Which one has more features?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "SwarmUI, clearly. It has an image editor, ControlNet, grids, wildcards, multi-GPU support and more models. HEISS UI keeps to the prompt, gallery and phone loop, and to your own ComfyUI."
+            "text": "SwarmUI has more tools: an image editor, ControlNet, grids, wildcards, multi-GPU support and more models. HEISS UI has fewer controls and a few things Swarm doesn’t: your existing ComfyUI as it is, workflows without special nodes, a phone studio and Hidden."
           }
         },
         {
@@ -168,7 +168,7 @@
 <nav class="g-crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">HEISS UI</a></li><li><a href="../">Compare</a></li><li aria-current="page">SwarmUI</li></ol></nav>
 <p class="label">Compare</p>
 <h1>SwarmUI vs HEISS UI.</h1>
-<p class="g-lead">Both put a prompt box on top of ComfyUI. SwarmUI does more: an image editor, ControlNet, grids, more models and several GPUs at once. HEISS UI does less, on the ComfyUI you already run, with each model set up for you and a studio made for your phone.</p>
+<p class="g-lead">Both put a prompt box on top of ComfyUI. HEISS UI uses the ComfyUI you already run, sets each model up for you, takes your own workflows as they are and has a real phone studio. SwarmUI packs in more tools: an image editor, ControlNet, grids and several GPUs at once.</p>
 <p class="g-meta"><span>Checked 29 Sep 2026</span><span>SwarmUI 0.9.8 Beta and later commits</span><span>HEISS UI 0.13.0</span></p>
 <dl class="g-spec"><div><dt>Made by</dt><dd>mcmonkey<small>started at Stability AI, independent since 2024</small></dd></div><div><dt>Licence</dt><dd>MIT</dd></div><div><dt>Latest</dt><dd>0.9.8 Beta<small>6 Feb 2026, with updates between releases</small></dd></div><div><dt>Runs on</dt><dd>Windows, Linux, macOS<small>Apple Silicon, or Docker</small></dd></div></dl>
 </div>
@@ -176,21 +176,24 @@
 <div class="g-body">
 <nav class="g-toc" aria-label="On this page">
 <p class="g-toc-title">On this page</p>
-<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#engine">Which ComfyUI</a></li><li><a href="#settings">Settings per model</a></li><li><a href="#more">What Swarm does more of</a></li><li><a href="#workflows">Your workflows</a></li><li><a href="#phone">Phone and privacy</a></li><li><a href="#switch">Trying HEISS UI</a></li><li><a href="#faq">Questions</a></li></ol>
+<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#engine">Which ComfyUI</a></li><li><a href="#settings">Settings per model</a></li><li><a href="#workflows">Your workflows</a></li><li><a href="#phone">Phone and privacy</a></li><li><a href="#more">Where Swarm wins</a></li><li><a href="#switch">Trying HEISS UI</a></li><li><a href="#faq">Questions</a></li></ol>
 </nav>
 <article class="g-prose">
-<aside class="g-callout" data-kind="note">
-<p class="g-callout-title">We make HEISS UI</p>
-<p>So read this with that in mind. Everything about SwarmUI here comes from its own docs, repository and release notes, checked on 29 September 2026. If something is wrong or out of date, <a href="https://github.com/tristmeister/HEISS-UI/issues">open an issue</a> and we’ll fix it.</p>
-</aside>
 <div class="g-verdict" id="verdict">
 <p class="label">Short answer</p>
-<p>If you want one app that does nearly everything, pick SwarmUI. It has been at it longer and covers more: editing, control, grids, video, audio and multi-GPU setups.</p>
-<p>If you already run ComfyUI and want a quieter studio that sets each model up for you, works well on a phone and leaves your install as it is, pick HEISS UI.</p>
+<p>If you already run ComfyUI, HEISS UI is the calmer pick. It uses the install you have, sets each model up for you, turns your own workflows into simple controls without extra nodes, and gives you a real phone studio and an encrypted Hidden space.</p>
+<p>If you want one app that does nearly everything, with an image editor, ControlNet, grids, audio and several GPUs, SwarmUI covers more.</p>
 </div>
+<aside class="g-callout" data-kind="note">
+<p class="g-callout-title">We make HEISS UI</p>
+<p>Everything about SwarmUI here comes from its own docs and repository, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
+</aside>
 <div class="g-picks">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You already have ComfyUI, Desktop, portable or manual, and want to keep using it as it is.</li><li>You want each model ready to prompt, with settings that fit it, turbo builds included.</li><li>Your own ComfyUI workflows should become simple controls without adding special nodes.</li><li>You want Wan 2.2 14B’s two halves set up for you.</li><li>You generate from your phone, or want fewer controls on screen.</li><li>You want a locked, encrypted place for private images.</li></ul></div>
 <div class="g-pick"><h3>Pick SwarmUI if</h3><ul><li>You want an image editor, inpainting and ControlNet in the same app.</li><li>You compare settings, models or LoRAs side by side with the Grid Generator.</li><li>You need LTX-2, audio models or the widest model list around.</li><li>You run several GPUs or machines, or share one install with a team.</li><li>You like wildcards and advanced prompt syntax.</li></ul></div>
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You already have ComfyUI, Desktop, portable or manual, and want to keep using it as it is.</li><li>You want each family to start with its makers’ steps, CFG, sampler and size, turbo variants included.</li><li>Your own ComfyUI workflows should become controls without adding special nodes to them.</li><li>You generate from a phone, or want fewer controls on screen.</li><li>You want a locked, encrypted place for some of your images.</li></ul></div>
+</div>
+<div class="g-picks g-only">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Only in HEISS UI</h3><ul><li><strong>Your ComfyUI, as it is.</strong> Nothing reinstalled, no second copy to keep updated.</li><li><strong>Workflows without special nodes.</strong> Drop in the JSON, and a review shows what each control drives.</li><li><strong>Wan 2.2 14B, paired for you.</strong> Both halves downloaded and set up together.</li><li><strong>A phone studio.</strong> Made for one thumb, with its own sign-in.</li><li><strong>Hidden.</strong> An encrypted place for private images, opened with Touch ID, Windows Hello or a password.</li></ul></div>
 </div>
 <aside class="g-callout" data-kind="tip">
 <p class="g-callout-title">Or share the models</p>
@@ -201,18 +204,20 @@
 <table>
 <thead><tr><th scope="col">Feature</th><th scope="col" class="is-us">HEISS UI</th><th scope="col">SwarmUI</th></tr></thead>
 <tbody>
-<tr><th scope="row">Runs on</th><td class="is-us">Your ComfyUI, found on port 8188 or 8000</td><td>Its own ComfyUI by default<small>an existing one works, not recommended for most users by its docs</small></td></tr>
-<tr><th scope="row">Install</th><td class="is-us">A zip with Node.js inside</td><td>Installer script, needs .NET 8<small>Windows 10 may need git and the .NET SDK first</small></td></tr>
-<tr><th scope="row">Image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span><small>Flux.2, Krea 2, Qwen-Image 2.1, Z-Image, SDXL…</small></td><td><span class="g-mark" data-v="yes">Wider</span><small>Hunyuan Image 2.1, HiDream O1, Kandinsky 5 and more</small></td></tr>
-<tr><th scope="row">Video</th><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>Wan 2.1 and 2.2, HunyuanVideo 1.5, MiniMax H3</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>also LTX-2</small></td></tr>
-<tr><th scope="row">Encoders and VAEs</th><td class="is-us"><span class="g-mark" data-v="yes">One click each</span><small>sizes and other versions shown</small></td><td><span class="g-mark" data-v="yes">Downloaded for you</span></td></tr>
-<tr><th scope="row">Node packs</th><td class="is-us"><span class="g-mark" data-v="yes">Beta</span><small>through ComfyUI-Manager</small></td><td><span class="g-mark" data-v="yes">Can install them</span></td></tr>
-<tr><th scope="row">Wan 2.2 14B pair</th><td class="is-us"><span class="g-mark" data-v="yes">Downloads and pairs both halves</span></td><td><span class="g-mark" data-v="part">You set it up</span><small>low-noise model as refiner</small></td></tr>
-<tr><th scope="row">Your workflows</th><td class="is-us"><span class="g-mark" data-v="yes">Import the JSON</span><small>no extra nodes</small></td><td><span class="g-mark" data-v="yes">Full Comfy tab</span><small>Simple tab forms need SwarmInput nodes</small></td></tr>
+<tr><th scope="row">Your ComfyUI</th><td class="is-us"><span class="g-mark" data-v="yes">Uses the one you have</span><small>found on 8188 or 8000, nothing reinstalled</small></td><td><span class="g-mark" data-v="part">Its own by default</span><small>an existing one works, not recommended by its docs for most users</small></td></tr>
+<tr><th scope="row">Your workflows</th><td class="is-us"><span class="g-mark" data-v="yes">Drop in the JSON</span><small>no special nodes needed</small></td><td><span class="g-mark" data-v="part">Simple tab</span><small>needs SwarmInput nodes; full graph in the Comfy tab</small></td></tr>
+<tr><th scope="row">Wan 2.2 14B</th><td class="is-us"><span class="g-mark" data-v="yes">Paired for you</span><small>both halves downloaded and set up</small></td><td><span class="g-mark" data-v="part">You set it up</span><small>low-noise model as refiner</small></td></tr>
+<tr><th scope="row">Model setup</th><td class="is-us"><span class="g-mark" data-v="yes">Automatic</span><small>settings that fit, turbo builds included</small></td><td><span class="g-mark" data-v="part">Partly</span><small>resolution set; its docs list values per model</small></td></tr>
+<tr><th scope="row">Missing pieces</th><td class="is-us"><span class="g-mark" data-v="yes">Listed first</span><small>sizes and other versions shown</small></td><td><span class="g-mark" data-v="yes">Downloaded for you</span></td></tr>
+<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td><span class="g-mark" data-v="part">Mobile layout</span><small>a setting</small></td></tr>
+<tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted, Touch ID or password</small></td><td><span class="g-mark" data-v="no">No</span></td></tr>
+<tr><th scope="row">Install</th><td class="is-us">A zip with everything inside</td><td>Installer script<small>needs .NET 8; Windows 10 may need git first</small></td></tr>
+<tr><th scope="row">Node packs</th><td class="is-us"><span class="g-mark" data-v="yes">Beta</span><small>installed when a model needs one</small></td><td><span class="g-mark" data-v="yes">Can install them</span></td></tr>
+<tr><th scope="row">Image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span><small>Flux.2, Krea 2, Qwen-Image 2.1, Z-Image, SDXL and more</small></td><td><span class="g-mark" data-v="yes">More</span><small>also Hunyuan Image 2.1, HiDream O1, Kandinsky 5</small></td></tr>
+<tr><th scope="row">Video</th><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>7 families</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>also LTX-2</small></td></tr>
 <tr><th scope="row">Editor, ControlNet</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
 <tr><th scope="row">Grids</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Grid Generator</span></td></tr>
 <tr><th scope="row">Multi-GPU, teams</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
-<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Own layout</span><small>made for one thumb</small></td><td><span class="g-mark" data-v="part">Mobile layout</span><small>a setting</small></td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td>MIT</td></tr>
 </tbody>
 </table>
@@ -221,21 +226,21 @@
 <h2 id="engine">Both run ComfyUI. The question is which one.</h2>
 <p>SwarmUI’s Generate tab builds a ComfyUI workflow from your settings and runs it. So does HEISS UI. The difference is where that ComfyUI comes from.</p>
 <p>Swarm installs and starts its own ComfyUI by default, and keeps it with its other files. You can add an existing install as a backend, but its Basic Usage guide says that isn’t recommended for most users. HEISS UI never installs ComfyUI. It connects to the one you have, on this computer or another, and ComfyUI keeps your nodes, models and outputs where they are.</p>
-<p>That also means HEISS UI doesn’t update ComfyUI for you. You update it when you choose, through Comfy Desktop or ComfyUI-Manager. The flip side: a ComfyUI update that breaks a node still breaks it here too.</p>
+<p>That also means HEISS UI doesn’t update ComfyUI for you. You update it when you choose, through Comfy Desktop or ComfyUI-Manager.</p>
 <h2 id="settings">Settings for each model.</h2>
 <p>Swarm picks a model’s preferred resolution and applies some model-specific tweaks, and its Model Support docs list the parameters to use for each family, for example CFG 1 for Z-Image Turbo. For Wan 2.2 14B you set the high-noise model as the base and the low-noise model as a refiner with the StepSwap method.</p>
 <p>HEISS UI sets starting values drawn from the official ComfyUI templates and model cards when you pick the model: sampler, scheduler, steps, CFG, shift and size. A file named like a Turbo, Lightning or DMD2 build gets few-step settings. For Wan 2.2 14B, the setup lists the low-noise half as a companion file and downloads it with the rest. <strong>Back to recommended</strong> undoes whatever you changed.</p>
-<h2 id="more">What Swarm does that HEISS UI doesn’t.</h2>
-<p>Quite a lot, and it’s worth saying plainly. Swarm has an image editor with inpainting, ControlNet, segment-based detail passes, the Grid Generator for comparing anything against anything, wildcards and a rich prompt syntax. It runs across several GPUs and machines, supports teams on one install, and has a documented API. Its model list is longer, including LTX-2 and audio models. If those are part of your week, Swarm is the better home.</p>
-<aside class="g-callout" data-kind="limit">
-<p class="g-callout-title">What HEISS UI doesn’t do</p>
-<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li><li>No multi-GPU scheduling or shared team installs.</li></ul>
-</aside>
 <h2 id="workflows">Your own workflows.</h2>
 <p>In Swarm, the Comfy Workflow tab gives you the full graph, and the Simple tab turns a saved workflow into a form once you add <code>SwarmInput</code> nodes for the inputs you want. In HEISS UI you export the workflow from ComfyUI as it is and drop it on the Workflow Gallery. The prompt, size, seed, steps, CFG, sampler, scheduler, denoise, frames and start image are connected for you, guesses are marked, and you can change any connection before importing.</p>
 <h2 id="phone">Phone and privacy.</h2>
 <p>Swarm has a Mobile layout in its user settings. HEISS UI’s phone studio is its own layout: the gallery edge to edge, one <strong>Describe…</strong> pill, long press for Share, Upscale, Star, Hide or Delete, and the phone’s share sheet. Other devices sign in with a studio password, admin stays at the computer, and HTTPS works with a certificate you already have.</p>
 <p>HEISS UI also has <strong>Hidden</strong>, an encrypted place for images you keep to yourself, unlocked with Touch ID, Windows Hello or a password. It keeps things out of casual view. It isn’t a forensic guarantee.</p>
+<h2 id="more">Where Swarm is the better pick.</h2>
+<p>Swarm has an image editor with inpainting, ControlNet, segment-based detail passes, the Grid Generator for comparing anything against anything, wildcards and a rich prompt syntax. It runs across several GPUs and machines, supports teams on one install, and has a documented API. Its model list is longer, including LTX-2 and audio models. If those are part of your week, Swarm is the better home.</p>
+<aside class="g-callout" data-kind="limit">
+<p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
+<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li><li>No multi-GPU scheduling or shared team installs.</li></ul>
+</aside>
 <h2 id="switch">Trying HEISS UI next to Swarm.</h2>
 <ol class="steps">
 <li><span class="step-n" aria-hidden="true">1</span><div><h3>Have a ComfyUI running</h3><p>HEISS UI connects to a ComfyUI on port 8188 or 8000 by itself. If you only have Swarm’s built-in one, install ComfyUI Desktop or the portable build.</p></div></li>
@@ -259,7 +264,7 @@
 </details>
 <details name="faq">
 <summary>Which one has more features?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-<div class="answer"><p>SwarmUI, clearly. It has an image editor, ControlNet, grids, wildcards, multi-GPU support and more models. HEISS UI keeps to the prompt, gallery and phone loop, and to your own ComfyUI.</p></div>
+<div class="answer"><p>SwarmUI has more tools: an image editor, ControlNet, grids, wildcards, multi-GPU support and more models. HEISS UI has fewer controls and a few things Swarm doesn’t: your existing ComfyUI as it is, workflows without special nodes, a phone studio and Hidden.</p></div>
 </details>
 <details name="faq">
 <summary>Are both free?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
@@ -276,16 +281,16 @@
 <div class="g-pitch-inner">
 <div>
 <p class="label">HEISS UI</p>
-<h2 id="pitch-title">A quieter studio on your ComfyUI.</h2>
-<p class="g-pitch-text">HEISS UI connects to the ComfyUI you have and sets each model up the way its makers do. The rest of the screen is your images.</p>
+<h2 id="pitch-title">Your ComfyUI, a calmer studio.</h2>
+<p class="g-pitch-text">HEISS UI uses the ComfyUI you already run and keeps the screen for your images.</p>
 <ul class="g-pitch-list">
-<li><span><strong>Your ComfyUI, as it is.</strong> Found on 8188 or 8000, nothing reinstalled.</span></li><li><span><strong>Makers’ settings.</strong> Steps, CFG, sampler and size per family, turbo builds included.</span></li><li><span><strong>A phone studio.</strong> Prompt, browse and share from the couch.</span></li>
+<li><span><strong>Nothing to reinstall.</strong> It finds your ComfyUI and uses its models and folders.</span></li><li><span><strong>Drop in any model.</strong> It recognises the file and it runs.</span></li><li><span><strong>Your workflows, as they are.</strong> Drop in a graph and it becomes a few simple controls.</span></li><li><span><strong>Your phone, too.</strong> Prompt, browse and share from the couch.</span></li><li><span><strong>Hidden.</strong> A locked place for the images you keep to yourself.</span></li>
 </ul>
 <div class="g-pitch-actions">
 <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
 <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
 </div>
-<p class="g-pitch-note">Free and MIT licensed. macOS (Apple Silicon), Windows and Linux. Needs ComfyUI.</p>
+<p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
 </div>
 <div class="g-pitch-shot">
 <picture>

@@ -176,37 +176,43 @@
 <div class="g-body">
 <nav class="g-toc" aria-label="On this page">
 <p class="g-toc-title">On this page</p>
-<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#a1111">Is A1111 dead?</a></li><li><a href="#forks">Which Forge</a></li><li><a href="#models">New models</a></li><li><a href="#inpaint">Inpainting, hires fix, X/Y/Z</a></li><li><a href="#images">Your old images</a></li><li><a href="#move">Moving over</a></li><li><a href="#faq">Questions</a></li></ol>
+<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#a1111">Is A1111 dead?</a></li><li><a href="#forks">Which Forge</a></li><li><a href="#models">New models</a></li><li><a href="#images">Your old images</a></li><li><a href="#inpaint">Where Forge Neo wins</a></li><li><a href="#move">Moving over</a></li><li><a href="#faq">Questions</a></li></ol>
 </nav>
 <article class="g-prose">
-<aside class="g-callout" data-kind="note">
-<p class="g-callout-title">We make HEISS UI</p>
-<p>So read this with that in mind. Everything about Forge Neo, Forge, reForge and AUTOMATIC1111 here comes from their own docs, repositories and release notes, checked on 29 September 2026. If something is wrong or out of date, <a href="https://github.com/tristmeister/HEISS-UI/issues">open an issue</a> and we’ll fix it.</p>
-</aside>
 <div class="g-verdict" id="verdict">
 <p class="label">Short answer</p>
-<p>If you liked A1111 and use inpainting, ControlNet, hires fix or X/Y/Z plots, move to Forge Neo. It keeps that interface and most extensions, and it runs Krea 2, Flux.2 Klein, Z-Image, Qwen-Image and Wan 2.2 14B.</p>
-<p>If you mostly prompt, look and tweak, and want ComfyUI’s model support without learning the graph, try HEISS UI on ComfyUI. Plain A1111 is fine for SD 1.5 and SDXL, and that’s where it stops.</p>
+<p>If you want today’s models without learning a node graph, HEISS UI on ComfyUI is the shorter path. Flux.2, Krea 2, Qwen-Image 2.1 and video run built in, each set up for you, missing pieces arrive in one click, and your old A1111 and Forge images join the same gallery.</p>
+<p>If you live in A1111’s tabs, with inpainting, ControlNet, hires fix and X/Y/Z plots, Forge Neo keeps that interface going with current models. Plain A1111 stops at SDXL.</p>
 </div>
+<aside class="g-callout" data-kind="note">
+<p class="g-callout-title">We make HEISS UI</p>
+<p>Everything about Forge Neo, Forge, reForge and AUTOMATIC1111 here comes from their own docs and repositories, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
+</aside>
 <div class="g-picks">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You want today’s models, including Flux.2 Dev, Qwen-Image 2.1, HunyuanVideo 1.5 and MiniMax H3, without learning a graph.</li><li>You’d like each model recognised from its file and set up to run, renamed files included.</li><li>You want missing pieces listed with their sizes and fetched in one click.</li><li>You want your A1111 and Forge images in the same gallery, where they already are.</li><li>You generate from your phone, or want an encrypted place for private images.</li></ul></div>
 <div class="g-pick"><h3>Pick Forge Neo if</h3><ul><li>You want the A1111 layout, tabs and extensions you already know.</li><li>You inpaint, sketch or use ControlNet every day.</li><li>You rely on hires fix, X/Y/Z plots or A1111’s prompt editing, like <code>[cat:dog:0.5]</code>.</li><li>You’d rather not run ComfyUI at all.</li></ul></div>
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You want ComfyUI’s model support, including Flux.2 Dev, Qwen-Image 2.1, HunyuanVideo 1.5 and MiniMax H3, without the graph.</li><li>You’d like each model to start with its makers’ settings, and missing parts downloaded in one click.</li><li>You want your A1111 and Forge images in the same gallery, where they already are.</li><li>You generate from a phone.</li></ul></div>
+</div>
+<div class="g-picks g-only">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Only in HEISS UI</h3><ul><li><strong>Flux.2 Dev, HunyuanVideo 1.5 and MiniMax H3.</strong> Built in, next to the models Forge Neo also runs.</li><li><strong>Missing pieces in one click.</strong> Each with its size, saved into the right folder.</li><li><strong>Models recognised from the file.</strong> Renamed files work, with no naming rules for paths.</li><li><strong>Your old gallery comes along.</strong> A1111 and Forge folders join it where they are.</li><li><strong>A phone studio.</strong> Made for one thumb, with its own sign-in.</li><li><strong>Hidden.</strong> An encrypted place for private images.</li></ul></div>
 </div>
 <h2 id="glance">At a glance.</h2>
 <div class="g-table" role="region" aria-label="HEISS UI, Forge Neo and AUTOMATIC1111 compared" tabindex="0">
 <table>
 <thead><tr><th scope="col">Feature</th><th scope="col" class="is-us">HEISS UI</th><th scope="col">Forge Neo</th><th scope="col">A1111</th></tr></thead>
 <tbody>
+<tr><th scope="row">Newest models</th><td class="is-us"><span class="g-mark" data-v="yes">21 image families</span><small>Flux.2 Dev and Klein, Krea 2, Qwen-Image 2.1, Z-Image</small></td><td><span class="g-mark" data-v="yes">Many</span><small>Krea 2, Flux.2 Klein, Z-Image, Qwen-Image, Anima; not Flux.2 Dev</small></td><td><span class="g-mark" data-v="no">No</span><small>up to SDXL and SD3 Medium</small></td></tr>
+<tr><th scope="row">Video</th><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>Wan 2.1 and 2.2, HunyuanVideo 1.5, MiniMax H3</small></td><td><span class="g-mark" data-v="part">Wan 2.2 14B</span><small>not the 5B</small></td><td><span class="g-mark" data-v="no">No</span></td></tr>
+<tr><th scope="row">Missing pieces</th><td class="is-us"><span class="g-mark" data-v="yes">One click each</span><small>sizes shown first</small></td><td><span class="g-mark" data-v="no">Manual</span><small>its wiki lists the downloads</small></td><td><span class="g-mark" data-v="no">Manual</span></td></tr>
+<tr><th scope="row">Model detection</th><td class="is-us"><span class="g-mark" data-v="yes">From the file</span><small>renamed files work</small></td><td><span class="g-mark" data-v="part">Partly by name</span><small>edit models need “qwen” and “edit” in the path</small></td><td>SD 1.5 to SDXL</td></tr>
+<tr><th scope="row">Old images</th><td class="is-us"><span class="g-mark" data-v="yes">Join the gallery</span><small>A1111 and Forge folders, where they are</small></td><td>Its own folder</td><td>Its own folder</td></tr>
+<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td>Browser page</td><td>Browser page</td></tr>
+<tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted</small></td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="no">No</span></td></tr>
 <tr><th scope="row">Latest release</th><td class="is-us">0.13.0<small>28 Sep 2026</small></td><td>2.29.1<small>21 Sep 2026</small></td><td>1.10.1<small>July 2024</small></td></tr>
 <tr><th scope="row">Engine</th><td class="is-us">Your ComfyUI</td><td>Its own<small>with ComfyUI-style memory management</small></td><td>Its own</td></tr>
-<tr><th scope="row">Newest image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span><small>Flux.2 Dev and Klein, Krea 2, Qwen-Image 2.1, Z-Image</small></td><td><span class="g-mark" data-v="yes">Many</span><small>Krea 2, Flux.2 Klein, Z-Image, Qwen-Image, Anima; not Flux.2 Dev</small></td><td><span class="g-mark" data-v="no">No</span><small>up to SDXL and SD3 Medium</small></td></tr>
-<tr><th scope="row">Video</th><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>Wan 2.1 and 2.2, HunyuanVideo 1.5, MiniMax H3</small></td><td><span class="g-mark" data-v="part">Wan 2.2 14B</span><small>not the 5B</small></td><td><span class="g-mark" data-v="no">No</span></td></tr>
-<tr><th scope="row">Missing encoders, VAEs</th><td class="is-us"><span class="g-mark" data-v="yes">One click each</span></td><td><span class="g-mark" data-v="no">Manual</span><small>its wiki lists the downloads</small></td><td><span class="g-mark" data-v="no">Manual</span></td></tr>
+<tr><th scope="row">Extensions</th><td class="is-us">ComfyUI node packs</td><td><span class="g-mark" data-v="part">Most A1111 ones</span></td><td><span class="g-mark" data-v="yes">The original set</span></td></tr>
 <tr><th scope="row">Inpainting, sketch</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
 <tr><th scope="row">ControlNet</th><td class="is-us"><span class="g-mark" data-v="part">In imported workflows</span></td><td><span class="g-mark" data-v="yes">Yes</span><small>Union and LLLite</small></td><td><span class="g-mark" data-v="yes">Extension</span></td></tr>
 <tr><th scope="row">Hires fix, X/Y/Z</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
-<tr><th scope="row">Extensions</th><td class="is-us">ComfyUI node packs</td><td><span class="g-mark" data-v="part">Most A1111 ones</span></td><td><span class="g-mark" data-v="yes">The original set</span></td></tr>
-<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Own layout</span></td><td>Browser page</td><td>Browser page</td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td><span class="g-nowrap">AGPL-3.0</span></td><td><span class="g-nowrap">AGPL-3.0</span></td></tr>
 </tbody>
 </table>
@@ -229,15 +235,15 @@
 <h2 id="models">New models, and how they arrive.</h2>
 <p>Forge Neo adds each model in its own code, and its README says exactly what’s in and what isn’t: Flux.2 Klein but not Flux.2 Dev, Wan 2.2 14B but not the 5B. Some models are recognised by name, so a Qwen edit model needs “qwen” and “edit” in its path. The list is long, and it keeps growing.</p>
 <p>HEISS UI runs on ComfyUI, which usually supports a model on release day. Its built-in list covers 28 families, and anything else ComfyUI runs can come in as your own workflow. Models are recognised from their weights, so a renamed file still works. See the guides for <a href="../../models/flux-2-dev/">Flux.2 Dev</a>, <a href="../../models/krea-2/">Krea 2</a> and <a href="../../models/qwen-image/">Qwen-Image</a>.</p>
-<h2 id="inpaint">Inpainting, hires fix and X/Y/Z.</h2>
-<p>This is where the A1111 line is clearly ahead. Forge Neo has an inpainting canvas, sketch, soft inpainting, ControlNet with Union and LLLite models, hires fix, a refiner, X/Y/Z plots and A1111’s prompt editing. If those are how you work, stay with it.</p>
-<p>HEISS UI has a start image with a <strong>Change</strong> slider for every image model, reference images for Flux.2 and Qwen-Image 2.1, SeedVR2 upscaling with a compare slider and an optional face detail pass. That covers a lot of everyday edits. It isn’t inpainting.</p>
-<aside class="g-callout" data-kind="limit">
-<p class="g-callout-title">What HEISS UI doesn’t do</p>
-<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
-</aside>
 <h2 id="images">Bring your old images.</h2>
 <p>In <strong>Settings › Library</strong>, add your A1111 or Forge output folder and those images join the HEISS UI gallery where they are, without copying. Search them with <code>/</code>, star the good ones. New PNGs can also carry their prompt and settings the way AUTOMATIC1111 writes them, so Civitai fills in an upload (beta, in Settings › Library).</p>
+<h2 id="inpaint">Where Forge Neo is the better pick.</h2>
+<p>Inpainting, hires fix and X/Y/Z are where the A1111 line is ahead. Forge Neo has an inpainting canvas, sketch, soft inpainting, ControlNet with Union and LLLite models, hires fix, a refiner, X/Y/Z plots and A1111’s prompt editing. If those are how you work, stay with it.</p>
+<p>HEISS UI has a start image with a <strong>Change</strong> slider for every image model, reference images for Flux.2 and Qwen-Image 2.1, SeedVR2 upscaling with a compare slider and an optional face detail pass. That covers a lot of everyday edits. It isn’t inpainting.</p>
+<aside class="g-callout" data-kind="limit">
+<p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
+<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
+</aside>
 <h2 id="move">Moving over from A1111 or Forge.</h2>
 <ol class="steps">
 <li><span class="step-n" aria-hidden="true">1</span><div><h3>Install ComfyUI</h3><p>ComfyUI Desktop on Windows with NVIDIA or on a Mac, the portable build with an AMD card, the manual install on Linux.</p></div></li>
@@ -278,16 +284,16 @@
 <div class="g-pitch-inner">
 <div>
 <p class="label">HEISS UI</p>
-<h2 id="pitch-title">ComfyUI’s models, without the graph.</h2>
-<p class="g-pitch-text">HEISS UI gives you a prompt box and a gallery on top of ComfyUI, so new families arrive through ComfyUI and each one starts with its makers’ settings.</p>
+<h2 id="pitch-title">Today’s models, none of the setup.</h2>
+<p class="g-pitch-text">HEISS UI gives you a prompt box and a gallery on ComfyUI, where new models land first.</p>
 <ul class="g-pitch-list">
-<li><span><strong>Current models.</strong> Flux.2, Krea 2, Qwen-Image 2.1, Z-Image and video in beta.</span></li><li><span><strong>Parts in one click.</strong> Text encoders, VAEs and node packs, with their sizes.</span></li><li><span><strong>Your old gallery.</strong> A1111 and Forge folders join it where they are.</span></li>
+<li><span><strong>Newer models, ready to prompt.</strong> Including the ones Forge Neo doesn’t run yet.</span></li><li><span><strong>Nothing missing for long.</strong> See what a model needs, then get it in one click.</span></li><li><span><strong>Your old gallery comes along.</strong> A1111 and Forge images join it where they are.</span></li><li><span><strong>Your phone, too.</strong> Prompt and browse from the couch.</span></li><li><span><strong>Free and open source.</strong> No account, no telemetry.</span></li>
 </ul>
 <div class="g-pitch-actions">
 <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
 <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
 </div>
-<p class="g-pitch-note">Free and MIT licensed. macOS (Apple Silicon), Windows and Linux. Needs ComfyUI.</p>
+<p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
 </div>
 <div class="g-pitch-shot">
 <picture>

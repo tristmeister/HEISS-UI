@@ -591,20 +591,19 @@
         <div class="g-pitch-inner">
           <div>
             <p class="label">HEISS UI</p>
-            <h2 id="pitch-title">The same, without the wiring.</h2>
-            <p class="g-pitch-text">HEISS UI runs Qwen-Image on the ComfyUI you already have. It reads the model file, knows which Qwen it is, and brings the encoder and VAE that go with it.</p>
+            <h2 id="pitch-title">Every Qwen, told apart.</h2>
+            <p class="g-pitch-text">HEISS UI runs Qwen-Image, Qwen-Image 2512 and Qwen-Image 2.1 on the ComfyUI you already have. Pick a file and it brings the text encoder and VAE that belong to it.</p>
             <ul class="g-pitch-list">
-              <li><span><strong>Told apart by their weights.</strong> A renamed file still gets the right encoder: Qwen2.5-VL 7B for Qwen-Image and 2512, Qwen3-VL 8B for 2.1. An Edit file is recognised and named as one. Edit isn’t built in, so build its graph in ComfyUI and bring it over as your own workflow.</span></li>
-              <li><span><strong>Settings by name.</strong> Files named Lightning, Turbo or with a step count get 8 steps at CFG 1, names with 2512 get 50 steps at CFG 4, the rest 20 steps at CFG 2.5 like Comfy’s first template. A 4-step merge still gets 8, and a Lightning LoRA in the stack leaves the settings as they are, so set those by hand.</span></li>
-              <li><span><strong>Missing parts, one click.</strong> Pick a Qwen file and the setup lists what it lacks, each with a Download button. An abliterated Qwen2.5-VL 7B comes first, Comfy’s fp8 encoder under Other versions. For 2.1 it says Newer ComfyUI when your ComfyUI lacks its nodes.</span></li>
-              <li><span><strong>Reference images for 2.1.</strong> Three reference slots in the composer, passed through its text encoder the way ComfyUI’s edit template does it.</span></li>
-              <li><span><strong>GGUF for Qwen-Image.</strong> Qwen-Image and 2512 GGUFs run through ComfyUI-GGUF, which installs with one click. Not the 2.1 GGUFs yet.</span></li>
+              <li><span><strong>The right parts for each Qwen.</strong> Each version gets its own text encoder, even when the file is renamed.</span></li>
+              <li><span><strong>Edit from your own pictures.</strong> Qwen-Image 2.1 takes reference images right in the composer.</span></li>
+              <li><span><strong>Missing parts, shown first.</strong> Each one listed with its size and a button. Get all checks free space, and downloads resume and are verified.</span></li>
+              <li><span><strong>Upscale and compare.</strong> One click to upscale with SeedVR2, then drag a slider to see what changed.</span></li>
             </ul>
             <div class="g-pitch-actions">
               <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
               <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
             </div>
-            <p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Needs ComfyUI.</p>
+            <p class="g-pitch-note">Speed files that want fewer steps than it starts with: set them in Advanced. Qwen-Image Edit runs as your own workflow. Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
           </div>
           <div class="g-pitch-shot">
             <picture>

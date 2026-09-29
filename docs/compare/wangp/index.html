@@ -168,7 +168,7 @@
 <nav class="g-crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">HEISS UI</a></li><li><a href="../">Compare</a></li><li aria-current="page">WanGP</li></ol></nav>
 <p class="label">Compare</p>
 <h1>WanGP vs ComfyUI for video, and where HEISS UI fits.</h1>
-<p class="g-lead">For video on a small graphics card, WanGP is the easier pick: its own engine, builds made for low memory, and speed-ups installed for you. HEISS UI is image-first with video in beta, runs on your ComfyUI, and shows every file with its size before anything downloads.</p>
+<p class="g-lead">HEISS UI is image-first, runs on your ComfyUI, and shows every file with its size before anything downloads. For video on a small graphics card, WanGP is the easier pick: its own engine, builds made for low memory, and speed-ups installed for you.</p>
 <p class="g-meta"><span>Checked 29 Sep 2026</span><span>WanGP main branch, 29 Sep 2026</span><span>HEISS UI 0.13.0</span></p>
 <dl class="g-spec"><div><dt>Made by</dt><dd>DeepBeepMeep</dd></div><div><dt>Licence</dt><dd>WanGP Community License 2.0<small>free to use, also at work</small></dd></div><div><dt>Engine</dt><dd>Its own<small>not ComfyUI</small></dd></div><div><dt>Install</dt><dd>One-click scripts<small>Windows, Linux, macOS; Pinokio, Docker</small></dd></div></dl>
 </div>
@@ -176,35 +176,41 @@
 <div class="g-body">
 <nav class="g-toc" aria-label="On this page">
 <p class="g-toc-title">On this page</p>
-<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#focus">Video first or image first</a></li><li><a href="#files">Who picks the files</a></li><li><a href="#small">Small cards</a></li><li><a href="#comfy">Your ComfyUI, your files</a></li><li><a href="#faq">Questions</a></li></ol>
+<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#focus">Video first or image first</a></li><li><a href="#files">Who picks the files</a></li><li><a href="#small">Small cards</a></li><li><a href="#comfy">Your ComfyUI, your files</a></li><li><a href="#better">Where WanGP wins</a></li><li><a href="#faq">Questions</a></li></ol>
 </nav>
 <article class="g-prose">
-<aside class="g-callout" data-kind="note">
-<p class="g-callout-title">We make HEISS UI</p>
-<p>So read this with that in mind. Everything about WanGP here comes from its own docs, repository and release notes, checked on 29 September 2026. If something is wrong or out of date, <a href="https://github.com/tristmeister/HEISS-UI/issues">open an issue</a> and we’ll fix it.</p>
-</aside>
 <div class="g-verdict" id="verdict">
 <p class="label">Short answer</p>
-<p>If video is the point, and your card has 6 to 12 GB, start with WanGP. It covers more video models than HEISS UI, including LTX-2, runs select ones from 6 GB, and sets up the speed-ups for you.</p>
-<p>If you mostly make images, already run ComfyUI, or want to choose each file yourself, HEISS UI fits better. ComfyUI’s own graph stays the most flexible option for both.</p>
+<p>If you make mostly images, want to choose each file yourself, or already run ComfyUI, HEISS UI fits better. Every missing piece is shown with its size before anything downloads, 21 image families run built in, and you get a searchable gallery, a phone studio and Hidden on top.</p>
+<p>If video is the point and your card has 6 to 12 GB, start with WanGP. It covers more video models, including LTX-2, runs select ones from 6 GB, and sets up the speed-ups for you.</p>
 </div>
+<aside class="g-callout" data-kind="note">
+<p class="g-callout-title">We make HEISS UI</p>
+<p>Everything about WanGP here comes from its own docs and repository, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
+</aside>
 <div class="g-picks">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You make mostly images, with 21 families built in, and some video on the side.</li><li>You want to see each file, its size and other versions before anything downloads.</li><li>You already run ComfyUI, with your own models, LoRAs and node packs.</li><li>Your own ComfyUI workflows should become simple controls.</li><li>You want a gallery you can search, a phone studio and a locked Hidden space.</li></ul></div>
 <div class="g-pick"><h3>Pick WanGP if</h3><ul><li>Video is what you make, and you want LTX-2, MiniMax H3, Wan 2.2 and more in one place.</li><li>Your card is small and you’d like builds and settings chosen for it.</li><li>You want audio and speech models next to video.</li><li>You don’t want to run ComfyUI.</li></ul></div>
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You make mostly images, with 21 families built in, and some video on the side.</li><li>You already run ComfyUI, with your own models and node packs.</li><li>You want to see each file, its size and other versions before you download.</li><li>You want a gallery, a phone studio and your own ComfyUI workflows as controls.</li></ul></div>
+</div>
+<div class="g-picks g-only">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Only in HEISS UI</h3><ul><li><strong>You choose the files.</strong> Sizes, sources and other versions shown before anything downloads.</li><li><strong>Runs on your ComfyUI.</strong> With the models, LoRAs and node packs you already have.</li><li><strong>Your ComfyUI workflows.</strong> Drop in the JSON and they become simple controls.</li><li><strong>A phone studio.</strong> Made for one thumb, with its own sign-in.</li><li><strong>Hidden.</strong> An encrypted place for private images.</li></ul></div>
 </div>
 <h2 id="glance">At a glance.</h2>
 <div class="g-table" role="region" aria-label="HEISS UI, WanGP and ComfyUI compared" tabindex="0">
 <table>
 <thead><tr><th scope="col">Feature</th><th scope="col" class="is-us">HEISS UI</th><th scope="col">WanGP</th><th scope="col">ComfyUI</th></tr></thead>
 <tbody>
-<tr><th scope="row">Made for</th><td class="is-us">Images first, video in beta</td><td>Video first, images and audio too</td><td>Anything you can wire up</td></tr>
+<tr><th scope="row">Who picks files</th><td class="is-us"><span class="g-mark" data-v="yes">You</span><small>sizes, sources and other versions shown first</small></td><td><span class="g-mark" data-v="part">WanGP</span><small>picked for your hardware on first run</small></td><td>You</td></tr>
 <tr><th scope="row">Engine</th><td class="is-us">Your ComfyUI</td><td>Its own</td><td>Itself</td></tr>
-<tr><th scope="row">Video models</th><td class="is-us"><span class="g-mark" data-v="part">7 families</span><small>Wan 2.1, Wan 2.2 5B and 14B, HunyuanVideo 1.5, MiniMax H3</small></td><td><span class="g-mark" data-v="yes">Many</span><small>also LTX-2, LongCat, Kandinsky</small></td><td><span class="g-mark" data-v="yes">All</span><small>through templates</small></td></tr>
-<tr><th scope="row">LTX-2</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
-<tr><th scope="row">Image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span></td><td><span class="g-mark" data-v="yes">Several</span><small>Krea 2, Qwen-Image, Z-Image, Flux.2, HiDream</small></td><td><span class="g-mark" data-v="yes">All</span></td></tr>
-<tr><th scope="row">Small cards</th><td class="is-us"><span class="g-mark" data-v="part">Through ComfyUI</span><small>which moves parts to system RAM; GGUF via ComfyUI-GGUF</small></td><td><span class="g-mark" data-v="yes">From 6 GB</span><small>for select models; int8, fp8, GGUF, NVFP4</small></td><td><span class="g-mark" data-v="part">With the right files</span></td></tr>
-<tr><th scope="row">Who picks files</th><td class="is-us">You, with sizes and other versions shown</td><td>WanGP, for your hardware</td><td>You</td></tr>
 <tr><th scope="row">Your own checkpoints</th><td class="is-us"><span class="g-mark" data-v="yes">Any file in ComfyUI’s folders</span></td><td><span class="g-mark" data-v="part">Through finetune definitions</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">Image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span><small>each set up for you</small></td><td><span class="g-mark" data-v="yes">Several</span><small>Krea 2, Qwen-Image, Z-Image, Flux.2, HiDream</small></td><td><span class="g-mark" data-v="yes">All</span></td></tr>
+<tr><th scope="row">ComfyUI workflows</th><td class="is-us"><span class="g-mark" data-v="yes">Drop in the JSON</span><small>they become simple controls</small></td><td><span class="g-mark" data-v="no">No</span><small>its own engine</small></td><td><span class="g-mark" data-v="yes">Native</span></td></tr>
+<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td>Not covered in its docs</td><td><span class="g-mark" data-v="part">App Mode</span></td></tr>
+<tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted</small></td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="no">No</span></td></tr>
+<tr><th scope="row">Made for</th><td class="is-us">Images first, video in beta</td><td>Video first, images and audio too</td><td>Anything you can wire up</td></tr>
+<tr><th scope="row">Video models</th><td class="is-us"><span class="g-mark" data-v="part">7 families</span><small>Wan 2.1, Wan 2.2 5B and 14B, HunyuanVideo 1.5, MiniMax H3</small></td><td><span class="g-mark" data-v="yes">Many</span><small>also LTX-2, LongCat, Kandinsky</small></td><td><span class="g-mark" data-v="yes">All</span><small>through templates</small></td></tr>
+<tr><th scope="row">Small cards</th><td class="is-us"><span class="g-mark" data-v="part">Through ComfyUI</span><small>which moves parts to system RAM; GGUF via ComfyUI-GGUF</small></td><td><span class="g-mark" data-v="yes">From 6 GB</span><small>for select models; int8, fp8, GGUF, NVFP4</small></td><td><span class="g-mark" data-v="part">With the right files</span></td></tr>
+<tr><th scope="row">LTX-2</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
 <tr><th scope="row">Audio, speech</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td>WanGP Community License 2.0</td><td><span class="g-nowrap">GPL-3.0</span></td></tr>
 </tbody>
@@ -224,12 +230,14 @@
 <h2 id="small">Small cards.</h2>
 <p>WanGP runs select models from 6 GB and supports GTX 10-series cards and newer, as well as AMD RDNA 2 to 4. Its install scripts add the speed-ups that fit your setup. On ComfyUI, and so in HEISS UI, a larger model on a smaller card still runs, only slower, because ComfyUI moves parts of it in and out of memory. GGUF builds load through the ComfyUI-GGUF node pack, which HEISS UI installs in one click, though it doesn’t load MiniMax H3 GGUFs yet.</p>
 <p>What runs where: <a href="../../hardware/8gb-vram/">8 GB</a>, <a href="../../hardware/12gb-vram/">12 GB</a>, <a href="../../hardware/amd-radeon/">AMD Radeon</a>. Model guides: <a href="../../models/wan-2-2/">Wan 2.2</a>, <a href="../../models/minimax-h3/">MiniMax H3</a>, <a href="../../models/hunyuanvideo-1-5/">HunyuanVideo 1.5</a>.</p>
-<aside class="g-callout" data-kind="limit">
-<p class="g-callout-title">What HEISS UI doesn’t do</p>
-<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li><li>No audio or speech models.</li></ul>
-</aside>
 <h2 id="comfy">Your ComfyUI, your files.</h2>
 <p>HEISS UI never installs an engine. It uses the ComfyUI you have, with the models, LoRAs and node packs already in it, and writes images and videos to ComfyUI’s output folder. If you built a video workflow in ComfyUI, export it and import it into HEISS UI: the prompt, size, seed, steps, frames and start image become controls. WanGP keeps its own folders and its own engine, and its README notes it can reuse LoRAs stored for another app.</p>
+<h2 id="better">Where WanGP is the better pick.</h2>
+<p>Video, especially on a small card: more models including LTX-2, low-memory builds and speed-ups set up for you, plus audio and speech. If that’s your week, WanGP is the easier home.</p>
+<aside class="g-callout" data-kind="limit">
+<p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
+<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li><li>No audio or speech models.</li></ul>
+</aside>
 
 <h2 id="faq">Questions.</h2>
 <div class="faq">
@@ -264,16 +272,16 @@
 <div class="g-pitch-inner">
 <div>
 <p class="label">HEISS UI</p>
-<h2 id="pitch-title">Images first, on your own ComfyUI.</h2>
-<p class="g-pitch-text">HEISS UI runs 21 image families and 7 video families on the ComfyUI you have. You see every file before it downloads.</p>
+<h2 id="pitch-title">See every file before it downloads.</h2>
+<p class="g-pitch-text">HEISS UI shows what a model needs, how big it is and where it comes from, then gets it in one click.</p>
 <ul class="g-pitch-list">
-<li><span><strong>Parts you can see.</strong> Size, source and other versions, then one click.</span></li><li><span><strong>Video in beta.</strong> Wan 2.2, HunyuanVideo 1.5 and MiniMax H3, with their own gallery.</span></li><li><span><strong>Your graphs.</strong> Import a ComfyUI video workflow as a set of controls.</span></li>
+<li><span><strong>You choose the files.</strong> Every piece listed with its size first, other versions a tap away.</span></li><li><span><strong>Your ComfyUI, your models.</strong> Nothing reinstalled, nothing downloaded twice.</span></li><li><span><strong>Images first, video too.</strong> Many image models, and video in beta with its own gallery.</span></li><li><span><strong>Your phone, too.</strong> Prompt and browse from the couch.</span></li><li><span><strong>Upscale and compare.</strong> One click, then drag across to see what changed.</span></li>
 </ul>
 <div class="g-pitch-actions">
 <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
 <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
 </div>
-<p class="g-pitch-note">Free and MIT licensed. macOS (Apple Silicon), Windows and Linux. Needs ComfyUI.</p>
+<p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
 </div>
 <div class="g-pitch-shot">
 <picture>

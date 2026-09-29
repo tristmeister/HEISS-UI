@@ -496,17 +496,18 @@
           <div>
             <p class="label">HEISS UI</p>
             <h2 id="pitch-title">Three encoders, one list.</h2>
-            <p class="g-pitch-text">HEISS UI runs SD 3.5 on the ComfyUI you already have. Pick a model file and the setup shows which of the three text encoders are missing, with a Download button for each.</p>
+            <p class="g-pitch-text">HEISS UI runs SD 3.5 Large, Turbo and Medium on the ComfyUI you already have. Pick the file and the setup shows which parts are missing.</p>
             <ul class="g-pitch-list">
-              <li><span><strong>Recognised from its weights.</strong> Large, Turbo and Medium files are read as SD 3.5 even when renamed. Files named Turbo get 4 steps at CFG 1.2, as in ComfyUI’s examples; the rest start from Comfy’s SD3.5 Simple template, 20 steps at CFG 4.</span></li>
-              <li><span><strong>Encoders, one click each.</strong> CLIP-L, CLIP-G and T5 download into ComfyUI’s folders, hash-checked. The fp8 T5 comes first; on a Mac, pick the fp16 T5 under Other versions.</span></li>
-              <li><span><strong>GGUF too.</strong> SD 3.5 GGUFs run through ComfyUI-GGUF, which installs with one click. The VAE is the one part it can’t fetch, since Stability keeps it gated.</span></li>
+              <li><span><strong>All three text encoders, listed.</strong> Each one with its size and a button, fetched in one go.</span></li>
+              <li><span><strong>Drop in the file and it runs.</strong> It knows the model from the file itself, even renamed, and picks settings that work.</span></li>
+              <li><span><strong>Your LoRAs, sorted.</strong> The ones made for this model come first, with their trigger words.</span></li>
+              <li><span><strong>Failures that explain themselves.</strong> When a run runs out of memory, it says so and offers the fix.</span></li>
             </ul>
             <div class="g-pitch-actions">
               <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
               <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
             </div>
-            <p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Needs ComfyUI.</p>
+            <p class="g-pitch-note">On a Mac, pick the full-precision text encoder under Other versions. The VAE is gated at Stability, so it stays a manual download. Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
           </div>
           <div class="g-pitch-shot">
             <picture>

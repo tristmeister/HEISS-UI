@@ -68,7 +68,7 @@
           "name": "What is the best ComfyUI frontend?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "It depends on the job. SwarmUI has the most features. Krita AI Diffusion is best for painting and inpainting. ComfyUI’s own App Mode turns one workflow into a form. HEISS UI is a prompt box and gallery that sets each model up for you on the ComfyUI you already run."
+            "text": "It depends on the job. For a prompt box and gallery that set each model up for you on the ComfyUI you already run, with a phone studio, HEISS UI. SwarmUI has the most features, Krita AI Diffusion is best for painting and inpainting, and ComfyUI’s own App Mode turns one workflow into a form."
           }
         },
         {
@@ -170,7 +170,7 @@
 <nav class="g-crumbs" aria-label="Breadcrumb"><ol><li><a href="../">HEISS UI</a></li><li aria-current="page">Compare</li></ol></nav>
 <p class="label">Compare</p>
 <h1>ComfyUI frontends and alternatives, compared.</h1>
-<p class="g-lead">Use ComfyUI’s graph to build workflows, Forge Neo if you want A1111 back, InvokeAI or Krita to paint and edit, and WanGP for video on a small card. HEISS UI is for the everyday prompt-and-look loop on the ComfyUI you already have.</p>
+<p class="g-lead">If you have ComfyUI and want it to just work, with any model ready to prompt and missing pieces a click away, that’s HEISS UI. To build workflows, use ComfyUI’s graph. For A1111’s tabs, Forge Neo. To paint and inpaint, InvokeAI or Krita. For video on a small card, WanGP.</p>
 <p class="g-meta"><span>Checked 29 Sep 2026</span><span>7 comparisons</span><span>Written by the HEISS UI project</span></p>
 
 </div>
@@ -196,15 +196,11 @@
 </section>
 </div>
 <article class="g-prose">
-<aside class="g-callout" data-kind="note">
-<p class="g-callout-title">We make HEISS UI</p>
-<p>So read this with that in mind. Every comparison was checked on 29 September 2026 against the other project’s own README, docs, release notes and repository, and each one says where the other tool is the better pick. If something is wrong or out of date, <a href="https://github.com/tristmeister/HEISS-UI/issues">open an issue</a>.</p>
-</aside>
 <h2 id="pick">Pick by what you want.</h2>
 <ul class="g-chooser">
+<li class="is-us"><span class="g-chooser-want">You have ComfyUI and want it to just work: any model ready to prompt, missing pieces in one click, your phone too</span><a class="g-chooser-pick" href="../#install">HEISS UI<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
 <li><span class="g-chooser-want">You build and share node workflows, and want every new model first</span><a class="g-chooser-pick" href="comfyui/">ComfyUI<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
 <li><span class="g-chooser-want">You run one workflow all day and want it as a simple form</span><a class="g-chooser-pick" href="comfyui/#app-mode">App Mode<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
-<li class="is-us"><span class="g-chooser-want">You have ComfyUI and want a prompt box that sets each model up for you</span><a class="g-chooser-pick" href="../#install">HEISS UI<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
 <li><span class="g-chooser-want">You want one app with an image editor, ControlNet, grids and several GPUs</span><a class="g-chooser-pick" href="swarmui/">SwarmUI<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
 <li><span class="g-chooser-want">You liked A1111 and want inpainting, hires fix and X/Y/Z with current models</span><a class="g-chooser-pick" href="forge-a1111/">Forge Neo<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
 <li><span class="g-chooser-want">You edit images on a canvas with layers, masks and regions</span><a class="g-chooser-pick" href="invokeai/">InvokeAI<svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a></li>
@@ -215,21 +211,25 @@
 <h2 id="glance">At a glance.</h2>
 <div class="g-table" role="region" aria-label="ComfyUI front ends and alternatives compared" tabindex="0">
 <table>
-<thead><tr><th scope="col">Tool</th><th scope="col">Made for</th><th scope="col">Engine</th><th scope="col">Video</th><th scope="col">Inpainting</th><th scope="col">Licence</th></tr></thead>
+<thead><tr><th scope="col">Tool</th><th scope="col">Made for</th><th scope="col">Your ComfyUI</th><th scope="col">Phone</th><th scope="col">Video</th><th scope="col">Inpainting</th></tr></thead>
 <tbody>
-<tr><th scope="row" class="is-us">HEISS UI</th><td class="is-us">Prompt, look, tweak</td><td class="is-us">Your ComfyUI</td><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>7 families</small></td><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td class="is-us">MIT</td></tr>
-<tr><th scope="row">ComfyUI</th><td>Building workflows</td><td>Itself</td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">With nodes</span></td><td><span class="g-nowrap">GPL-3.0</span></td></tr>
-<tr><th scope="row">SwarmUI</th><td>Everything in one app</td><td>Its own ComfyUI</td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td>MIT</td></tr>
-<tr><th scope="row">Krita AI</th><td>Painting</td><td>ComfyUI</td><td>Not in its docs</td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-nowrap">GPL-3.0</span></td></tr>
-<tr><th scope="row">Forge Neo</th><td>The A1111 way</td><td>Its own</td><td><span class="g-mark" data-v="part">Wan 2.2 14B</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-nowrap">AGPL-3.0</span></td></tr>
-<tr><th scope="row">A1111</th><td>SD 1.5 and SDXL</td><td>Its own</td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-nowrap">AGPL-3.0</span></td></tr>
-<tr><th scope="row">Fooocus</th><td>SDXL, prompt-first</td><td>Its own</td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-nowrap">GPL-3.0</span></td></tr>
-<tr><th scope="row">InvokeAI</th><td>Canvas editing</td><td>Its own</td><td><span class="g-mark" data-v="part">Wan 2.2</span><small>via workflows</small></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-nowrap">Apache-2.0</span></td></tr>
-<tr><th scope="row">WanGP</th><td>Video on small cards</td><td>Its own</td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="part">Mask editor</span><small>for inputs</small></td><td>Own licence</td></tr>
+<tr><th scope="row" class="is-us">HEISS UI</th><td class="is-us">Prompt, look, keep</td><td class="is-us"><span class="g-mark" data-v="yes">As it is</span></td><td class="is-us"><span class="g-mark" data-v="yes">Studio</span></td><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>7 families</small></td><td class="is-us"><span class="g-mark" data-v="no">No</span></td></tr>
+<tr><th scope="row">ComfyUI</th><td>Building workflows</td><td>Itself</td><td><span class="g-mark" data-v="part">App Mode</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Nodes</span></td></tr>
+<tr><th scope="row">SwarmUI</th><td>Everything in one app</td><td><span class="g-mark" data-v="part">Own copy</span><small>by default</small></td><td><span class="g-mark" data-v="part">Layout</span><small>a setting</small></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">Krita AI</th><td>Painting</td><td><span class="g-mark" data-v="part">Adds nodes</span><small>four packs</small></td><td><span class="g-mark" data-v="no">No</span></td><td>Not in docs</td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">Forge Neo</th><td>The A1111 way</td><td><span class="g-mark" data-v="no">No</span><small>own engine</small></td><td>Browser</td><td><span class="g-mark" data-v="part">Partly</span><small>Wan 2.2 14B</small></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">A1111</th><td>SD 1.5 and SDXL</td><td><span class="g-mark" data-v="no">No</span><small>own engine</small></td><td>Browser</td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">Fooocus</th><td>SDXL, prompt-first</td><td><span class="g-mark" data-v="no">No</span><small>own engine</small></td><td>Browser</td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">InvokeAI</th><td>Canvas editing</td><td><span class="g-mark" data-v="no">No</span><small>own engine</small></td><td>Not in docs</td><td><span class="g-mark" data-v="part">Partly</span><small>Wan 2.2</small></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
+<tr><th scope="row">WanGP</th><td>Video on small cards</td><td><span class="g-mark" data-v="no">No</span><small>own engine</small></td><td>Not in docs</td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="part">Partly</span><small>mask editor</small></td></tr>
 </tbody>
 </table>
 </div>
-<p class="g-table-note">Checked 29 September 2026. Each comparison page has the full table and its sources.</p>
+<p class="g-table-note">Checked 29 September 2026. Each comparison page has the full table, the licences and the sources.</p>
+<aside class="g-callout" data-kind="note">
+<p class="g-callout-title">We make HEISS UI</p>
+<p>Every comparison was checked on 29 September 2026 against the other project’s own docs and repository, and each one says where the other tool is the better pick. Spot a mistake? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a>.</p>
+</aside>
 <h2 id="also">Also worth knowing.</h2>
 <ul>
 <li><strong><a href="https://drawthings.ai/">Draw Things</a></strong> is an app for iPhone, iPad and Mac with its own engine built for Apple Silicon. It’s free to run locally, with optional paid cloud compute, and recent releases added Flux.2, Krea 2, MiniMax H3 and Qwen-Image 2.1. On a Mac it’s worth trying first. See also our <a href="../hardware/mac-apple-silicon/">Mac guide</a>.</li>
@@ -245,7 +245,7 @@
 <div class="faq">
 <details name="faq">
 <summary>What is the best ComfyUI frontend?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-<div class="answer"><p>It depends on the job. SwarmUI has the most features. Krita AI Diffusion is best for painting and inpainting. ComfyUI’s own App Mode turns one workflow into a form. HEISS UI is a prompt box and gallery that sets each model up for you on the ComfyUI you already run.</p></div>
+<div class="answer"><p>It depends on the job. For a prompt box and gallery that set each model up for you on the ComfyUI you already run, with a phone studio, HEISS UI. SwarmUI has the most features, Krita AI Diffusion is best for painting and inpainting, and ComfyUI’s own App Mode turns one workflow into a form.</p></div>
 </details>
 <details name="faq">
 <summary>Is there a simple UI for ComfyUI without nodes?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
@@ -279,15 +279,15 @@
 <div>
 <p class="label">HEISS UI</p>
 <h2 id="pitch-title">ComfyUI, without the graph.</h2>
-<p class="g-pitch-text">HEISS UI is a studio on top of your own ComfyUI. Drop in a model and it runs with its makers’ settings. Anything missing downloads with one click.</p>
+<p class="g-pitch-text">A studio on your own ComfyUI. Pick a model, write a prompt, keep the good ones.</p>
 <ul class="g-pitch-list">
-<li><span><strong>28 model families.</strong> 21 for images, 7 for video in beta.</span></li><li><span><strong>Your workflows come along.</strong> Import a graph and it becomes a set of controls.</span></li><li><span><strong>Free and open source.</strong> MIT, no account, no telemetry.</span></li>
+<li><span><strong>Drop in any model.</strong> It recognises the file and it runs.</span></li><li><span><strong>Nothing missing for long.</strong> See what a model needs and how big it is, then get it in one click.</span></li><li><span><strong>Your phone, too.</strong> Prompt and browse from the couch while the computer renders.</span></li><li><span><strong>Hidden.</strong> A locked place for the images you keep to yourself.</span></li><li><span><strong>Free and open source.</strong> No account, no telemetry.</span></li>
 </ul>
 <div class="g-pitch-actions">
 <a class="g-btn" href="../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
 <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
 </div>
-<p class="g-pitch-note">Free and MIT licensed. macOS (Apple Silicon), Windows and Linux. Needs ComfyUI.</p>
+<p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
 </div>
 <div class="g-pitch-shot">
 <picture>

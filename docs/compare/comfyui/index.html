@@ -90,7 +90,7 @@
           "name": "What’s the difference between App Mode and HEISS UI?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "App Mode makes a form from one workflow you already built. HEISS UI starts from a model file, picks that model’s settings, lists its missing parts, and keeps one gallery across every model and imported workflow."
+            "text": "App Mode makes a form from one workflow you already built. HEISS UI starts from a model file, sets it up, lists its missing parts, and keeps one gallery across every model and imported workflow."
           }
         },
         {
@@ -168,7 +168,7 @@
 <nav class="g-crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">HEISS UI</a></li><li><a href="../">Compare</a></li><li aria-current="page">ComfyUI</li></ol></nav>
 <p class="label">Compare</p>
 <h1>HEISS UI vs ComfyUI’s node graph and App Mode.</h1>
-<p class="g-lead">You keep ComfyUI either way, because HEISS UI runs on it. Build and test workflows in the graph, use App Mode for one workflow you run all day, and use HEISS UI for the everyday loop across many models, with missing parts a click away.</p>
+<p class="g-lead">HEISS UI runs on ComfyUI, so you keep it either way. Use HEISS UI for the everyday loop across many models, with any model ready to prompt and missing pieces a click away. Build workflows in the graph, and use App Mode for one workflow you run all day.</p>
 <p class="g-meta"><span>Checked 29 Sep 2026</span><span>ComfyUI 0.37.0</span><span>HEISS UI 0.13.0</span></p>
 <dl class="g-spec"><div><dt>Made by</dt><dd>Comfy Org</dd></div><div><dt>Licence</dt><dd>GPL-3.0</dd></div><div><dt>Latest</dt><dd>0.37.0<small>21 Sep 2026, weekly releases</small></dd></div><div><dt>Runs on</dt><dd>Windows, macOS, Linux<small>Desktop app, portable or manual</small></dd></div></dl>
 </div>
@@ -176,21 +176,24 @@
 <div class="g-body">
 <nav class="g-toc" aria-label="On this page">
 <p class="g-toc-title">On this page</p>
-<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#loop">The graph and the loop</a></li><li><a href="#parts">Missing parts</a></li><li><a href="#app-mode">App Mode</a></li><li><a href="#workflows">Your workflows</a></li><li><a href="#phone">On a phone</a></li><li><a href="#both">Use both</a></li><li><a href="#faq">Questions</a></li></ol>
+<ol><li><a href="#verdict">Short answer</a></li><li><a href="#glance">At a glance</a></li><li><a href="#loop">The graph and the loop</a></li><li><a href="#parts">Missing parts</a></li><li><a href="#app-mode">App Mode</a></li><li><a href="#workflows">Your workflows</a></li><li><a href="#phone">On a phone</a></li><li><a href="#better">Where the graph wins</a></li><li><a href="#both">Use both</a></li><li><a href="#faq">Questions</a></li></ol>
 </nav>
 <article class="g-prose">
-<aside class="g-callout" data-kind="note">
-<p class="g-callout-title">We make HEISS UI</p>
-<p>So read this with that in mind. Everything about ComfyUI here comes from its own docs, repository and release notes, checked on 29 September 2026. If something is wrong or out of date, <a href="https://github.com/tristmeister/HEISS-UI/issues">open an issue</a> and we’ll fix it.</p>
-</aside>
 <div class="g-verdict" id="verdict">
 <p class="label">Short answer</p>
-<p>Don’t choose between them. HEISS UI is a front end for ComfyUI, so ComfyUI stays installed and makes every image. The real question is where you spend your day: in the graph, in App Mode, or in a prompt box that knows each model.</p>
-<p>For custom pipelines, and for a model that came out this week, the graph is the better tool. For prompt, look, tweak across 28 model families, HEISS UI is quicker.</p>
+<p>For making images every day, HEISS UI is quicker. Pick any model file and it’s ready to prompt, anything missing is one click away, and every result lands in one gallery you can also reach from your phone. ComfyUI stays underneath and runs every job.</p>
+<p>For building custom pipelines, or trying a model the day it comes out, the graph is the better tool. App Mode suits one workflow you run over and over.</p>
 </div>
+<aside class="g-callout" data-kind="note">
+<p class="g-callout-title">We make HEISS UI</p>
+<p>Everything about ComfyUI here comes from its own docs and repository, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
+</aside>
 <div class="g-picks">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You switch between models and want each one ready to prompt, with settings that fit it, without touching a graph.</li><li>You want missing pieces listed with their sizes before anything downloads, then fetched in one click.</li><li>You’d like a first model picked to fit your graphics card or Mac.</li><li>You want to prompt and browse from your phone while the computer renders.</li><li>You want one gallery for everything, with search, stars, a trash and a locked, encrypted Hidden space.</li></ul></div>
 <div class="g-pick"><h3>Pick ComfyUI’s graph if</h3><ul><li>You build or debug workflows, or want to see every step between prompt and pixels.</li><li>A model came out this week. ComfyUI supports new models first, often on release day.</li><li>You run one workflow over and over. App Mode turns it into a form, with nothing else to install.</li><li>You rely on custom nodes, ControlNet, masks or inpainting.</li></ul></div>
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You switch between models and want each to run with its makers’ settings, without editing a graph.</li><li>You want missing text encoders, VAEs and node packs listed with their sizes and a Download button.</li><li>You’d like to prompt from your phone while the computer renders.</li><li>You want one gallery for everything, with search, stars, a trash and a locked Hidden space.</li></ul></div>
+</div>
+<div class="g-picks g-only">
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Only in HEISS UI</h3><ul><li><strong>Starts from any model file.</strong> It recognises the model and sets it up. No workflow needed.</li><li><strong>Missing pieces, shown first.</strong> Each one with its size and a button, fetched in one click.</li><li><strong>A first model for your computer.</strong> Three sizes each of Krea 2, Flux.2 and SDXL, the one that fits marked.</li><li><strong>A phone studio.</strong> Made for one thumb, with its own sign-in.</li><li><strong>One gallery for everything.</strong> Every model and workflow, searchable, with your old folders in it.</li><li><strong>Hidden.</strong> An encrypted place for private images, opened with Touch ID, Windows Hello or a password.</li></ul></div>
 </div>
 <aside class="g-callout" data-kind="tip">
 <p class="g-callout-title">Or run both</p>
@@ -201,15 +204,17 @@
 <table>
 <thead><tr><th scope="col">Feature</th><th scope="col" class="is-us">HEISS UI</th><th scope="col">ComfyUI graph</th><th scope="col">App Mode</th></tr></thead>
 <tbody>
-<tr><th scope="row">Interface</th><td class="is-us">Prompt box, gallery and the model’s settings</td><td>Node graph</td><td>A form made from one workflow</td></tr>
-<tr><th scope="row">Starts from</th><td class="is-us">A model file</td><td>A workflow or template</td><td>A workflow you set up in App Builder</td></tr>
-<tr><th scope="row">Models</th><td class="is-us"><span class="g-mark" data-v="yes">28 families</span><small>21 image, 7 video (beta). Anything else as your own workflow</small></td><td><span class="g-mark" data-v="yes">All</span><small>usually on release day</small></td><td>Whatever the workflow runs</td></tr>
-<tr><th scope="row">Settings per model</th><td class="is-us"><span class="g-mark" data-v="yes">Yes</span><small>starting values from official templates</small></td><td><span class="g-mark" data-v="part">Per template</span></td><td><span class="g-mark" data-v="part">As saved</span><small>in the workflow</small></td></tr>
-<tr><th scope="row">Missing encoders, VAEs</th><td class="is-us"><span class="g-mark" data-v="yes">One click each</span><small>sizes shown, free space checked</small></td><td><span class="g-mark" data-v="part">Templates</span><small>list missing files with downloads</small></td><td><span class="g-mark" data-v="part">Same as the graph</span></td></tr>
-<tr><th scope="row">Missing node packs</th><td class="is-us"><span class="g-mark" data-v="yes">Beta</span><small>through ComfyUI-Manager</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>Manager installs missing nodes</small></td><td><span class="g-mark" data-v="yes">Same as the graph</span></td></tr>
+<tr><th scope="row">Starts from</th><td class="is-us">Any model file</td><td>A workflow or template</td><td>A workflow set up in App Builder</td></tr>
+<tr><th scope="row">Model setup</th><td class="is-us"><span class="g-mark" data-v="yes">Automatic</span><small>recognised from the file, settings that fit</small></td><td><span class="g-mark" data-v="part">Per template</span></td><td><span class="g-mark" data-v="part">As saved</span><small>in the workflow</small></td></tr>
+<tr><th scope="row">Missing pieces</th><td class="is-us"><span class="g-mark" data-v="yes">Listed first</span><small>sizes shown, one click, free space checked</small></td><td><span class="g-mark" data-v="part">Templates</span><small>list missing files with downloads</small></td><td><span class="g-mark" data-v="part">Same as the graph</span></td></tr>
+<tr><th scope="row">First model</th><td class="is-us"><span class="g-mark" data-v="yes">Picked for your computer</span></td><td>You choose</td><td>n/a</td></tr>
+<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td><span class="g-mark" data-v="no">Not made for touch</span></td><td><span class="g-mark" data-v="yes">Tab layout</span><small>on narrow screens</small></td></tr>
+<tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted, Touch ID or password</small></td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="no">No</span></td></tr>
+<tr><th scope="row">Gallery</th><td class="is-us"><span class="g-mark" data-v="yes">One for everything</span><small>search, stars, trash, old folders</small></td><td><span class="g-mark" data-v="part">Queue and assets</span></td><td><span class="g-mark" data-v="part">Assets panel</span></td></tr>
+<tr><th scope="row">Upscale, compare</th><td class="is-us"><span class="g-mark" data-v="yes">One click</span><small>with a compare slider</small></td><td>With nodes</td><td>If the workflow has it</td></tr>
+<tr><th scope="row">Node packs</th><td class="is-us"><span class="g-mark" data-v="yes">Beta</span><small>installed when a model needs one</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>Manager installs missing nodes</small></td><td><span class="g-mark" data-v="yes">Same as the graph</span></td></tr>
+<tr><th scope="row">Models</th><td class="is-us"><span class="g-mark" data-v="yes">28 families</span><small>anything else as your own workflow</small></td><td><span class="g-mark" data-v="yes">All</span><small>usually on release day</small></td><td>Whatever the workflow runs</td></tr>
 <tr><th scope="row">Inpainting, ControlNet</th><td class="is-us"><span class="g-mark" data-v="no">No</span><small>only inside an imported workflow</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>with nodes</small></td><td>If the workflow has it</td></tr>
-<tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Own layout</span><small>made for one thumb</small></td><td><span class="g-mark" data-v="no">Not made for touch</span></td><td><span class="g-mark" data-v="yes">Tab layout</span><small>on narrow screens</small></td></tr>
-<tr><th scope="row">Gallery</th><td class="is-us"><span class="g-mark" data-v="yes">Yes</span><small>search, stars, trash, Hidden</small></td><td><span class="g-mark" data-v="part">Queue and assets</span></td><td><span class="g-mark" data-v="part">Assets panel</span></td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td><span class="g-nowrap">GPL-3.0</span></td><td><span class="g-nowrap">GPL-3.0</span>, part of ComfyUI</td></tr>
 </tbody>
 </table>
@@ -220,12 +225,12 @@
 <p>For everyday use it asks more of you. Each model family wants its own loader, text encoder, VAE, sampler, steps and CFG, and a template only covers the model it was made for. HEISS UI reads the model file itself. It recognises the family from the weights, so a renamed file still works, and starts it with a sampler, scheduler, steps, CFG, shift and size drawn from the official ComfyUI templates and model cards. Krea 2 Turbo starts at 8 steps and CFG 1, Flux.2 Klein at 4 steps, SDXL at 25 steps and CFG 7. Only the controls that model uses show up.</p>
 <p>ComfyUI still runs the job. HEISS UI builds the graph for you and sends it, the same way ComfyUI’s own templates would.</p>
 <h2 id="parts">Missing text encoders, VAEs and nodes.</h2>
-<p>ComfyUI has closed a lot of this gap. Its templates check for missing model files and offer downloads, and ComfyUI-Manager, now built into ComfyUI, installs missing custom nodes in one go. Two things are worth knowing: the template check matches files by name in the top-level model folder, and in a browser install the Download button can hand the file to the browser instead of saving it into ComfyUI’s folders.</p>
+<p>HEISS UI starts from any model you pick, not just a template’s. Its setup lists what’s missing, whether that’s a text encoder, a VAE, a companion file like Wan 2.2’s low-noise half, a node pack or a newer ComfyUI. Each part gets a button, and <strong>Get all</strong> adds up the sizes and checks free space first. Files go into the folders ComfyUI reads, including ones from <code>extra_model_paths.yaml</code>. Downloads resume, retry and check their SHA-256, and nothing downloads until you press the button.</p>
+<p>ComfyUI’s own tools cover part of this. Its templates check for missing model files and offer downloads, and ComfyUI-Manager, now built in, installs missing custom nodes. The template check matches files by name in the top-level model folder, and in a browser install the Download button can hand the file to the browser instead of saving it into ComfyUI’s folders.</p>
 <div class="g-heards">
 <figure class="g-heard"><blockquote><p>The missing-models panel dropped single downloads and the hint about which folder a file belongs in.</p></blockquote><figcaption><a href="https://github.com/Comfy-Org/ComfyUI/issues/12961">ComfyUI issue #12961</a></figcaption></figure>
 <figure class="g-heard"><blockquote><p>Download opens the browser’s own download instead of saving into ComfyUI’s model paths. Comfy Desktop 1.0.20 fixed it there.</p></blockquote><figcaption><a href="https://github.com/Comfy-Org/ComfyUI/issues/13676">ComfyUI issues #13676 and #14287</a></figcaption></figure>
 </div>
-<p>HEISS UI starts from any model you pick, not just a template’s. Its setup lists what’s missing, whether that’s a text encoder, a VAE, a companion file like Wan 2.2’s low-noise half, a node pack or a newer ComfyUI. Each part gets a button, and <strong>Get all</strong> adds up the sizes and checks free space first. Files go into the folders ComfyUI reads, including ones from <code>extra_model_paths.yaml</code>. Downloads resume, retry and check their SHA-256, and nothing downloads until you press the button.</p>
 <h2 id="app-mode">App Mode, and where it stops.</h2>
 <p>Since March 2026 ComfyUI has App Mode. In App Builder you pick a workflow’s inputs and outputs, and the graph turns into a clean form. On a narrow screen it switches to tabs, and ComfyHub shares finished apps. Comfy Org calls it beta. If you run one workflow all day, App Mode may be all you need, and it’s already in your ComfyUI.</p>
 <p>It starts from a workflow, though. It runs the values that workflow saved, so switching to another model family means another workflow and another app. Share links need Comfy Cloud. HEISS UI starts from the model instead: pick Krea 2, then Flux.2, then an SDXL fine-tune, and each one arrives with its own settings and its own list of missing parts.</p>
@@ -235,9 +240,10 @@
 <h2 id="phone">On a phone.</h2>
 <p>The graph is made for a mouse. App Mode adapts to a narrow screen with tabs for inputs, outputs and assets. HEISS UI has a studio laid out for one thumb: the gallery edge to edge, one <strong>Describe…</strong> pill for the prompt, and a long press on any image to share, upscale, star or hide it.</p>
 <p>Turn on <strong>Settings › Connection › Open on other devices</strong>, set a studio password and scan the code. Updates, installs and other admin stay at the computer unless you allow them.</p>
+<h2 id="better">Where the graph is the better pick.</h2>
+<p>Custom pipelines, masks and inpainting, ControlNet, and any model on the day it comes out. That’s what the graph is for, and HEISS UI keeps it one export away.</p>
 <aside class="g-callout" data-kind="limit">
-<p class="g-callout-title">What HEISS UI doesn’t do</p>
-<p>Things the graph does that HEISS UI doesn’t, so you know where you’ll still open it:</p>
+<p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
 <ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
 </aside>
 <h2 id="both">Use both.</h2>
@@ -259,7 +265,7 @@
 </details>
 <details name="faq">
 <summary>What’s the difference between App Mode and HEISS UI?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-<div class="answer"><p>App Mode makes a form from one workflow you already built. HEISS UI starts from a model file, picks that model’s settings, lists its missing parts, and keeps one gallery across every model and imported workflow.</p></div>
+<div class="answer"><p>App Mode makes a form from one workflow you already built. HEISS UI starts from a model file, sets it up, lists its missing parts, and keeps one gallery across every model and imported workflow.</p></div>
 </details>
 <details name="faq">
 <summary>Will HEISS UI change my ComfyUI install?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
@@ -280,16 +286,16 @@
 <div class="g-pitch-inner">
 <div>
 <p class="label">HEISS UI</p>
-<h2 id="pitch-title">Keep ComfyUI. Lose the wiring.</h2>
-<p class="g-pitch-text">HEISS UI sits on the ComfyUI you already run. Pick a model and it runs with its makers’ settings, and anything it lacks is one click away.</p>
+<h2 id="pitch-title">Keep ComfyUI. Skip the wiring.</h2>
+<p class="g-pitch-text">HEISS UI runs on the ComfyUI you already have. Pick a model and start prompting.</p>
 <ul class="g-pitch-list">
-<li><span><strong>Any model file.</strong> Recognised from its weights, set up from the official templates.</span></li><li><span><strong>Missing parts, listed.</strong> Text encoders, VAEs and node packs, with sizes, before anything downloads.</span></li><li><span><strong>Your graphs too.</strong> Import a workflow and it becomes a set of controls.</span></li>
+<li><span><strong>No graph to wire.</strong> Your own graphs still come along, as a few simple controls.</span></li><li><span><strong>Drop in any model.</strong> It recognises the file and it runs.</span></li><li><span><strong>Nothing missing for long.</strong> See what a model needs and how big it is, then get it in one click.</span></li><li><span><strong>Your phone, too.</strong> Prompt and browse from the couch while the computer renders.</span></li><li><span><strong>Free and open source.</strong> No account, no telemetry.</span></li>
 </ul>
 <div class="g-pitch-actions">
 <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
 <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
 </div>
-<p class="g-pitch-note">Free and MIT licensed. macOS (Apple Silicon), Windows and Linux. Needs ComfyUI.</p>
+<p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Runs on your ComfyUI.</p>
 </div>
 <div class="g-pitch-shot">
 <picture>
