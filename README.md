@@ -17,8 +17,6 @@
   &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a>
   &nbsp;·&nbsp;
-  <a href="#pinokio">Pinokio</a>
-  &nbsp;·&nbsp;
   <a href="#supported-models">Models</a>
   &nbsp;·&nbsp;
   <a href="#bring-your-own-workflow">Your own workflows</a>
@@ -43,30 +41,6 @@
 HEISS UI sits on top of the ComfyUI you already run. You get a prompt box, a gallery and the settings that matter for the model you picked. ComfyUI still runs every job and keeps your nodes, models and outputs.
 
 The node graph is great for building workflows and less great for the everyday loop of prompt, wait, look, tweak. HEISS UI is for that loop, and your workflows come along.
-
-## Pinokio
-
-Install HEISS UI from [its GitHub repository](https://github.com/tristmeister/HEISS-UI) in Pinokio. Choose **Install** to set up the app, then **Start** to open the studio. The launcher includes update and repair actions.
-
-You still need ComfyUI running separately. HEISS UI connects to ComfyUI at `http://127.0.0.1:8188` or ComfyUI Desktop at `http://127.0.0.1:8000`; the Pinokio launcher does not install ComfyUI or download models.
-
-The local health endpoint is `GET /api/ping` (replace the port if Pinokio selects another one):
-
-```js
-const response = await fetch("http://localhost:8787/api/ping");
-console.log(await response.json());
-```
-
-```python
-from urllib.request import urlopen
-
-with urlopen("http://localhost:8787/api/ping") as response:
-    print(response.read().decode())
-```
-
-```sh
-curl http://localhost:8787/api/ping
-```
 
 ## Features
 
@@ -541,3 +515,27 @@ The app is set in [Geist](https://vercel.com/font). The pixel wordmark on the we
 ## License
 
 [MIT](./LICENSE). The original J-AI Studio copyright notice is kept alongside HEISS UI's, as the license asks.
+
+## Alternative: Pinokio
+
+Install HEISS UI from [its GitHub repository](https://github.com/tristmeister/HEISS-UI) in Pinokio. Choose **Install** to set up the app, then **Start** to open the studio. The launcher includes update and repair actions.
+
+You still need ComfyUI running separately. HEISS UI connects to ComfyUI at `http://127.0.0.1:8188` or ComfyUI Desktop at `http://127.0.0.1:8000`; the Pinokio launcher does not install ComfyUI or download models.
+
+The local health endpoint is `GET /api/ping` (replace the port if Pinokio selects another one):
+
+```js
+const response = await fetch("http://localhost:8787/api/ping");
+console.log(await response.json());
+```
+
+```python
+from urllib.request import urlopen
+
+with urlopen("http://localhost:8787/api/ping") as response:
+    print(response.read().decode())
+```
+
+```sh
+curl http://localhost:8787/api/ping
+```
