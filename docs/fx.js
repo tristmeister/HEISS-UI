@@ -225,27 +225,28 @@
       vec2 uv = px / uRes;
       vec3 bg = vec3(0.051);
 
-      // Generating: the gray flow field on a fine grid.
-      float gc = 15.0 * uDpr;
+      // Generating: a quiet gray flow field on the hero's coarse grid.
+      float gc = 24.0 * uDpr;
       vec2 gg = px / gc;
       vec2 gid = floor(gg);
       vec2 gf = gg - gid - 0.5;
-      float v = chrome((gid + 0.5) * gc / (uDpr * 460.0), uTime);
-      float gsq = cellSquare(gf, 0.43 * mix(0.45, 1.0, v), 1.2 / gc);
-      vec3 gray = mix(bg, mix(vec3(0.2), vec3(0.82), v), gsq * (0.3 + 0.7 * v));
+      float v = chrome((gid + 0.5) * gc / (uDpr * 520.0), uTime);
+      float gsq = cellSquare(gf, 0.43 * mix(0.35, 1.0, v), 1.2 / gc);
+      vec3 gray = mix(bg, mix(vec3(0.16), vec3(0.56), v), gsq * (0.18 + 0.5 * v));
 
-      // Resolving: the image through a mosaic that gets finer, in organic order.
-      float n = fbm(uv * vec2(uRes.x / uRes.y, 1.0) * 2.2 + 7.0);
-      float lp = clamp(uP * 1.7 - n * 0.7, 0.0, 1.0);
-      float level = floor((1.0 - lp) * 5.0);
-      float cell = 4.0 * uDpr * pow(2.0, level);
+      // Resolving: the image through a few coarse mosaic steps that share the gray grid,
+      // in broad organic patches, then a soft fade from the last step into the image.
+      float n = fbm(uv * vec2(uRes.x / uRes.y, 1.0) * 1.5 + 7.0);
+      float lp = clamp(uP * 1.6 - n * 0.6, 0.0, 1.0);
+      float level = floor((1.0 - lp) * 3.999);
+      float cell = 12.0 * uDpr * pow(2.0, level);
       vec2 g = px / cell;
       vec2 id = floor(g);
       vec2 f = g - id - 0.5;
       vec3 img = texture2D(uImg, (id + 0.5) * cell / uRes).rgb;
-      float gap = 0.5 - 0.06 * (1.0 - smoothstep(0.6, 0.95, lp));
+      float gap = 0.5 - 0.05 * (1.0 - smoothstep(0.5, 0.75, lp));
       vec3 mosaic = mix(bg, img, cellSquare(f, gap, 1.0 / cell));
-      vec3 col = mix(mosaic, texture2D(uImg, uv).rgb, step(0.999, lp));
+      vec3 col = mix(mosaic, texture2D(uImg, uv).rgb, smoothstep(0.82, 1.0, lp));
       col = mix(gray, col, smoothstep(0.02, 0.2, lp));
       gl_FragColor = vec4(col, 1.0);
     }
@@ -276,7 +277,7 @@
             fx.resize();
             const now = performance.now();
             if (start === null && seen !== null && t > 2.2 && now - seen > 900) start = t;
-            const p = start === null ? 0 : clamp((t - start) / 2.8);
+            const p = start === null ? 0 : clamp((t - start) / 2.4);
             fx.gl.uniform1f(fx.u("uP"), easeInOut(p));
             fx.draw(t + 3);
 
