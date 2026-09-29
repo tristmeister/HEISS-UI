@@ -27,3 +27,6 @@ data
 
 # In-app updates of a release copy (downloads, backup)
 .update/
+
+# Pinokio downloads the runnable source checkout here.
+/app/
