@@ -389,7 +389,9 @@ export const families = {
   krea2: {
     label: "Krea 2", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "encoder", label: "Qwen3-VL 4B", kinds: ["qwen3vl_4b"] }], clipType: "krea2",
-    vae: ["qwen_image"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square, enhancer: true,
+    vae: ["qwen_image"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
+    // ComfyUI-Krea2T-Enhancer, when installed, at its own default strength (0 neutral, 2 full).
+    enhancer: { strength: 1 },
     variants: [
       { id: "raw", label: "Raw", match: (name) => isKrea2Raw(name), rawShift: true, defaults: { steps: 28, cfg: 4.5, sampler: "euler", scheduler: "simple" } },
       { id: "turbo", label: "Turbo", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } }

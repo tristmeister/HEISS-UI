@@ -18,6 +18,8 @@ version opens with a `> ` summary line, which the update pill shows.
   there, and old links forward.
 - **Pony V7 runs as its makers' own workflow does:** its text encoder reads
   prompts padded to 768 tokens, and pictures start at 1280×1536.
+- **The Krea 2 enhancer runs at its own default strength** of 1 instead of
+  1.5, where its author says to start.
 
 ### Fixed
 - **Wan video comes out clean on a Mac.** Wan 2.1 and Wan 2.2 5B start on the

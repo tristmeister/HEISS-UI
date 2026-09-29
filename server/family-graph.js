@@ -106,7 +106,7 @@ export function familyGraph(body) {
   const t5Padding = variant.t5Padding || family.t5Padding;
   if (t5Padding) clip = [add("T5TokenizerOptions", { clip, min_padding: t5Padding.minPadding, min_length: t5Padding.minLength }), 0];
   if (family.enhancer && body.krea2Enhancer) {
-    model = [add("ComfyUI-Krea2T-Enhancer", { model, enabled: true, strength: 1.5, debug: false }), 0];
+    model = [add("ComfyUI-Krea2T-Enhancer", { model, enabled: true, strength: family.enhancer.strength, debug: false }), 0];
   }
 
   // ---- LoRAs, then the sampling patches so they sit last
