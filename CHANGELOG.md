@@ -17,6 +17,14 @@ version opens with a `> ` summary line, which the update pill shows.
   comparisons with other ComfyUI front ends. The Website link in Settings goes
   there, and old links forward.
 
+### Fixed
+- **Wan video comes out clean on a Mac.** Wan 2.1 and Wan 2.2 5B start on the
+  euler sampler there, since uni_pc corrupts video on Apple Silicon.
+- **A Mac gets files it can load.** Where a text encoder comes in full
+  precision too (T5-XXL for SD 3.5, UMT5 for Wan), a Mac downloads that one,
+  since Macs can't load quantized fp8 files. The fp8 starter models say
+  they're not for Macs and are never picked there.
+
 ## [0.13.0] - 2026-09-28
 
 > Model fixes, plainer wording and wide images

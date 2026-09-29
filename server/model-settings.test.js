@@ -82,3 +82,24 @@ test("a stacked speed LoRA leaves the model's variant and settings as they are",
   const request = { kind: "video", workflow: profile.workflow, profileId: profile.id, model: high, prompt: "waves", steps: 20, cfg: 3.5 };
   assert.equal(sanitizeGenerateBody({ ...request, loras: [{ name: speed, strength: 1 }] }, info).variant, "standard");
 });
+
+const mps = { devices: [{ type: "mps", name: "mps" }] };
+const cuda = { devices: [{ type: "cuda", name: "cuda:0 NVIDIA GeForce RTX 4090" }] };
+const profileFor = (info, model, stats = cuda) => inferModels(info, stats).profiles.find((item) => item.model === model);
+
+test("on a Mac, Wan video starts on euler: uni_pc corrupts video on Apple Silicon", () => {
+  const info = objectInfo({ unets: ["wan2.1_t2v_1.3B_fp16.safetensors", "wan2.2_ti2v_5B_fp16.safetensors"] });
+  for (const model of ["wan2.1_t2v_1.3B_fp16.safetensors", "wan2.2_ti2v_5B_fp16.safetensors"]) {
+    assert.equal(profileFor(info, model).defaults.sampler, "uni_pc", model);
+    assert.equal(profileFor(info, model, mps).defaults.sampler, "euler", model);
+  }
+});
+
+test("on a Mac, a part's other build comes before its quantized fp8 one", () => {
+  const info = objectInfo({ unets: ["sd3.5_large.safetensors", "wan2.1_t2v_1.3B_fp16.safetensors"] });
+  const t5 = (stats) => profileFor(info, "sd3.5_large.safetensors", stats).missing.find((item) => item.slot === "t5").downloads;
+  assert.deepEqual(t5(cuda).map((item) => item.id), ["encoder:t5xxl:0", "encoder:t5xxl:1"]);
+  assert.deepEqual(t5(mps).map((item) => [item.id, item.file]), [["encoder:t5xxl:1", "t5xxl_fp16.safetensors"], ["encoder:t5xxl:0", "t5xxl_fp8_e4m3fn_scaled.safetensors"]]);
+  const umt5 = profileFor(info, "wan2.1_t2v_1.3B_fp16.safetensors", mps).missing.find((item) => item.part === "encoder").downloads;
+  assert.equal(umt5[0].file, "umt5_xxl_fp16.safetensors");
+});

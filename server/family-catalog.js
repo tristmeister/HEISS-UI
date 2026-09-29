@@ -11,18 +11,25 @@ const hf = (repo, file) => `https://huggingface.co/${repo}/resolve/main/${file}`
 /* ------------------------------------------------------------ Downloads */
 
 // Where to get each part. The first entry is what a Download button fetches;
-// abliterated builds lead wherever a ComfyUI-ready one exists. `sha256` is the
-// file's Hugging Face LFS hash (its paths-info API), checked after every
-// download; an entry without one is checked by length only.
+// abliterated builds lead wherever a ComfyUI-ready one exists. `fp8`: the file
+// is quantized fp8 (per-layer scales, read from its header), which ComfyUI
+// keeps in fp8 and a Mac cannot load, so there these go last (forDevice in
+// family-profiles.js). A plain fp8 file loads at full precision on a Mac and
+// is not flagged. `sha256` is the file's Hugging Face LFS hash (its paths-info
+// API), checked after every download; an entry without one is checked by
+// length only.
 export const encoderDownloads = {
   clip_l: [{ file: "clip_l.safetensors", url: hf("comfyanonymous/flux_text_encoders", "clip_l.safetensors"), bytes: 246_144_152, sha256: "660c6f5b1abae9dc498ac2d21e1347d2abdb0cf6c0c0c8576cd796491d9a6cdd" }],
   clip_g: [{ file: "clip_g.safetensors", url: hf("Comfy-Org/stable-diffusion-3.5-fp8", "text_encoders/clip_g.safetensors"), bytes: 1_389_382_176, sha256: "ec310df2af79c318e24d20511b601a591ca8cd4f1fce1d8dff822a356bcdb1f4" }],
   t5xl: [{ file: "pony-v7-pile-t5xl.fp16.safetensors", url: hf("purplesmartai/pony-v7-base", "text_encoder/model.fp16.safetensors"), bytes: 2_950_448_704, sha256: "decf9b70814ed5e9965bfca9fbd0483462e2bf743790663025b7742f8c014c72" }],
   t5xxl: [
-    { file: "t5xxl_fp8_e4m3fn_scaled.safetensors", url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp8_e4m3fn_scaled.safetensors"), bytes: 5_157_348_688, sha256: "a498f0485dc9536735258018417c3fd7758dc3bccc0a645feaa472b34955557a" },
+    { file: "t5xxl_fp8_e4m3fn_scaled.safetensors", fp8: true, url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp8_e4m3fn_scaled.safetensors"), bytes: 5_157_348_688, sha256: "a498f0485dc9536735258018417c3fd7758dc3bccc0a645feaa472b34955557a" },
     { file: "t5xxl_fp16.safetensors", url: hf("comfyanonymous/flux_text_encoders", "t5xxl_fp16.safetensors"), bytes: 9_787_841_024, sha256: "6e480b09fae049a72d2a8c5fbccb8d3e92febeb233bbe9dfe7256958a9167635" }
   ],
-  umt5xxl: [{ file: "umt5_xxl_fp8_e4m3fn_scaled.safetensors", url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"), bytes: 6_735_906_897, sha256: "c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68" }],
+  umt5xxl: [
+    { file: "umt5_xxl_fp8_e4m3fn_scaled.safetensors", fp8: true, url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors"), bytes: 6_735_906_897, sha256: "c3355d30191f1f066b26d93fba017ae9809dce6c627dda5f6a66eaa651204f68" },
+    { file: "umt5_xxl_fp16.safetensors", url: hf("Comfy-Org/Wan_2.1_ComfyUI_repackaged", "split_files/text_encoders/umt5_xxl_fp16.safetensors"), bytes: 11_366_399_385, sha256: "7b8850f1961e1cf8a77cca4c964a358d303f490833c6c087d0cff4b2f99db2af" }
+  ],
   byt5_glyph: [{ file: "byt5_small_glyphxl_fp16.safetensors", url: hf("Comfy-Org/HunyuanVideo_1.5_repackaged", "split_files/text_encoders/byt5_small_glyphxl_fp16.safetensors"), bytes: 438_643_184, sha256: "516910bb4c9b225370290e40585d1b0e6c8cd3583690f7eec2f7fb593990fb48" }],
   qwen3_06b: [{ file: "qwen_3_06b_base.safetensors", url: hf("circlestone-labs/Anima", "split_files/text_encoders/qwen_3_06b_base.safetensors"), bytes: 1_192_135_096, sha256: "cd2a512003e2f9f3cd3c32a9c3573f820bb28c940f73c57b1ddaa983d9223eba" }],
   // "Heretic" builds are abliterated with the Heretic tool; DreamFast and ethanfel
@@ -32,12 +39,12 @@ export const encoderDownloads = {
     { file: "qwen_3_4b.safetensors", url: hf("Comfy-Org/z_image_turbo", "split_files/text_encoders/qwen_3_4b.safetensors"), bytes: 8_044_982_048, sha256: "6c671498573ac2f7a5501502ccce8d2b08ea6ca2f661c458e708f36b36edfc5a" }
   ],
   qwen3_8b: [
-    { file: "qwen3-8b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/qwen3-8b-heretic", "comfyui/qwen3-8b-heretic_fp8_e4m3fn.safetensors"), bytes: 9_435_845_548, sha256: "7869b38a7830fd021e36a1f00a1e012ac5c9afe36b974a8e5e67b311e654443e" },
-    { file: "qwen_3_8b_fp8mixed.safetensors", url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-9b", "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors"), bytes: 8_664_848_742, sha256: "abad16806e0cbabc54e0325d6565847443fe396d5f0be38bb3cd3fe75a1201d6" }
+    { file: "qwen3-8b-heretic_fp8_e4m3fn.safetensors", fp8: true, url: hf("DreamFast/qwen3-8b-heretic", "comfyui/qwen3-8b-heretic_fp8_e4m3fn.safetensors"), bytes: 9_435_845_548, sha256: "7869b38a7830fd021e36a1f00a1e012ac5c9afe36b974a8e5e67b311e654443e" },
+    { file: "qwen_3_8b_fp8mixed.safetensors", fp8: true, url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-9b", "split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors"), bytes: 8_664_848_742, sha256: "abad16806e0cbabc54e0325d6565847443fe396d5f0be38bb3cd3fe75a1201d6" }
   ],
   qwen3vl_4b: [
-    { file: "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors", url: hf("DreamFast/Qwen3-VL-4b-Heretic-ComfyUI", "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors"), bytes: 4_831_492_476, sha256: "7443c2b8df026a3271b3095d5d1dc07800dc5cf460b6e3586692253c7a7bc17c" },
-    { file: "qwen3vl_4b_fp8_scaled.safetensors", url: hf("Comfy-Org/Krea-2", "text_encoders/qwen3vl_4b_fp8_scaled.safetensors"), bytes: 5_242_467_968, sha256: "54bd5144df0bbc25dd6ccadfcb826b521445a1b06ae5a42570bdd2974ca87094" }
+    { file: "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors", fp8: true, url: hf("DreamFast/Qwen3-VL-4b-Heretic-ComfyUI", "qwen3-vl-4b-heretic_fp8_e4m3fn.safetensors"), bytes: 4_831_492_476, sha256: "7443c2b8df026a3271b3095d5d1dc07800dc5cf460b6e3586692253c7a7bc17c" },
+    { file: "qwen3vl_4b_fp8_scaled.safetensors", fp8: true, url: hf("Comfy-Org/Krea-2", "text_encoders/qwen3vl_4b_fp8_scaled.safetensors"), bytes: 5_242_467_968, sha256: "54bd5144df0bbc25dd6ccadfcb826b521445a1b06ae5a42570bdd2974ca87094" }
   ],
   qwen3vl_8b: [
     { file: "qwen3-vl-8b-heretic-1.3.0_fp8_e4m3fn.safetensors", url: hf("DreamFast/Qwen3-VL-8B-Heretic-1.3.0", "comfyui/qwen3-vl-8b-heretic-1.3.0_fp8_e4m3fn.safetensors"), bytes: 10_017_064_632, sha256: "7f8ec20de729e2d99f3a04852d4c4499c1677cda167f5ea63d21b0882a5c32b5" },
@@ -49,14 +56,14 @@ export const encoderDownloads = {
   ],
   qwen25vl_7b: [
     { file: "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors", url: hf("ethanfel/Qwen2.5-VL-7B-Huihui-Abliterated-ComfyUI-ConvRot-INT8", "qwen_2.5_vl_7b_huihui_abliterated_int8_convrot.safetensors"), bytes: 10_064_106_602, sha256: "3dc4aae7dc34000c95de546cb220f1b67e51c86d7095fb9e3d19cec7032f5df7" },
-    { file: "qwen_2.5_vl_7b_fp8_scaled.safetensors", url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"), bytes: 9_384_670_680, sha256: "cb5636d852a0ea6a9075ab1bef496c0db7aef13c02350571e388aea959c5c0b4" }
+    { file: "qwen_2.5_vl_7b_fp8_scaled.safetensors", fp8: true, url: hf("Comfy-Org/Qwen-Image_ComfyUI", "split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"), bytes: 9_384_670_680, sha256: "cb5636d852a0ea6a9075ab1bef496c0db7aef13c02350571e388aea959c5c0b4" }
   ],
   // fp8 first: half the size of bf16, and what fits next to Flux.2 Dev on most machines.
   mistral3_24b: [
-    { file: "mistral_3_small_flux2_fp8.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors"), bytes: 18_034_640_095, sha256: "e3467b7d912a234fb929cdf215dc08efdb011810b44bc21081c4234cc75b370e" },
+    { file: "mistral_3_small_flux2_fp8.safetensors", fp8: true, url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_fp8.safetensors"), bytes: 18_034_640_095, sha256: "e3467b7d912a234fb929cdf215dc08efdb011810b44bc21081c4234cc75b370e" },
     { file: "mistral_3_small_flux2_bf16.safetensors", url: hf("Comfy-Org/flux2-dev", "split_files/text_encoders/mistral_3_small_flux2_bf16.safetensors"), bytes: 35_584_897_447, sha256: "7d79902f60b1aeb3a6de2cfad02f4367b5e300a1387de3d03ac717cfa3df117c" }
   ],
-  llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors"), bytes: 9_081_258_056, sha256: "9f86897bbeb933ef4fd06297740edb8dd962c94efcd92b373a11460c33765ea6" }],
+  llama31_8b: [{ file: "llama_3.1_8b_instruct_fp8_scaled.safetensors", fp8: true, url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/llama_3.1_8b_instruct_fp8_scaled.safetensors"), bytes: 9_081_258_056, sha256: "9f86897bbeb933ef4fd06297740edb8dd962c94efcd92b373a11460c33765ea6" }],
   ministral3_3b: [{ file: "ministral-3-3b.safetensors", url: hf("Comfy-Org/ERNIE-Image", "text_encoders/ministral-3-3b.safetensors"), bytes: 7_717_637_511, sha256: "49a750a128863854eac7d85e1a277a7b44bf6ec3646405b84686dfeeca3708ca" }],
   gemma2_2b: [{ file: "gemma_2_2b_fp16.safetensors", url: hf("Comfy-Org/Lumina_Image_2.0_Repackaged", "split_files/text_encoders/gemma_2_2b_fp16.safetensors"), bytes: 5_232_958_283, sha256: "29761442862f8d064d3f854bb6fabf4379dcff511a7f6ba9405a00bd0f7e2dbd" }],
   hidream_clip_l: [{ file: "clip_l_hidream.safetensors", url: hf("Comfy-Org/HiDream-I1_ComfyUI", "split_files/text_encoders/clip_l_hidream.safetensors"), bytes: 247_586_528, sha256: "706fdb88e22e18177b207837c02f4b86a652abca0302821f2bfa24ac6aea4f71" }],
@@ -92,21 +99,22 @@ export const vaeDownloads = {
 };
 
 // Second model files a family runs next to the one you pick (see `pair`).
-const wan22 = (file, bytes, sha256) => [{ file, url: hf("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", `split_files/diffusion_models/${file}`), bytes, sha256 }];
+// Comfy-Org's fp8_scaled halves are quantized fp8 (see fp8 on encoderDownloads).
+const wan22 = (file, bytes, sha256) => [{ file, ...(file.includes("fp8_scaled") ? { fp8: true } : {}), url: hf("Comfy-Org/Wan_2.2_ComfyUI_Repackaged", `split_files/diffusion_models/${file}`), bytes, sha256 }];
 export const modelDownloads = {
   wan22_t2v_low_fp8: wan22("wan2.2_t2v_low_noise_14B_fp8_scaled.safetensors", 14_293_923_632, "e71b96d7c82e638694c5e7fb98fac4bfb0e4ddc5fbbb4b1df40da8f0f1278a97"),
   wan22_t2v_low_fp16: wan22("wan2.2_t2v_low_noise_14B_fp16.safetensors", 28_577_095_592, "431d1613ffa809ae1f735b661a01788c6d74991f51efd01f45d5aee955ccd224"),
   wan22_i2v_low_fp8: wan22("wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors", 14_294_742_832, "5471a457b6ac404202a5fbe6c11595a3d5641fc766b00f38763f72303fffc21e"),
   wan22_i2v_low_fp16: wan22("wan2.2_i2v_low_noise_14B_fp16.safetensors", 28_577_914_792, "edb89340c8a6fbf1a70e76a839ae01eaf7d289f05ea1ebd6b1a3fc6f533826e9"),
-  ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors"), bytes: 9_280_741_293, sha256: "9b359007dae162cca7591d00868feea733eb7c56e56e3a214a4d5a9a2a07cd60" }],
+  ideogram4_uncond_fp8: [{ file: "ideogram4_unconditional_fp8_scaled.safetensors", fp8: true, url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_fp8_scaled.safetensors"), bytes: 9_280_741_293, sha256: "9b359007dae162cca7591d00868feea733eb7c56e56e3a214a4d5a9a2a07cd60" }],
   ideogram4_uncond_int8: [{ file: "ideogram4_unconditional_int8_convrot.safetensors", url: hf("Comfy-Org/Ideogram-4", "diffusion_models/ideogram4_unconditional_int8_convrot.safetensors"), bytes: 9_583_465_712, sha256: "cd03ed94f244c9cb705e7d30ca0f40b5f5b004bb20674117adff88d16416c23d" }],
   // Starter models (see starterModels below).
-  krea2_turbo_fp8: [{ file: "krea2_turbo_fp8_scaled.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_fp8_scaled.safetensors"), bytes: 13_141_730_784, sha256: "eb4dd8c612cfd10f64f25b057e6e6bbcb5737c94a7372177e456dbf7579502f1" }],
+  krea2_turbo_fp8: [{ file: "krea2_turbo_fp8_scaled.safetensors", fp8: true, label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_fp8_scaled.safetensors"), bytes: 13_141_730_784, sha256: "eb4dd8c612cfd10f64f25b057e6e6bbcb5737c94a7372177e456dbf7579502f1" }],
   krea2_turbo_bf16: [{ file: "krea2_turbo_bf16.safetensors", label: "Krea 2 Turbo", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_turbo_bf16.safetensors"), bytes: 26_283_332_608, sha256: "78bbf8f4165eda19cea3cb06c78089221932a39e2eed8af9da741f942c47ffb3" }],
   krea2_raw_bf16: [{ file: "krea2_raw_bf16.safetensors", label: "Krea 2 Raw", url: hf("Comfy-Org/Krea-2", "diffusion_models/krea2_raw_bf16.safetensors"), bytes: 26_283_332_608, sha256: "f99bb0ff8e362b77342bc4994e0c50906fe7ef7074864b181b7d48d2fa6d03d7" }],
-  flux2_klein_4b_fp8: [{ file: "flux-2-klein-4b-fp8.safetensors", label: "Flux.2 Klein 4B", url: hf("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors"), bytes: 4_070_624_520, sha256: "97ed34fe0567e436200f2faee3939b88f2b5d99f8af2a4dc16532c4245c0ccb6" }],
+  flux2_klein_4b_fp8: [{ file: "flux-2-klein-4b-fp8.safetensors", fp8: true, label: "Flux.2 Klein 4B", url: hf("black-forest-labs/FLUX.2-klein-4b-fp8", "flux-2-klein-4b-fp8.safetensors"), bytes: 4_070_624_520, sha256: "97ed34fe0567e436200f2faee3939b88f2b5d99f8af2a4dc16532c4245c0ccb6" }],
   flux2_klein_4b: [{ file: "flux-2-klein-4b.safetensors", label: "Flux.2 Klein 4B", url: hf("Comfy-Org/vae-text-encorder-for-flux-klein-4b", "split_files/diffusion_models/flux-2-klein-4b.safetensors"), bytes: 7_751_105_712, sha256: "ec3d4e733a771f61c052fb4856c48b336c55eaf2c65487c2a1faeb9bbda7a343" }],
-  flux2_dev_fp8: [{ file: "flux2_dev_fp8mixed.safetensors", label: "Flux.2 Dev", url: hf("Comfy-Org/flux2-dev", "split_files/diffusion_models/flux2_dev_fp8mixed.safetensors"), bytes: 35_455_599_592, sha256: "863a82e4ff950a42a6b0e80bea824828f129eb1a8fbbdbd9e8cb29859127b486" }]
+  flux2_dev_fp8: [{ file: "flux2_dev_fp8mixed.safetensors", fp8: true, label: "Flux.2 Dev", url: hf("Comfy-Org/flux2-dev", "split_files/diffusion_models/flux2_dev_fp8mixed.safetensors"), bytes: 35_455_599_592, sha256: "863a82e4ff950a42a6b0e80bea824828f129eb1a8fbbdbd9e8cb29859127b486" }]
 };
 
 // Whole checkpoints (model, text encoders and VAE in one file), for models/checkpoints.
@@ -123,17 +131,18 @@ export const checkpointDownloads = {
  *
  * model: the catalog download of the model file. encoders: a slot's download
  * when it is not the slot's first. memory: GPU memory (GB) the version runs
- * comfortably in. appleMemory: what a Mac needs instead, where that differs
- * (fp8 weights load at full precision there; docs/hardware-notes.md), and
- * appleDetail how it is described there, since "compact" saves no memory. ram:
- * system memory it wants besides. The studio highlights the largest version
- * that fits and never hides the others.
+ * comfortably in. appleMemory: what a Mac would need instead (the size at full
+ * precision), and appleDetail how the version is described there. A model
+ * download flagged `fp8` cannot load on a Mac (docs/hardware-notes.md), so
+ * there that version never counts as fitting. ram: system memory it wants
+ * besides. The studio highlights the largest version that fits and never
+ * hides the others.
  */
 export const starterModels = [
   {
     family: "krea2", title: "Krea 2", blurb: "Photographic, with natural light and real texture.",
     versions: [
-      { id: "turbo-fp8", label: "Turbo", detail: "8 steps · compact", appleDetail: "8 steps · smaller download", model: "model:krea2_turbo_fp8:0", memory: 16, appleMemory: 32, fp8: true },
+      { id: "turbo-fp8", label: "Turbo", detail: "8 steps · compact", appleDetail: "8 steps · fp8, not for Macs", model: "model:krea2_turbo_fp8:0", memory: 16, appleMemory: 32 },
       { id: "turbo", label: "Turbo", detail: "8 steps · full precision", model: "model:krea2_turbo_bf16:0", memory: 32, ram: 48 },
       { id: "raw", label: "Raw", detail: "28 steps · follows a negative prompt", model: "model:krea2_raw_bf16:0", memory: 32, ram: 48 }
     ]
@@ -141,9 +150,9 @@ export const starterModels = [
   {
     family: "flux2_klein_4b", title: "Flux.2", blurb: "Quick and versatile, and it can work from reference images.",
     versions: [
-      { id: "klein-fp8", label: "Klein 4B", detail: "4 steps · compact", appleDetail: "4 steps · smaller download", model: "model:flux2_klein_4b_fp8:0", memory: 8, appleMemory: 12, fp8: true },
+      { id: "klein-fp8", label: "Klein 4B", detail: "4 steps · compact", appleDetail: "4 steps · fp8, not for Macs", model: "model:flux2_klein_4b_fp8:0", memory: 8, appleMemory: 12 },
       { id: "klein", label: "Klein 4B", detail: "4 steps · full precision", model: "model:flux2_klein_4b:0", memory: 12 },
-      { id: "dev", label: "Dev", family: "flux2_dev", detail: "28 steps · the largest Flux", model: "model:flux2_dev_fp8:0", encoders: { encoder: "encoder:mistral3_24b:0" }, memory: 32, appleMemory: 80, ram: 64, fp8: true }
+      { id: "dev", label: "Dev", family: "flux2_dev", detail: "28 steps · the largest Flux", appleDetail: "28 steps · fp8, not for Macs", model: "model:flux2_dev_fp8:0", encoders: { encoder: "encoder:mistral3_24b:0" }, memory: 32, appleMemory: 80, ram: 64 }
     ]
   },
   {
@@ -182,6 +191,8 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
  * pack: a node-packs.js id when the family runs on custom nodes. ownLoaders:
  * the pack loads encoder and VAE itself (no pickers, no LoRAs).
  * variants: first whose `match` passes wins; the last one is the fallback.
+ * A variant's `apple` replaces some of its defaults when ComfyUI runs on Apple
+ * Silicon (MPS), where a setting is known to break (see variantDefaults).
  * MODELS.md walks through adding a family.
  */
 export const families = {
@@ -377,7 +388,9 @@ export const families = {
     modelSampling: { node: "ModelSamplingSD3", shift: 8 },
     variants: [
       { id: "fast", label: "Fast", match: (name) => speedName.test(name) || /causvid|lightx2v|self[-_]?forcing/i.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "standard", label: "Wan 2.1", defaults: { steps: 30, cfg: 6, sampler: "uni_pc", scheduler: "simple" } }
+      // uni_pc corrupts video on Apple Silicon (float32 rounding in its
+      // coefficients; ComfyUI issues 7027, 15921, 16573), euler does not.
+      { id: "standard", label: "Wan 2.1", apple: { sampler: "euler" }, defaults: { steps: 30, cfg: 6, sampler: "uni_pc", scheduler: "simple" } }
     ],
     size: [832, 480], frames: 33, fps: 16
   },
@@ -388,7 +401,7 @@ export const families = {
     modelSampling: { node: "ModelSamplingSD3", shift: 8 },
     variants: [
       { id: "fast", label: "Fast", match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "standard", label: "Wan 2.2 5B", defaults: { steps: 20, cfg: 5, sampler: "uni_pc", scheduler: "simple" } }
+      { id: "standard", label: "Wan 2.2 5B", apple: { sampler: "euler" }, defaults: { steps: 20, cfg: 5, sampler: "uni_pc", scheduler: "simple" } }
     ],
     size: [1280, 704], frames: 121, fps: 24
   },
@@ -911,6 +924,14 @@ export function refinedFamily(familyId = "", name = "", weightsRead = false) {
 }
 
 /* ------------------------------------------------------------ Speed LoRAs */
+
+/**
+ * The settings a model file starts at: its variant's defaults, with the
+ * variant's `apple` overrides when ComfyUI runs on Apple Silicon.
+ */
+export function variantDefaults(variant, { apple = false } = {}) {
+  return { ...variant.defaults, ...(apple ? variant.apple : null) };
+}
 
 /** The variant of a family a file is, by name (and header where it can tell). */
 export function variantFor(familyId, name = "", header = null, detail = null) {

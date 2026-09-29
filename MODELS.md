@@ -55,7 +55,10 @@ catalog, so a family that is described correctly needs no UI work.
 4. **Describe the family** in `families`. Settings live on variants; the last
    variant is the fallback. `match(name, header, detail)` picks a variant, so
    let the weights decide where they can (see Flux Schnell and Sana Sprint)
-   and the filename only where they cannot.
+   and the filename only where they cannot. A variant's `apple` replaces some
+   of its defaults when ComfyUI runs on Apple Silicon, for a setting known to
+   break there (Wan's uni_pc sampler corrupts video on MPS, so `apple:
+   { sampler: "euler" }`). `variantDefaults` applies it.
 
 5. **Teach detection.** Add the tensor-key signature to `familyFromHeader` at
    the same position ComfyUI checks it, so no file is read two ways. Watch for
@@ -67,7 +70,12 @@ catalog, so a family that is described correctly needs no UI work.
 
 6. **Encoders and VAE.** Reuse an existing kind where the file is the same.
    Otherwise add the kind (header signature plus name fallback) and at least
-   one download. Parts that cannot be downloaded as single files (diffusers
+   one download. Mark a download `fp8: true` when its header carries per-layer
+   fp8 quantization (`_quantization_metadata`, `comfy_quant` or `scale_weight`
+   keys): ComfyUI keeps those in fp8, which a Mac cannot load, so on a Mac any
+   other build of the part is offered first and an fp8 starter never counts as
+   fitting. A plain fp8 file (no scales) loads at full precision and stays
+   unmarked. Parts that cannot be downloaded as single files (diffusers
    folders, gated repos) get a `command` on their missing entry: a
    copyable shell command, see `diffusersDownloadPlan` in
    `server/node-install.js`.

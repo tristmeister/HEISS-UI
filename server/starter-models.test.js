@@ -79,14 +79,23 @@ test("a 32 GB card with 64 GB of RAM: the full versions", () => {
   assert.equal(plan(card(32, 32)).find((item) => item.family === "flux2_klein_4b").best, "klein", "Dev wants 64 GB of RAM besides");
 });
 
-test("a Mac counts fp8 at full size, and prefers the full-precision file on a tie", () => {
+test("a Mac never counts an fp8 version as fitting, since MPS cannot load it", () => {
   const small = plan(mac(24));
-  assert.equal(version(small, "krea2", "turbo-fp8").memoryGB, 32);
+  assert.equal(version(small, "krea2", "turbo-fp8").fits, false);
+  assert.equal(version(small, "flux2_klein_4b", "klein-fp8").fits, false);
   assert.equal(byFamily(small, "krea2").best, null);
   assert.equal(byFamily(small, "flux2_klein_4b").best, "klein");
   const large = plan(mac(64));
   assert.equal(byFamily(large, "krea2").best, "turbo");
-  assert.equal(byFamily(large, "flux2_klein_4b").best, "klein", "Dev needs far more on a Mac");
+  assert.equal(byFamily(large, "flux2_klein_4b").best, "klein");
+  const huge = plan(mac(192));
+  assert.equal(version(huge, "flux2_klein_4b", "dev").fits, false, "the only Dev download is fp8");
+  assert.equal(byFamily(huge, "flux2_klein_4b").best, "klein");
+  assert.equal(version(plan(card(24)), "krea2", "turbo-fp8").fits, true, "a graphics card runs fp8");
+});
+
+test("on a Mac a plain fp8 encoder stays first: it loads at full precision there", () => {
+  assert.equal(version(plan(mac(64)), "flux2_klein_4b", "klein").downloads[0].file, "qwen3-4b-heretic_fp8_e4m3fn.safetensors");
 });
 
 test("unknown hardware: sizes, and no verdicts", () => {
@@ -97,9 +106,11 @@ test("unknown hardware: sizes, and no verdicts", () => {
   }
 });
 
-test("on a Mac an fp8 version is described by the download it saves, not as compact", () => {
+test("on a Mac an fp8 version says it is not for Macs", () => {
   const onMac = plan(mac(32));
-  assert.equal(version(onMac, "flux2_klein_4b", "klein-fp8").detail, "4 steps · smaller download");
-  assert.equal(version(onMac, "krea2", "turbo-fp8").detail, "8 steps · smaller download");
+  assert.equal(version(onMac, "flux2_klein_4b", "klein-fp8").detail, "4 steps · fp8, not for Macs");
+  assert.equal(version(onMac, "krea2", "turbo-fp8").detail, "8 steps · fp8, not for Macs");
+  assert.equal(version(onMac, "flux2_klein_4b", "dev").detail, "28 steps · fp8, not for Macs");
+  assert.equal(version(onMac, "flux2_klein_4b", "klein").fp8, false);
   assert.equal(version(plan(card(12)), "flux2_klein_4b", "klein-fp8").detail, "4 steps · compact");
 });
