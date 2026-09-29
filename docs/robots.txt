@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /guide-kit.html
+
+Sitemap: https://heiss-ui.vercel.app/sitemap.xml

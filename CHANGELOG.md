@@ -11,6 +11,12 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Changed
+- **The website moved to [heiss-ui.vercel.app](https://heiss-ui.vercel.app/)**, with
+  new guides for every model family, popular graphics cards and Macs, and
+  comparisons with other ComfyUI front ends. The Website link in Settings goes
+  there, and old links forward.
+
 ## [0.13.0] - 2026-09-28
 
 > Model fixes, plainer wording and wide images

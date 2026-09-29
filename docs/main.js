@@ -1,4 +1,9 @@
 /* HEISS UI landing page: interactions, feature scroller, generated scene art. */
+
+// The site moved from GitHub Pages to Vercel. Old links land on the same page there.
+if (location.hostname === "tristmeister.github.io") {
+  location.replace("https://heiss-ui.vercel.app" + location.pathname.replace(/^\/HEISS-UI/, "") + location.search + location.hash);
+}
 (() => {
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];

@@ -10,7 +10,7 @@
   "bugs": {
     "url": "https://github.com/tristmeister/HEISS-UI/issues"
   },
-  "homepage": "https://tristmeister.github.io/HEISS-UI/",
+  "homepage": "https://heiss-ui.vercel.app/",
   "type": "module",
   "engines": {
     "node": ">=20.9"

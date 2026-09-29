@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://tristmeister.github.io/HEISS-UI/"><b>Website</b></a>
+  <a href="https://heiss-ui.vercel.app/"><b>Website</b></a>
   &nbsp;·&nbsp;
   <a href="#quick-start">Quick start</a>
   &nbsp;·&nbsp;
