@@ -44,7 +44,7 @@ function objectInfo({ unets = [], checkpoints = [], clips = [], vaeFiles = [], l
     DualCLIPLoader: list({ clip_name1: [clips], clip_name2: [clips], type: [["sdxl"]] }),
     VAELoader: list({ vae_name: [vaeFiles] }),
     LoraLoader: list({ lora_name: [loras], strength_model: ["FLOAT", { default: 1, min: -100, max: 100, step: 0.01 }] }),
-    KSampler: list({ sampler_name: [["euler", "res_multistep", "lcm", "ddim", "dpmpp_2m", "euler_ancestral", "uni_pc"]], scheduler: [["simple", "sgm_uniform", "karras", "normal", "beta"]] })
+    KSampler: list({ sampler_name: [["euler", "res_multistep", "lcm", "ddim", "dpmpp_2m", "euler_ancestral", "uni_pc", "er_sde"]], scheduler: [["simple", "sgm_uniform", "karras", "normal", "beta"]] })
   };
 }
 
@@ -144,4 +144,14 @@ test("HunyuanVideo 1.5 takes Tencent's shift per resolution and task, and 50 ste
   assert.equal(variantFor("hunyuan15", "hunyuanvideo1.5_t2v_step_distilled.safetensors").id, "standard", "no step-distilled text-to-video from Tencent");
   assert.deepEqual(settings("hunyuanvideo1.5_t2v_480p_lightx2v_4step.safetensors").slice(1), ["fast", 9, 4, 1]);
   assert.equal(families.hunyuan15.frames, 121);
+});
+
+test("Anima runs on er_sde, and its Turbo files at CFG 1 and 10 steps without a negative prompt", () => {
+  const info = objectInfo({ unets: ["anima-base-v1.0.safetensors", "anima-turbo-v1.1.safetensors"] });
+  const base = profileFor(info, "anima-base-v1.0.safetensors");
+  const turbo = profileFor(info, "anima-turbo-v1.1.safetensors");
+  assert.deepEqual([base.variant, base.defaults.steps, base.defaults.cfg, base.defaults.sampler], ["standard", 30, 4, "er_sde"]);
+  assert.deepEqual([turbo.variant, turbo.defaults.steps, turbo.defaults.cfg, turbo.defaults.sampler], ["turbo", 10, 1, "euler"]);
+  assert.equal(turbo.capabilities.negativePrompt, false, "at CFG 1 the negative has no effect");
+  assert.equal(base.capabilities.negativePrompt, true);
 });

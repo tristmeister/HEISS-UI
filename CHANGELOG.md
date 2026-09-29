@@ -34,6 +34,8 @@ version opens with a `> ` summary line, which the update pill shows.
   model (5 at 480p, 9 for 720p text to video, 7 for 720p image to video), the
   CFG-distilled models take the 50 steps they need for a clean result, and
   text to video starts at 121 frames. A 4-step lightx2v file runs as Fast.
+- **Anima Turbo runs as Turbo:** 10 steps at CFG 1, as its card says, instead
+  of 30 steps at CFG 4. Other Anima files start on er_sde, the card's sampler.
 
 ## [0.13.0] - 2026-09-28
 

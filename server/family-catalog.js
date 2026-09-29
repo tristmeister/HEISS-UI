@@ -383,7 +383,12 @@ export const families = {
     label: "Anima", kind: "image", sources: ["unet", "checkpoint"],
     slots: [{ slot: "encoder", label: "Qwen3 0.6B", kinds: ["qwen3_06b"] }], clipType: "stable_diffusion",
     vae: ["qwen_image", "wan21"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: portraitFirst,
-    variants: [{ id: "standard", label: "Anima", defaults: { steps: 30, cfg: 4, sampler: "euler", scheduler: "simple" } }],
+    // The card: er_sde as the default sampler (both Comfy-Org templates use it);
+    // Anima-Turbo "at CFG 1 and 8-12 steps", where euler suits it best.
+    variants: [
+      { id: "turbo", label: "Turbo", match: (name) => speedName.test(name), negative: "zero", defaults: { steps: 10, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "standard", label: "Anima", defaults: { steps: 30, cfg: 4, sampler: "er_sde", scheduler: "simple" } }
+    ],
     size: [1024, 1024]
   },
   wan21: {
