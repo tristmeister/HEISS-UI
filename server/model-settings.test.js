@@ -16,7 +16,7 @@ const dirs = Object.fromEntries(["diffusion_models", "checkpoints", "text_encode
 test.after(() => fs.rmSync(scratch, { recursive: true, force: true }));
 
 const { classifyModel } = await import("./model-families.js");
-const { variantFor } = await import("./family-catalog.js");
+const { stepsInName, variantFor } = await import("./family-catalog.js");
 const { inferModels } = await import("./models.js");
 const { sanitizeGenerateBody } = await import("./validation.js");
 
@@ -102,4 +102,26 @@ test("on a Mac, a part's other build comes before its quantized fp8 one", () => 
   assert.deepEqual(t5(mps).map((item) => [item.id, item.file]), [["encoder:t5xxl:1", "t5xxl_fp16.safetensors"], ["encoder:t5xxl:0", "t5xxl_fp8_e4m3fn_scaled.safetensors"]]);
   const umt5 = profileFor(info, "wan2.1_t2v_1.3B_fp16.safetensors", mps).missing.find((item) => item.part === "encoder").downloads;
   assert.equal(umt5[0].file, "umt5_xxl_fp16.safetensors");
+});
+
+test("a step count in the file name is read as written", () => {
+  assert.equal(stepsInName("sdxl_lightning_4step.safetensors"), 4);
+  assert.equal(stepsInName("models/sdxl_lightning_8step_unet.safetensors"), 8);
+  assert.equal(stepsInName("Qwen-Image-Lightning-8steps-V1.1.safetensors"), 8);
+  assert.equal(stepsInName("qwen_image_lightning_4-steps_merged.safetensors"), 4);
+  assert.equal(stepsInName("RealVisXL_V5.0_Lightning_fp16.safetensors"), 0);
+  assert.equal(stepsInName("juggernautXL_v9Rdphoto2Lightning.safetensors"), 0);
+});
+
+test("files distilled for a step count start at that count; the rest at their variant's", () => {
+  const info = objectInfo({
+    checkpoints: ["sdxl_lightning_2step.safetensors", "sdxl_lightning_8step.safetensors", "juggernautXL_lightning.safetensors", "dmd2_sdxl_merge.safetensors"],
+    unets: ["qwen_image_lightning_4steps_merged.safetensors", "qwen_image_lightning_merged.safetensors", "minimax_h3_turbo_4step.safetensors", "minimax_h3_turbo.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors"]
+  });
+  const steps = (model) => profileFor(info, model).defaults.steps;
+  assert.deepEqual(["sdxl_lightning_2step.safetensors", "sdxl_lightning_8step.safetensors", "juggernautXL_lightning.safetensors"].map(steps), [2, 8, 6]);
+  assert.equal(steps("dmd2_sdxl_merge.safetensors"), 4, "DMD2's card: 4 steps");
+  assert.deepEqual(["qwen_image_lightning_4steps_merged.safetensors", "qwen_image_lightning_merged.safetensors"].map(steps), [4, 8]);
+  assert.deepEqual(["minimax_h3_turbo_4step.safetensors", "minimax_h3_turbo.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors"].map(steps), [4, 8, 20]);
+  assert.equal(profileFor(info, "minimax_h3_fl2va_pruned_int8_convrot.safetensors").defaults.frames, 124, "5 seconds, H3's shortest trained length");
 });

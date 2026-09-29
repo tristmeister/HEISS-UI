@@ -24,6 +24,12 @@ version opens with a `> ` summary line, which the update pill shows.
   precision too (T5-XXL for SD 3.5, UMT5 for Wan), a Mac downloads that one,
   since Macs can't load quantized fp8 files. The fp8 starter models say
   they're not for Macs and are never picked there.
+- **Speed models start at the step count they're made for.** An
+  SDXL-Lightning, Qwen-Image Lightning or MiniMax H3 Turbo file with its step
+  count in the name (like `4step`) runs at exactly that many steps. DMD2 starts
+  at 4 steps, H3 Turbo at 8.
+- **MiniMax H3 clips start at 5 seconds** (124 frames), the shortest length
+  it's trained for, instead of 2.3 seconds.
 
 ## [0.13.0] - 2026-09-28
 

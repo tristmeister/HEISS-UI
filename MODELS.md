@@ -58,7 +58,10 @@ catalog, so a family that is described correctly needs no UI work.
    and the filename only where they cannot. A variant's `apple` replaces some
    of its defaults when ComfyUI runs on Apple Silicon, for a setting known to
    break there (Wan's uni_pc sampler corrupts video on MPS, so `apple:
-   { sampler: "euler" }`). `variantDefaults` applies it.
+   { sampler: "euler" }`). `stepsFromName: true` takes the steps from a count
+   in the file name (`sdxl_lightning_4step` → 4), for variants whose files are
+   distilled for exactly that many; the variant's own steps stay the fallback.
+   `variantDefaults` applies both.
 
 5. **Teach detection.** Add the tensor-key signature to `familyFromHeader` at
    the same position ComfyUI checks it, so no file is read two ways. Watch for

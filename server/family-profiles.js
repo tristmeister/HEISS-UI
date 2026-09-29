@@ -362,7 +362,7 @@ export function familyProfiles(info, helpers) {
     if (missing.length) fileEntry.reason = `Needs ${missing.map((item) => item.label).join(", ")}.`;
 
     const pick = (options, preferred, fallback) => (options.includes(preferred) ? preferred : fallback || options[0] || "");
-    const settings = variantDefaults(variant, device);
+    const settings = variantDefaults(variant, name, device);
     const references = canReference(family, info) ? family.references : 0;
     // Image-to-video runs from a picture: one start image, and no run without it.
     const startSlot = family.startImage === "required"

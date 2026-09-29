@@ -192,7 +192,9 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
  * the pack loads encoder and VAE itself (no pickers, no LoRAs).
  * variants: first whose `match` passes wins; the last one is the fallback.
  * A variant's `apple` replaces some of its defaults when ComfyUI runs on Apple
- * Silicon (MPS), where a setting is known to break (see variantDefaults).
+ * Silicon (MPS), where a setting is known to break; `stepsFromName` takes the
+ * steps from a count in the file name ("…_4step"), for files distilled for
+ * exactly that many (see variantDefaults).
  * MODELS.md walks through adding a family.
  */
 export const families = {
@@ -224,9 +226,10 @@ export const families = {
     variants: [
       { id: "turbo", label: "SDXL Turbo", match: (name) => /sd_?xl_?turbo|sdxlturbo/i.test(name), size: [512, 512], defaults: { steps: 1, cfg: 1, sampler: "euler_ancestral", scheduler: "normal" } },
       { id: "hyper", label: "Hyper", match: (name) => /hyper/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "ddim", scheduler: "sgm_uniform" } },
-      { id: "dmd2", label: "DMD2", match: (name) => /dmd/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "lcm", scheduler: "sgm_uniform" } },
+      { id: "dmd2", label: "DMD2", match: (name) => /dmd/i.test(name), defaults: { steps: 4, cfg: 1, sampler: "lcm", scheduler: "sgm_uniform" } },
       { id: "lcm", label: "LCM", match: (name) => /lcm|pcm|tcd/i.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
-      { id: "lightning", label: "Lightning", match: (name) => /lightning|turbo|\d+[-_ ]?steps?/i.test(name), defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "sgm_uniform" } },
+      // SDXL-Lightning's steps must equal the count its file is distilled for (2, 4 or 8); DMD2's card uses 4.
+      { id: "lightning", label: "Lightning", match: (name) => /lightning|turbo|\d+[-_ ]?steps?/i.test(name), stepsFromName: true, defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "sgm_uniform" } },
       // NoobAI v-pred merges often lack the v_pred key ComfyUI looks for, so HEISS sets the mode itself.
       { id: "vpred", label: "V-prediction", match: (name, header) => Boolean(header && "v_pred" in header) || /v[-_ ]?pred/i.test(name), vpred: true, defaults: { steps: 30, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
       { id: "pony", label: "Pony", match: (name) => /pony|pdxl|autismmix/i.test(name), defaults: { steps: 25, cfg: 7, sampler: "euler_ancestral", scheduler: "normal" } },
@@ -338,7 +341,8 @@ export const families = {
     vae: ["qwen_image", "wan21"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, aspects: square,
     modelSampling: { node: "ModelSamplingAuraFlow", shift: 3.1 },
     variants: [
-      { id: "fast", label: "Lightning", match: (name) => speedName.test(name), negative: "text", defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      // Qwen-Image-Lightning comes as 4-step and 8-step builds; each wants its own count.
+      { id: "fast", label: "Lightning", match: (name) => speedName.test(name), negative: "text", stepsFromName: true, defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
       { id: "2512", label: "Qwen-Image 2512", match: (name) => /2512/.test(name), negative: "text", defaults: { steps: 50, cfg: 4, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "Qwen-Image", negative: "text", defaults: { steps: 20, cfg: 2.5, sampler: "euler", scheduler: "simple" } }
     ],
@@ -501,10 +505,12 @@ export const families = {
     vae: ["h3_video"], audioVae: ["h3_audio"], latent: "MiniMaxH3ImageToVideo", sizeStep: 32, negative: "none", sampling: "h3", aspects: wide,
     requiredNodes: ["MiniMaxH3ImageToVideo", "SamplerCustomAdvanced", "BasicGuider", "VAEDecodeAudio", "CreateVideo"],
     variants: [
-      { id: "fast", label: "Turbo", match: (name) => speedName.test(name), defaults: { steps: 6, cfg: 1, sampler: "res_multistep", scheduler: "simple" } },
+      // Turbo is distilled for 4 or 8 steps (lightx2v's LoRAs); Comfy-Org's template runs the 8-step one.
+      { id: "fast", label: "Turbo", match: (name) => speedName.test(name), stepsFromName: true, defaults: { steps: 8, cfg: 1, sampler: "res_multistep", scheduler: "simple" } },
       { id: "standard", label: "MiniMax H3", defaults: { steps: 20, cfg: 1, sampler: "res_multistep", scheduler: "simple" } }
     ],
-    size: [1344, 768], frames: 56, fps: 24
+    // 5 seconds, as the template and the node's own default: H3 is trained on 5 to 15 s.
+    size: [1344, 768], frames: 124, fps: 24
   },
   // Lumina Image 2.0 and its fine-tunes (Neta Lumina, NetaYume). Gemma reads a
   // system prompt before yours, as it did in training; the anime fine-tunes
@@ -926,11 +932,22 @@ export function refinedFamily(familyId = "", name = "", weightsRead = false) {
 /* ------------------------------------------------------------ Speed LoRAs */
 
 /**
- * The settings a model file starts at: its variant's defaults, with the
- * variant's `apple` overrides when ComfyUI runs on Apple Silicon.
+ * The settings a model file starts at: its variant's defaults, the step count
+ * in its name where the variant is distilled for exactly that many
+ * (`stepsFromName`), and the variant's `apple` overrides when ComfyUI runs on
+ * Apple Silicon.
  */
-export function variantDefaults(variant, { apple = false } = {}) {
-  return { ...variant.defaults, ...(apple ? variant.apple : null) };
+export function variantDefaults(variant, name = "", { apple = false } = {}) {
+  const steps = variant.stepsFromName ? stepsInName(name) : 0;
+  return { ...variant.defaults, ...(steps ? { steps } : null), ...(apple ? variant.apple : null) };
+}
+
+/** "sdxl_lightning_4step", "Qwen-Image-Lightning-8steps-V1.1" → 4, 8; 0 when the name gives none. */
+export function stepsInName(name = "") {
+  const base = String(name).split(/[\\/]/).pop() || "";
+  const match = /(?:^|[^a-z0-9.])(\d{1,2})[-_ ]?steps?(?![a-z])/i.exec(base);
+  const steps = Number(match?.[1] || 0);
+  return steps >= 1 && steps <= 50 ? steps : 0;
 }
 
 /** The variant of a family a file is, by name (and header where it can tell). */
