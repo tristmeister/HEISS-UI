@@ -39,6 +39,9 @@ version opens with a `> ` summary line, which the update pill shows.
 - **HiDream no longer makes black images with Flux's CLIP-L.** It takes only
   its own CLIP-L and CLIP-G, and offers their download when they're missing.
   Dev and Fast hide the negative prompt, which has no effect at their CFG 1.
+- **SDXL merges named "Pony v7" stay SDXL** on a ComfyUI on another computer,
+  where only the file name can tell. Only Pony V7 itself runs as AuraFlow.
+- **SD 2.x base models start at 512**, the size they're made for.
 
 ## [0.13.0] - 2026-09-28
 

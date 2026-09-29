@@ -156,6 +156,23 @@ test("Anima runs on er_sde, and its Turbo files at CFG 1 and 10 steps without a 
   assert.equal(base.capabilities.negativePrompt, true);
 });
 
+test("by name, only Pony V7 itself is AuraFlow; SDXL merges called Pony v7 stay SDXL", async () => {
+  const { familyFromName } = await import("./family-catalog.js");
+  for (const name of ["pony-v7-base.safetensors", "pony_v7_base_fp8.safetensors", "ponyDiffusionV7.gguf", "auraflow_0.3.safetensors"]) {
+    assert.equal(familyFromName(name, "checkpoint"), "auraflow", name);
+  }
+  for (const name of ["cyberrealisticPony_v70.safetensors", "CyberRealistic Pony v7.safetensors", "WAI-ANI-NSFW-PONYXL v7.safetensors", "ponyXL_v7.safetensors", "Nova Anime XL pony v7.safetensors"]) {
+    assert.equal(familyFromName(name, "checkpoint"), "sdxl", name);
+  }
+});
+
+test("SD 2.x base models start at 512, the 768 ones at 768", () => {
+  assert.deepEqual(variantFor("sd2", "v2-1_512-ema-pruned.safetensors").size, [512, 512]);
+  assert.deepEqual(variantFor("sd2", "512-base-ema.safetensors").size, [512, 512]);
+  assert.equal(variantFor("sd2", "v2-1_768-ema-pruned.safetensors").id, "standard");
+  assert.equal(variantFor("sd2", "768-v-ema.safetensors").id, "standard");
+});
+
 test("HiDream takes only its own CLIPs, and says so when they are missing", () => {
   const flux = ["clip_l.safetensors", "clip_g.safetensors", "t5xxl_fp16.safetensors", "llama_3.1_8b_instruct_fp8_scaled.safetensors"];
   const withFlux = profileFor(objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors"], clips: flux }), "hidream_i1_dev_fp8.safetensors");

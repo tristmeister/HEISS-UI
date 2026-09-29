@@ -217,7 +217,12 @@ export const families = {
     label: "SD 2.x", kind: "image", sources: ["checkpoint"],
     slots: [{ slot: "clip", label: "CLIP-H", kinds: ["clip_h"] }], clipType: "stable_diffusion",
     vae: ["sd15"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, aspects: square,
-    variants: [{ id: "standard", label: "SD 2.x", defaults: { steps: 25, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras" } }],
+    // SD 2.0 and 2.1 come as 768 px v-prediction models and 512 px "base" ones
+    // (v2-1_512-ema-pruned, 512-base-ema); the weights look the same.
+    variants: [
+      { id: "base", label: "Base (512)", match: (name) => /512|(^|[^a-z])base([^a-z]|$)/i.test(name), size: [512, 512], defaults: { steps: 25, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras" } },
+      { id: "standard", label: "SD 2.x", defaults: { steps: 25, cfg: 7, sampler: "dpmpp_2m", scheduler: "karras" } }
+    ],
     size: [768, 768]
   },
   sdxl: {
@@ -747,7 +752,9 @@ export function familyFromName(name = "", source = "unet") {
     ["anima", /\banima/i],
     ["flux1", /flux|schnell/i],
     ["sd3", /sd[-_ ]?3|stable[-_ ]?diffusion[-_ ]?3/i],
-    ["auraflow", /pony[-_ ]?v7|auraflow/i],
+    // Only a name that starts as Pony V7 does ("pony-v7-base"): SDXL merges named
+    // "CyberRealistic Pony v7" or "ponyXL v7" are SDXL.
+    ["auraflow", /^(?!.*xl)pony[-_ ]?(diffusion[-_ ]?)?v7(?!\d)|auraflow/i],
     ["sdxl", /xl|pony|illustrious|noob|animagine/i],
     ["sd15", /sd[-_ ]?1[._]?5|v1[-_]5/i]
   ];
