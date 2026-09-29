@@ -125,3 +125,23 @@ test("files distilled for a step count start at that count; the rest at their va
   assert.deepEqual(["minimax_h3_turbo_4step.safetensors", "minimax_h3_turbo.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors"].map(steps), [4, 8, 20]);
   assert.equal(profileFor(info, "minimax_h3_fl2va_pruned_int8_convrot.safetensors").defaults.frames, 124, "5 seconds, H3's shortest trained length");
 });
+
+test("HunyuanVideo 1.5 takes Tencent's shift per resolution and task, and 50 steps when CFG-distilled", async () => {
+  const { families, variantFor } = await import("./family-catalog.js");
+  const settings = (name) => {
+    const family = classifyModel("unet", `remote/${name}`).family;
+    const variant = variantFor(family, name);
+    return [family, variant.id, (variant.modelSampling || families[family].modelSampling).shift, variant.defaults.steps, variant.defaults.cfg];
+  };
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_t2v_fp16.safetensors"), ["hunyuan15", "standard", 5, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_720p_t2v_fp16.safetensors"), ["hunyuan15", "p720", 9, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_t2v_cfg_distilled_fp8_scaled.safetensors"), ["hunyuan15", "cfg_distilled", 5, 50, 1]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_i2v_fp16.safetensors"), ["hunyuan15_i2v", "standard", 5, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_720p_i2v_fp16.safetensors"), ["hunyuan15_i2v", "p720", 7, 20, 6]);
+  assert.deepEqual(settings("hunyuanvideo1.5_720p_i2v_cfg_distilled_fp16.safetensors"), ["hunyuan15_i2v", "cfg_distilled_720", 7, 50, 1]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_i2v_cfg_distilled_fp16.safetensors"), ["hunyuan15_i2v", "cfg_distilled", 5, 50, 1]);
+  assert.deepEqual(settings("hunyuanvideo1.5_480p_i2v_step_distilled_fp16.safetensors"), ["hunyuan15_i2v", "step_distilled", 7, 8, 1]);
+  assert.equal(variantFor("hunyuan15", "hunyuanvideo1.5_t2v_step_distilled.safetensors").id, "standard", "no step-distilled text-to-video from Tencent");
+  assert.deepEqual(settings("hunyuanvideo1.5_t2v_480p_lightx2v_4step.safetensors").slice(1), ["fast", 9, 4, 1]);
+  assert.equal(families.hunyuan15.frames, 121);
+});

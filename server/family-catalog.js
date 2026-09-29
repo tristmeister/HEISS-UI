@@ -172,6 +172,7 @@ const portraitFirst = [["2:3", 2, 3], ["1:1", 1, 1], ["3:2", 3, 2], ["16:9", 16,
 const wide = [["16:9", 16, 9], ["9:16", 9, 16], ["1:1", 1, 1], ["4:3", 4, 3], ["3:4", 3, 4], ["2.35:1", 235, 100]];
 
 const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash/i;
+const hy15Shift = (shift) => ({ node: "ModelSamplingSD3", shift });
 
 /**
  * slots: text encoder inputs in loader order. kinds: accepted encoder kinds.
@@ -466,20 +467,27 @@ export const families = {
       { slot: "glyph", label: "ByT5 Glyph", kinds: ["byt5_glyph"] }
     ], clipType: "hunyuan_video_15",
     vae: ["hunyuan15"], latent: "EmptyHunyuanVideo15Latent", sizeStep: 16, frameStep: 4, negative: "text", aspects: wide,
-    modelSampling: { node: "ModelSamplingSD3", shift: 7 },
+    // Tencent's table (model card): shift 5 at 480p, 9 for 720p text-to-video.
+    // Comfy-Org's 720p template keeps 20 steps for time; the CFG-distilled
+    // models "must use 50 steps to generate correct results".
+    modelSampling: hy15Shift(5),
     requiredNodes: ["EmptyHunyuanVideo15Latent"],
     variants: [
-      { id: "step_distilled", label: "Step-distilled", match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 20, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
+      // Tencent ships step-distilled weights for 480p image-to-video only; lightx2v's
+      // 4-step 480p text-to-video build runs without CFG at shift 9 (its README).
+      { id: "fast", label: "Fast (4-step)", match: (name) => speedName.test(name) || /lightx2v/i.test(name), stepsFromName: true, modelSampling: hy15Shift(9), defaults: { steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "cfg_distilled_720", label: "720p CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name) && /720p/i.test(name), size: [1280, 720], modelSampling: hy15Shift(9), defaults: { steps: 50, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 50, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], modelSampling: hy15Shift(9), defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "HunyuanVideo 1.5", defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } }
     ],
-    size: [848, 480], frames: 61, fps: 24
+    size: [848, 480], frames: 121, fps: 24
   },
   // HunyuanVideo 1.5 image-to-video (Comfy-Org's 720p I2V template): the start
   // image goes in through HunyuanVideo15ImageToVideo and, read by a SigLIP
-  // vision encoder, as guidance; shift 7, 20 steps at CFG 6. The I2V weights
-  // have the same layout as text-to-video, so only the name tells them apart.
+  // vision encoder, as guidance; 20 steps at CFG 6. Shift follows Tencent's
+  // table: 5 at 480p, 7 at 720p and for the 480p step-distilled model. The I2V
+  // weights have the same layout as text-to-video, so only the name tells them apart.
   hunyuan15_i2v: {
     label: "HunyuanVideo 1.5 I2V", kind: "video", sources: ["unet", "checkpoint"],
     refines: { family: "hunyuan15", name: /i2v/i },
@@ -489,12 +497,13 @@ export const families = {
     ], clipType: "hunyuan_video_15",
     vae: ["hunyuan15"], latent: "HunyuanVideo15ImageToVideo", imageToVideo: true, startImage: "required", clipVision: ["sigclip_384"],
     sizeStep: 16, frameStep: 4, negative: "text", aspects: wide,
-    modelSampling: { node: "ModelSamplingSD3", shift: 7 },
+    modelSampling: hy15Shift(5),
     requiredNodes: ["HunyuanVideo15ImageToVideo", "CLIPVisionLoader", "CLIPVisionEncode", "LoadImage"],
     variants: [
-      { id: "step_distilled", label: "Step-distilled", match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 20, cfg: 1, sampler: "euler", scheduler: "simple" } },
-      { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
+      { id: "step_distilled", label: "Step-distilled", match: (name) => /step[-_ ]?distill/i.test(name) || speedName.test(name), modelSampling: hy15Shift(7), defaults: { steps: 8, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "cfg_distilled_720", label: "720p CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name) && /720p/i.test(name), size: [1280, 720], modelSampling: hy15Shift(7), defaults: { steps: 50, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "cfg_distilled", label: "CFG-distilled", match: (name) => /cfg[-_ ]?distill/i.test(name), defaults: { steps: 50, cfg: 1, sampler: "euler", scheduler: "simple" } },
+      { id: "p720", label: "720p", match: (name) => /720p/i.test(name), size: [1280, 720], modelSampling: hy15Shift(7), defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } },
       { id: "standard", label: "HunyuanVideo 1.5 I2V", defaults: { steps: 20, cfg: 6, sampler: "euler", scheduler: "simple" } }
     ],
     size: [848, 480], frames: 121, fps: 24

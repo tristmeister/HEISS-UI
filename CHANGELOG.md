@@ -30,6 +30,10 @@ version opens with a `> ` summary line, which the update pill shows.
   at 4 steps, H3 Turbo at 8.
 - **MiniMax H3 clips start at 5 seconds** (124 frames), the shortest length
   it's trained for, instead of 2.3 seconds.
+- **HunyuanVideo 1.5 runs with Tencent's settings.** The shift follows the
+  model (5 at 480p, 9 for 720p text to video, 7 for 720p image to video), the
+  CFG-distilled models take the 50 steps they need for a clean result, and
+  text to video starts at 121 frames. A 4-step lightx2v file runs as Fast.
 
 ## [0.13.0] - 2026-09-28
 
