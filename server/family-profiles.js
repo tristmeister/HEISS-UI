@@ -138,7 +138,7 @@ export function nodesFor(family, variant, needsEncoderLoader, needsVaeLoader) {
   if (sampling) nodes.add(sampling.node);
   if (variant.rawShift) nodes.add("ModelSamplingFlux");
   if (variant.vpred) nodes.add("ModelSamplingDiscrete");
-  if (family.t5Padding) nodes.add("T5TokenizerOptions");
+  if (variant.t5Padding || family.t5Padding) nodes.add("T5TokenizerOptions");
   if (family.sampling === "pair") nodes.add("KSamplerAdvanced");
   if (family.kind === "video") ["CreateVideo", "SaveVideo"].forEach((node) => nodes.add(node));
   return [...nodes];

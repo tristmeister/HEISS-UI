@@ -184,6 +184,8 @@ const hy15Shift = (shift) => ({ node: "ModelSamplingSD3", shift });
  * "ideogram4" (two models through a dual guider), "mage" (its own encode node).
  * pair: a second model file the family runs next to the picked one (see pairSpec).
  * promptPrefix / negativePrefix: system text the model was trained to see first.
+ * t5Padding: { minPadding, minLength } for T5TokenizerOptions, on the family
+ * or a variant, where the maker's workflow sets how the T5 pads its tokens.
  * imageToVideo: `latent` is an image-to-video node (WanImageToVideo and the
  * like) that takes both conditionings, the VAE and the start image, and hands
  * back conditionings and latent; startImage: "required" makes the composer ask
@@ -250,8 +252,13 @@ export const families = {
   auraflow: {
     label: "Pony V7 / AuraFlow", kind: "image", sources: ["checkpoint", "unet"],
     slots: [{ slot: "t5", label: "Pile T5-XL", kinds: ["t5xl"] }], clipType: "stable_diffusion",
-    vae: ["aura", "sdxl"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: portraitFirst,
-    variants: [{ id: "standard", label: "Pony V7", defaults: { steps: 30, cfg: 3.5, sampler: "euler", scheduler: "simple" } }],
+    vae: ["aura", "sdxl"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: [["5:6", 5, 6], ...portraitFirst],
+    variants: [
+      { id: "auraflow", label: "AuraFlow", match: (name) => /auraflow/i.test(name), defaults: { steps: 30, cfg: 3.5, sampler: "euler", scheduler: "simple" } },
+      // Pony V7's own ComfyUI workflows (purplesmartai/pony-v7-base): the T5 padded
+      // to 768 tokens, 1280×1536. The card asks for at least 30 steps.
+      { id: "standard", label: "Pony V7", t5Padding: { minPadding: 768, minLength: 768 }, size: [1280, 1536], defaults: { steps: 30, cfg: 3.5, sampler: "euler", scheduler: "simple" } }
+    ],
     size: [1024, 1024]
   },
   sd3: {
@@ -319,7 +326,7 @@ export const families = {
   },
   chroma: {
     label: "Chroma", kind: "image", sources: ["unet", "checkpoint"],
-    slots: [{ slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }], clipType: "chroma", t5Padding: true,
+    slots: [{ slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }], clipType: "chroma", t5Padding: { minPadding: 0, minLength: 0 },
     vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     modelSampling: { node: "ModelSamplingAuraFlow", shift: 1 },
     variants: [

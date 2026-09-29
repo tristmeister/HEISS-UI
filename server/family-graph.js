@@ -102,7 +102,9 @@ export function familyGraph(body) {
   // ---- Patches before LoRAs
   const clipSkip = typeof family.clipSkip === "function" ? family.clipSkip(String(body.model || "").split(/[\\/]/).pop()) : 0;
   if (clipSkip) clip = [add("CLIPSetLastLayer", { clip, stop_at_clip_layer: clipSkip }), 0];
-  if (family.t5Padding) clip = [add("T5TokenizerOptions", { clip, min_padding: 0, min_length: 0 }), 0];
+  // How the T5 pads its tokens: none for Chroma, 768 for Pony V7, as their makers' workflows do.
+  const t5Padding = variant.t5Padding || family.t5Padding;
+  if (t5Padding) clip = [add("T5TokenizerOptions", { clip, min_padding: t5Padding.minPadding, min_length: t5Padding.minLength }), 0];
   if (family.enhancer && body.krea2Enhancer) {
     model = [add("ComfyUI-Krea2T-Enhancer", { model, enabled: true, strength: 1.5, debug: false }), 0];
   }

@@ -166,6 +166,20 @@ test("by name, only Pony V7 itself is AuraFlow; SDXL merges called Pony v7 stay 
   }
 });
 
+test("Pony V7 pads its T5 to 768 tokens and starts at 1280×1536, as its own workflow does", async () => {
+  const { familyGraph } = await import("./family-graph.js");
+  const info = objectInfo({ unets: ["pony-v7-base.safetensors"] });
+  info.T5TokenizerOptions = list({});
+  const pony = profileFor(info, "pony-v7-base.safetensors");
+  assert.deepEqual([pony.variant, pony.defaults.width, pony.defaults.height], ["standard", 1280, 1536]);
+  assert.equal(pony.aspectPresets.find((item) => item.default)?.label, "5:6");
+  const padding = (family, variant) => Object.values(familyGraph({ family, variant, source: "unet", model: "m.safetensors", encoders: ["t5.safetensors"], vae: "vae.safetensors", prompt: "a fox", steps: 30, cfg: 3.5, seed: 1 }))
+    .filter((item) => item.class_type === "T5TokenizerOptions").map((item) => [item.inputs.min_padding, item.inputs.min_length]);
+  assert.deepEqual(padding("auraflow", "standard"), [[768, 768]]);
+  assert.deepEqual(padding("auraflow", "auraflow"), [], "AuraFlow itself keeps ComfyUI's padding");
+  assert.deepEqual(padding("chroma", "standard"), [[0, 0]]);
+});
+
 test("SD 2.x base models start at 512, the 768 ones at 768", () => {
   assert.deepEqual(variantFor("sd2", "v2-1_512-ema-pruned.safetensors").size, [512, 512]);
   assert.deepEqual(variantFor("sd2", "512-base-ema.safetensors").size, [512, 512]);
