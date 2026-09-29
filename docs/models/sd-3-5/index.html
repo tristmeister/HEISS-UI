@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>SD 3.5 in ComfyUI: Large, Turbo, Medium, GGUF · HEISS UI</title>
+    <meta name="description" content="How to run Stable Diffusion 3.5 Large, Turbo and Medium in ComfyUI: all-in-one and split files, three text encoders, GGUF for 8 GB, the Mac fp8 fix, settings." />
+    <link rel="canonical" href="https://tristmeister.github.io/HEISS-UI/models/sd-3-5/" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="HEISS UI" />
+    <meta property="og:url" content="https://tristmeister.github.io/HEISS-UI/models/sd-3-5/" />
+    <meta property="og:title" content="How to run SD 3.5 locally" />
+    <meta property="og:description" content="How to run Stable Diffusion 3.5 Large, Turbo and Medium in ComfyUI: all-in-one and split files, three text encoders, GGUF for 8 GB, the Mac fp8 fix, settings." />
+    <meta property="og:image" content="https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="../../favicon.png" />
+    <link rel="preload" href="../../fonts/Geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="../../styles.css" />
+    <link rel="stylesheet" href="../../guide.css" />
+    <link rel="stylesheet" href="../models.css" />
+    <script src="../../main.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "How to run SD 3.5 locally",
+            "description": "How to run Stable Diffusion 3.5 Large, Turbo and Medium in ComfyUI: all-in-one and split files, three text encoders, GGUF for 8 GB, the Mac fp8 fix, settings.",
+            "url": "https://tristmeister.github.io/HEISS-UI/models/sd-3-5/",
+            "dateModified": "2026-09-29",
+            "image": "https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg",
+            "author": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "about": {
+              "@id": "https://tristmeister.github.io/HEISS-UI/#app"
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "HEISS UI",
+                "item": "https://tristmeister.github.io/HEISS-UI/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Models",
+                "item": "https://tristmeister.github.io/HEISS-UI/models/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "SD 3.5",
+                "item": "https://tristmeister.github.io/HEISS-UI/models/sd-3-5/"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How much VRAM does SD 3.5 Large need?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "About 15 GB for Comfy-Org’s fp8 all-in-one file, which fits a 16 GB card. As GGUF, Large runs on 8 GB (Q4_0, 4.8 GB) or 12 GB (Q8_0, 8.8 GB)."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I run SD 3.5 without T5?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Load only CLIP-L and CLIP-G with a DualCLIPLoader. It uses less memory, but prompt following and text in images get worse."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I use SD 3.5 commercially?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, under the Stability AI Community License, as long as your yearly revenue is below 1 million US dollars. Above that you need an Enterprise licence. You own what you generate."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which VAE do I need for the SD 3.5 GGUF?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The SD 3.5 VAE from the vae folder of Stability’s gated repo, or one saved out of an all-in-one checkpoint with a VAE Save node."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why does SD 3.5 fail on my Mac?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "SD 3.5’s fp8 files stop with a Float8 error on Apple Silicon, and both Comfy-Org all-in-one files and the usual T5 download are fp8. Use GGUF or full-precision model files with t5xxl_fp16."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Large or Medium?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Large for quality on 12 GB or more, with GGUF. Medium on smaller cards and for sizes up to 2 megapixels. Give Medium 40 steps and Skip Layer Guidance."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-github" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 .5A12 12 0 0 0 8.2 23.9c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.1c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.75 4.25 12.5 8l-3.75 3.75" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 16 16">
+        <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="5.25" y="5.25" width="8" height="8" rx="2" /><path d="M10.75 5.25V4.5a1.75 1.75 0 0 0-1.75-1.75H4.5A1.75 1.75 0 0 0 2.75 4.5V9a1.75 1.75 0 0 0 1.75 1.75h.75" /></g>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m3.25 8.5 3 3 6.5-7" />
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 2.5v7.75M4.75 7 8 10.25 11.25 7M3.25 13.25h9.5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 3.25v9.5M3.25 8h9.5" />
+      </symbol>
+    </svg>
+
+    <a class="skip" href="#content">Skip to content</a>
+
+    <header class="nav">
+      <a class="nav-brand pill" href="../../" aria-label="HEISS UI home">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 226 226"><path class="cup" d="M138.457 111.077L138.472 118.013C143.295 118.082 148.276 118.02 153.113 118.02C153.111 119.253 153.119 120.486 153.133 121.719L158.471 121.72C158.575 128.601 158.476 135.793 158.474 142.686L153.943 142.68L153.935 146.355C152.708 146.345 151.48 146.346 150.252 146.358C150.223 147.489 150.235 148.669 150.231 149.803L137.438 149.794L131.762 149.803L131.757 151.282L128.091 151.284C128.045 154.129 128.067 157.099 128.063 159.951L124.445 159.947L124.439 165L84.3456 164.996L84.3124 159.956C83.0803 159.936 81.812 159.952 80.577 159.953V151.018L76.4256 151.016L76.451 138.069C75.2103 138.06 73.9692 138.056 72.7284 138.06L72.7333 125.428C71.2109 125.388 69.5874 125.415 68.0575 125.413C67.9975 122.315 67.9582 118.267 68.077 115.201L73.6883 115.185C73.75 113.825 73.6867 112.465 73.746 111.074L138.457 111.077ZM138.987 125.533L138.983 128.903L136.136 128.898L136.12 139.263C134.977 139.264 133.646 139.234 132.518 139.278L132.52 142.848L145.487 142.853L147.14 142.848L147.174 139.1C148.703 139.089 150.233 139.089 151.762 139.098C151.759 135.756 151.699 132.233 151.777 128.912L148.549 128.904L148.543 125.519L138.987 125.533Z"/><path class="steam steam-a" d="M96.125 61.0062L102.259 61L102.256 71.379C100.517 71.4558 98.3273 71.397 96.5314 71.4064C96.462 73.1405 96.5183 74.9966 96.5119 76.7498L91.0164 76.7775L91.0051 87.3546L96.4811 87.3602L96.4856 92.6439L102.001 92.6315L101.995 101.663C100.164 101.652 98.3321 101.657 96.5008 101.678C96.4602 103.359 96.4845 105.122 96.4816 106.809L96.4399 106.898C96.056 107.052 91.5539 106.986 90.7909 106.985C90.8415 105.217 90.7785 103.414 90.8244 101.616C92.6155 101.578 94.4821 101.63 96.2929 101.609L96.3038 92.666C94.4926 92.6414 92.6028 92.6663 90.7863 92.6678C90.7785 90.918 90.7869 89.1684 90.8113 87.4188L85.259 87.4214L85.2813 76.7509L90.7502 76.7426L90.7558 71.3601L96.109 71.3505L96.125 61.0062Z"/><path class="steam steam-b" d="M118.12 66.0034L124.24 66C124.278 69.4792 124.249 73.0427 124.237 76.5241L118.409 76.5255L118.386 81.9979C116.56 82.0197 114.734 82.0274 112.908 82.0209C112.779 85.2057 112.877 89.2871 112.894 92.5271C114.72 92.5159 116.546 92.5166 118.372 92.529C118.41 94.2524 118.38 96.0729 118.379 97.8037L123.99 97.8012L123.983 106.557C123.99 106.777 123.999 106.702 123.935 106.907C123.498 107.067 118.883 106.973 118.12 106.97L118.134 97.8311C116.318 97.8455 114.503 97.8483 112.687 97.8394L112.694 92.5737C111.066 92.4878 108.924 92.5568 107.259 92.5626L107.27 81.9618L112.691 81.9603L112.701 76.5386C114.452 76.498 116.331 76.5241 118.091 76.5202L118.12 66.0034Z"/></svg>
+        </span>
+        <span class="nav-brand-name">HEISS UI</span>
+      </a>
+      <nav class="nav-links pill" aria-label="Primary">
+        <a href="../../models/">Models</a>
+        <a href="../../hardware/">Hardware</a>
+        <a href="../../compare/">Compare</a>
+        <a class="g-nav-cta" href="../../#install">Install</a>
+        <a class="nav-gh" href="https://github.com/tristmeister/HEISS-UI" aria-label="GitHub repository">
+          <svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>
+          <span class="nav-gh-label">GitHub</span>
+          <span class="stars-count" data-stars hidden></span>
+        </a>
+      </nav>
+    </header>
+
+    <main class="g-main" id="content">
+      <div class="g-head">
+        <nav class="g-crumbs" aria-label="Breadcrumb">
+          <ol><li><a href="../../">HEISS UI</a></li><li><a href="../">Models</a></li><li aria-current="page">SD 3.5</li></ol>
+        </nav>
+        <p class="label">Image model</p>
+        <h1>How to run SD 3.5 locally.</h1>
+        <p class="g-lead">SD 3.5 runs in ComfyUI most easily from Comfy-Org’s all-in-one fp8 checkpoints: 14.9 GB for Large, 11.6 GB for Medium, text encoders and VAE included. Large wants about 15 GB of video memory, or a GGUF on 8 to 12 GB cards. It’s free for commercial use below 1 million dollars of yearly revenue.</p>
+        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>10 min read</span></p>
+
+        <dl class="g-spec">
+            <div><dt>Maker</dt><dd><a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-large">Stability AI</a></dd></div>
+            <div><dt>Released</dt><dd>Oct 2024<small>Large and Turbo 22 Oct, Medium 29 Oct</small></dd></div>
+            <div><dt>Licence</dt><dd>Stability Community<small>Free below $1M yearly revenue</small></dd></div>
+            <div><dt>Memory</dt><dd>15 GB<small>Large fp8. GGUF from 8 GB</small></dd></div>
+        </dl>
+      </div>
+
+      <div class="g-body">
+        <nav class="g-toc" aria-label="On this page">
+          <p class="g-toc-title">On this page</p>
+          <ol>
+            <li><a href="#which">Large, Turbo or Medium</a></li>
+            <li><a href="#files">Files you need</a></li>
+            <li><a href="#fit">What fits your computer</a></li>
+            <li><a href="#setup">Set it up</a></li>
+            <li><a href="#settings">Settings that work</a></li>
+            <li><a href="#errors">When it goes wrong</a></li>
+            <li><a href="#faq">Questions</a></li>
+          </ol>
+        </nav>
+
+        <article class="g-prose">
+
+          <h2 id="which">Large, Turbo or Medium.</h2>
+          <p>Stability released SD 3.5 in October 2024. All three versions use three text encoders: CLIP-L, OpenCLIP bigG (CLIP-G) and T5-XXL.</p>
+          <ul>
+            <li><strong>Large</strong> is the 8B model, made for images up to about one megapixel. The best quality of the three.</li>
+            <li><strong>Large Turbo</strong> is Large distilled to four steps. Same size, much faster, a little less detail.</li>
+            <li><strong>Medium</strong> is a 2.5B model with a newer layout (MMDiT-X). It handles 0.25 to 2 megapixels and fits smaller cards.</li>
+          </ul>
+          <p>Stability notes that SD 3.5 gives more variation from seed to seed than earlier models, which suits exploring and makes one exact look harder to repeat. For anatomy, the Medium card recommends Skip Layer Guidance, covered under settings.</p>
+          <aside class="g-callout" data-kind="heads-up">
+            <p class="g-callout-title">Licence</p>
+            <p>SD 3.5 is under the <a href="https://stability.ai/community-license-agreement">Stability AI Community License</a>: free for research, personal and commercial use as long as you or your company make less than 1 million US dollars a year. Above that the licence ends and you need an Enterprise licence. Stability’s own repos are gated: sign in to Hugging Face and accept the terms before downloading. Comfy-Org’s fp8 files are not gated.</p>
+          </aside>
+
+          <h2 id="files">Files you need.</h2>
+          <h3>The easy way: one file</h3>
+          <p>Comfy-Org packs the model, all three text encoders and the VAE into one checkpoint. It goes in <code>models/checkpoints</code> and loads with <strong>Load Checkpoint</strong>.</p>
+          <ul class="g-files">
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Large</span>
+                <code class="g-file-name">sd3.5_large_fp8_scaled.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/checkpoints/</span>
+                <span class="g-file-path">model and encoders in fp8</span>
+              </div>
+              <span class="g-file-size">14.9 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8/resolve/main/sd3.5_large_fp8_scaled.safetensors" aria-label="Download sd3.5_large_fp8_scaled.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Medium</span>
+                <code class="g-file-name">sd3.5_medium_incl_clips_t5xxlfp8scaled.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/checkpoints/</span>
+                <span class="g-file-path">fp16 model, T5 in fp8</span>
+              </div>
+              <span class="g-file-size">11.6 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8/resolve/main/sd3.5_medium_incl_clips_t5xxlfp8scaled.safetensors" aria-label="Download sd3.5_medium_incl_clips_t5xxlfp8scaled.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+          </ul>
+          <p>Both carry an fp8 T5, which doesn’t run on a Mac. See the Mac notes below.</p>
+          <h3>Separate files</h3>
+          <p>Stability’s own files hold the model without the text encoders, so the encoders come separately. This is also the route for Large Turbo and for GGUF.</p>
+          <ul class="g-files">
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Model</span>
+                <code class="g-file-name">sd3.5_large.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/checkpoints/</span>
+                <span class="g-file-path">gated. Turbo and Medium (5.1 GB) in their own repos</span>
+              </div>
+              <span class="g-file-size">16.5 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/stabilityai/stable-diffusion-3.5-large" aria-label="Download sd3.5_large.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Text encoder</span>
+                <code class="g-file-name">clip_l.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/text_encoders/</span>
+              </div>
+              <span class="g-file-size">0.2 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8/resolve/main/text_encoders/clip_l.safetensors" aria-label="Download clip_l.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Text encoder</span>
+                <code class="g-file-name">clip_g.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/text_encoders/</span>
+              </div>
+              <span class="g-file-size">1.4 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8/resolve/main/text_encoders/clip_g.safetensors" aria-label="Download clip_g.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Text encoder</span>
+                <code class="g-file-name">t5xxl_fp8_e4m3fn_scaled.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/text_encoders/</span>
+                <span class="g-file-path">or t5xxl_fp16.safetensors, 9.8 GB, which a Mac needs</span>
+              </div>
+              <span class="g-file-size">5.2 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8/resolve/main/text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors" aria-label="Download t5xxl_fp8_e4m3fn_scaled.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+          </ul>
+          <div class="code">
+                  <div class="code-head">
+                    <span>ComfyUI/models</span>
+                    <button class="copy" type="button" data-copy="tree-sd35" aria-label="Copy">
+                      <span class="copy-icons" aria-hidden="true">
+                        <svg class="icon i-copy"><use href="#i-copy" /></svg>
+                        <svg class="icon i-check"><use href="#i-check" /></svg>
+                      </span>
+                      <span class="copy-label">Copy</span>
+                    </button>
+                  </div>
+<pre id="tree-sd35">models/
+├── checkpoints/
+│   └── sd3.5_large.safetensors
+└── text_encoders/
+    ├── clip_l.safetensors
+    ├── clip_g.safetensors
+    └── t5xxl_fp8_e4m3fn_scaled.safetensors</pre>
+                </div>
+          <h3>Smaller files: GGUF</h3>
+          <p><a href="https://huggingface.co/city96/stable-diffusion-3.5-large-gguf">city96’s GGUF builds</a> load through the <a href="https://github.com/city96/ComfyUI-GGUF">ComfyUI-GGUF</a> nodes and go in <code>models/unet</code>. There is a <a href="https://huggingface.co/city96/stable-diffusion-3.5-large-turbo-gguf">Large Turbo set</a> with the same sizes. Large has no K-quants; Medium does.</p>
+          <div class="g-table" role="region" aria-label="SD 3.5 GGUF sizes" tabindex="0">
+            <table>
+              <thead><tr><th scope="col">Model</th><th scope="col">Q8_0</th><th scope="col">Q5</th><th scope="col">Q4</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Large</th><td>8.8 GB</td><td>6.3 GB (Q5_1)</td><td>4.8 GB (Q4_0)</td></tr>
+                <tr><th scope="row"><a href="https://huggingface.co/city96/stable-diffusion-3.5-medium-gguf">Medium</a></th><td>2.9 GB</td><td>2.1 GB (Q5_K_M)</td><td>1.8 GB (Q4_K_M)</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="g-table-note">A GGUF holds the model only. You also need the three text encoders and a VAE.</p>
+          <aside class="g-callout" data-kind="note">
+            <p class="g-callout-title">Where’s the VAE?</p>
+            <p>The SD 3.5 VAE (0.2 GB) sits in Stability’s gated repos, in the <code>vae</code> folder. It isn’t on Comfy-Org’s pages. If you already have an all-in-one checkpoint, you can save its VAE out with a <strong>VAE Save</strong> node and reuse it for GGUF.</p>
+          </aside>
+
+          <h2 id="fit">What fits your computer.</h2>
+          <p>At 1024 × 1024. T5-XXL is bigger than Medium itself, and ComfyUI moves it out of the way before sampling, so system RAM matters too: Comfy’s examples ask for 32 GB of RAM or more for the fp16 T5.</p>
+          <ul class="g-fit">
+            <li><span class="g-fit-tier">6 GB</span><span class="g-status" data-s="tight">Tight</span><p>Medium as GGUF, with the fp8 T5 offloaded to system RAM.</p></li>
+            <li><span class="g-fit-tier">8 GB</span><span class="g-status" data-s="fits">Fits</span><p>Medium, or Large as GGUF Q4_0 (4.8 GB). One Krita user on an RTX 4060 8 GB found SD 3.5 GGUF about twice as fast as Flux GGUF.</p></li>
+            <li><span class="g-fit-tier">12 GB</span><span class="g-status" data-s="fits">Fits</span><p>Medium at full precision, or Large as GGUF Q8_0 (8.8 GB).</p></li>
+            <li><span class="g-fit-tier">16 GB</span><span class="g-status" data-s="fits">Fits</span><p>Large fp8 all-in-one. Comfy estimates 14.9 GB.</p></li>
+            <li><span class="g-fit-tier">24 GB</span><span class="g-status" data-s="fits">Fits</span><p>Large at full precision with the fp16 T5.</p></li>
+            <li><span class="g-fit-tier">Mac 16 GB</span><span class="g-status" data-s="tight">Tight</span><p>Medium as GGUF with the fp16 T5. No fp8 files.</p></li>
+            <li><span class="g-fit-tier">Mac 32 GB+</span><span class="g-status" data-s="tight">Tight</span><p>Large as GGUF Q8_0 with the fp16 T5, about 20 GB of files together.</p></li>
+          </ul>
+          <aside class="g-callout" data-kind="tip">
+            <p class="g-callout-title">On a Mac</p>
+            <p>SD 3.5’s fp8 files stop with a Float8 error on Apple Silicon, reported on Macs from M1 to M5. That rules out both all-in-one checkpoints and the fp8 T5. Use GGUF or full-precision model files and <code>t5xxl_fp16.safetensors</code>. Stability’s gated full-precision files work too.</p>
+          </aside>
+          <ul class="g-chips">
+            <li><a href="../../hardware/8gb-vram/">8 GB graphics cards</a></li>
+            <li><a href="../../hardware/12gb-vram/">12 GB cards</a></li>
+            <li><a href="../../hardware/rtx-3060-12gb/">RTX 3060 12 GB</a></li>
+            <li><a href="../../hardware/mac-apple-silicon/">Mac with Apple Silicon</a></li>
+            <li><a href="../../hardware/amd-radeon/">AMD Radeon</a></li>
+          </ul>
+
+          <h2 id="setup">Set it up.</h2>
+          <ol class="steps">
+            <li>
+              <span class="step-n" aria-hidden="true">1</span>
+              <div>
+                <h3>Update ComfyUI</h3>
+                <p>Medium needs a ComfyUI from after its release; older versions stop with a size mismatch error. ComfyUI Desktop updates itself. In a manual install:</p>
+                <div class="code">
+                  <div class="code-head">
+                    <span>Terminal, in the ComfyUI folder</span>
+                    <button class="copy" type="button" data-copy="cmd-update-sd35" aria-label="Copy">
+                      <span class="copy-icons" aria-hidden="true">
+                        <svg class="icon i-copy"><use href="#i-copy" /></svg>
+                        <svg class="icon i-check"><use href="#i-check" /></svg>
+                      </span>
+                      <span class="copy-label">Copy</span>
+                    </button>
+                  </div>
+<pre id="cmd-update-sd35" class="shell"><span class="ln">git pull</span>
+<span class="ln">pip install -r requirements.txt</span></pre>
+                </div>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">2</span>
+              <div>
+                <h3>Download</h3>
+                <p>An all-in-one checkpoint into <code>models/checkpoints</code>, or a model file plus the three encoders. For Stability’s files, accept the licence on Hugging Face first.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">3</span>
+              <div>
+                <h3>Open the template</h3>
+                <p>In the template browser, <strong>SD3.5 Simple</strong> loads <code>sd3.5_large_fp8_scaled</code> with one Load Checkpoint node. Swap in the Medium file if you use that.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">4</span>
+              <div>
+                <h3>For separate files, add the encoders</h3>
+                <p>Keep <strong>Load Checkpoint</strong> for the model and VAE, and add a <strong>TripleCLIPLoader</strong> with <code>clip_l</code>, <code>clip_g</code> and the T5. For GGUF, use <strong>Unet Loader (GGUF)</strong>, the TripleCLIPLoader and <strong>Load VAE</strong>.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">5</span>
+              <div>
+                <h3>For Medium, add Skip Layer Guidance</h3>
+                <p>Put <strong>SkipLayerGuidanceSD3</strong> between the model and the sampler. Stability recommends it for Medium’s structure and anatomy.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">6</span>
+              <div>
+                <h3>Run</h3>
+                <p>Use <strong>EmptySD3LatentImage</strong> for the size. The first run loads the T5 and takes a while.</p>
+              </div>
+            </li>
+          </ol>
+
+          <h2 id="settings">Settings that work.</h2>
+          <h3>Large</h3>
+          <dl class="g-spec is-mono">
+            <div><dt>Steps</dt><dd>28</dd></div>
+            <div><dt>CFG</dt><dd>3.5</dd></div>
+            <div><dt>Sampler</dt><dd>euler</dd></div>
+            <div><dt>Scheduler</dt><dd>sgm_uniform</dd></div>
+            <div><dt>Size</dt><dd>1024 × 1024</dd></div>
+            <div><dt>Shift</dt><dd>3 (default)</dd></div>
+            <div><dt>Negative</dt><dd>yes</dd></div>
+            <div><dt>Latent</dt><dd>EmptySD3LatentImage</dd></div>
+          </dl>
+          <p>28 steps at 3.5 is from Stability’s Large card. Comfy’s SD3.5 Simple template uses 20 steps at CFG 4, which is faster and close. ComfyUI sets SD 3.5’s shift to 3 on its own.</p>
+          <h3>Large Turbo</h3>
+          <dl class="g-spec is-mono">
+            <div><dt>Steps</dt><dd>4</dd></div>
+            <div><dt>CFG</dt><dd>1.2</dd></div>
+            <div><dt>Sampler</dt><dd>euler</dd></div>
+            <div><dt>Scheduler</dt><dd>sgm_uniform</dd></div>
+          </dl>
+          <p>ComfyUI’s examples say “set steps to 4 and cfg to 1.2”. Stability’s card uses no guidance at all, which is CFG 1 in ComfyUI.</p>
+          <h3>Medium</h3>
+          <dl class="g-spec is-mono">
+            <div><dt>Steps</dt><dd>40</dd></div>
+            <div><dt>CFG</dt><dd>4.5</dd></div>
+            <div><dt>Guidance</dt><dd>SkipLayerGuidanceSD3</dd></div>
+            <div><dt>Size</dt><dd>0.25 to 2 MP</dd></div>
+          </dl>
+          <p>From the <a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-medium">Medium card</a>. Keep prompts under 256 T5 tokens: the card warns of artefacts at the image edges beyond that.</p>
+          <h3>Without T5</h3>
+          <p>T5 is optional. Load only CLIP-L and CLIP-G with a <strong>DualCLIPLoader</strong> and SD 3.5 still works, with less memory and worse prompt following and text in images. At low CFG the difference is smaller.</p>
+
+          <h2 id="errors">When it goes wrong.</h2>
+          <dl class="g-fixes">
+            <div><dt><code>Trying to convert Float8_e4m3fn to the MPS backend but it does not have support for that dtype.</code></dt><dd>An fp8 file on a Mac. Use GGUF or full-precision weights and <code>t5xxl_fp16</code>.</dd></div>
+            <div><dt><code>size mismatch for joint_blocks.0.x_block.adaLN_modulation.1.weight</code></dt><dd>ComfyUI is too old for Medium. Update it.</dd></div>
+            <div><dt><code>clip missing: ['text_projection.weight']</code></dt><dd>Harmless. It shows after some updates and the image comes out fine.</dd></div>
+            <div><dt><code>Value not in list: clip_name2: 'clip_l.safetensors'</code></dt><dd>An encoder file is missing from <code>models/text_encoders</code>. Download it and press R.</dd></div>
+            <div><dt>Black images with a GGUF</dt><dd>Usually a wrong or half-downloaded VAE. On a Mac, Turbo GGUF black images at sizes other than 1024 were a PyTorch bug fixed in 2.6.</dd></div>
+            <div><dt>Mosaic-like images from Medium on a Mac</dt><dd>In the one report, the answer was a CFG set too high. Go back to 4.5 or lower.</dd></div>
+            <div><dt><code>unknown model architecture: 'sd3'</code></dt><dd>The GGUF was opened in LM Studio or llama.cpp. These files are for ComfyUI-GGUF only.</dd></div>
+            <div><dt>Out of memory before sampling starts</dt><dd>The T5 encoder. Use the fp8 T5 (not on a Mac), or run without T5.</dd></div>
+          </dl>
+          <div class="g-heards">
+            <figure class="g-heard">
+              <blockquote><p>Which VAE am I meant to use with the Large GGUF? The repo only has the model.</p></blockquote>
+              <figcaption><a href="https://huggingface.co/city96/stable-diffusion-3.5-large-gguf/discussions/2">Hugging Face, city96 SD 3.5 Large GGUF</a></figcaption>
+            </figure>
+            <figure class="g-heard">
+              <blockquote><p>Medium runs out of memory on a 16 GB card, though the model is small.</p></blockquote>
+              <figcaption><a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-medium/discussions/18">Hugging Face, SD 3.5 Medium</a></figcaption>
+            </figure>
+          </div>
+
+          <h2 id="faq">Questions.</h2>
+          <div class="faq">
+            <details name="faq">
+              <summary>How much VRAM does SD 3.5 Large need?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>About 15 GB for Comfy-Org’s fp8 all-in-one file, which fits a 16 GB card. As GGUF, Large runs on 8 GB (Q4_0, 4.8 GB) or 12 GB (Q8_0, 8.8 GB).</p></div>
+            </details>
+            <details name="faq">
+              <summary>Can I run SD 3.5 without T5?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Yes. Load only CLIP-L and CLIP-G with a DualCLIPLoader. It uses less memory, but prompt following and text in images get worse.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Can I use SD 3.5 commercially?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Yes, under the Stability AI Community License, as long as your yearly revenue is below 1 million US dollars. Above that you need an Enterprise licence. You own what you generate.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Which VAE do I need for the SD 3.5 GGUF?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>The SD 3.5 VAE from the vae folder of Stability’s gated repo, or one saved out of an all-in-one checkpoint with a VAE Save node.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Why does SD 3.5 fail on my Mac?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>SD 3.5’s fp8 files stop with a Float8 error on Apple Silicon, and both Comfy-Org all-in-one files and the usual T5 download are fp8. Use GGUF or full-precision model files with t5xxl_fp16.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Large or Medium?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Large for quality on 12 GB or more, with GGUF. Medium on smaller cards and for sizes up to 2 megapixels. Give Medium 40 steps and Skip Layer Guidance.</p></div>
+            </details>
+          </div>
+
+          <p class="g-sources">Sources: <a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-large">SD 3.5 Large card</a>, <a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-large-turbo">Large Turbo card</a>, <a href="https://huggingface.co/stabilityai/stable-diffusion-3.5-medium">Medium card</a>, <a href="https://stability.ai/news-updates/introducing-stable-diffusion-3-5">Stability’s announcement</a>, <a href="https://stability.ai/community-license-agreement">Community License</a>, <a href="https://comfyanonymous.github.io/ComfyUI_examples/sd3/">ComfyUI SD3 examples</a>, <a href="https://blog.comfy.org/p/sd-35-medium">Comfy blog on Medium</a>, <a href="https://huggingface.co/Comfy-Org/stable-diffusion-3.5-fp8">Comfy-Org fp8 files</a>, <a href="https://huggingface.co/city96/stable-diffusion-3.5-large-gguf">city96 GGUF</a>, <a href="https://github.com/Comfy-Org/ComfyUI/issues/12202">ComfyUI issue #12202</a>, <a href="https://github.com/Acly/krita-ai-diffusion/discussions/1328">Krita AI Diffusion #1328</a>.</p>
+        </article>
+      </div>
+
+      <section class="g-pitch" aria-labelledby="pitch-title">
+        <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <div class="g-pitch-inner">
+          <div>
+            <p class="label">HEISS UI</p>
+            <h2 id="pitch-title">Three encoders, one list.</h2>
+            <p class="g-pitch-text">HEISS UI runs SD 3.5 on the ComfyUI you already have. Pick a model file and the setup shows which of the three text encoders are missing, with a Download button for each.</p>
+            <ul class="g-pitch-list">
+              <li><span><strong>Recognised from its weights.</strong> Large, Turbo and Medium files are read as SD 3.5 even when renamed. Files named Turbo get 4 steps at CFG 1.2, as in ComfyUI’s examples; the rest start from Comfy’s SD3.5 Simple template, 20 steps at CFG 4.</span></li>
+              <li><span><strong>Encoders, one click each.</strong> CLIP-L, CLIP-G and T5 download into ComfyUI’s folders, hash-checked. The fp8 T5 comes first; on a Mac, pick the fp16 T5 under Other versions.</span></li>
+              <li><span><strong>GGUF too.</strong> SD 3.5 GGUFs run through ComfyUI-GGUF, which installs with one click. The VAE is the one part it can’t fetch, since Stability keeps it gated.</span></li>
+            </ul>
+            <div class="g-pitch-actions">
+              <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
+              <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
+            </div>
+            <p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Needs ComfyUI.</p>
+          </div>
+          <div class="g-pitch-shot">
+            <picture>
+              <source type="image/webp" srcset="../../screenshots/hero-1200.webp" />
+              <img src="../../screenshots/hero.jpg" width="2000" height="1317" loading="lazy" decoding="async" alt="HEISS UI with a gallery of generated images and the prompt composer at the bottom." />
+            </picture>
+          </div>
+        </div>
+      </section>
+
+      <section class="g-related" aria-labelledby="related-title">
+        <h2 id="related-title">Keep going.</h2>
+        <div class="g-cards">
+          <a class="g-card" href="../sdxl/">
+            <span class="g-card-kicker">Model · Image</span>
+            <span class="g-card-title">SDXL</span>
+            <span class="g-card-text">The lighter Stability model: one 6.9 GB file on 8 GB, with a huge set of fine-tunes.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../flux-1/">
+            <span class="g-card-kicker">Model · Image</span>
+            <span class="g-card-title">Flux.1</span>
+            <span class="g-card-text">Dev, Schnell and Krea Dev: the other big model from 2024, also with a T5 encoder.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../../hardware/12gb-vram/">
+            <span class="g-card-kicker">Hardware</span>
+            <span class="g-card-title">12 GB graphics cards</span>
+            <span class="g-card-text">What runs on 12 GB, and how to set it up.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../../compare/comfyui/">
+            <span class="g-card-kicker">Compare</span>
+            <span class="g-card-title">HEISS UI vs ComfyUI</span>
+            <span class="g-card-text">When the node graph is the better tool, and when a prompt box is.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-row">
+        <a class="footer-brand" href="../../">
+          <img src="../../heiss-mark-white.svg" alt="" width="20" height="20" />
+          <span>HEISS UI</span>
+        </a>
+        <p class="footer-meta">MIT licensed. Built on ComfyUI and the great work of <a href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a>.</p>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../../models/">Models</a>
+          <a href="../../hardware/">Hardware</a>
+          <a href="../../compare/">Compare</a>
+          <a href="https://github.com/tristmeister/HEISS-UI">GitHub</a>
+          <a href="https://github.com/tristmeister/HEISS-UI/issues">Issues</a>
+        </nav>
+      </div>
+      <div class="bigmark-wrap" aria-hidden="true">
+        <div class="bigmark">HEISS UI</div>
+      </div>
+    </footer>
+  </body>
+</html>

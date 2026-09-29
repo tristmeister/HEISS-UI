@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>RTX 5090 for ComfyUI: setup and what runs · HEISS UI</title>
+    <meta name="description" content="An RTX 5090 runs every model in ComfyUI, most at full precision, with native fp8 and nvfp4. The CUDA setup it needs, which files to pick, and measured times." />
+    <link rel="canonical" href="https://tristmeister.github.io/HEISS-UI/hardware/rtx-5090/" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="HEISS UI" />
+    <meta property="og:url" content="https://tristmeister.github.io/HEISS-UI/hardware/rtx-5090/" />
+    <meta property="og:title" content="What runs on an RTX 5090" />
+    <meta property="og:description" content="An RTX 5090 runs every model in ComfyUI, most at full precision, with native fp8 and nvfp4. The CUDA setup it needs, which files to pick, and measured times." />
+    <meta property="og:image" content="https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="../../favicon.png" />
+    <link rel="preload" href="../../fonts/Geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="../../styles.css" />
+    <link rel="stylesheet" href="../../guide.css" />
+    <script src="../../main.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "What runs on an RTX 5090",
+            "description": "An RTX 5090 runs every model in ComfyUI, most at full precision, with native fp8 and nvfp4. The CUDA setup it needs, which files to pick, and measured times.",
+            "url": "https://tristmeister.github.io/HEISS-UI/hardware/rtx-5090/",
+            "dateModified": "2026-09-29",
+            "image": "https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg",
+            "author": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "about": {
+              "@id": "https://tristmeister.github.io/HEISS-UI/#app"
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "HEISS UI",
+                "item": "https://tristmeister.github.io/HEISS-UI/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Hardware",
+                "item": "https://tristmeister.github.io/HEISS-UI/hardware/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "RTX 5090",
+                "item": "https://tristmeister.github.io/HEISS-UI/hardware/rtx-5090/"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Why does my RTX 5090 say no kernel image is available?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "The ComfyUI install has a PyTorch from before the RTX 50 series. Install the current ComfyUI Desktop or the portable NVIDIA build, which ship CUDA 13.0, instead of patching the old one."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How much system RAM does a 5090 need?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "32 GB covers everything that fits the card. For Flux.2 Dev in fp8, bf16 Qwen-Image or the larger MiniMax H3 files, get 64 GB."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is nvfp4 worth it on a 5090?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "For speed, yes: it’s the fastest format the card has, and a quarter the size of bf16. The 5090 has room for full precision too, so compare both on your own prompts."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What about the RTX 5090 Laptop GPU?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It has 24 GB, not 32, and far less power. It runs what the 24 GB desktop cards run, more slowly."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+        <svg class="sprite" aria-hidden="true">
+      <symbol id="i-github" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 .5A12 12 0 0 0 8.2 23.9c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.1c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z" />
+      </symbol>
+      <symbol id="i-star" viewBox="0 0 16 16">
+        <path fill="currentColor" d="M8 .9l2.1 4.4 4.8.6-3.5 3.3.9 4.8L8 11.7 3.7 14l.9-4.8L1.1 5.9l4.8-.6L8 .9Z" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.75 4.25 12.5 8l-3.75 3.75" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 16 16">
+        <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="5.25" y="5.25" width="8" height="8" rx="2" /><path d="M10.75 5.25V4.5a1.75 1.75 0 0 0-1.75-1.75H4.5A1.75 1.75 0 0 0 2.75 4.5V9a1.75 1.75 0 0 0 1.75 1.75h.75" /></g>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m3.25 8.5 3 3 6.5-7" />
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 2.5v7.75M4.75 7 8 10.25 11.25 7M3.25 13.25h9.5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 3.25v9.5M3.25 8h9.5" />
+      </symbol>
+    </svg>
+
+    <a class="skip" href="#content">Skip to content</a>
+
+    <header class="nav">
+      <a class="nav-brand pill" href="../../" aria-label="HEISS UI home">
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 226 226"><path class="cup" d="M138.457 111.077L138.472 118.013C143.295 118.082 148.276 118.02 153.113 118.02C153.111 119.253 153.119 120.486 153.133 121.719L158.471 121.72C158.575 128.601 158.476 135.793 158.474 142.686L153.943 142.68L153.935 146.355C152.708 146.345 151.48 146.346 150.252 146.358C150.223 147.489 150.235 148.669 150.231 149.803L137.438 149.794L131.762 149.803L131.757 151.282L128.091 151.284C128.045 154.129 128.067 157.099 128.063 159.951L124.445 159.947L124.439 165L84.3456 164.996L84.3124 159.956C83.0803 159.936 81.812 159.952 80.577 159.953V151.018L76.4256 151.016L76.451 138.069C75.2103 138.06 73.9692 138.056 72.7284 138.06L72.7333 125.428C71.2109 125.388 69.5874 125.415 68.0575 125.413C67.9975 122.315 67.9582 118.267 68.077 115.201L73.6883 115.185C73.75 113.825 73.6867 112.465 73.746 111.074L138.457 111.077ZM138.987 125.533L138.983 128.903L136.136 128.898L136.12 139.263C134.977 139.264 133.646 139.234 132.518 139.278L132.52 142.848L145.487 142.853L147.14 142.848L147.174 139.1C148.703 139.089 150.233 139.089 151.762 139.098C151.759 135.756 151.699 132.233 151.777 128.912L148.549 128.904L148.543 125.519L138.987 125.533Z"/><path class="steam steam-a" d="M96.125 61.0062L102.259 61L102.256 71.379C100.517 71.4558 98.3273 71.397 96.5314 71.4064C96.462 73.1405 96.5183 74.9966 96.5119 76.7498L91.0164 76.7775L91.0051 87.3546L96.4811 87.3602L96.4856 92.6439L102.001 92.6315L101.995 101.663C100.164 101.652 98.3321 101.657 96.5008 101.678C96.4602 103.359 96.4845 105.122 96.4816 106.809L96.4399 106.898C96.056 107.052 91.5539 106.986 90.7909 106.985C90.8415 105.217 90.7785 103.414 90.8244 101.616C92.6155 101.578 94.4821 101.63 96.2929 101.609L96.3038 92.666C94.4926 92.6414 92.6028 92.6663 90.7863 92.6678C90.7785 90.918 90.7869 89.1684 90.8113 87.4188L85.259 87.4214L85.2813 76.7509L90.7502 76.7426L90.7558 71.3601L96.109 71.3505L96.125 61.0062Z"/><path class="steam steam-b" d="M118.12 66.0034L124.24 66C124.278 69.4792 124.249 73.0427 124.237 76.5241L118.409 76.5255L118.386 81.9979C116.56 82.0197 114.734 82.0274 112.908 82.0209C112.779 85.2057 112.877 89.2871 112.894 92.5271C114.72 92.5159 116.546 92.5166 118.372 92.529C118.41 94.2524 118.38 96.0729 118.379 97.8037L123.99 97.8012L123.983 106.557C123.99 106.777 123.999 106.702 123.935 106.907C123.498 107.067 118.883 106.973 118.12 106.97L118.134 97.8311C116.318 97.8455 114.503 97.8483 112.687 97.8394L112.694 92.5737C111.066 92.4878 108.924 92.5568 107.259 92.5626L107.27 81.9618L112.691 81.9603L112.701 76.5386C114.452 76.498 116.331 76.5241 118.091 76.5202L118.12 66.0034Z"/></svg></span>
+        <span class="nav-brand-name">HEISS UI</span>
+      </a>
+      <nav class="nav-links pill" aria-label="Primary">
+        <a href="../../models/">Models</a>
+        <a href="../../hardware/" aria-current="page">Hardware</a>
+        <a href="../../compare/">Compare</a>
+        <a class="g-nav-cta" href="../../#install">Install</a>
+        <a class="nav-gh" href="https://github.com/tristmeister/HEISS-UI" aria-label="GitHub repository">
+          <svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>
+          <span class="nav-gh-label">GitHub</span>
+          <span class="stars-count" data-stars hidden></span>
+        </a>
+      </nav>
+    </header>
+
+    <main class="g-main" id="content">
+      <div class="g-head">
+        <nav class="g-crumbs" aria-label="Breadcrumb"><ol><li><a href="../../">HEISS UI</a></li><li><a href="../../hardware/">Hardware</a></li><li aria-current="page">RTX 5090</li></ol></nav>
+        <p class="label">Hardware guide</p>
+        <h1>What runs on an RTX 5090.</h1>
+        <p class="g-lead">An RTX 5090 runs every model HEISS UI supports, most at full precision, and computes fp8, mxfp8 and nvfp4 natively. The part people trip over is the setup: it needs a PyTorch built for CUDA 12.8 or newer, which current ComfyUI Desktop and the portable build include.</p>
+        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>4 min read</span></p>
+        <dl class="g-spec"><div><dt>Memory</dt><dd>32 GB GDDR7</dd></div><div><dt>Bandwidth</dt><dd>1792 GB/s<small>512-bit</small></dd></div><div><dt>Architecture</dt><dd>Blackwell<small>fp8, mxfp8, nvfp4</small></dd></div><div><dt>System RAM</dt><dd>64 GB<small>for Flux.2 Dev in fp8</small></dd></div></dl>
+        
+      </div>
+
+      
+      <div class="g-body">
+        <nav class="g-toc" aria-label="On this page"><p class="g-toc-title">On this page</p><ol><li><a href="#setup">Set up ComfyUI</a></li><li><a href="#fit">What runs on 32 GB</a></li><li><a href="#formats">Which files</a></li><li><a href="#speed">How long it takes</a></li><li><a href="#vs4090">5090 or 4090</a></li><li><a href="#errors">When it goes wrong</a></li><li><a href="#faq">Questions</a></li></ol></nav>
+        <article class="g-prose">
+          
+<div class="g-verdict"><p class="label">Short answer</p><p>An RTX 5090 runs every model HEISS UI supports, most of them at full precision, and computes fp8, mxfp8 and nvfp4 directly. Flux.1 Dev takes about 8 seconds, Flux.2 Klein about one. Only Flux.2 Dev in fp8 and the biggest MiniMax H3 files go past 32 GB, and those offload a little.</p><p>The setup is where people get stuck: it needs a PyTorch built for CUDA 12.8 or newer.</p></div>
+
+<h2 id="setup">Set up ComfyUI for a 5090.</h2>
+<ol class="steps"><li><span class="step-n" aria-hidden="true">1</span><div><h3>Use a current ComfyUI</h3><p>ComfyUI’s own README asks for a PyTorch built for CUDA 13.0 on the 20 series and newer <a class="g-ref" href="#src-3">[3]</a>. The current ComfyUI Desktop and the portable NVIDIA build ship that. An install from 2024 with a CUDA 12.1 or 12.4 PyTorch doesn’t know the card and stops with:</p><div class="code"><div class="code-head"><span>Error</span><button class="copy" type="button" data-copy="cmd-err" aria-label="Copy"><span class="copy-icons" aria-hidden="true"><svg class="icon i-copy"><use href="#i-copy" /></svg><svg class="icon i-check"><use href="#i-check" /></svg></span><span class="copy-label">Copy</span></button></div><pre id="cmd-err" class="g-wrap">CUDA error: no kernel image is available for execution on the device</pre></div><p>Download a fresh portable build or update Desktop rather than patching the old Python.</p></div></li><li><span class="step-n" aria-hidden="true">2</span><div><h3>Keep the default memory handling</h3><p>Since March 2026, ComfyUI manages graphics memory by itself on NVIDIA cards. It calls this <strong>Dynamic VRAM</strong>: model weights stream into the card as they’re needed, and the rest waits in system RAM without going to the pagefile. It’s on by default in current ComfyUI, on Windows and Linux (not WSL).</p><p>That changes the old advice. <code class="g-flag">--lowvram</code> now does nothing while Dynamic VRAM is on, and <code class="g-flag">--novram</code>, <code class="g-flag">--highvram</code> and <code class="g-flag">--gpu-only</code> switch it off. <code class="g-flag">--normalvram</code> is gone, and an old shortcut that still passes it stops ComfyUI with <code>unrecognized arguments</code>.</p><p>On 32 GB there’s nothing to add. <code class="g-flag">--use-sage-attention</code> gave the fastest Flux result in the benchmark thread, once the SageAttention package was installed in ComfyUI’s Python.</p></div></li><li><span class="step-n" aria-hidden="true">3</span><div><h3>Get 64 GB of RAM if you want Flux.2 Dev</h3><p>Flux.2 Dev in fp8 is 35.5 GB with an 18 GB text encoder. It runs on a 5090 with part of it in system RAM, and 64 GB makes that smooth.</p></div></li></ol>
+
+<h2 id="fit">What runs on 32 GB.</h2>
+<p><strong>Fits</strong> runs from the card. <strong>Offloads</strong> keeps part of the model in system RAM: it works, slower.</p>
+<ul class="g-fit is-models"><li><span class="g-fit-name"><a href="../../models/krea-2/">Krea 2 Turbo and Raw</a><small>bf16 · 26.3 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>Full precision, or mxfp8 (13.5 GB) and nvfp4 (7.7 GB) for speed.</p></li><li><span class="g-fit-name"><a href="../../models/qwen-image/">Qwen-Image</a><small>fp8 20.4 GB · nvfp4 19.8 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>bf16 (40.9 GB) offloads.</p></li><li><span class="g-fit-name"><a href="../../models/hidream-i1/">HiDream I1</a><small>fp8 · 17.1 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>bf16 (34.2 GB) offloads a little.</p></li><li><span class="g-fit-name"><a href="../../models/flux-1/">Flux.1 Dev</a><small>bf16 · 23.8 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>About 8 s in fp8.</p></li><li><span class="g-fit-name"><a href="../../models/flux-2-klein/">Flux.2 Klein</a>, <a href="../../models/z-image/">Z-Image</a>, <a href="../../models/qwen-image/">Qwen-Image 2.1</a>, <a href="../../models/ideogram-4/">Ideogram 4</a>, <a href="../../models/chroma/">Chroma</a>, <a href="../../models/sd-3-5/">SD 3.5</a>, <a href="../../models/ernie-image/">ERNIE</a><small>full precision</small></span><span class="g-status" data-s="fits">Fits</span><p>bf16 files, with room left over.</p></li><li><span class="g-fit-name"><a href="../../models/wan-2-2/">Wan 2.2 14B</a><small>fp16 · 2 × 28.6 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>One half at a time, at full precision.</p></li><li><span class="g-fit-name"><a href="../../models/wan-2-2/">Wan 2.2 5B</a>, <a href="../../models/hunyuanvideo-1-5/">HunyuanVideo 1.5</a><small>fp16</small></span><span class="g-status" data-s="fits">Fits</span><p>720p and longer clips.</p></li><li><span class="g-fit-name"><a href="../../models/minimax-h3/">MiniMax H3</a><small>pruned int8 · 21 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>The pruned bf16 (40.2 GB) and the full int8 (34 GB) offload.</p></li><li><span class="g-fit-name"><a href="../../models/flux-2-dev/">Flux.2 Dev</a><small>fp8 · 35.5 GB</small></span><span class="g-status" data-s="offloads">Offloads</span><p>A little over 32 GB, plus its text encoder. 64 GB of RAM.</p></li></ul>
+
+<h2 id="formats">Which files to pick.</h2>
+<p>Blackwell computes three small formats natively, and Comfy-Org ships several models in each <a class="g-ref" href="#src-4">[4]</a>:</p>
+<ul>
+  <li><strong>bf16 or fp16</strong>: the reference. On 32 GB it fits for most models; pick it when quality is the point.</li>
+  <li><strong>fp8 and mxfp8</strong>: half the size, close to the reference, and faster. <code>_mxfp8</code> files are made for RTX 50.</li>
+  <li><strong>nvfp4</strong>: a quarter of the size and the fastest. Worth comparing on your own prompts before switching for good.</li>
+</ul>
+
+<h2 id="speed">How long it takes.</h2>
+<div class="g-table" role="region" aria-label="Generation times on an RTX 5090" tabindex="0"><table><thead><tr><th scope="col">Model</th><th scope="col">Settings</th><th scope="col">Time</th></tr></thead><tbody><tr><th scope="row">Flux.1 Dev fp8</th><td>1024 px, 20 steps</td><td><span class="g-time">8 to 8.8 s</span><a class="g-ref" href="#src-1">[1]</a></td></tr><tr><th scope="row">Flux.1 Dev fp8</th><td>same, with ComfyUI speed-ups</td><td><span class="g-time">5.5 s</span><a class="g-ref" href="#src-1">[1]</a></td></tr><tr><th scope="row">Flux.2 Klein 4B</th><td>distilled, 4 steps</td><td><span class="g-time">about 1.2 s</span><a class="g-ref" href="#src-2">[2]</a></td></tr><tr><th scope="row">Flux.2 Klein 9B</th><td>distilled, 4 steps</td><td><span class="g-time">about 2 s</span><a class="g-ref" href="#src-2">[2]</a></td></tr><tr><th scope="row">Flux.2 Klein 4B / 9B</th><td>base, 50 steps</td><td><span class="g-time">17 s / 35 s</span><a class="g-ref" href="#src-2">[2]</a></td></tr></tbody></table></div>
+<p>There are no clean published 5090 numbers for Krea 2, Qwen-Image or Wan 2.2 in ComfyUI yet.</p>
+
+<h2 id="vs4090">5090 or 4090?</h2>
+<div class="g-table" role="region" aria-label="RTX 5090 and RTX 4090" tabindex="0"><table><thead><tr><th scope="col"></th><th scope="col">RTX 5090</th><th scope="col">RTX 4090</th></tr></thead><tbody><tr><th scope="row">Graphics memory</th><td>32 GB</td><td>24 GB</td></tr><tr><th scope="row">Bandwidth</th><td>1792 GB/s</td><td>1008 GB/s</td></tr><tr><th scope="row">nvfp4, mxfp8</th><td>Yes</td><td>No</td></tr><tr><th scope="row">Flux.1 Dev fp8, 20 steps</th><td><span class="g-time">8 to 8.8 s</span><a class="g-ref" href="#src-1">[1]</a></td><td><span class="g-time">11.3 s</span><a class="g-ref" href="#src-1">[1]</a></td></tr><tr><th scope="row">Krea 2 at full precision</th><td><span class="g-status" data-s="fits">Fits</span></td><td><span class="g-status" data-s="offloads">Offloads</span></td></tr><tr><th scope="row">Power</th><td>575 W</td><td>450 W</td></tr></tbody></table></div>
+<p>If your models fit in 24 GB, a 4090 gets close. The 5090 earns its price with full-precision Krea 2, Flux.2 Dev with less offloading, Wan 2.2 14B at fp16, and nvfp4.</p>
+
+<h2 id="errors">When it goes wrong.</h2>
+<dl class="g-fixes"><div><dt><code>no kernel image is available for execution on the device</code></dt><dd>The PyTorch in this ComfyUI predates the RTX 50 series. Install a current ComfyUI Desktop or portable build (CUDA 13.0).</dd></div><div><dt><code>torch.OutOfMemoryError: CUDA out of memory</code></dt><dd>The model, the image size and the batch didn’t fit together. Generate one image at a time, go down a size, or use the fp8, int8 or GGUF file. When it fails at the very end, the VAE decode ran out: swap <strong>VAE Decode</strong> for <strong>VAE Decode (Tiled)</strong>. For video, fewer frames help more than a smaller size.</dd></div><div><dt><code>The paging file is too small for this operation to complete. (os error 1455)</code></dt><dd>Windows ran out of virtual memory while loading a big file. Give the pagefile 32 GB or more, or add RAM.</dd></div><div><dt>It suddenly got much slower</dt><dd>The card is full and Windows is borrowing system RAM. Check <strong>Shared GPU memory</strong> in Task Manager. Close other GPU apps, lower the size, and set <strong>Prefer No Sysmem Fallback</strong> so it fails fast instead.</dd></div><div><dt><code>unrecognized arguments: --normalvram</code></dt><dd>An old launch flag. Remove it from the shortcut or the <code>.bat</code> file. Current ComfyUI doesn’t need memory flags on NVIDIA.</dd></div><div><dt>The first image takes minutes, the next ones don’t</dt><dd>The first run reads the model from disk. Later runs start warm. An SSD shortens the first one; with 16 GB of RAM it can stay slow, since the model gets pushed out between runs.</dd></div></dl>
+
+          <h2 id="faq">Questions.</h2><div class="faq"><details name="faq"><summary>Why does my RTX 5090 say no kernel image is available?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary><div class="answer"><p>The ComfyUI install has a PyTorch from before the RTX 50 series. Install the current ComfyUI Desktop or the portable NVIDIA build, which ship CUDA 13.0, instead of patching the old one.</p></div></details><details name="faq"><summary>How much system RAM does a 5090 need?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary><div class="answer"><p>32 GB covers everything that fits the card. For Flux.2 Dev in fp8, bf16 Qwen-Image or the larger MiniMax H3 files, get 64 GB.</p></div></details><details name="faq"><summary>Is nvfp4 worth it on a 5090?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary><div class="answer"><p>For speed, yes: it’s the fastest format the card has, and a quarter the size of bf16. The 5090 has room for full precision too, so compare both on your own prompts.</p></div></details><details name="faq"><summary>What about the RTX 5090 Laptop GPU?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary><div class="answer"><p>It has 24 GB, not 32, and far less power. It runs what the 24 GB desktop cards run, more slowly.</p></div></details></div>
+          <p class="g-sources">Sources: <a id="src-1" href="https://github.com/Comfy-Org/ComfyUI/discussions/9002">[1] Flux Dev fp8 GPU benchmark thread, ComfyUI discussion #9002</a>, <a id="src-2" href="https://blog.comfy.org/p/flux2-klein-4b-fast-local-image-editing">[2] FLUX.2 Klein in ComfyUI, Comfy blog</a>, <a id="src-3" href="https://github.com/Comfy-Org/ComfyUI#readme">[3] ComfyUI README</a>, <a id="src-4" href="https://huggingface.co/Comfy-Org/Krea-2">[4] Krea 2 files, Comfy-Org on Hugging Face</a>, <a id="src-5" href="https://blogs.nvidia.com/blog/rtx-ai-garage-flux-2-comfyui">[5] FLUX.2 on RTX GPUs, NVIDIA blog</a>, <a id="src-6" href="https://blog.comfy.org/p/minimax-h3-day-0-support-in-comfyui">[6] MiniMax H3 in ComfyUI, Comfy blog</a>, <a id="src-7" href="https://blog.comfy.org/p/dynamic-vram-in-comfyui-saving-local">[7] Dynamic VRAM in ComfyUI, Comfy blog</a>, <a id="src-8" href="https://store.steampowered.com/hwsurvey/videocard/">[8] Steam Hardware Survey, August 2026</a>.</p>
+        </article>
+      </div>
+
+      <section class="g-pitch" aria-labelledby="pitch-title">
+        <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <div class="g-pitch-inner">
+          <div>
+            <p class="label">HEISS UI</p>
+            <h2 id="pitch-title">Full precision, marked.</h2>
+            <p class="g-pitch-text">HEISS UI reads the card and the RAM from ComfyUI. On a 5090 it points at the full-precision starters.</p>
+            <ul class="g-pitch-list"><li><span><strong>A first model sized for this card.</strong> With no model yet, it offers Krea 2, Flux.2 and SDXL in three sizes each. With 48 GB of RAM, Krea 2 Turbo at full precision is marked; with 64 GB, Flux.2 Dev too. One tap downloads a model with its text encoder and VAE.</span></li><li><span><strong>Sizes in the model menu.</strong> Every model shows its file size, and the ones that fit your graphics memory say so. Nothing is hidden or blocked.</span></li><li><span><strong>Out of memory, with a way out.</strong> A run that runs out offers <em>Free memory and try again</em> (or <em>decode in tiles</em> when the VAE ran out) and <em>Try again smaller</em>: about half the pixels, same seed.</span></li><li><span><strong>A hint when it crawls.</strong> When steps run far slower than that model’s usual, it says once that ComfyUI may be short on graphics memory.</span></li><li><span><strong>A countdown that learns your card.</strong> After three runs of a model (two for video), it knows how long this machine takes.</span></li></ul>
+            <div class="g-pitch-actions">
+              <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
+              <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
+            </div>
+            <p class="g-pitch-note">Free, MIT licensed. Windows, macOS and Linux. Needs ComfyUI. It downloads the three starter models and the text encoders, VAEs and node packs other models need. It doesn’t download GGUF files or other model files: bring those, and it fits them in.</p>
+          </div>
+          <div class="g-pitch-shot">
+            <picture>
+              <source type="image/webp" srcset="../../screenshots/hero-1200.webp" />
+              <img src="../../screenshots/hero.jpg" width="2000" height="1317" loading="lazy" decoding="async" alt="HEISS UI with a gallery of generated images and the prompt composer at the bottom." />
+            </picture>
+          </div>
+        </div>
+      </section>
+
+      <section class="g-related" aria-labelledby="related-title">
+        <h2 id="related-title">Keep going.</h2>
+        <div class="g-cards"><a class="g-card" href="../../hardware/24gb-vram/"><span class="g-card-kicker">Hardware · 24 GB</span><span class="g-card-title">RTX 3090 and 4090</span><span class="g-card-text">The same models, with a little more offloading.</span><svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg></a><a class="g-card" href="../../models/flux-2-dev/"><span class="g-card-kicker">Model · Image</span><span class="g-card-title">Flux.2 Dev</span><span class="g-card-text">The largest Flux, and what it needs.</span><svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg></a><a class="g-card" href="../../models/minimax-h3/"><span class="g-card-kicker">Model · Video</span><span class="g-card-title">MiniMax H3</span><span class="g-card-text">2K video, locally.</span><svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg></a><a class="g-card" href="../../hardware/"><span class="g-card-kicker">Hardware</span><span class="g-card-title">All GPUs</span><span class="g-card-text">What runs on every card and Mac.</span><svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg></a></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-row">
+        <a class="footer-brand" href="../../">
+          <img src="../../heiss-mark-white.svg" alt="" width="20" height="20" />
+          <span>HEISS UI</span>
+        </a>
+        <p class="footer-meta">MIT licensed. Built on ComfyUI and the great work of <a href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a>.</p>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../../models/">Models</a>
+          <a href="../../hardware/">Hardware</a>
+          <a href="../../compare/">Compare</a>
+          <a href="https://github.com/tristmeister/HEISS-UI">GitHub</a>
+          <a href="https://github.com/tristmeister/HEISS-UI/issues">Issues</a>
+        </nav>
+      </div>
+      <div class="bigmark-wrap" aria-hidden="true">
+        <div class="bigmark">HEISS UI</div>
+      </div>
+    </footer>
+  </body>
+</html>

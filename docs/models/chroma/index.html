@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Chroma1-HD in ComfyUI: files, VRAM and settings · HEISS UI</title>
+    <meta name="description" content="How to run Chroma1-HD in ComfyUI: the model, the T5 text encoder and the Flux VAE, what fits 8 to 24 GB cards, and the settings its maker’s own workflow uses." />
+    <link rel="canonical" href="https://tristmeister.github.io/HEISS-UI/models/chroma/" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="HEISS UI" />
+    <meta property="og:url" content="https://tristmeister.github.io/HEISS-UI/models/chroma/" />
+    <meta property="og:title" content="How to run Chroma locally" />
+    <meta property="og:description" content="How to run Chroma1-HD in ComfyUI: the model, the T5 text encoder and the Flux VAE, what fits 8 to 24 GB cards, and the settings its maker’s own workflow uses." />
+    <meta property="og:image" content="https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="../../favicon.png" />
+    <link rel="preload" href="../../fonts/Geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="../../styles.css" />
+    <link rel="stylesheet" href="../../guide.css" />
+    <link rel="stylesheet" href="../models.css" />
+    <script src="../../main.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "How to run Chroma locally",
+            "description": "How to run Chroma1-HD in ComfyUI: the model, the T5 text encoder and the Flux VAE, what fits 8 to 24 GB cards, and the settings its maker’s own workflow uses.",
+            "url": "https://tristmeister.github.io/HEISS-UI/models/chroma/",
+            "dateModified": "2026-09-29",
+            "image": "https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg",
+            "author": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "about": {
+              "@id": "https://tristmeister.github.io/HEISS-UI/#app"
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "HEISS UI",
+                "item": "https://tristmeister.github.io/HEISS-UI/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Models",
+                "item": "https://tristmeister.github.io/HEISS-UI/models/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Chroma",
+                "item": "https://tristmeister.github.io/HEISS-UI/models/chroma/"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "Which text encoder does Chroma use?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Only T5-XXL, the same file as Flux.1, loaded with a single Load CLIP node set to type chroma. Chroma has no CLIP-L. The VAE is the Flux.1 ae.safetensors."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I use Chroma commercially?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chroma1-HD is Apache 2.0, which allows commercial use."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does the negative prompt work in Chroma?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes. Chroma uses a real CFG, around 3.5 to 3.8, so the negative prompt has an effect. Write it in sentences, like the positive prompt."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What’s the difference between Chroma1-HD, Base and Flash?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "HD is the finished model to use. Base is the base checkpoint, published shortly before HD. Flash has the guidance baked in for fewer steps. Radiance is a separate pixel-space model with its own nodes."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do Flux LoRAs work on Chroma?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Some do, since Chroma started from Flux.1 Schnell. One user reports Flux Dev LoRAs at strength 1 with CFG 4 to 7 and 40 steps. Results vary by LoRA."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Chroma run on a Mac?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It should run in ComfyUI on Apple Silicon with the full-precision file (17.8 GB) or a GGUF, since a Mac can’t compute in fp8. We found no Mac reports to confirm speed or memory."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-github" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 .5A12 12 0 0 0 8.2 23.9c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.1c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.75 4.25 12.5 8l-3.75 3.75" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 16 16">
+        <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="5.25" y="5.25" width="8" height="8" rx="2" /><path d="M10.75 5.25V4.5a1.75 1.75 0 0 0-1.75-1.75H4.5A1.75 1.75 0 0 0 2.75 4.5V9a1.75 1.75 0 0 0 1.75 1.75h.75" /></g>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m3.25 8.5 3 3 6.5-7" />
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 2.5v7.75M4.75 7 8 10.25 11.25 7M3.25 13.25h9.5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 3.25v9.5M3.25 8h9.5" />
+      </symbol>
+    </svg>
+
+    <a class="skip" href="#content">Skip to content</a>
+
+    <header class="nav">
+      <a class="nav-brand pill" href="../../" aria-label="HEISS UI home">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 226 226"><path class="cup" d="M138.457 111.077L138.472 118.013C143.295 118.082 148.276 118.02 153.113 118.02C153.111 119.253 153.119 120.486 153.133 121.719L158.471 121.72C158.575 128.601 158.476 135.793 158.474 142.686L153.943 142.68L153.935 146.355C152.708 146.345 151.48 146.346 150.252 146.358C150.223 147.489 150.235 148.669 150.231 149.803L137.438 149.794L131.762 149.803L131.757 151.282L128.091 151.284C128.045 154.129 128.067 157.099 128.063 159.951L124.445 159.947L124.439 165L84.3456 164.996L84.3124 159.956C83.0803 159.936 81.812 159.952 80.577 159.953V151.018L76.4256 151.016L76.451 138.069C75.2103 138.06 73.9692 138.056 72.7284 138.06L72.7333 125.428C71.2109 125.388 69.5874 125.415 68.0575 125.413C67.9975 122.315 67.9582 118.267 68.077 115.201L73.6883 115.185C73.75 113.825 73.6867 112.465 73.746 111.074L138.457 111.077ZM138.987 125.533L138.983 128.903L136.136 128.898L136.12 139.263C134.977 139.264 133.646 139.234 132.518 139.278L132.52 142.848L145.487 142.853L147.14 142.848L147.174 139.1C148.703 139.089 150.233 139.089 151.762 139.098C151.759 135.756 151.699 132.233 151.777 128.912L148.549 128.904L148.543 125.519L138.987 125.533Z"/><path class="steam steam-a" d="M96.125 61.0062L102.259 61L102.256 71.379C100.517 71.4558 98.3273 71.397 96.5314 71.4064C96.462 73.1405 96.5183 74.9966 96.5119 76.7498L91.0164 76.7775L91.0051 87.3546L96.4811 87.3602L96.4856 92.6439L102.001 92.6315L101.995 101.663C100.164 101.652 98.3321 101.657 96.5008 101.678C96.4602 103.359 96.4845 105.122 96.4816 106.809L96.4399 106.898C96.056 107.052 91.5539 106.986 90.7909 106.985C90.8415 105.217 90.7785 103.414 90.8244 101.616C92.6155 101.578 94.4821 101.63 96.2929 101.609L96.3038 92.666C94.4926 92.6414 92.6028 92.6663 90.7863 92.6678C90.7785 90.918 90.7869 89.1684 90.8113 87.4188L85.259 87.4214L85.2813 76.7509L90.7502 76.7426L90.7558 71.3601L96.109 71.3505L96.125 61.0062Z"/><path class="steam steam-b" d="M118.12 66.0034L124.24 66C124.278 69.4792 124.249 73.0427 124.237 76.5241L118.409 76.5255L118.386 81.9979C116.56 82.0197 114.734 82.0274 112.908 82.0209C112.779 85.2057 112.877 89.2871 112.894 92.5271C114.72 92.5159 116.546 92.5166 118.372 92.529C118.41 94.2524 118.38 96.0729 118.379 97.8037L123.99 97.8012L123.983 106.557C123.99 106.777 123.999 106.702 123.935 106.907C123.498 107.067 118.883 106.973 118.12 106.97L118.134 97.8311C116.318 97.8455 114.503 97.8483 112.687 97.8394L112.694 92.5737C111.066 92.4878 108.924 92.5568 107.259 92.5626L107.27 81.9618L112.691 81.9603L112.701 76.5386C114.452 76.498 116.331 76.5241 118.091 76.5202L118.12 66.0034Z"/></svg>
+        </span>
+        <span class="nav-brand-name">HEISS UI</span>
+      </a>
+      <nav class="nav-links pill" aria-label="Primary">
+        <a href="../../models/">Models</a>
+        <a href="../../hardware/">Hardware</a>
+        <a href="../../compare/">Compare</a>
+        <a class="g-nav-cta" href="../../#install">Install</a>
+        <a class="nav-gh" href="https://github.com/tristmeister/HEISS-UI" aria-label="GitHub repository">
+          <svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>
+          <span class="nav-gh-label">GitHub</span>
+          <span class="stars-count" data-stars hidden></span>
+        </a>
+      </nav>
+    </header>
+
+    <main class="g-main" id="content">
+      <div class="g-head">
+        <nav class="g-crumbs" aria-label="Breadcrumb">
+          <ol><li><a href="../../">HEISS UI</a></li><li><a href="../">Models</a></li><li aria-current="page">Chroma</li></ol>
+        </nav>
+        <p class="label">Image model</p>
+        <h1>How to run Chroma locally.</h1>
+        <p class="g-lead">Chroma runs in ComfyUI with three files: the model, the T5-XXL text encoder and the Flux.1 VAE. The fp8 model is 9.2 GB and fits a 12 GB graphics card, and GGUF brings it down to 8 GB. It’s Apache 2.0, with a real CFG and a negative prompt that works.</p>
+        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>8 min read</span></p>
+
+        <dl class="g-spec">
+            <div><dt>Maker</dt><dd><a href="https://huggingface.co/lodestones/Chroma1-HD">lodestones</a></dd></div>
+            <div><dt>Released</dt><dd>Aug 2025<small>Chroma1-HD, the finished model</small></dd></div>
+            <div><dt>Licence</dt><dd>Apache 2.0<small>commercial use allowed</small></dd></div>
+            <div><dt>Memory</dt><dd>8 GB and up<small>as GGUF. fp8 from 12 GB</small></dd></div>
+        </dl>
+      </div>
+
+      <div class="g-body">
+        <nav class="g-toc" aria-label="On this page">
+          <p class="g-toc-title">On this page</p>
+          <ol>
+            <li><a href="#what">What Chroma is</a></li>
+            <li><a href="#files">Files you need</a></li>
+            <li><a href="#fit">What fits your computer</a></li>
+            <li><a href="#setup">Set it up</a></li>
+            <li><a href="#settings">Settings that work</a></li>
+            <li><a href="#speed">How fast</a></li>
+            <li><a href="#errors">When it goes wrong</a></li>
+            <li><a href="#faq">Questions</a></li>
+          </ol>
+        </nav>
+
+        <article class="g-prose">
+
+          <h2 id="what">What Chroma is.</h2>
+          <p>Chroma is a community model by lodestones, funded by donations. It started from Flux.1 Schnell and was retrained into an 8.9B model: a 3.3B layer was swapped for a much smaller one, and the T5 padding is masked out. It uses T5-XXL only, with no CLIP-L, and the Flux.1 VAE.</p>
+          <ul>
+            <li><strong>Chroma1-HD</strong> is the one to use, uploaded in August 2025.</li>
+            <li><strong>Chroma1-Base</strong> is the base checkpoint, published shortly before HD.</li>
+            <li><strong>Chroma1-Flash</strong> is a faster version with the guidance baked in. lodestones points to its delta weights for low-step use.</li>
+            <li><strong>Chroma1-Radiance</strong> is a different, pixel-space model with no VAE and its own nodes. It’s still in progress and not covered here.</li>
+          </ul>
+          <p>Unlike Flux.1 Dev and Schnell, Chroma uses a real CFG, so the negative prompt works. It prefers natural sentences to tag lists, in the negative prompt too.</p>
+
+          <h2 id="files">Files you need.</h2>
+          <p>If you already run Flux.1, you have the T5 and the VAE. Chroma loads its T5 through a single <strong>Load CLIP</strong> node with type <code>chroma</code>.</p>
+          <ul class="g-files">
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Model</span>
+                <code class="g-file-name">Chroma1-HD-fp8mixed.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/diffusion_models/</span>
+                <span class="g-file-path">full precision: Chroma1-HD.safetensors, 17.8 GB</span>
+              </div>
+              <span class="g-file-size">9.2 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Chroma1-HD_repackaged/resolve/main/split_files/diffusion_models/Chroma1-HD-fp8mixed.safetensors" aria-label="Download Chroma1-HD-fp8mixed.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Text encoder</span>
+                <code class="g-file-name">t5xxl_fp8_e4m3fn_scaled.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/text_encoders/</span>
+                <span class="g-file-path">or t5xxl_fp16.safetensors, 9.8 GB</span>
+              </div>
+              <span class="g-file-size">5.2 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8_e4m3fn_scaled.safetensors" aria-label="Download t5xxl_fp8_e4m3fn_scaled.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">VAE</span>
+                <code class="g-file-name">ae.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/vae/</span>
+              </div>
+              <span class="g-file-size">0.3 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Lumina_Image_2.0_Repackaged/resolve/main/split_files/vae/ae.safetensors" aria-label="Download ae.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+          </ul>
+          <p>The full-precision model is at <a href="https://huggingface.co/lodestones/Chroma1-HD/resolve/main/Chroma1-HD.safetensors">lodestones/Chroma1-HD</a>. Users find a plain fp8 conversion noticeably worse than full precision; Comfy’s fp8mixed file, a Q8 GGUF or the full file are the ones to use.</p>
+          <div class="code">
+                  <div class="code-head">
+                    <span>ComfyUI/models</span>
+                    <button class="copy" type="button" data-copy="tree-chroma" aria-label="Copy">
+                      <span class="copy-icons" aria-hidden="true">
+                        <svg class="icon i-copy"><use href="#i-copy" /></svg>
+                        <svg class="icon i-check"><use href="#i-check" /></svg>
+                      </span>
+                      <span class="copy-label">Copy</span>
+                    </button>
+                  </div>
+<pre id="tree-chroma">models/
+├── diffusion_models/
+│   └── Chroma1-HD-fp8mixed.safetensors
+├── text_encoders/
+│   └── t5xxl_fp8_e4m3fn_scaled.safetensors
+└── vae/
+    └── ae.safetensors</pre>
+                </div>
+          <h3>Smaller files: GGUF</h3>
+          <p><a href="https://huggingface.co/silveroxides/Chroma1-HD-GGUF">silveroxides’ GGUF builds</a> load through the <a href="https://github.com/city96/ComfyUI-GGUF">ComfyUI-GGUF</a> nodes and go in <code>diffusion_models</code>.</p>
+          <div class="g-table" role="region" aria-label="Chroma1-HD GGUF sizes" tabindex="0">
+            <table>
+              <thead><tr><th scope="col">Model</th><th scope="col">Q8_0</th><th scope="col">Q6_K</th><th scope="col">Q5_K_M</th><th scope="col">Q4_K_M</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Chroma1-HD</th><td>9.7 GB</td><td>7.7 GB</td><td>6.7 GB</td><td>5.6 GB</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="g-table-note">Q8_0 is close to the original. Q6_K and Q5_K_M are the usual middle ground.</p>
+
+          <h2 id="fit">What fits your computer.</h2>
+          <p>Chroma1-HD at 1024 × 1024 with the fp8 T5. ComfyUI runs the encoder first and moves it aside, so the model file sets the limit.</p>
+          <ul class="g-fit">
+            <li><span class="g-fit-tier">6 GB</span><span class="g-status" data-s="tight">Tight</span><p>Q4_K_M GGUF (5.6 GB), with the T5 in system RAM.</p></li>
+            <li><span class="g-fit-tier">8 GB</span><span class="g-status" data-s="offloads">Offloads</span><p>Q5_K_M or Q6_K GGUF. Users report it working on 8 GB with offloading.</p></li>
+            <li><span class="g-fit-tier">12 GB</span><span class="g-status" data-s="fits">Fits</span><p>The fp8mixed model or Q8_0 GGUF. One 12 GB user ran the full-precision model too.</p></li>
+            <li><span class="g-fit-tier">16 GB</span><span class="g-status" data-s="fits">Fits</span><p>fp8mixed or Q8_0 comfortably.</p></li>
+            <li><span class="g-fit-tier">24 GB</span><span class="g-status" data-s="fits">Fits</span><p>Full precision (17.8 GB), with the T5 moved aside during sampling.</p></li>
+            <li><span class="g-fit-tier">Mac</span><span class="g-status" data-s="tight">Untested</span><p>Use the full-precision file or a GGUF: a Mac can’t compute in fp8. We found no Mac reports for Chroma.</p></li>
+          </ul>
+          <ul class="g-chips">
+            <li><a href="../../hardware/8gb-vram/">8 GB graphics cards</a></li>
+            <li><a href="../../hardware/12gb-vram/">12 GB cards</a></li>
+            <li><a href="../../hardware/16gb-vram/">16 GB cards</a></li>
+            <li><a href="../../hardware/24gb-vram/">24 GB cards</a></li>
+            <li><a href="../../hardware/mac-apple-silicon/">Mac with Apple Silicon</a></li>
+          </ul>
+
+          <h2 id="setup">Set it up.</h2>
+          <ol class="steps">
+            <li>
+              <span class="step-n" aria-hidden="true">1</span>
+              <div>
+                <h3>Download the three files</h3>
+                <p>Model, T5 and VAE from the list above. None of them is gated.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">2</span>
+              <div>
+                <h3>Put them in their folders</h3>
+                <p>Model in <code>diffusion_models</code>, T5 in <code>text_encoders</code>, VAE in <code>vae</code>. Then restart ComfyUI so the loaders list them.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">3</span>
+              <div>
+                <h3>Open the Chroma template</h3>
+                <p>In ComfyUI’s template browser, pick <strong>Chroma: Text to Image</strong>. lodestones also publishes <a href="https://huggingface.co/lodestones/Chroma1-HD/resolve/main/ComfyUI_Chroma1-HD_T2I-workflow.json">a ComfyUI workflow of their own</a> on the model page.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">4</span>
+              <div>
+                <h3>Check the loaders</h3>
+                <p><strong>Load Diffusion Model</strong> gets the Chroma file. <strong>Load CLIP</strong> gets the T5 with type <code>chroma</code>. <strong>Load VAE</strong> gets <code>ae.safetensors</code>. For a GGUF, swap the model loader for <strong>Unet Loader (GGUF)</strong>.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">5</span>
+              <div>
+                <h3>Leave the shift and padding alone</h3>
+                <p><strong>ModelSamplingAuraFlow</strong> at shift 1 is the value the creator intended. <strong>T5TokenizerOptions</strong> sets the T5 padding; Comfy’s note says a min_padding of 1 is the official way and 0 works too.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">6</span>
+              <div>
+                <h3>Write both prompts and run</h3>
+                <p>Describe the image in sentences, and write the negative prompt in sentences too, like the template’s “This low quality greyscale unfinished sketch is inaccurate and flawed.”</p>
+              </div>
+            </li>
+          </ol>
+
+          <h2 id="settings">Settings that work.</h2>
+          <p>These are from lodestones’ own ComfyUI workflow for Chroma1-HD.</p>
+          <dl class="g-spec is-mono">
+            <div><dt>Steps</dt><dd>26</dd></div>
+            <div><dt>CFG</dt><dd>3.8</dd></div>
+            <div><dt>Sampler</dt><dd>euler</dd></div>
+            <div><dt>Scheduler</dt><dd>BetaSamplingScheduler</dd></div>
+            <div><dt>Alpha, beta</dt><dd>0.45, 0.45</dd></div>
+            <div><dt>Shift</dt><dd>1</dd></div>
+            <div><dt>Size</dt><dd>1152 × 1152</dd></div>
+            <div><dt>Negative</dt><dd>yes, in sentences</dd></div>
+          </dl>
+          <p>Comfy’s Chroma template is close: 26 steps, CFG 3.5, the plain <code>beta</code> scheduler and 1024 × 1024. The diffusers example on the model card uses 40 steps at guidance 3.0. Keep CFG between about 3 and 5; higher burns the image. lodestones says any ODE sampler should work, with beta or sigmoid schedules for fewer steps. Stay under about 2 megapixels, where quality starts to fall off.</p>
+
+          <h2 id="speed">How fast.</h2>
+          <div class="g-table" role="region" aria-label="Chroma timings" tabindex="0">
+            <table>
+              <thead><tr><th scope="col">GPU</th><th scope="col">Files</th><th scope="col">Time</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">RTX 4070 12 GB</th><td>Q8_0 GGUF</td><td><span class="g-time">2.6 s per step</span><a class="g-ref" href="#src-4070">[1]</a></td></tr>
+                <tr><th scope="row">RTX 4070 12 GB</th><td>Q6_K GGUF</td><td><span class="g-time">3.1 s per step</span><a class="g-ref" href="#src-4070">[1]</a></td></tr>
+                <tr><th scope="row">RTX 4070 12 GB</th><td>fp8 scaled, fp8_e4m3fn_fast</td><td><span class="g-time">1.3 s per step</span><a class="g-ref" href="#src-4070">[1]</a></td></tr>
+                <tr><th scope="row">RTX 5090</th><td>1152 px, 40 steps, 10 LoRAs</td><td><span class="g-time">28 s per image</span><a class="g-ref" href="#src-5090">[2]</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="g-table-note">User reports. The 1.3 s figure used torch.compile and SageAttention as well.</p>
+
+          <h2 id="errors">When it goes wrong.</h2>
+          <dl class="g-fixes">
+            <div><dt>Messy or burnt images</dt><dd>CFG is too high. Stay around 3 to 5. For more contrast without burning, users try CFGNorm or Skimmed CFG.</dd></div>
+            <div><dt>Soft, low-detail images from an fp8 file</dt><dd>A plain fp8 conversion loses more than you’d expect. Switch to Comfy’s fp8mixed file, a Q8_0 GGUF or full precision.</dd></div>
+            <div><dt>The prompt is only half followed</dt><dd>Chroma reads sentences better than tags. Rewrite tag lists as a description, and do the same in the negative prompt.</dd></div>
+            <div><dt>Perturbed Attention Guidance does nothing</dt><dd>PAG only works on UNet models like SDXL. Chroma is a transformer, so the node has no effect.</dd></div>
+            <div><dt>Faces and details fall apart at large sizes</dt><dd>Above about 2 megapixels, Chroma degrades. Generate near 1 megapixel and upscale.</dd></div>
+          </dl>
+          <div class="g-heards">
+            <figure class="g-heard">
+              <blockquote><p>My image is a mess at CFG 5 and looks better at 12. Isn’t that backwards?</p></blockquote>
+              <figcaption><a href="https://huggingface.co/lodestones/Chroma/discussions/82">Hugging Face, lodestones/Chroma</a></figcaption>
+            </figure>
+            <figure class="g-heard">
+              <blockquote><p>What’s the minimum VRAM for Chroma? Can it run on 8 or 12 GB?</p></blockquote>
+              <figcaption><a href="https://huggingface.co/lodestones/Chroma/discussions/52">Hugging Face, lodestones/Chroma</a></figcaption>
+            </figure>
+          </div>
+
+          <h2 id="faq">Questions.</h2>
+          <div class="faq">
+            <details name="faq">
+              <summary>Which text encoder does Chroma use?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Only T5-XXL, the same file as Flux.1, loaded with a single Load CLIP node set to type chroma. Chroma has no CLIP-L. The VAE is the Flux.1 ae.safetensors.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Can I use Chroma commercially?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Yes. Chroma1-HD is Apache 2.0, which allows commercial use.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Does the negative prompt work in Chroma?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Yes. Chroma uses a real CFG, around 3.5 to 3.8, so the negative prompt has an effect. Write it in sentences, like the positive prompt.</p></div>
+            </details>
+            <details name="faq">
+              <summary>What’s the difference between Chroma1-HD, Base and Flash?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>HD is the finished model to use. Base is the base checkpoint, published shortly before HD. Flash has the guidance baked in for fewer steps. Radiance is a separate pixel-space model with its own nodes.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Do Flux LoRAs work on Chroma?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Some do, since Chroma started from Flux.1 Schnell. One user reports Flux Dev LoRAs at strength 1 with CFG 4 to 7 and 40 steps. Results vary by LoRA.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Does Chroma run on a Mac?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>It should run in ComfyUI on Apple Silicon with the full-precision file (17.8 GB) or a GGUF, since a Mac can’t compute in fp8. We found no Mac reports to confirm speed or memory.</p></div>
+            </details>
+          </div>
+
+          <p class="g-sources">Sources: <a href="https://huggingface.co/lodestones/Chroma1-HD">Chroma1-HD model card</a>, <a href="https://huggingface.co/lodestones/Chroma1-HD/resolve/main/ComfyUI_Chroma1-HD_T2I-workflow.json">lodestones’ ComfyUI workflow</a>, <a href="https://huggingface.co/Comfy-Org/Chroma1-HD_repackaged">Comfy-Org Chroma1-HD files</a>, <a id="src-4070" href="https://huggingface.co/lodestones/Chroma/discussions/16">fp8 vs bf16 thread</a> [1], <a id="src-5090" href="https://huggingface.co/lodestones/Chroma1-HD/discussions/25">RTX 5090 thread</a> [2], <a href="https://huggingface.co/lodestones/Chroma/discussions/47">CFG thread</a>, <a href="https://huggingface.co/lodestones/Chroma/discussions/20">sampler thread</a>, <a href="https://github.com/Comfy-Org/ComfyUI/issues/12177">ComfyUI issue #12177</a>.</p>
+        </article>
+      </div>
+
+      <section class="g-pitch" aria-labelledby="pitch-title">
+        <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <div class="g-pitch-inner">
+          <div>
+            <p class="label">HEISS UI</p>
+            <h2 id="pitch-title">One encoder, set up right.</h2>
+            <p class="g-pitch-text">HEISS UI runs Chroma on the ComfyUI you already have, with the settings from Comfy-Org’s Chroma template: 26 steps, CFG 3.5, beta and shift 1. Pick a Chroma file and it finds the T5 and VAE to go with it.</p>
+            <ul class="g-pitch-list">
+              <li><span><strong>T5 padding handled.</strong> It adds the T5TokenizerOptions node with padding at 0, the same as lodestones’ own workflow.</span></li>
+              <li><span><strong>Negative prompt on.</strong> Chroma uses a real CFG, so the negative prompt box is there and does something.</span></li>
+              <li><span><strong>Missing parts, one click.</strong> The setup lists a missing T5 or VAE, each with a Download button. If you run Flux.1, they’re already there.</span></li>
+              <li><span><strong>GGUF too.</strong> Chroma GGUFs run through ComfyUI-GGUF, which installs with one click.</span></li>
+              <li><span><strong>Radiance as your own workflow.</strong> Chroma1-Radiance isn’t built in. Build its graph in ComfyUI, export it and drop it on the Workflow Gallery.</span></li>
+            </ul>
+            <div class="g-pitch-actions">
+              <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
+              <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
+            </div>
+            <p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Needs ComfyUI.</p>
+          </div>
+          <div class="g-pitch-shot">
+            <picture>
+              <source type="image/webp" srcset="../../screenshots/hero-1200.webp" />
+              <img src="../../screenshots/hero.jpg" width="2000" height="1317" loading="lazy" decoding="async" alt="HEISS UI with a gallery of generated images and the prompt composer at the bottom." />
+            </picture>
+          </div>
+        </div>
+      </section>
+
+      <section class="g-related" aria-labelledby="related-title">
+        <h2 id="related-title">Keep going.</h2>
+        <div class="g-cards">
+          <a class="g-card" href="../flux-1/">
+            <span class="g-card-kicker">Model · Image</span>
+            <span class="g-card-title">Flux.1</span>
+            <span class="g-card-text">Dev, Schnell and Krea Dev: Chroma’s starting point, with the same T5 and VAE.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../pony-v7/">
+            <span class="g-card-kicker">Model · Image</span>
+            <span class="g-card-title">Pony V7</span>
+            <span class="g-card-text">Another community model on a new base, AuraFlow, with its own T5.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../../hardware/12gb-vram/">
+            <span class="g-card-kicker">Hardware</span>
+            <span class="g-card-title">12 GB graphics cards</span>
+            <span class="g-card-text">What runs on 12 GB, and which files to pick.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../../compare/swarmui/">
+            <span class="g-card-kicker">Compare</span>
+            <span class="g-card-title">HEISS UI vs SwarmUI</span>
+            <span class="g-card-text">Two front ends for ComfyUI, and where each one is the better pick.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-row">
+        <a class="footer-brand" href="../../">
+          <img src="../../heiss-mark-white.svg" alt="" width="20" height="20" />
+          <span>HEISS UI</span>
+        </a>
+        <p class="footer-meta">MIT licensed. Built on ComfyUI and the great work of <a href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a>.</p>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../../models/">Models</a>
+          <a href="../../hardware/">Hardware</a>
+          <a href="../../compare/">Compare</a>
+          <a href="https://github.com/tristmeister/HEISS-UI">GitHub</a>
+          <a href="https://github.com/tristmeister/HEISS-UI/issues">Issues</a>
+        </nav>
+      </div>
+      <div class="bigmark-wrap" aria-hidden="true">
+        <div class="bigmark">HEISS UI</div>
+      </div>
+    </footer>
+  </body>
+</html>

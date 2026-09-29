@@ -1,0 +1,5 @@
+/* Model guide pages (docs/models/). Loaded after guide.css, on these pages only. */
+
+/* Hub: chips and the chooser sit under their group heading like the card grids do. */
+.g-hub-chips { margin-top: 20px; }
+.g-group .g-chooser { margin-top: 20px; }

@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Krea 2: run Turbo and Raw locally in ComfyUI · HEISS UI</title>
+    <meta name="description" content="How to run Krea 2 Turbo and Raw in ComfyUI: the files and folders, the Qwen3-VL 4B encoder, what fits 8 to 32 GB and Macs, Raw’s settings, and the licence cap." />
+    <link rel="canonical" href="https://tristmeister.github.io/HEISS-UI/models/krea-2/" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="HEISS UI" />
+    <meta property="og:url" content="https://tristmeister.github.io/HEISS-UI/models/krea-2/" />
+    <meta property="og:title" content="How to run Krea 2 locally" />
+    <meta property="og:description" content="How to run Krea 2 Turbo and Raw in ComfyUI: the files and folders, the Qwen3-VL 4B encoder, what fits 8 to 32 GB and Macs, Raw’s settings, and the licence cap." />
+    <meta property="og:image" content="https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="../../favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="../../favicon.png" />
+    <link rel="preload" href="../../fonts/Geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="../../styles.css" />
+    <link rel="stylesheet" href="../../guide.css" />
+    <link rel="stylesheet" href="../models.css" />
+    <script src="../../main.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "TechArticle",
+            "headline": "How to run Krea 2 locally",
+            "description": "How to run Krea 2 Turbo and Raw in ComfyUI: the files and folders, the Qwen3-VL 4B encoder, what fits 8 to 32 GB and Macs, Raw’s settings, and the licence cap.",
+            "url": "https://tristmeister.github.io/HEISS-UI/models/krea-2/",
+            "dateModified": "2026-09-29",
+            "image": "https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg",
+            "author": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "HEISS UI",
+              "url": "https://tristmeister.github.io/HEISS-UI/"
+            },
+            "about": {
+              "@id": "https://tristmeister.github.io/HEISS-UI/#app"
+            }
+          },
+          {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "HEISS UI",
+                "item": "https://tristmeister.github.io/HEISS-UI/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Models",
+                "item": "https://tristmeister.github.io/HEISS-UI/models/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "Krea 2",
+                "item": "https://tristmeister.github.io/HEISS-UI/models/krea-2/"
+              }
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How much VRAM does Krea 2 need?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "16 GB is comfortable for Turbo in fp8 (13.1 GB). 12 GB works with a little offloading, and 8 GB works with ComfyUI’s dynamic VRAM and at least 24 GB of system RAM, at about 30 s per image. The full-precision files need 32 GB."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Should I use Krea 2 Turbo or Raw?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Turbo for making images: 8 steps at CFG 1. Raw is the undistilled base for training LoRAs. Krea’s own advice is to train on Raw and run on Turbo."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I use Krea 2 commercially?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Only if your company, with its affiliates, makes less than $1 million a year in revenue. Above that you need an enterprise licence from Krea. You own the images you generate either way."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Is Krea 2 the same as Flux.1 Krea Dev?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "No. Flux.1 Krea Dev is a Flux.1 model Krea made with Black Forest Labs in 2025. Krea 2 is Krea’s own model, trained from scratch, with a different encoder and VAE. Their files and LoRAs don’t mix."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does Krea 2 run on a Mac?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, with the bf16 files and ComfyUI started with --fp16-vae. fp8 files were rejected on Apple GPUs in testing, and Krea 2 GGUFs don’t load yet. An M1 Max with 64 GB took about 212 s per image."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do Krea 2 GGUFs work in ComfyUI?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not with the main branch of ComfyUI-GGUF, which rejects the krea2 architecture. Use the fp8 or int8 safetensors files for now."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What does the Krea2T Enhancer do?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It is an optional community node by capitan01R that patches Krea 2’s text path for closer prompt following. It sits between the model loader and the sampler, with strength 1.0 by default. The author calls it experimental."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <svg class="sprite" aria-hidden="true">
+      <symbol id="i-github" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 .5A12 12 0 0 0 8.2 23.9c.6.1.8-.3.8-.6v-2.1c-3.3.7-4-1.4-4-1.4-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.4-1.3-5.4-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.3 11.3 0 0 1 6 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.4 5.9.4.4.8 1.1.8 2.2v3.1c0 .3.2.7.8.6A12 12 0 0 0 12 .5Z" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M3.5 8h9M8.75 4.25 12.5 8l-3.75 3.75" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 16 16">
+        <g fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><rect x="5.25" y="5.25" width="8" height="8" rx="2" /><path d="M10.75 5.25V4.5a1.75 1.75 0 0 0-1.75-1.75H4.5A1.75 1.75 0 0 0 2.75 4.5V9a1.75 1.75 0 0 0 1.75 1.75h.75" /></g>
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" d="m3.25 8.5 3 3 6.5-7" />
+      </symbol>
+      <symbol id="i-download" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" d="M8 2.5v7.75M4.75 7 8 10.25 11.25 7M3.25 13.25h9.5" />
+      </symbol>
+      <symbol id="i-plus" viewBox="0 0 16 16">
+        <path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" d="M8 3.25v9.5M3.25 8h9.5" />
+      </symbol>
+    </svg>
+
+    <a class="skip" href="#content">Skip to content</a>
+
+    <header class="nav">
+      <a class="nav-brand pill" href="../../" aria-label="HEISS UI home">
+        <span class="mark" aria-hidden="true">
+          <svg viewBox="0 0 226 226"><path class="cup" d="M138.457 111.077L138.472 118.013C143.295 118.082 148.276 118.02 153.113 118.02C153.111 119.253 153.119 120.486 153.133 121.719L158.471 121.72C158.575 128.601 158.476 135.793 158.474 142.686L153.943 142.68L153.935 146.355C152.708 146.345 151.48 146.346 150.252 146.358C150.223 147.489 150.235 148.669 150.231 149.803L137.438 149.794L131.762 149.803L131.757 151.282L128.091 151.284C128.045 154.129 128.067 157.099 128.063 159.951L124.445 159.947L124.439 165L84.3456 164.996L84.3124 159.956C83.0803 159.936 81.812 159.952 80.577 159.953V151.018L76.4256 151.016L76.451 138.069C75.2103 138.06 73.9692 138.056 72.7284 138.06L72.7333 125.428C71.2109 125.388 69.5874 125.415 68.0575 125.413C67.9975 122.315 67.9582 118.267 68.077 115.201L73.6883 115.185C73.75 113.825 73.6867 112.465 73.746 111.074L138.457 111.077ZM138.987 125.533L138.983 128.903L136.136 128.898L136.12 139.263C134.977 139.264 133.646 139.234 132.518 139.278L132.52 142.848L145.487 142.853L147.14 142.848L147.174 139.1C148.703 139.089 150.233 139.089 151.762 139.098C151.759 135.756 151.699 132.233 151.777 128.912L148.549 128.904L148.543 125.519L138.987 125.533Z"/><path class="steam steam-a" d="M96.125 61.0062L102.259 61L102.256 71.379C100.517 71.4558 98.3273 71.397 96.5314 71.4064C96.462 73.1405 96.5183 74.9966 96.5119 76.7498L91.0164 76.7775L91.0051 87.3546L96.4811 87.3602L96.4856 92.6439L102.001 92.6315L101.995 101.663C100.164 101.652 98.3321 101.657 96.5008 101.678C96.4602 103.359 96.4845 105.122 96.4816 106.809L96.4399 106.898C96.056 107.052 91.5539 106.986 90.7909 106.985C90.8415 105.217 90.7785 103.414 90.8244 101.616C92.6155 101.578 94.4821 101.63 96.2929 101.609L96.3038 92.666C94.4926 92.6414 92.6028 92.6663 90.7863 92.6678C90.7785 90.918 90.7869 89.1684 90.8113 87.4188L85.259 87.4214L85.2813 76.7509L90.7502 76.7426L90.7558 71.3601L96.109 71.3505L96.125 61.0062Z"/><path class="steam steam-b" d="M118.12 66.0034L124.24 66C124.278 69.4792 124.249 73.0427 124.237 76.5241L118.409 76.5255L118.386 81.9979C116.56 82.0197 114.734 82.0274 112.908 82.0209C112.779 85.2057 112.877 89.2871 112.894 92.5271C114.72 92.5159 116.546 92.5166 118.372 92.529C118.41 94.2524 118.38 96.0729 118.379 97.8037L123.99 97.8012L123.983 106.557C123.99 106.777 123.999 106.702 123.935 106.907C123.498 107.067 118.883 106.973 118.12 106.97L118.134 97.8311C116.318 97.8455 114.503 97.8483 112.687 97.8394L112.694 92.5737C111.066 92.4878 108.924 92.5568 107.259 92.5626L107.27 81.9618L112.691 81.9603L112.701 76.5386C114.452 76.498 116.331 76.5241 118.091 76.5202L118.12 66.0034Z"/></svg>
+        </span>
+        <span class="nav-brand-name">HEISS UI</span>
+      </a>
+      <nav class="nav-links pill" aria-label="Primary">
+        <a href="../../models/">Models</a>
+        <a href="../../hardware/">Hardware</a>
+        <a href="../../compare/">Compare</a>
+        <a class="g-nav-cta" href="../../#install">Install</a>
+        <a class="nav-gh" href="https://github.com/tristmeister/HEISS-UI" aria-label="GitHub repository">
+          <svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>
+          <span class="nav-gh-label">GitHub</span>
+          <span class="stars-count" data-stars hidden></span>
+        </a>
+      </nav>
+    </header>
+
+    <main class="g-main" id="content">
+      <div class="g-head">
+        <nav class="g-crumbs" aria-label="Breadcrumb">
+          <ol><li><a href="../../">HEISS UI</a></li><li><a href="../">Models</a></li><li aria-current="page">Krea 2</li></ol>
+        </nav>
+        <p class="label">Image model</p>
+        <h1>How to run Krea 2 locally.</h1>
+        <p class="g-lead">Krea 2 runs in ComfyUI with three files: the model (13.1 GB in fp8), the Qwen3-VL 4B text encoder and the Qwen-Image VAE. Turbo makes an image in eight steps and is comfortable on a 16 GB card; 8 GB works with dynamic VRAM and at least 24 GB of system RAM. Commercial use is free only for companies under $1 million in yearly revenue.</p>
+        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>10 min read</span></p>
+
+        <dl class="g-spec">
+            <div><dt>Maker</dt><dd><a href="https://github.com/krea-ai/krea-2">Krea AI</a></dd></div>
+            <div><dt>Released</dt><dd>Jun 2026<small>22 June, Turbo and Raw together</small></dd></div>
+            <div><dt>Licence</dt><dd>Krea 2 Community<small>commercial use under $1M yearly revenue</small></dd></div>
+            <div><dt>Memory</dt><dd>16 GB<small>8 GB with dynamic VRAM and 24 GB RAM</small></dd></div>
+        </dl>
+      </div>
+
+      <div class="g-body">
+        <nav class="g-toc" aria-label="On this page">
+          <p class="g-toc-title">On this page</p>
+          <ol>
+            <li><a href="#which">Turbo or Raw</a></li>
+            <li><a href="#files">Files you need</a></li>
+            <li><a href="#fit">What fits your computer</a></li>
+            <li><a href="#setup">Set it up</a></li>
+            <li><a href="#settings">Settings that work</a></li>
+            <li><a href="#speed">How fast</a></li>
+            <li><a href="#errors">When it goes wrong</a></li>
+            <li><a href="#faq">Questions</a></li>
+          </ol>
+        </nav>
+
+        <article class="g-prose">
+
+          <h2 id="which">Turbo or Raw.</h2>
+          <p>Krea 2 is Krea’s own 12.8B model, trained from scratch and released on 22 June 2026. It isn’t related to Flux.1 Krea Dev, the older model Krea made with Black Forest Labs. It comes in two versions.</p>
+          <ul>
+            <li><strong>Turbo</strong> is the one to generate with. Eight steps, CFG 1, sizes from 1K to 2K.</li>
+            <li><strong>Raw</strong> is the undistilled base, meant for training LoRAs and further tuning. It takes 52 steps at CFG 3.5, follows a negative prompt, and was trained up to 1K.</li>
+          </ul>
+          <p>Krea’s own advice is to train on Raw and run on Turbo. Users on the model pages agree that Raw alone makes weak pictures.</p>
+          <aside class="g-callout" data-kind="heads-up">
+            <p class="g-callout-title">Licence</p>
+            <p>Krea 2 is under the <a href="https://www.krea.ai/krea-2-licensing">Krea 2 Community License</a>. Commercial use of the model, its derivatives and its outputs is allowed only if you, with any affiliated companies, have “total company-wide annual revenue of less than one million United States dollars”, counted over the last twelve months. Above that you need an enterprise licence from Krea. You own what you generate. If you host it for others, you must run content filters, and a fine-tune you share must come with a copy of Krea’s licence. Krea’s Hugging Face repos ask for your name, email and company before you download; Comfy-Org’s copy doesn’t.</p>
+          </aside>
+
+          <h2 id="files">Files you need.</h2>
+          <p>One model, one text encoder, one VAE. The encoder is <strong>Qwen3-VL 4B</strong>, and the VAE is the one from Qwen-Image.</p>
+          <h3>Turbo</h3>
+          <ul class="g-files">
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Model</span>
+                <code class="g-file-name">krea2_turbo_fp8_scaled.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/diffusion_models/</span>
+                <span class="g-file-path">or krea2_turbo_int8_convrot, 13.5 GB. Full precision: krea2_turbo_bf16, 26.3 GB</span>
+              </div>
+              <span class="g-file-size">13.1 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_turbo_fp8_scaled.safetensors" aria-label="Download krea2_turbo_fp8_scaled.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Text encoder</span>
+                <code class="g-file-name">qwen3vl_4b_fp8_scaled.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/text_encoders/</span>
+                <span class="g-file-path">full precision: qwen3vl_4b_bf16.safetensors, 8.9 GB</span>
+              </div>
+              <span class="g-file-size">5.2 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Krea-2/resolve/main/text_encoders/qwen3vl_4b_fp8_scaled.safetensors" aria-label="Download qwen3vl_4b_fp8_scaled.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">VAE</span>
+                <code class="g-file-name">qwen_image_vae.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/vae/</span>
+              </div>
+              <span class="g-file-size">0.3 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Krea-2/resolve/main/vae/qwen_image_vae.safetensors" aria-label="Download qwen_image_vae.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+          </ul>
+          <h3>Raw</h3>
+          <ul class="g-files">
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">Model</span>
+                <code class="g-file-name">krea2_raw_bf16.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/diffusion_models/</span>
+                <span class="g-file-path">smaller: krea2_raw_fp8_scaled 13.1 GB, krea2_raw_int8_convrot 13.5 GB. Same encoder and VAE</span>
+              </div>
+              <span class="g-file-size">26.3 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Krea-2/resolve/main/diffusion_models/krea2_raw_bf16.safetensors" aria-label="Download krea2_raw_bf16.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+            <li>
+              <div class="g-file">
+                <span class="g-file-role">LoRA</span>
+                <code class="g-file-name">krea2_turbo_lora_rank_64_bf16.safetensors</code>
+                <span class="g-file-path">ComfyUI/models/loras/</span>
+                <span class="g-file-path">optional: makes Raw behave like Turbo</span>
+              </div>
+              <span class="g-file-size">0.5 GB</span>
+              <a class="g-file-dl" href="https://huggingface.co/Comfy-Org/Krea-2/resolve/main/loras/krea2_turbo_lora_rank_64_bf16.safetensors" aria-label="Download krea2_turbo_lora_rank_64_bf16.safetensors"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download</a>
+            </li>
+          </ul>
+          <p>Which 13 GB file: in a 96-image test against bf16 on an RTX 4090, <strong>int8 convrot came closest</strong>, ahead of mxfp8 and fp8. int8 needs PyTorch built for CUDA 13.0 (cu130) to run fast, and it helped on AMD too. On an RTX 50-series card there is also <code>krea2_turbo_nvfp4</code> at 7.7 GB, about 15% faster than fp8 on a 5090. Comfy-Org also hosts nine style LoRAs; three from the launch were pulled at Krea’s request.</p>
+          <div class="code">
+                  <div class="code-head">
+                    <span>ComfyUI/models</span>
+                    <button class="copy" type="button" data-copy="tree-krea" aria-label="Copy">
+                      <span class="copy-icons" aria-hidden="true">
+                        <svg class="icon i-copy"><use href="#i-copy" /></svg>
+                        <svg class="icon i-check"><use href="#i-check" /></svg>
+                      </span>
+                      <span class="copy-label">Copy</span>
+                    </button>
+                  </div>
+<pre id="tree-krea">models/
+├── diffusion_models/
+│   └── krea2_turbo_fp8_scaled.safetensors
+├── text_encoders/
+│   └── qwen3vl_4b_fp8_scaled.safetensors
+└── vae/
+    └── qwen_image_vae.safetensors</pre>
+                </div>
+          <h3>GGUF: not yet</h3>
+          <p><a href="https://huggingface.co/realrebelai/KREA-2_GGUFs">realrebelai’s Krea 2 GGUFs</a> run from 7.2 GB (Turbo Q4_K_M) to 13.6 GB (Q8_0). The main branch of <a href="https://github.com/city96/ComfyUI-GGUF">ComfyUI-GGUF</a> rejects their <code>krea2</code> architecture (<a href="https://github.com/city96/ComfyUI-GGUF/issues/464">issue #464</a>), so they need a fork for now. A Qwen3-VL 4B GGUF encoder loads, but without its vision part.</p>
+
+          <h2 id="fit">What fits your computer.</h2>
+          <p>Turbo at about 1 megapixel. The text encoder runs first and ComfyUI moves it out of the way before sampling, so the model file sets the limit. A model that doesn’t fit still runs with part of it in system RAM, only slower.</p>
+          <ul class="g-fit">
+            <li><span class="g-fit-tier">6 GB</span><span class="g-status" data-s="no">No</span><p>Not a realistic fit. Z-Image Turbo or Flux.2 Klein 4B are.</p></li>
+            <li><span class="g-fit-tier">8 GB</span><span class="g-status" data-s="offloads">Offloads</span><p>Turbo fp8 with ComfyUI’s dynamic VRAM and at least 24 GB of system RAM. An RTX 3060 Ti takes about 30 s per image.</p></li>
+            <li><span class="g-fit-tier">12 GB</span><span class="g-status" data-s="tight">Tight</span><p>Turbo fp8: an RTX 3060 12 GB made 1280 × 720 in 37 s at 8 steps, peaking near 11.8 GB.</p></li>
+            <li><span class="g-fit-tier">16 GB</span><span class="g-status" data-s="fits">Fits</span><p>Turbo fp8 or int8 comfortably. The size most users settle on.</p></li>
+            <li><span class="g-fit-tier">24 GB</span><span class="g-status" data-s="fits">Fits</span><p>Turbo up to 2K, or Raw in fp8 or int8. An RTX 3090 makes a 1024 image in about 13 s.</p></li>
+            <li><span class="g-fit-tier">32 GB</span><span class="g-status" data-s="fits">Fits</span><p>Turbo or Raw at full precision (26.3 GB).</p></li>
+            <li><span class="g-fit-tier">Mac 32 GB</span><span class="g-status" data-s="no">No</span><p>The bf16 Turbo needs about 31 GB resident, and the smaller files don’t work on a Mac yet.</p></li>
+            <li><span class="g-fit-tier">Mac 64 GB+</span><span class="g-status" data-s="fits">Fits</span><p>Turbo in bf16: an M1 Max with 64 GB took about 212 s per 1024 image at 8 steps.</p></li>
+          </ul>
+          <aside class="g-callout" data-kind="tip">
+            <p class="g-callout-title">On a Mac</p>
+            <p>Use the bf16 files. A Mac tester found the fp8 Krea 2 files rejected on Apple GPUs, which can’t hold fp8 tensors, and ComfyUI-GGUF can’t read Krea 2 GGUFs yet. Start ComfyUI with --fp16-vae, or the default VAE gives black images. Raw at 52 steps took 47 minutes on the same M1 Max and came out black, so stay with Turbo.</p>
+          </aside>
+          <ul class="g-chips">
+            <li><a href="../../hardware/8gb-vram/">8 GB graphics cards</a></li>
+            <li><a href="../../hardware/rtx-3060-12gb/">RTX 3060 12 GB</a></li>
+            <li><a href="../../hardware/16gb-vram/">16 GB cards</a></li>
+            <li><a href="../../hardware/rtx-5060-ti-16gb/">RTX 5060 Ti 16 GB</a></li>
+            <li><a href="../../hardware/24gb-vram/">24 GB cards</a></li>
+            <li><a href="../../hardware/mac-apple-silicon/">Mac with Apple Silicon</a></li>
+          </ul>
+
+          <h2 id="setup">Set it up.</h2>
+          <ol class="steps">
+            <li>
+              <span class="step-n" aria-hidden="true">1</span>
+              <div>
+                <h3>Update ComfyUI</h3>
+                <p>Krea 2 support arrived in ComfyUI at launch, in June 2026. Anything older doesn’t know the <code>krea2</code> encoder type. ComfyUI Desktop updates itself; the portable build has an update script. In a manual install:</p>
+                <div class="code">
+                  <div class="code-head">
+                    <span>Terminal, in the ComfyUI folder</span>
+                    <button class="copy" type="button" data-copy="cmd-update" aria-label="Copy">
+                      <span class="copy-icons" aria-hidden="true">
+                        <svg class="icon i-copy"><use href="#i-copy" /></svg>
+                        <svg class="icon i-check"><use href="#i-check" /></svg>
+                      </span>
+                      <span class="copy-label">Copy</span>
+                    </button>
+                  </div>
+<pre id="cmd-update" class="shell"><span class="ln">git pull</span>
+<span class="ln">pip install -r requirements.txt</span></pre>
+                </div>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">2</span>
+              <div>
+                <h3>Download the three files</h3>
+                <p>Model, text encoder and VAE from the lists above. Comfy-Org’s repo needs no sign-in.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">3</span>
+              <div>
+                <h3>Put them in their folders</h3>
+                <p>Model in <code>diffusion_models</code>, encoder in <code>text_encoders</code>, VAE in <code>vae</code>. Restart ComfyUI so the loaders list them.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">4</span>
+              <div>
+                <h3>Open the Krea 2 template</h3>
+                <p>In the template browser, pick <strong>Krea-2: Text to Image</strong>, or <strong>Krea-2 Int8: Text to Image</strong> for the int8 file. It comes with a style LoRA and an LLM prompt enhancer switched on; bypass either if you don’t want them. If it says it could not load subgraphs, update ComfyUI’s frontend.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">5</span>
+              <div>
+                <h3>Check the loaders</h3>
+                <p><strong>Load Diffusion Model</strong> gets the Krea 2 file. <strong>Load CLIP</strong> gets the Qwen3-VL 4B encoder with type <code>krea2</code>. <strong>Load VAE</strong> gets <code>qwen_image_vae</code>. Turbo needs no ModelSampling node: ComfyUI’s default shift for Krea 2, 1.15, is Krea’s own Turbo value.</p>
+              </div>
+            </li>
+            <li>
+              <span class="step-n" aria-hidden="true">6</span>
+              <div>
+                <h3>Write a long prompt</h3>
+                <p>Krea 2 likes long, detailed, natural sentences. Put text you want in the picture in quotes. Negations like “without flame” tend to fail; describe what you want instead, such as “an unlit torch”.</p>
+              </div>
+            </li>
+          </ol>
+
+          <h2 id="settings">Settings that work.</h2>
+          <h3>Turbo</h3>
+          <dl class="g-spec is-mono">
+            <div><dt>Steps</dt><dd>8</dd></div>
+            <div><dt>CFG</dt><dd>1</dd></div>
+            <div><dt>Sampler</dt><dd>euler</dd></div>
+            <div><dt>Scheduler</dt><dd>simple</dd></div>
+            <div><dt>Size</dt><dd>1024 to 2048</dd></div>
+            <div><dt>Shift</dt><dd>1.15, default</dd></div>
+            <div><dt>Negative</dt><dd>none</dd></div>
+            <div><dt>Text encoder</dt><dd>Load CLIP, krea2</dd></div>
+          </dl>
+          <p>Krea’s README runs Turbo at 8 steps with CFG off and a fixed shift of 1.15, which is what Comfy’s template does. For 2K, stay near 2 megapixels.</p>
+          <h3>Raw</h3>
+          <dl class="g-spec is-mono">
+            <div><dt>Steps</dt><dd>52</dd></div>
+            <div><dt>CFG</dt><dd>3.5</dd></div>
+            <div><dt>Sampler</dt><dd>euler</dd></div>
+            <div><dt>Scheduler</dt><dd>simple</dd></div>
+            <div><dt>Size</dt><dd>up to 1024</dd></div>
+            <div><dt>Shift</dt><dd>from image size</dd></div>
+            <div><dt>Negative</dt><dd>yes</dd></div>
+            <div><dt>Latent</dt><dd>EmptyLatentImage</dd></div>
+          </dl>
+          <p>These are the settings in Krea’s README, and ComfyUI’s Krea 2 docs also say 52 steps. The 28 steps and CFG 4.5 in Krea’s <code>inference.py</code> are generic defaults, not the Raw recipe. Raw’s shift grows with the image size, from 0.5 to 1.15; in ComfyUI, add <code>ModelSamplingFlux</code> with max shift 1.15 and base shift 0.5. For the negative prompt, replace the template’s <code>ConditioningZeroOut</code> with a second text encode.</p>
+          <aside class="g-callout" data-kind="tip">
+            <p class="g-callout-title">Raw with the Turbo LoRA</p>
+            <p>Users report that Raw with <code>krea2_turbo_lora_rank_64</code> at strength 0.6, 12 steps and CFG 1 looks better than the Turbo checkpoint. Krea doesn’t document this, so treat it as a tip to try.</p>
+          </aside>
+          <h3>The Krea2T Enhancer</h3>
+          <p><a href="https://github.com/capitan01R/ComfyUI-Krea2T-Enhancer">ComfyUI-Krea2T-Enhancer</a> is an optional community node by capitan01R. It patches Krea 2’s text path to follow the prompt more closely. It goes between the model loader and the sampler, with strength 1.0 by default, from 0 (off) to 2. The author calls it experimental and suggests starting at 1.0 and going lower when you stack LoRAs. The pack also has a node for <code>(phrase:weight)</code> prompt weighting, since normal weighting doesn’t map onto Krea 2.</p>
+
+          <h2 id="speed">How fast.</h2>
+          <div class="g-table" role="region" aria-label="Krea 2 timings" tabindex="0">
+            <table>
+              <thead><tr><th scope="col">GPU</th><th scope="col">File</th><th scope="col">Size</th><th scope="col">Time</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">RTX 4090</th><td>Turbo fp8</td><td>1024 px</td><td><span class="g-time">1.6 it/s</span><a class="g-ref" href="#src-4090">[1]</a></td></tr>
+                <tr><th scope="row">RTX 3090</th><td>Turbo fp8, 8 steps</td><td>1024 px</td><td><span class="g-time">13 s</span><a class="g-ref" href="#src-3090">[2]</a></td></tr>
+                <tr><th scope="row">RTX 3060 12 GB</th><td>Turbo fp8, 8 steps</td><td>1280 × 720</td><td><span class="g-time">37 s</span><a class="g-ref" href="#src-3060">[3]</a></td></tr>
+                <tr><th scope="row">RTX 3060 12 GB</th><td>Turbo fp8, 8 steps</td><td>1920 × 1080</td><td><span class="g-time">88 s</span><a class="g-ref" href="#src-3060">[3]</a></td></tr>
+                <tr><th scope="row">RTX 3060 Ti 8 GB</th><td>Turbo fp8</td><td>not given</td><td><span class="g-time">30 s</span><a class="g-ref" href="#src-8gb">[4]</a></td></tr>
+                <tr><th scope="row">RX 9060 XT 16 GB</th><td>Turbo fp8</td><td>1 MP</td><td><span class="g-time">200 to 300 s</span><a class="g-ref" href="#src-8gb">[4]</a></td></tr>
+                <tr><th scope="row">M1 Max 64 GB</th><td>Turbo bf16, 8 steps</td><td>1024 px</td><td><span class="g-time">212 s</span><a class="g-ref" href="#src-mac">[5]</a></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="g-table-note">Times after the first run, which loads the models. The 4090 reached 1.9 it/s with ComfyUI’s --fast flag. On AMD, try the int8 file.</p>
+
+          <h2 id="errors">When it goes wrong.</h2>
+          <dl class="g-fixes">
+            <div><dt>Out of memory on 8 to 12 GB</dt><dd>Use the fp8 or int8 file, keep dynamic VRAM on, and have 24 to 32 GB of system RAM.</dd></div>
+            <div><dt>The template says it could not load subgraphs</dt><dd>The frontend is older than the template. Update ComfyUI’s frontend, or build the plain graph: loaders, text encode, empty latent, KSampler, VAE decode.</dd></div>
+            <div><dt>Raw makes mush at any CFG</dt><dd>Use 52 steps at CFG 3.5, keep it at 1024 or below, or try the Turbo LoRA at 0.6 as above.</dd></div>
+            <div><dt>Black images on a Mac</dt><dd>Start ComfyUI with <code>--fp16-vae</code>. If the fp8 file is rejected, use the bf16 one.</dd></div>
+            <div><dt>ComfyUI-GGUF says the architecture is unknown</dt><dd>Its main branch doesn’t support <code>krea2</code> yet. Use the safetensors files.</dd></div>
+            <div><dt>Template LoRAs missing (warmpastel, plasmoid, coolblue)</dt><dd>Krea had them removed. Pick one of the other style LoRAs.</dd></div>
+            <div><dt>Raw’s shift stays after you bypass <code>ModelSamplingFlux</code></dt><dd>A dynamic VRAM bug on low-memory cards. Restart ComfyUI, or start it with <code>--disable-dynamic-vram</code>.</dd></div>
+          </dl>
+          <div class="g-heards">
+            <figure class="g-heard">
+              <blockquote><p>Raw looks bad at every CFG from 1 to 10, even at 50 steps. Is that expected?</p></blockquote>
+              <figcaption><a href="https://huggingface.co/Comfy-Org/Krea-2/discussions/7">Hugging Face, Comfy-Org Krea-2</a></figcaption>
+            </figure>
+            <figure class="g-heard">
+              <blockquote><p>How much VRAM does Turbo really need, and will it run on an 8 GB card?</p></blockquote>
+              <figcaption><a href="https://huggingface.co/krea/Krea-2-Turbo/discussions/2">Hugging Face, Krea-2-Turbo</a></figcaption>
+            </figure>
+          </div>
+          <p>Raw is a base for training, and the Turbo LoRA trick came out of the first thread. The second found 8 GB workable with dynamic VRAM and 24 GB of system RAM.</p>
+
+          <h2 id="faq">Questions.</h2>
+          <div class="faq">
+            <details name="faq">
+              <summary>How much VRAM does Krea 2 need?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>16 GB is comfortable for Turbo in fp8 (13.1 GB). 12 GB works with a little offloading, and 8 GB works with ComfyUI’s dynamic VRAM and at least 24 GB of system RAM, at about 30 s per image. The full-precision files need 32 GB.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Should I use Krea 2 Turbo or Raw?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Turbo for making images: 8 steps at CFG 1. Raw is the undistilled base for training LoRAs. Krea’s own advice is to train on Raw and run on Turbo.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Can I use Krea 2 commercially?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Only if your company, with its affiliates, makes less than $1 million a year in revenue. Above that you need an enterprise licence from Krea. You own the images you generate either way.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Is Krea 2 the same as Flux.1 Krea Dev?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>No. Flux.1 Krea Dev is a Flux.1 model Krea made with Black Forest Labs in 2025. Krea 2 is Krea’s own model, trained from scratch, with a different encoder and VAE. Their files and LoRAs don’t mix.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Does Krea 2 run on a Mac?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Yes, with the bf16 files and ComfyUI started with --fp16-vae. fp8 files were rejected on Apple GPUs in testing, and Krea 2 GGUFs don’t load yet. An M1 Max with 64 GB took about 212 s per image.</p></div>
+            </details>
+            <details name="faq">
+              <summary>Do Krea 2 GGUFs work in ComfyUI?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>Not with the main branch of ComfyUI-GGUF, which rejects the krea2 architecture. Use the fp8 or int8 safetensors files for now.</p></div>
+            </details>
+            <details name="faq">
+              <summary>What does the Krea2T Enhancer do?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+              <div class="answer"><p>It is an optional community node by capitan01R that patches Krea 2’s text path for closer prompt following. It sits between the model loader and the sampler, with strength 1.0 by default. The author calls it experimental.</p></div>
+            </details>
+          </div>
+
+          <p class="g-sources">Sources: <a href="https://github.com/krea-ai/krea-2">Krea 2 repository and README</a>, <a href="https://huggingface.co/krea/Krea-2-Turbo">Krea 2 Turbo model card</a>, <a href="https://www.krea.ai/krea-2-licensing">Krea 2 licensing</a>, <a href="https://docs.comfy.org/tutorials/image/krea/krea-2">ComfyUI Krea 2 tutorial</a>, <a id="src-4090" href="https://huggingface.co/Comfy-Org/Krea-2/discussions/6">Krea 2 speed and quality thread</a> [1], <a id="src-3090" href="https://comfylab.dev/blog/guides-pro/krea-2-comfyui-guide-turbo-model/">comfylab Krea 2 guide</a> [2], <a id="src-3060" href="https://games.mediapixel.kr/blog/krea2-turbo-comfyui-low-vram-guide">RTX 3060 low-VRAM test</a> [3], <a id="src-8gb" href="https://huggingface.co/krea/Krea-2-Turbo/discussions/2">Krea 2 Turbo VRAM thread</a> [4], <a id="src-mac" href="https://lilting.ch/en/articles/krea-2-m1-max-comfyui">Krea 2 on an M1 Max</a> [5], <a href="https://huggingface.co/Comfy-Org/Krea-2/discussions/9">quantisation comparison</a>, <a href="https://github.com/capitan01R/ComfyUI-Krea2T-Enhancer">Krea2T Enhancer</a>.</p>
+        </article>
+      </div>
+
+      <section class="g-pitch" aria-labelledby="pitch-title">
+        <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <div class="g-pitch-inner">
+          <div>
+            <p class="label">HEISS UI</p>
+            <h2 id="pitch-title">One tap on an empty studio.</h2>
+            <p class="g-pitch-text">HEISS UI runs Krea 2 on the ComfyUI you already have. It’s one of the three starter models, so a fresh install can have it running before you’ve opened a folder.</p>
+            <ul class="g-pitch-list">
+              <li><span><strong>A starter model.</strong> On an empty studio, Krea 2 downloads with its encoder and VAE in one tap: the compact Turbo (fp8) is 18.2 GB for a 16 GB card, Turbo and Raw at full precision 31.4 GB for 32 GB with 48 GB of RAM. The one that fits your computer is marked.</span></li>
+              <li><span><strong>Recognised from its weights.</strong> A renamed file is still Krea 2, and it isn’t confused with Flux.1 Krea Dev. Files named Raw or Base get Raw settings, with the shift worked out from the image size. Raw starts at 28 steps and CFG 4.5; set 52 and 3.5 for Krea’s own recipe.</span></li>
+              <li><span><strong>Missing parts, one click.</strong> Pick a Krea 2 file and the setup lists what it lacks. An abliterated Qwen3-VL 4B (4.8 GB, fp8) comes first, Comfy’s fp8 encoder under Other versions.</span></li>
+              <li><span><strong>The Enhancer, if you have it.</strong> With ComfyUI-Krea2T-Enhancer installed, HEISS UI adds it ahead of your LoRAs at strength 1.5, a little stronger than the node’s default. It doesn’t install it for you.</span></li>
+              <li><span><strong>LoRAs and start images.</strong> Krea 2 LoRAs sort first in the picker, and a start image with a Change slider works for image to image.</span></li>
+            </ul>
+            <div class="g-pitch-actions">
+              <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>
+              <a class="g-btn is-quiet" href="https://github.com/tristmeister/HEISS-UI"><svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>GitHub</a>
+            </div>
+            <p class="g-pitch-note">Free and open source. macOS, Windows and Linux. Needs ComfyUI.</p>
+          </div>
+          <div class="g-pitch-shot">
+            <picture>
+              <source type="image/webp" srcset="../../screenshots/hero-1200.webp" />
+              <img src="../../screenshots/hero.jpg" width="2000" height="1317" loading="lazy" decoding="async" alt="HEISS UI with a gallery of generated images and the prompt composer at the bottom." />
+            </picture>
+          </div>
+        </div>
+      </section>
+
+      <section class="g-related" aria-labelledby="related-title">
+        <h2 id="related-title">Keep going.</h2>
+        <div class="g-cards">
+          <a class="g-card" href="../z-image/">
+            <span class="g-card-kicker">Model · Image</span>
+            <span class="g-card-title">Z-Image</span>
+            <span class="g-card-text">Smaller and Apache 2.0. Turbo makes an image in eight steps on 8 to 16 GB.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../flux-2-klein/">
+            <span class="g-card-kicker">Model · Image</span>
+            <span class="g-card-title">Flux.2 Klein</span>
+            <span class="g-card-text">4B, four steps, fits 8 GB, and the 4B is free for commercial use.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../../hardware/16gb-vram/">
+            <span class="g-card-kicker">Hardware</span>
+            <span class="g-card-title">16 GB graphics cards</span>
+            <span class="g-card-text">Where Krea 2 Turbo runs comfortably, and how to set it up.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+          <a class="g-card" href="../../compare/invokeai/">
+            <span class="g-card-kicker">Compare</span>
+            <span class="g-card-title">HEISS UI vs InvokeAI</span>
+            <span class="g-card-text">Invoke runs Krea 2 too, on its own engine with a canvas. Where each fits.</span>
+            <svg class="icon g-card-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+          </a>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer">
+      <div class="footer-row">
+        <a class="footer-brand" href="../../">
+          <img src="../../heiss-mark-white.svg" alt="" width="20" height="20" />
+          <span>HEISS UI</span>
+        </a>
+        <p class="footer-meta">MIT licensed. Built on ComfyUI and the great work of <a href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a>.</p>
+        <nav class="footer-links" aria-label="Footer">
+          <a href="../../models/">Models</a>
+          <a href="../../hardware/">Hardware</a>
+          <a href="../../compare/">Compare</a>
+          <a href="https://github.com/tristmeister/HEISS-UI">GitHub</a>
+          <a href="https://github.com/tristmeister/HEISS-UI/issues">Issues</a>
+        </nav>
+      </div>
+      <div class="bigmark-wrap" aria-hidden="true">
+        <div class="bigmark">HEISS UI</div>
+      </div>
+    </footer>
+  </body>
+</html>

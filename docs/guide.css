@@ -1,0 +1,824 @@
+/* Guide pages (models, hardware, compare). Loaded after styles.css and built only from its tokens.
+   Every block is shown in guide-kit.html. New blocks get a .g- class, a comment here and an example there. */
+
+/* ── Page ─────────────────────────────────────────────────────────────── */
+
+.g-main {
+  max-width: calc(var(--content) + var(--gutter) * 2);
+  margin: 0 auto;
+  padding: clamp(112px, 12vw, 148px) var(--gutter) 0;
+  overflow-x: clip;
+}
+
+/* The app's dot grid behind the page head, fading out. */
+.g-head {
+  position: relative;
+  max-width: 760px;
+}
+.g-head::before {
+  content: "";
+  position: absolute;
+  inset: -160px -40vw -40px;
+  z-index: -1;
+  background: radial-gradient(circle, rgb(255 255 255 / 0.07) 0.8px, transparent 1px) 0 0 / 22px 22px;
+  -webkit-mask-image: radial-gradient(ellipse 60% 70% at 30% 30%, #000 20%, transparent 75%);
+  mask-image: radial-gradient(ellipse 60% 70% at 30% 30%, #000 20%, transparent 75%);
+  pointer-events: none;
+}
+
+.g-head .label { margin-top: 28px; }
+
+.g-head h1 {
+  margin-top: 18px;
+  font-size: clamp(2.3rem, 1.6rem + 2.6vw, 3.7rem);
+  font-weight: 600;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
+  text-wrap: balance;
+}
+
+.g-lead {
+  margin-top: 22px;
+  max-width: 640px;
+  color: var(--text-2);
+  font-size: clamp(1.05rem, 1rem + 0.25vw, 1.2rem);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.g-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 22px;
+  color: var(--text-3);
+  font: 500 12.5px/1.4 var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Breadcrumb */
+.g-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 500 12.5px/1.4 var(--mono);
+  color: var(--text-3);
+}
+.g-crumbs li + li::before { content: "/"; margin-right: 4px; color: #3a3a3a; }
+.g-crumbs a { color: var(--text-2); transition: color 160ms var(--ease-ui); }
+.g-crumbs a:hover { color: var(--text); }
+.g-crumbs [aria-current] { color: var(--text-3); }
+
+/* Contents on the left, article on the right, the same split as the landing page sections. */
+.g-body {
+  display: grid;
+  grid-template-columns: minmax(0, 220px) minmax(0, 1fr);
+  gap: 40px clamp(40px, 6vw, 96px);
+  margin-top: clamp(64px, 8vw, 96px);
+}
+.g-body.is-single { grid-template-columns: minmax(0, 1fr); }
+
+.g-toc {
+  position: sticky;
+  top: 112px;
+  align-self: start;
+}
+.g-toc-title {
+  color: var(--text-3);
+  font: 700 16px/1 var(--pixel);
+  letter-spacing: 0.02em;
+}
+.g-toc ol {
+  display: grid;
+  gap: 2px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  box-shadow: inset 1px 0 0 var(--line);
+}
+.g-toc a {
+  display: block;
+  padding: 5px 0 5px 14px;
+  color: var(--text-3);
+  font-size: 13.5px;
+  line-height: 1.4;
+  transition: color 160ms var(--ease-ui), box-shadow 160ms var(--ease-ui);
+}
+.g-toc a:hover { color: var(--text); box-shadow: inset 1px 0 0 var(--text-2); }
+
+/* ── Prose ────────────────────────────────────────────────────────────── */
+
+.g-prose { max-width: 720px; min-width: 0; }
+.g-prose > * + * { margin-top: 18px; }
+
+.g-prose h2 {
+  margin-top: 88px;
+  font-size: clamp(1.6rem, 1.3rem + 1vw, 2.15rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.038em;
+  text-wrap: balance;
+  scroll-margin-top: 100px;
+}
+.g-prose > h2:first-child { margin-top: 0; }
+.g-prose h2 + p { margin-top: 16px; }
+
+.g-prose h3 {
+  margin-top: 40px;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  scroll-margin-top: 100px;
+}
+.g-prose h3 + * { margin-top: 10px; }
+
+.g-prose p,
+.g-prose li { color: var(--text-2); text-wrap: pretty; }
+.g-prose p strong,
+.g-prose li strong { color: var(--text); }
+
+.g-prose a:not([class]) {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 0.28);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 160ms var(--ease-ui);
+}
+.g-prose a:not([class]):hover { text-decoration-color: var(--text); }
+
+/* File names and paths wrap on a phone instead of pushing the page wide. */
+.g-prose code { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+.g-prose .code code { white-space: inherit; }
+
+.g-prose ul:not([class]),
+.g-prose ol:not([class]) {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 0;
+  padding: 0;
+  list-style: none;
+}
+.g-prose ul:not([class]) > li,
+.g-prose ol:not([class]) > li {
+  position: relative;
+  padding-left: 22px;
+}
+.g-prose ul:not([class]) > li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0.68em;
+  width: 5px;
+  height: 5px;
+  background: var(--text-3);
+}
+.g-prose ol:not([class]) { counter-reset: g-ol; }
+.g-prose ol:not([class]) > li { counter-increment: g-ol; padding-left: 28px; }
+.g-prose ol:not([class]) > li::before {
+  content: counter(g-ol);
+  position: absolute;
+  left: 0;
+  top: 0.1em;
+  color: var(--text-3);
+  font: 700 17px/1.4 var(--pixel);
+}
+
+/* Blocks sit a little further from the text around them. */
+.g-prose > :is(.g-spec, .g-table, .g-files, .g-callout, .g-fixes, .g-verdict, .g-picks, .g-fit, .code, .steps, .faq, .g-cards, .g-figure, .g-chips, .g-heard, .g-heards, .g-chooser) { margin-top: 28px; }
+.g-prose > :is(.g-spec, .g-table, .g-files, .g-callout, .g-fixes, .g-verdict, .g-picks, .g-fit, .code, .steps, .faq, .g-cards, .g-figure, .g-chips, .g-heard, .g-heards, .g-chooser) + :not(h2, h3) { margin-top: 28px; }
+
+/* Existing landing page blocks, reused inside prose. */
+.g-prose .steps h3 { margin-top: 0; font-size: 17px; line-height: 32px; }
+.g-prose .steps > li { padding: 0; }
+.g-prose .steps > li > * + * { margin-top: 4px; }
+.g-prose .steps h3 { color: var(--text); }
+.g-prose .steps li > div > :is(p, ul, .code) + :is(p, ul, .code) { margin-top: 12px; }
+
+/* Long launch lines wrap instead of scrolling: <pre class="g-wrap">. Flags like --reserve-vram 3 stay whole: <code class="g-flag">. */
+.g-prose .code pre.g-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }
+.g-prose code.g-flag { white-space: nowrap; }
+.g-prose .faq summary { font-size: 16.5px; }
+
+/* ── Spec card: key facts in a grid ───────────────────────────────────── */
+/* <dl class="g-spec"><div><dt>Maker</dt><dd>…</dd></div>…</dl>   add .is-mono for settings values. */
+
+.g-spec {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  margin: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+/* Each cell draws its right and bottom rule; the frame clips the outer ones, so a short last row stays clean. */
+.g-spec > div {
+  padding: 16px 18px 18px;
+  box-shadow: 1px 1px 0 var(--line);
+}
+.g-spec dt {
+  color: var(--text-3);
+  font: 700 15px/1 var(--pixel);
+  letter-spacing: 0.02em;
+}
+.g-spec dd {
+  margin: 8px 0 0;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 550;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.g-spec dd small { display: block; margin-top: 3px; color: var(--text-3); font-size: 12.5px; font-weight: 400; letter-spacing: 0; }
+.g-spec.is-mono dd { font: 500 14px/1.4 var(--mono); letter-spacing: 0; overflow-wrap: anywhere; }
+.g-spec > div { min-width: 0; }
+.g-head .g-spec { margin-top: 36px; }
+
+/* ── Table ────────────────────────────────────────────────────────────── */
+/* <div class="g-table" role="region" aria-label="…" tabindex="0"><table>…</table></div>
+   The first column stays put while the rest scrolls on a phone. Mark our column with .is-us. */
+
+.g-table {
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--surface-3) transparent;
+}
+.g-table:focus-visible { outline-offset: 2px; border-radius: 20px; }
+.g-table table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  line-height: 1.45;
+}
+.g-table th,
+.g-table td {
+  padding: 13px 16px;
+  text-align: left;
+  vertical-align: top;
+}
+.g-table thead th {
+  color: var(--text-3);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.g-table tbody tr + tr > * { box-shadow: inset 0 1px 0 var(--line); }
+.g-table tbody th { color: var(--text); font-weight: 550; }
+.g-table td { color: var(--text-2); }
+.g-table :is(th, td):first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 132px;
+  max-width: 200px;
+  background: var(--surface);
+}
+.g-table .is-us { background: rgb(255 154 82 / 0.045); }
+.g-table thead .is-us { color: var(--ember); }
+.g-table td small { display: block; margin-top: 2px; color: var(--text-3); font-size: 12.5px; }
+.g-table code { font-size: 0.82em; }
+.g-table-note { margin-top: 10px !important; color: var(--text-3) !important; font-size: 13.5px; }
+
+/* Yes / partly / no. The word is always there; the glyph only helps scanning. */
+.g-mark {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--text);
+}
+.g-mark::before {
+  content: "";
+  flex: none;
+  width: 8px;
+  height: 8px;
+  translate: 0 -1px;
+  background: #5ee08a;
+}
+.g-mark[data-v="part"]::before { background: linear-gradient(90deg, var(--ember) 50%, #3a3a3a 50%); }
+.g-mark[data-v="no"] { color: var(--text-3); }
+.g-mark[data-v="no"]::before { background: #3a3a3a; }
+
+/* Fit status: fits / tight / no. */
+.g-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 8px;
+  border-radius: 999px;
+  background: rgb(94 224 138 / 0.1);
+  color: #5ee08a;
+  font: 500 12px/1.3 var(--mono);
+  white-space: nowrap;
+}
+.g-status::before { content: ""; width: 6px; height: 6px; background: currentColor; }
+.g-status[data-s="tight"] { background: rgb(255 154 82 / 0.12); color: var(--ember); }
+.g-status[data-s="no"] { background: rgb(255 255 255 / 0.06); color: var(--text-3); }
+/* Runs, but parts wait in system RAM: slower, not broken. */
+.g-status[data-s="offloads"] { background: rgb(255 255 255 / 0.08); color: var(--text-2); }
+.g-status[data-s="offloads"]::before { background: linear-gradient(90deg, currentColor 50%, transparent 50%); box-shadow: inset 0 0 0 1px currentColor; }
+.g-table .g-status { vertical-align: 1px; }
+
+/* Timings in tables: tabular numbers, and a small reference to the source. */
+.g-time { color: var(--text); font: 500 13.5px/1.4 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g-ref {
+  margin-left: 3px;
+  color: var(--text-3);
+  font: 500 11px/1 var(--mono);
+  vertical-align: super;
+  text-decoration: none;
+}
+a.g-ref:hover { color: var(--text); }
+
+/* ── Fit list: one row per memory size ────────────────────────────────── */
+/* <ul class="g-fit"><li><span class="g-fit-tier">8 GB</span><span class="g-status" data-s="tight">Tight</span><p>…</p></li></ul> */
+
+.g-fit {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.g-fit li {
+  display: grid;
+  grid-template-columns: 96px 96px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px 16px;
+  padding: 15px 18px;
+}
+.g-fit li + li { box-shadow: inset 0 1px 0 var(--line); }
+.g-fit-tier { color: var(--text); font: 700 18px/1.2 var(--pixel); letter-spacing: 0.01em; }
+.g-fit li > .g-status { justify-self: start; }
+.g-fit p { font-size: 14.5px; line-height: 1.5; }
+
+/* Keyed by model instead of memory: a wider name column with a small line for precision and size.
+   <ul class="g-fit is-models"><li><span class="g-fit-name">Flux.2 Klein 4B<small>fp8 · 4.1 GB</small></span><span class="g-status">…</span><p>…</p></li></ul> */
+.g-fit.is-models li { grid-template-columns: minmax(0, 190px) 104px minmax(0, 1fr); }
+.g-fit-name { color: var(--text); font-size: 15px; font-weight: 550; line-height: 1.35; letter-spacing: -0.01em; }
+.g-fit-name small { display: block; margin-top: 3px; color: var(--text-3); font: 400 12px/1.3 var(--mono); letter-spacing: 0; }
+
+/* ── Files you need ───────────────────────────────────────────────────── */
+/* <ul class="g-files"><li><div class="g-file"><span class="g-file-role">Model</span><code class="g-file-name">…</code>
+     <span class="g-file-path">ComfyUI/models/diffusion_models/</span></div><span class="g-file-size">4.1 GB</span>
+     <a class="g-file-dl" href="…">Download</a></li></ul> */
+
+.g-files {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.g-files li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 16px 12px 16px 18px;
+}
+.g-files li + li { box-shadow: inset 0 1px 0 var(--line); }
+.g-file { display: grid; gap: 4px; min-width: 0; }
+.g-file-role { color: var(--text-3); font: 700 15px/1 var(--pixel); letter-spacing: 0.02em; }
+.g-files .g-file-name {
+  justify-self: start;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font: 500 14px/1.45 var(--mono);
+}
+.g-file-path { color: var(--text-3); font: 400 12.5px/1.4 var(--mono); overflow-wrap: anywhere; }
+.g-file-size { color: var(--text-2); font: 500 13px/1 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g-file-dl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition-property: background-color, scale;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-ui);
+}
+.g-file-dl:hover { background: var(--surface-3); }
+.g-file-dl:active { scale: 0.96; }
+.g-file-dl .icon { width: 14px; height: 14px; }
+
+/* ── Callout ──────────────────────────────────────────────────────────── */
+/* <aside class="g-callout" data-kind="tip|heads-up"><p class="g-callout-title">Tip</p><p>…</p></aside> */
+
+.g-callout {
+  padding: 18px 20px 20px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.g-callout-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text) !important;
+  font: 700 17px/1 var(--pixel);
+  letter-spacing: 0.02em;
+}
+.g-callout-title::before { content: ""; width: 7px; height: 7px; background: currentColor; }
+.g-callout[data-kind="heads-up"] { background: linear-gradient(180deg, rgb(255 154 82 / 0.07), rgb(255 154 82 / 0.02)), var(--surface); box-shadow: inset 0 0 0 1px rgb(255 154 82 / 0.2); }
+.g-callout[data-kind="heads-up"] .g-callout-title { color: var(--ember) !important; }
+.g-callout > * + * { margin-top: 8px; }
+.g-callout p { font-size: 15px; }
+
+/* More kinds: "note" (neutral info, e.g. "We make HEISS UI" disclosure) and "limit" (what we don't do). */
+.g-callout[data-kind="note"] .g-callout-title { color: var(--text-2) !important; }
+.g-callout[data-kind="limit"] { background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong); }
+.g-callout[data-kind="limit"] .g-callout-title { color: var(--text-2) !important; }
+.g-callout[data-kind="limit"] .g-callout-title::before { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; }
+
+/* ── Heard: what people say, paraphrased, with the source ─────────────── */
+/* <figure class="g-heard"><blockquote><p>Paraphrase in plain words.</p></blockquote>
+     <figcaption><a href="…">ComfyUI issue #1234</a></figcaption></figure>
+   Paraphrase, don't quote at length. Only sources you could open and that allow it (GitHub, Hugging Face, forum.comfy.org, Civitai). */
+
+.g-heard { margin-inline: 0; padding: 18px 20px; border-radius: 18px; background: var(--surface); box-shadow: inset 0 0 0 1px var(--line); }
+.g-heard blockquote { margin: 0; padding-left: 16px; box-shadow: inset 2px 0 0 var(--line-strong); }
+.g-heard blockquote p { color: var(--text) !important; font-size: 15.5px; line-height: 1.55; }
+.g-heard figcaption { margin-top: 10px; padding-left: 16px; color: var(--text-3); font: 500 12.5px/1.4 var(--mono); }
+.g-heard figcaption a { color: var(--text-2); text-decoration: underline; text-decoration-color: rgb(255 255 255 / 0.2); text-underline-offset: 3px; }
+.g-heards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+
+/* ── Chooser: "If you want … pick …" rows on a hub ────────────────────── */
+/* <ul class="g-chooser"><li><span class="g-chooser-want">The node graph itself</span>
+     <a class="g-chooser-pick" href="…">ComfyUI<svg class="icon">…arrow…</svg></a></li></ul>  add .is-us on our row. */
+
+.g-chooser {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.g-chooser li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 14px 12px 14px 20px;
+}
+.g-chooser li + li { box-shadow: inset 0 1px 0 var(--line); }
+.g-chooser-want { color: var(--text-2); font-size: 15px; line-height: 1.45; }
+.g-chooser-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px 0 14px;
+  border-radius: 18px;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 550;
+  white-space: nowrap;
+  transition-property: background-color, scale;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-ui);
+}
+.g-chooser-pick:hover { background: var(--surface-3); }
+.g-chooser-pick:active { scale: 0.96; }
+.g-chooser-pick .icon { width: 14px; height: 14px; color: var(--text-3); }
+.g-chooser li.is-us .g-chooser-want { color: var(--text); }
+.g-chooser li.is-us .g-chooser-pick { background: var(--action); color: var(--action-ink); box-shadow: none; }
+.g-chooser li.is-us .g-chooser-pick .icon { color: inherit; }
+
+/* ── Error → fix ──────────────────────────────────────────────────────── */
+/* <dl class="g-fixes"><div><dt><code>…error text…</code></dt><dd>…</dd></div></dl> */
+
+.g-fixes { display: grid; gap: 0; margin: 0; box-shadow: inset 0 1px 0 var(--line); }
+.g-fixes > div { padding: 18px 0; box-shadow: inset 0 -1px 0 var(--line); }
+.g-fixes dt code {
+  display: inline;
+  padding: 3px 7px;
+  background: rgb(255 154 82 / 0.08);
+  box-shadow: inset 0 0 0 1px rgb(255 154 82 / 0.16);
+  color: #ffc49a;
+  font-size: 13px;
+  line-height: 1.9;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.g-fixes dt:not(:has(code)) { color: var(--text); font-weight: 550; }
+.g-fixes dd { margin: 10px 0 0; color: var(--text-2); }
+
+/* ── Comparison: verdict and picks ────────────────────────────────────── */
+/* <div class="g-verdict"><p class="label">Short answer</p><p>…</p></div> */
+
+.g-verdict {
+  position: relative;
+  padding: 24px 26px 26px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 0.05) 0.8px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(180deg, #151515, #0f0f0f);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.05), 0 30px 80px -40px rgb(0 0 0 / 0.9);
+}
+.g-verdict .label { font-size: 18px; }
+.g-verdict > p:not(.label) {
+  margin-top: 14px;
+  color: var(--text);
+  font-size: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  text-wrap: pretty;
+}
+.g-verdict > p:not(.label) + p { margin-top: 10px; color: var(--text-2); font-size: 15.5px; }
+
+/* <div class="g-picks"><div class="g-pick"><h3>Pick SwarmUI if</h3><ul>…</ul></div><div class="g-pick is-us">…</div></div> */
+.g-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+}
+.g-pick {
+  position: relative;
+  padding: 22px 22px 24px;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.g-pick.is-us { box-shadow: inset 0 0 0 1px rgb(255 154 82 / 0.28); background: linear-gradient(180deg, rgb(255 154 82 / 0.06), transparent 60%), var(--surface); }
+.g-pick .handles { --h: 7px; }
+.g-pick h3 { margin: 0; font-size: 17px; }
+.g-pick ul {
+  display: grid;
+  gap: 9px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.g-pick li {
+  position: relative;
+  padding-left: 20px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.g-pick li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  background: var(--text-3);
+}
+.g-pick.is-us li::before { background: var(--ember); }
+
+/* ── Figure ───────────────────────────────────────────────────────────── */
+/* <figure class="g-figure"><div class="g-figure-frame"><img …></div><figcaption>…</figcaption></figure> */
+
+.g-figure { margin-inline: 0; }
+.g-figure-frame {
+  padding: 6px;
+  border-radius: 22px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line), 0 30px 80px -40px rgb(0 0 0 / 0.9);
+}
+.g-figure-frame > :is(img, video, picture) { display: block; width: 100%; height: auto; border-radius: 16px; }
+.g-figure figcaption { margin-top: 12px; color: var(--text-3); font-size: 13.5px; text-align: center; text-wrap: balance; }
+
+/* ── Buttons ──────────────────────────────────────────────────────────── */
+
+.g-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 22px;
+  border-radius: 25px;
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition-property: background-color, scale, box-shadow;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-ui);
+}
+.g-btn:hover { background: #fff; }
+.g-btn:active { scale: 0.97; }
+.g-btn.is-quiet { background: rgb(255 255 255 / 0.06); color: var(--text); box-shadow: inset 0 0 0 1px var(--line); }
+.g-btn.is-quiet:hover { background: rgb(255 255 255 / 0.1); }
+.g-btn .icon { width: 16px; height: 16px; }
+
+/* ── Pitch: what HEISS UI does for this exact case ────────────────────── */
+/* Card with handles, copy and checklist on the left, the app on the right. See guide-kit.html. */
+
+.g-pitch {
+  --pad: 8px;
+  --r: 30px;
+  position: relative;
+  margin-top: clamp(96px, 12vw, 140px);
+  padding: var(--pad);
+  border-radius: calc(var(--r) + var(--pad));
+  background:
+    radial-gradient(circle, rgb(255 255 255 / 0.05) 0.8px, transparent 1px) 0 0 / 20px 20px,
+    linear-gradient(180deg, #131313, #0e0e0e);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.08), inset 0 1px 0 rgb(255 255 255 / 0.05), 0 40px 100px -30px rgb(0 0 0 / 0.9);
+}
+.g-pitch .handles { --h: 9px; }
+.g-pitch-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 56px);
+  padding: clamp(24px, 4vw, 48px);
+  padding-right: var(--pad);
+}
+.g-pitch h2 {
+  margin-top: 16px;
+  font-size: clamp(1.7rem, 1.3rem + 1.4vw, 2.5rem);
+  font-weight: 600;
+  line-height: 1.04;
+  letter-spacing: -0.042em;
+  text-wrap: balance;
+}
+.g-pitch-text { margin-top: 16px; color: var(--text-2); text-wrap: pretty; }
+.g-pitch-list {
+  display: grid;
+  gap: 10px;
+  margin: 22px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.g-pitch-list li {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.g-pitch-list li::before {
+  content: "";
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  background: var(--ember);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m3.25 8.5 3 3 6.5-7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' d='m3.25 8.5 3 3 6.5-7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.g-pitch-list strong { color: var(--text); }
+.g-pitch-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
+.g-pitch-note { margin-top: 14px; color: var(--text-3); font-size: 13.5px; }
+.g-pitch-shot {
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--line), -20px 30px 80px -30px rgb(0 0 0 / 0.9);
+}
+.g-pitch-shot img { width: 100%; height: auto; }
+
+/* ── Link cards: related pages and hubs ───────────────────────────────── */
+/* <div class="g-cards"><a class="g-card" href="…"><span class="g-card-kicker">Image · 12 GB</span>
+     <span class="g-card-title">Flux.2</span><span class="g-card-text">…</span><svg class="icon g-card-arrow">…</svg></a></div> */
+
+.g-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+.g-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 132px;
+  padding: 18px 44px 18px 18px;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  transition-property: background-color, box-shadow, scale;
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease-ui);
+}
+.g-card:hover { background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.g-card:active { scale: 0.985; }
+.g-card-kicker { color: var(--text-3); font: 500 12px/1.3 var(--mono); }
+.g-card-title { color: var(--text); font-size: 17px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.3; }
+.g-card-text { color: var(--text-2); font-size: 14px; line-height: 1.5; text-wrap: pretty; }
+.g-card-arrow {
+  position: absolute;
+  right: 16px;
+  top: 20px;
+  color: var(--text-3);
+  transition: translate 200ms var(--ease), color 160ms var(--ease-ui);
+}
+.g-card:hover .g-card-arrow { translate: 3px 0; color: var(--text); }
+.g-card .tag { align-self: flex-start; margin-top: auto; }
+
+/* Chips: a row of small pill links, for "find your card" on hubs.
+   <ul class="g-chips"><li><a href="…">RTX 3060 Ti</a></li></ul> */
+.g-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.g-chips a {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition-property: background-color, color, scale;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-ui);
+}
+.g-chips a:hover { background: var(--surface-2); color: var(--text); }
+.g-prose .g-chips a { text-decoration: none; }
+.g-chips a:active { scale: 0.96; }
+.g-head .g-chips { margin-top: 28px; }
+
+/* Related pages, full width below the article. */
+.g-related { margin-top: clamp(96px, 12vw, 140px); }
+.g-related h2 {
+  font-size: clamp(1.5rem, 1.25rem + 0.9vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+.g-related .g-cards { margin-top: 24px; }
+
+/* Hub pages: a group heading above each set of cards. */
+.g-group + .g-group { margin-top: 72px; }
+.g-group-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 24px; }
+.g-group-head h2 { font-size: clamp(1.4rem, 1.2rem + 0.8vw, 1.9rem); font-weight: 600; letter-spacing: -0.035em; line-height: 1.1; }
+.g-group-head p { max-width: 460px; color: var(--text-3); font-size: 14.5px; }
+.g-group .g-cards { margin-top: 20px; }
+
+/* Sources line at the end of an article. */
+.g-sources {
+  margin-top: 56px !important;
+  padding-top: 20px;
+  box-shadow: inset 0 1px 0 var(--line);
+  color: var(--text-3) !important;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.g-sources a { color: var(--text-2) !important; text-decoration-color: rgb(255 255 255 / 0.18) !important; }
+
+/* Nav: on a phone the guides keep Install visible next to GitHub. */
+.nav-links .g-nav-cta { color: var(--text); }
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 880px) {
+  .g-body { grid-template-columns: minmax(0, 1fr); }
+  .g-toc { display: none; }
+  .g-pitch-inner { grid-template-columns: minmax(0, 1fr); padding: 28px 20px 20px; }
+  .g-pitch-shot { margin: 0 -12px -12px; border-radius: 22px; }
+}
+
+@media (max-width: 600px) {
+  .nav-links a.g-nav-cta { display: inline-flex; }
+  .g-prose h2 { margin-top: 72px; }
+  /* Tables fit the phone width and wrap; they only scroll when a word can't fit. */
+  .g-table table { min-width: 0; font-size: 13.5px; }
+  .g-table th,
+  .g-table td { padding: 11px 10px; }
+  .g-table :is(th, td):first-child { min-width: 92px; max-width: 130px; padding-left: 14px; }
+  .g-table thead th { white-space: normal; }
+  .g-fit li { grid-template-columns: auto minmax(0, 1fr); padding: 14px 16px; }
+  .g-fit li > p { grid-column: 1 / -1; }
+  .g-fit.is-models li { grid-template-columns: minmax(0, 1fr) auto; }
+  .g-files li { grid-template-columns: minmax(0, 1fr) auto; padding: 14px 10px 14px 16px; }
+  .g-files .g-file { grid-column: 1 / -1; }
+  .g-verdict { padding: 20px 20px 22px; border-radius: 22px; }
+  .g-chooser li { grid-template-columns: minmax(0, 1fr); padding: 14px 14px 16px 16px; }
+  .g-chooser-pick { justify-self: start; }
+  .g-pitch { --r: 24px; }
+  .g-pitch-actions .g-btn { flex: 1 1 100%; }
+}

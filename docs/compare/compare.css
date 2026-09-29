@@ -1,0 +1,16 @@
+/* Comparison pages only. Loaded after guide.css; small fixes on top of the kit. */
+
+/* A section heading after a block keeps its full space above (the kit's block spacing would pull it to 28px). */
+.g-prose > :is(.g-spec, .g-table, .g-files, .g-callout, .g-fixes, .g-verdict, .g-picks, .g-fit, .code, .steps, .faq, .g-cards, .g-figure, .g-chips, .g-heard, .g-heards, .g-chooser) + h2 { margin-top: 88px; }
+.g-prose > .g-table-note + h2 { margin-top: 88px; }
+
+/* Our row in a hub table: the sticky first cell is opaque, so it gets the tint on top of the surface. */
+.g-table tbody th.is-us { background: linear-gradient(rgb(255 154 82 / 0.045), rgb(255 154 82 / 0.045)), var(--surface); }
+
+/* Licence names like AGPL-3.0 stay on one line in tables. */
+.g-nowrap { white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .g-prose > :is(.g-spec, .g-table, .g-files, .g-callout, .g-fixes, .g-verdict, .g-picks, .g-fit, .code, .steps, .faq, .g-cards, .g-figure, .g-chips, .g-heard, .g-heards, .g-chooser) + h2,
+  .g-prose > .g-table-note + h2 { margin-top: 72px; }
+}
