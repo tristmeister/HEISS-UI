@@ -237,18 +237,16 @@ export function classifyVae(name) {
 
 /**
  * Installed encoders that fit a slot, best first: abliterated files lead (the
- * user prefers them), then files whose name the family prefers, then the order
- * ComfyUI lists them in. Never "official first".
+ * user prefers them), then the order ComfyUI lists them in. Never "official
+ * first". A slot with `only` takes just the files named for it (HiDream's own
+ * CLIPs), since another model's build of the same kind looks identical.
  */
 export function rankEncoders(encoders, slot) {
   const kinds = new Set(slot.kinds);
   return encoders
     .map((item, index) => ({ ...item, index }))
-    .filter((item) => kinds.has(item.kind))
-    .sort((a, b) => (isAbliterated(b.name) - isAbliterated(a.name))
-      || (Number(Boolean(slot.prefer?.test(b.name))) - Number(Boolean(slot.prefer?.test(a.name))))
-      || (Number(Boolean(slot.avoid?.test(a.name))) - Number(Boolean(slot.avoid?.test(b.name))))
-      || (a.index - b.index))
+    .filter((item) => kinds.has(item.kind) && (!slot.only || slot.only.test(String(item.name).split(/[\\/]/).pop() || "")))
+    .sort((a, b) => (isAbliterated(b.name) - isAbliterated(a.name)) || (a.index - b.index))
     .map((item) => item.name);
 }
 

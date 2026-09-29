@@ -175,7 +175,10 @@ const speedName = /lightning|dmd2?|hyper|turbo|lcm|pcm|\d+[-_ ]?steps?|tcd|flash
 const hy15Shift = (shift) => ({ node: "ModelSamplingSD3", shift });
 
 /**
- * slots: text encoder inputs in loader order. kinds: accepted encoder kinds.
+ * slots: text encoder inputs in loader order. kinds: accepted encoder kinds;
+ * only: a name a file of that kind must also have, where the model needs its
+ * own build of an encoder whose shapes others share (the header cannot tell
+ * them apart), with `detail` saying why when it is missing.
  * vae: accepted VAE kinds (first is the one to download). sampling: "ksampler",
  * "custom" (SamplerCustomAdvanced), "pair" (Wan 2.2 14B), "h3", "sana",
  * "ideogram4" (two models through a dual guider), "mage" (its own encode node).
@@ -323,15 +326,17 @@ export const families = {
   hidream: {
     label: "HiDream I1", kind: "image", sources: ["unet", "checkpoint"], neverBundledEncoder: true,
     slots: [
-      { slot: "clip_l", label: "CLIP-L (HiDream)", kinds: ["clip_l"], prefer: /hidream/i, download: "hidream_clip_l" },
-      { slot: "clip_g", label: "CLIP-G (HiDream)", kinds: ["clip_g"], prefer: /hidream/i, download: "hidream_clip_g" },
+      // HiDream's CLIPs are its own fine-tunes with the same shapes as everyone
+      // else's; Flux's clip_l gives black images (ComfyUI issue 7715).
+      { slot: "clip_l", label: "CLIP-L (HiDream)", kinds: ["clip_l"], only: /hidream/i, download: "hidream_clip_l", detail: "HiDream needs its own CLIP-L (clip_l_hidream). Flux’s gives black images." },
+      { slot: "clip_g", label: "CLIP-G (HiDream)", kinds: ["clip_g"], only: /hidream/i, download: "hidream_clip_g", detail: "HiDream is made for its own CLIP-G (clip_g_hidream)." },
       { slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] },
       { slot: "llama", label: "Llama 3.1 8B", kinds: ["llama31_8b"] }
     ], clipType: null,
     vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, aspects: square,
     variants: [
-      { id: "fast", label: "Fast", match: (name) => /fast/i.test(name), negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 3 }, defaults: { steps: 16, cfg: 1, sampler: "lcm", scheduler: "normal" } },
-      { id: "dev", label: "Dev", match: (name) => /dev/i.test(name), negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 6 }, defaults: { steps: 28, cfg: 1, sampler: "lcm", scheduler: "normal" } },
+      { id: "fast", label: "Fast", match: (name) => /fast/i.test(name), negative: "zero", modelSampling: { node: "ModelSamplingSD3", shift: 3 }, defaults: { steps: 16, cfg: 1, sampler: "lcm", scheduler: "normal" } },
+      { id: "dev", label: "Dev", match: (name) => /dev/i.test(name), negative: "zero", modelSampling: { node: "ModelSamplingSD3", shift: 6 }, defaults: { steps: 28, cfg: 1, sampler: "lcm", scheduler: "normal" } },
       { id: "full", label: "Full", negative: "text", modelSampling: { node: "ModelSamplingSD3", shift: 3 }, defaults: { steps: 50, cfg: 5, sampler: "uni_pc", scheduler: "simple" } }
     ],
     size: [1024, 1024]

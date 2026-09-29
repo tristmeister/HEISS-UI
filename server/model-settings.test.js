@@ -155,3 +155,19 @@ test("Anima runs on er_sde, and its Turbo files at CFG 1 and 10 steps without a 
   assert.equal(turbo.capabilities.negativePrompt, false, "at CFG 1 the negative has no effect");
   assert.equal(base.capabilities.negativePrompt, true);
 });
+
+test("HiDream takes only its own CLIPs, and says so when they are missing", () => {
+  const flux = ["clip_l.safetensors", "clip_g.safetensors", "t5xxl_fp16.safetensors", "llama_3.1_8b_instruct_fp8_scaled.safetensors"];
+  const withFlux = profileFor(objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors"], clips: flux }), "hidream_i1_dev_fp8.safetensors");
+  assert.deepEqual(withFlux.encoderSlots.map((slot) => slot.options), [[], [], ["t5xxl_fp16.safetensors"], ["llama_3.1_8b_instruct_fp8_scaled.safetensors"]]);
+  const clipL = withFlux.missing.find((item) => item.slot === "clip_l");
+  assert.deepEqual([clipL.label, clipL.downloads[0].file], ["CLIP-L (HiDream) text encoder", "clip_l_hidream.safetensors"]);
+  assert.match(clipL.detail, /own CLIP-L/);
+  const own = profileFor(objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors"], clips: [...flux, "clip_l_hidream.safetensors", "clip_g_hidream.safetensors"] }), "hidream_i1_dev_fp8.safetensors");
+  assert.deepEqual(own.encoderSlots.slice(0, 2).map((slot) => slot.options), [["clip_l_hidream.safetensors"], ["clip_g_hidream.safetensors"]]);
+});
+
+test("HiDream Dev and Fast hide the negative prompt: at CFG 1 it has no effect; Full keeps it", () => {
+  const info = objectInfo({ unets: ["hidream_i1_dev_fp8.safetensors", "hidream_i1_fast_fp8.safetensors", "hidream_i1_full_fp8.safetensors"] });
+  assert.deepEqual(["dev", "fast", "full"].map((name) => profileFor(info, `hidream_i1_${name}_fp8.safetensors`).capabilities.negativePrompt), [false, false, true]);
+});

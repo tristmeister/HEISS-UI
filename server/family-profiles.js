@@ -286,7 +286,7 @@ export function familyProfiles(info, helpers) {
         const key = slot.download || slot.kinds[0];
         missing.push({
           part: "encoder", slot: slot.slot, label: `${slot.label} text encoder`, kind: slot.kinds[0],
-          detail: `Any ${encoderKinds[slot.kinds[0]]?.label || slot.label} text encoder in ComfyUI/models/text_encoders works.`,
+          detail: slot.detail || `Any ${encoderKinds[slot.kinds[0]]?.label || slot.label} text encoder in ComfyUI/models/text_encoders works.`,
           downloads: downloadsFor(encoderDownloads[key], "text_encoders", `encoder:${key}`, device)
         });
       }

@@ -36,6 +36,9 @@ version opens with a `> ` summary line, which the update pill shows.
   text to video starts at 121 frames. A 4-step lightx2v file runs as Fast.
 - **Anima Turbo runs as Turbo:** 10 steps at CFG 1, as its card says, instead
   of 30 steps at CFG 4. Other Anima files start on er_sde, the card's sampler.
+- **HiDream no longer makes black images with Flux's CLIP-L.** It takes only
+  its own CLIP-L and CLIP-G, and offers their download when they're missing.
+  Dev and Fast hide the negative prompt, which has no effect at their CFG 1.
 
 ## [0.13.0] - 2026-09-28
 

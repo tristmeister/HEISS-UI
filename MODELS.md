@@ -73,7 +73,11 @@ catalog, so a family that is described correctly needs no UI work.
 
 6. **Encoders and VAE.** Reuse an existing kind where the file is the same.
    Otherwise add the kind (header signature plus name fallback) and at least
-   one download. Mark a download `fp8: true` when its header carries per-layer
+   one download. When a model needs its own build of an encoder whose shapes
+   others share (HiDream's CLIP-L and CLIP-G), give the slot `only` (a name
+   pattern the file must match) and a `detail` that says why: other builds
+   are then left out and the part shows as missing with its download. Mark a
+   download `fp8: true` when its header carries per-layer
    fp8 quantization (`_quantization_metadata`, `comfy_quant` or `scale_weight`
    keys): ComfyUI keeps those in fp8, which a Mac cannot load, so on a Mac any
    other build of the part is offered first and an fp8 starter never counts as
