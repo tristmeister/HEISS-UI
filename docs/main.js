@@ -55,6 +55,21 @@ if (location.hostname === "tristmeister.github.io") {
     const byId = Object.fromEntries(opts.map((a) => [a.dataset.platform, a]));
     const mb = (bytes) => `${Math.max(1, Math.round(bytes / 1e6))} MB`;
     let os = "";
+    let version = $("[data-dl-version]", dl)?.textContent || "";
+
+    // The hero button mirrors the card: this system's zip, or the install section.
+    const hero = $("[data-hero-dl]");
+    const NAMES = { "macos-arm64": "macOS", "windows-x64": "Windows", "linux-x64": "Linux" };
+    const syncHero = () => {
+      if (!hero) return;
+      const link = $("[data-hero-dl-link]", hero);
+      const mine = os && byId[os];
+      link.href = mine ? mine.href : "#install";
+      $("[data-hero-dl-name]", hero).textContent = mine ? `Download for ${NAMES[os]}` : "Download";
+      $("[data-hero-dl-meta]", hero).textContent = mine
+        ? [`v${version}`, mb(+mine.dataset.bytes), os === "macos-arm64" ? "Apple Silicon" : "x64"].join(" · ")
+        : "Free for macOS, Windows and Linux";
+    };
 
     const detect = () => {
       const uad = navigator.userAgentData;
@@ -84,10 +99,11 @@ if (location.hostname === "tristmeister.github.io") {
         opts.forEach((a) => list.append(a));
       }
       $$(".os-notes [data-for]").forEach((li) => li.classList.toggle("is-mine", li.dataset.for === os));
+      syncHero();
     };
 
     const fill = (release) => {
-      let version = "";
+      let found = "";
       for (const asset of release?.assets || []) {
         const m = /^heiss-ui-(.+)-(macos-arm64|windows-x64|linux-x64)\.zip$/.exec(asset.name || "");
         const link = m && byId[m[2]];
@@ -97,9 +113,10 @@ if (location.hostname === "tristmeister.github.io") {
           link.dataset.bytes = asset.size;
           $("[data-dl-size]", link).textContent = mb(asset.size);
         }
-        version = m[1];
+        found = m[1];
       }
-      if (!version) return;
+      if (!found) return;
+      version = found;
       $$("[data-dl-version]", dl).forEach((n) => (n.textContent = version));
       render();
     };
