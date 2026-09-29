@@ -3,19 +3,24 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>HEISS UI · ComfyUI, without the graph</title>
-    <meta name="description" content="A free, open source studio on top of your own ComfyUI. 28 image and video model families work out of the box, and missing parts download with one click." />
+    <title>HEISS UI · A simple ComfyUI frontend that just works</title>
+    <meta name="description" content="A free, open source frontend for the ComfyUI you already run. 28 image and video model families just work, and anything missing downloads in one click." />
+    <link rel="canonical" href="https://tristmeister.github.io/HEISS-UI/" />
     <meta name="theme-color" content="#0a0a0a" />
-    <meta property="og:title" content="HEISS UI" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="HEISS UI" />
+    <meta property="og:url" content="https://tristmeister.github.io/HEISS-UI/" />
+    <meta property="og:title" content="HEISS UI · A simple ComfyUI frontend that just works" />
     <meta property="og:description" content="ComfyUI, without the graph. 28 model families work out of the box, in a studio on top of your own ComfyUI. Free and open source." />
     <meta property="og:image" content="https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg" />
+    <meta property="og:image:width" content="2000" />
+    <meta property="og:image:height" content="1317" />
+    <meta property="og:image:alt" content="HEISS UI: a gallery of generated photographs with the prompt composer at the bottom" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <link rel="alternate icon" type="image/png" href="./favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap" />
-    <link rel="preload" href="./fonts/PPNeueBit-Bold.otf" as="font" type="font/otf" crossorigin />
+    <link rel="preload" href="./fonts/Geist-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="./fonts/PPNeueBit-Bold.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./styles.css" />
     <script>
       (() => {
@@ -33,6 +38,136 @@
     </script>
     <script src="./main.js" defer></script>
     <script src="./fx.js" defer></script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://tristmeister.github.io/HEISS-UI/#website",
+            "name": "HEISS UI",
+            "url": "https://tristmeister.github.io/HEISS-UI/"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://tristmeister.github.io/HEISS-UI/#app",
+            "name": "HEISS UI",
+            "description": "A simple, free and open source frontend for ComfyUI. 28 image and video model families work out of the box, and missing parts download with one click.",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "AI image and video generation",
+            "operatingSystem": "macOS, Windows, Linux",
+            "url": "https://tristmeister.github.io/HEISS-UI/",
+            "downloadUrl": "https://github.com/tristmeister/HEISS-UI/releases/latest",
+            "installUrl": "https://tristmeister.github.io/HEISS-UI/#install",
+            "screenshot": "https://tristmeister.github.io/HEISS-UI/screenshots/hero.jpg",
+            "license": "https://opensource.org/licenses/MIT",
+            "isAccessibleForFree": true,
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            },
+            "sameAs": [
+              "https://github.com/tristmeister/HEISS-UI"
+            ]
+          },
+          {
+            "@type": "FAQPage",
+            "@id": "https://tristmeister.github.io/HEISS-UI/#faq",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "What is HEISS UI?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "A local web front end for ComfyUI: a prompt box, a gallery and the settings the chosen model uses. ComfyUI still runs every job."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What do I need?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "ComfyUI, and a graphics card or a Mac with Apple Silicon. ComfyUI runs every job, and the controls come from what it has installed; parts and node packs you download go into its own folders. No ComfyUI yet? Start HEISS UI and No ComfyUI yet? says which one to get. ComfyUI connects once it runs. A graphics card with 8 GB runs SDXL and the compact Flux.2 Klein, 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything. On a Mac, count the unified memory: 16 GB runs SDXL, 18 GB Flux.2 Klein and 48 GB Krea 2. What runs where has the details."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Which models work?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "28 families out of the box, 21 for images and 7 for video, from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2 and Wan 2.2. Missing text encoders, VAEs and nodes download with one click. GGUF files run through the ComfyUI-GGUF nodes, which install with one click too, though that pack doesn’t load every family yet. Anything else runs as your own workflow. See the full list."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Does it do video?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, marked Beta for now. Wan 2.1, Wan 2.2 5B, Wan 2.2 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, no workflow needed, and Wan 2.2 14B and HunyuanVideo 1.5 also start from an image. Videos get their own gallery."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I bring my own workflows?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, and for anything custom it’s the way to go. Build and test the graph in ComfyUI, export it (API or regular format) and drop it on the Workflow Gallery. The review shows which inputs follow the studio’s controls and marks the guessed ones, and you can change any of them before importing. The workflow guide covers the rest."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why not use ComfyUI directly?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "For building workflows, do. The node graph is great for that and less great for the everyday loop of prompt, wait, look, tweak. HEISS UI is for that loop, and your workflows come along."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where do my images go?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Into your normal ComfyUI output folder, with gallery details in a local data folder next to the app. No account, no cloud in between, no telemetry."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What’s Hidden?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "A separate, encrypted place for images you keep to yourself, opened from the lock in the dock. Images, prompts and settings are encrypted on your computer, and nothing shows while it’s locked. It keeps things out of casual view on a shared computer. It isn’t a forensic guarantee."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Can I use it from my phone?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "On your own network, yes. Turn on Open on other devices in Settings › Connection, set a studio password and scan the code with your phone. The phone gets a studio for your thumb: prompt, browse, share and upscale. Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Where does HEISS UI come from?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It started as a fork of J-AI Studio by Jasper. The idea of a prompt-first front end for ComfyUI, and a big part of the foundation, are his work. HEISS UI takes it in its own direction from there. Go give the original a star too."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Why “HEISS”?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Heiß is German for hot. Hence the steaming cup."
+                }
+              }
+            ]
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <svg class="sprite" aria-hidden="true">
@@ -102,6 +237,8 @@
         <figure class="shot enter" style="--d: 3">
           <div class="shot-frame">
             <div class="shot-media">
+              <picture>
+              <source type="image/webp" srcset="./screenshots/hero-1200.webp 1200w, ./screenshots/hero.webp 2000w" sizes="(max-width: 1240px) 100vw, 1180px" />
               <img
                 src="./screenshots/hero.jpg"
                 width="2000"
@@ -110,6 +247,7 @@
                 fetchpriority="high"
                 decoding="async"
               />
+              </picture>
               <canvas class="shot-fx" aria-hidden="true"></canvas>
               <span class="shot-status" aria-hidden="true"><i></i><span class="shot-status-text">Generating</span></span>
             </div>
@@ -877,6 +1015,7 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
     </main>
 
     <footer class="footer">
+      <p class="footer-about">HEISS UI is a simple, open source frontend for ComfyUI, meant to just work. SDXL, Flux.2, Qwen-Image, Wan 2.2 and 24 more model families run on your own computer, with no graph to wire and no hassle.</p>
       <div class="footer-row">
         <a class="footer-brand" href="#top">
           <img src="./heiss-mark-white.svg" alt="" width="20" height="20" />
@@ -884,6 +1023,9 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
         </a>
         <p class="footer-meta">MIT licensed. Built on ComfyUI and the great work of <a href="https://github.com/jasperdevs/J-AI-Studio">J-AI Studio</a>.</p>
         <nav class="footer-links" aria-label="Footer">
+          <a href="./models/">Models</a>
+          <a href="./hardware/">Hardware</a>
+          <a href="./compare/">Compare</a>
           <a href="https://github.com/tristmeister/HEISS-UI">GitHub</a>
           <a href="https://github.com/tristmeister/HEISS-UI/issues">Issues</a>
           <a href="https://github.com/tristmeister/HEISS-UI/blob/main/LICENSE">License</a>
