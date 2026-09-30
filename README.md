@@ -23,6 +23,8 @@
   &nbsp;·&nbsp;
   <a href="#on-your-phone">Phone</a>
   &nbsp;·&nbsp;
+  <a href="#connect-over-lan">LAN</a>
+  &nbsp;·&nbsp;
   <a href="#troubleshooting">Help</a>
   &nbsp;·&nbsp;
   <a href="https://heiss-ui.vercel.app/board/">Feedback board</a>
@@ -49,6 +51,7 @@ The node graph is great for building workflows and less great for the everyday l
 - **28 model families out of the box.** 21 for images and 7 for video (beta), from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2, Wan 2.2 and MiniMax H3, each with the settings from its makers' own templates. [The full list ↓](#supported-models)
 - **Missing parts are a click away.** Pick a model to see what it still needs. Each part gets a Download or Install button, and **Get all** fetches the lot. With no model yet, the studio offers [a first one](#your-first-model). [What's covered ↓](#auto-downloads)
 - **A phone studio.** On a phone the studio switches to a layout made for one thumb. Prompt, browse, share and upscale from the couch while the computer renders. [Set it up ↓](#on-your-phone)
+- **Your studio over LAN.** Open HEISS UI from a laptop, tablet, phone or another desktop on your local network. The PC renders; every device uses the same models and gallery. Works over Wi-Fi or wired LAN. [Connect another device ↓](#connect-over-lan)
 - **Bring your own workflow.** Import a ComfyUI workflow (API or visual JSON) and it becomes a set of controls, with your graph running underneath. [How it works ↓](#bring-your-own-workflow)
 - **Hidden.** A locked place for images you keep to yourself. Generate into it or hide anything later, and unlock with Touch ID, Windows Hello or a password. [More ↓](#hidden)
 
@@ -305,7 +308,9 @@ Getting a new model running in ComfyUI usually means hunting for the right text 
 
 ## On your phone
 
-On a phone the studio switches to its own layout, made for one thumb. To set it up, turn on **Settings › Connection › Open on other devices** and set a **studio password** under Signing in. Settings then lists each address to open from the phone, each with a QR code. Only do this on a network you trust.
+On a phone the studio switches to its own layout, made for one thumb. Prompt, browse, share and upscale while your PC renders.
+
+On the PC running HEISS UI, open **Settings › Connection** and turn on **Open on other devices**. Set a **studio password** under **Signing in**, then scan the QR code shown in Connection with your phone and sign in. Both devices need to be on the same trusted network. For laptops, tablets and other desktops, see [Connect over LAN](#connect-over-lan).
 
 <!-- MEDIA: GIF · phone studio: prompt → tile resolves → long press → Share → share sheet · ~6 s loop · 390 px wide (phone screen) · save as docs/screenshots/phone-studio.gif -->
 
@@ -317,6 +322,16 @@ The gallery runs edge to edge, and one **Describe…** pill opens the prompt, re
 **Use the full studio** under More switches a phone to the complete layout, and `?phone=1` shows the phone studio on any screen.
 
 </details>
+
+## Connect over LAN
+
+LAN access is a feature for any device with a browser, not just the phone studio. Use a laptop, tablet, phone or another desktop on the same local network to prompt, browse the gallery and upscale. HEISS UI and ComfyUI keep running on your PC with its models and outputs; your other device needs only a browser. Wi-Fi and wired Ethernet both work.
+
+1. On the PC running HEISS UI, open **Settings › Connection** and turn on **Open on other devices**.
+2. In the same settings, set a **studio password** under **Signing in**.
+3. On your other device, open the **network address** shown in Connection (for example, `http://192.168.1.20:8787`) and sign in with that password. Use your PC’s listed address, not `localhost`.
+
+Laptops and desktops use the full studio; phones use the layout made for one thumb. All devices reach the same models and gallery, while your PC does the rendering. Only enable access on a network you trust. Admin controls stay at the PC unless you explicitly allow them for signed-in devices.
 
 <details>
 <summary><b>More on setup</b></summary>
@@ -410,7 +425,7 @@ COMFY_OUTPUT_DIR=
 
 `COMFY_OUTPUT_DIR` is optional; the folder is usually found without it. The folder is needed to delete files along with their cards and to remove ComfyUI's copies of what goes into Hidden. Settings only accepts a folder ComfyUI writes to (one with ComfyUI's images, or next to its `models` or `custom_nodes`). **Delete all finished images** moves them to `.heiss-trash` in that folder, where they wait 30 days (`HEISS_TRASH_DAYS`) in case you want them back.
 
-For other devices: `HEISS_ALLOWED_HOSTS` (extra names to answer to, comma-separated), `HEISS_DEVICE_SESSION_DAYS` (how long a device stays signed in, 1 to 30 days, 7 by default), and `HEISS_TLS_CERT`, `HEISS_TLS_KEY` and `HEISS_HTTPS_PORT` for HTTPS. See [On your phone](#on-your-phone) and [SECURITY.md](./SECURITY.md).
+For other devices: `HEISS_ALLOWED_HOSTS` (extra names to answer to, comma-separated), `HEISS_DEVICE_SESSION_DAYS` (how long a device stays signed in, 1 to 30 days, 7 by default), and `HEISS_TLS_CERT`, `HEISS_TLS_KEY` and `HEISS_HTTPS_PORT` for HTTPS. See [Connect over LAN](#connect-over-lan), [On your phone](#on-your-phone) and [SECURITY.md](./SECURITY.md).
 
 Also optional: `HEISS_NO_BROWSER=1` keeps the launcher from opening the browser, and `HEISS_THUMBNAIL_CACHE_MB` caps the gallery's thumbnail cache (2048 by default; the least recently shown go first).
 
