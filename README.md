@@ -189,7 +189,7 @@ Model files are recognised from their weights, so a renamed file still works. Ea
 
 | | Families |
 | --- | --- |
-| **Image** | Ideogram 4, Krea 2 (Turbo, Raw), MageFlow, ERNIE-Image, Anima, Z-Image (Turbo, Base), Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana (1.5, Sprint, 2K/4K), Flux.2 Dev, Flux.2 Klein 4B and 9B, Pony V7, Chroma, Qwen-Image (including 2512) and Qwen-Image 2.1, HiDream I1, SD 3.5, Flux.1 (Dev, Schnell, de-distilled), SDXL (NoobAI, Illustrious, Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), SD 2.x and SD 1.5 |
+| **Image** | Krea 2 (Turbo, Raw), Qwen-Image 2.1,, Anima, Z-Image (Turbo, Base), Flux.2 Dev, Flux.2 Klein 4B and 9B, SDXL (NoobAI, Illustrious, Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), Pony V7, Chroma, Qwen-Image (including 2512) and Qwen-Image 2.1, Ideogram 4, MageFlow, ERNIE-Image, Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana (1.5, Sprint, 2K/4K) HiDream I1, SD 3.5, Flux.1 (Dev, Schnell, de-distilled), Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), SD 2.x and SD 1.5 |
 | **Video** (beta) | MiniMax H3, HunyuanVideo 1.5 (text and image to video), Wan 2.2 5B, Wan 2.2 14B (high and low-noise pair, text and image to video) and Wan 2.1 |
 
 Both all-in-one checkpoints and model-only files work. Parts a file doesn't carry come from compatible files already installed, or get a Download button. A file that isn't recognised can be given a type under **Settings › Models › Model types**.
@@ -202,29 +202,6 @@ Adding a family is mostly data. [MODELS.md](./docs/guides/MODELS.md) walks throu
 <summary><b>GGUF, Nunchaku and other formats</b></summary>
 
 **GGUF** files run through the [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) node pack, which installs in one click. The current ComfyUI-GGUF doesn't load Krea 2, Ideogram 4, MiniMax H3 or Qwen-Image 2.1 GGUFs yet, so use their safetensors versions for now ([details](./docs/gguf-research.md)). Nunchaku, NF4 and other formats that need their own loader nodes aren't supported. For those, get them running in ComfyUI first and bring them over as [your own workflow](#bring-your-own-workflow).
-
-</details>
-
-### What runs where
-
-The first models the studio offers, with their download size and the memory they run in comfortably. The graphics card is read from ComfyUI, and the largest version that fits is marked. Everything stays selectable. A larger model on a smaller card still runs, only slower, as ComfyUI moves parts of it in and out of memory.
-
-<details>
-<summary><b>Download sizes and memory, by model</b></summary>
-
-| Model | Version | Download | Graphics card | Mac |
-| --- | --- | --- | --- | --- |
-| Krea 2 | Turbo, compact (fp8) | 18.2 GB | 16 GB | 48 GB |
-| Krea 2 | Turbo | 31.4 GB | 32 GB, with 48 GB RAM | 48 GB |
-| Krea 2 | Raw | 31.4 GB | 32 GB, with 48 GB RAM | 48 GB |
-| Flux.2 | Klein 4B, compact (fp8) | 8.8 GB | 8 GB | 18 GB |
-| Flux.2 | Klein 4B | 12.5 GB | 12 GB | 18 GB |
-| Flux.2 | Dev | 53.8 GB | 32 GB, with 64 GB RAM | 128 GB |
-| SDXL | RealVisXL V5.0 Lightning | 6.9 GB | 6 GB | 16 GB |
-| SDXL | RealVisXL V5.0 | 6.9 GB | 8 GB | 16 GB |
-| SDXL | SDXL 1.0 | 6.9 GB | 8 GB | 16 GB |
-
-A Mac shares one memory between CPU and GPU, and macOS lets the GPU use part of it. The estimate counts on 70%, or the GPU limit if you raised it (`iogpu.wired_limit_mb`). fp8 files save download and disk space on a Mac but not memory, since they load at full precision there. [Hardware notes](./docs/hardware-notes.md) has the details and sources.
 
 </details>
 
@@ -382,15 +359,6 @@ There's no password reset. If the password and every passkey are lost, **Erase H
 ## Updating
 
 **Settings › About › Install update** updates a downloaded release in place, and a Git checkout too as long as it has no local changes. A downloaded release also offers new versions in a small pill at the top.
-
-<details>
-<summary><b>How a downloaded release updates</b></summary>
-
-**Settings › About › Install update** downloads the new release, checks that it's signed with the HEISS UI release key, and swaps it in when you press **Restart now**. A release without a valid signature isn't installed. The `data` folder, `.env` and installed packages stay where they are. The previous version is kept in `.update/backup` and comes back if the new one doesn't start, and a copy of the data waits in `data/.backups/` for 14 days in case you want to [go back a version](./docs/guides/TROUBLESHOOTING.md#going-back-to-an-earlier-version). This needs the copy to run through its launcher (or `npm start`) and a release from 0.3.1 on; older copies need one manual download first.
-
-A downloaded release also checks for a new version every few hours and offers it once, in a small pill at the top with **Update** and then **Restart**. The check only asks GitHub for the latest version and stays quiet when you're offline. **Settings › About › Check automatically** turns it off. That choice and any **Later** are saved in `data/updates.json`.
-
-</details>
 
 <details>
 <summary><b>Updating a Git checkout</b></summary>
