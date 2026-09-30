@@ -88,4 +88,18 @@ Between releases a source checkout shows how far it is past its tag in **Setting
 
 ## Found a bug?
 
-[Open an issue](https://github.com/tristmeister/HEISS-UI/issues) with what you did, what you expected and what happened. Your ComfyUI version and the model or workflow you used help a lot.
+Post it on the [feedback board](https://heiss-ui.vercel.app/board/), from the website or from the app (**Settings › Feedback**, or **Report bug** on a failed card), or [open an issue](https://github.com/tristmeister/HEISS-UI/issues). Say what you did, what you expected and what happened. Your ComfyUI version and the model or workflow you used help a lot. Ideas and questions go on the same board.
+
+## The feedback board
+
+The board is part of the website in `docs/`: the page is `docs/board/`, and `docs/api/board.js` is a Vercel function with its logic in `docs/api/_board/` (tests in `scripts/board.test.js`). Anyone can post, upvote and comment without an account; a random cookie keeps one browser's votes apart, and posting is rate limited per (hashed) address. Moving, editing and deleting posts take the admin password.
+
+To try it locally, `npm run site -- --demo` serves the website with the board on http://127.0.0.1:4321/board/, with posts kept in memory and a few examples. The admin password there is `admin`, from **Admin** in the board's footer.
+
+On Vercel it needs:
+
+- **Storage:** add an Upstash Redis database to the project (Vercel › Storage, or the Upstash integration). It sets `KV_REST_API_URL` and `KV_REST_API_TOKEN` (`UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` work too). Without them the board says it isn't set up yet.
+- **`BOARD_ADMIN_PASSWORD`:** the admin password. Changing it signs every admin out.
+- Optional: `BOARD_SESSION_SECRET` to sign admin sessions with a key of its own, `BOARD_ADMIN_NAME` for the name on your replies (default "Maintainer"), `BOARD_PREFIX` for the Redis key prefix (default `board:`).
+
+As admin, drag cards to set their order or move them to another column, and open one to set its status (Open, Planned, In progress, Done, Closed), the version it shipped in, fix its text, reply, or delete it.

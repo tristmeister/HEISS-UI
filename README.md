@@ -25,6 +25,8 @@
   &nbsp;·&nbsp;
   <a href="#troubleshooting">Help</a>
   &nbsp;·&nbsp;
+  <a href="https://heiss-ui.vercel.app/board/">Feedback board</a>
+  &nbsp;·&nbsp;
   <a href="#faq">FAQ</a>
 </p>
 
@@ -447,12 +449,18 @@ Start-Process "http://localhost:8787/"
 <summary><b>Quick fixes</b></summary>
 
 - **No models showing up?** Make sure ComfyUI is running. On this computer it connects on port 8188 or 8000; anywhere else, set its address in Settings › Connection. After adding files, use **Settings › Models › Rescan**. With no model at all, the studio offers [a first one](#your-first-model).
-- **A generation fails?** Open the card. It says what went wrong and offers a fix. **Copy report** includes versions and GPU for an issue.
+- **A generation fails?** Open the card. It says what went wrong and offers a fix. **Report bug** sends it to the [feedback board](#feedback) with versions and GPU, and **Copy report** copies the same for an issue.
 - **A GGUF won't load?** See [ComfyUI-GGUF can't load this model yet](./TROUBLESHOOTING.md#comfyui-gguf-cant-load-this-model-yet).
 - **Looking for video?** Switch the sidebar from Image to **Video** (beta). Wan 2.1, Wan 2.2 5B and 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, and the model's setup lists anything missing.
 - **Asking for help?** **Settings › About › Copy diagnostics** copies versions, system and GPU, without prompts or images.
 
 </details>
+
+## Feedback
+
+Found a bug, want a feature, or not sure how something works? Post it on the **[feedback board](https://heiss-ui.vercel.app/board/)**. It's public: upvote what matters to you, comment, and see what's planned, in progress and done. No account needed.
+
+From the app, **Settings › Feedback** sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
 
 ## FAQ
 

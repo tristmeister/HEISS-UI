@@ -207,6 +207,7 @@
         <a href="#features">Features</a>
         <a href="#install">Install</a>
         <a href="#faq">FAQ</a>
+        <a href="./board/">Board</a>
         <a class="nav-gh" href="https://github.com/tristmeister/HEISS-UI" aria-label="GitHub repository">
           <svg class="icon" aria-hidden="true"><use href="#i-github" /></svg>
           <span class="nav-gh-label">GitHub</span>
@@ -280,6 +281,38 @@
             <svg class="icon repo-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
           </a>
           <p class="repo-meta">The whole thing is on GitHub. Read the code, open an issue, send a PR.</p>
+        </div>
+      </section>
+
+      <section class="fb" id="feedback" aria-labelledby="fb-title">
+        <div class="fb-card" data-reveal>
+          <div class="fb-copy">
+            <p class="label">Feedback board</p>
+            <h2 id="fb-title">Have an idea? Found a bug?</h2>
+            <p class="fb-lead">Post it on the board, upvote what matters to you and see what’s being worked on. No account needed.</p>
+            <div class="fb-actions">
+              <a class="fb-btn is-primary" href="./board/?new=idea">Share an idea</a>
+              <a class="fb-btn" href="./board/?new=bug">Report a bug</a>
+            </div>
+          </div>
+
+          <a class="fb-peek" href="./board/" aria-label="Open the feedback board">
+            <span class="fb-cols" aria-hidden="true">
+              <span style="--tone: var(--fb-bug)"><i></i>Bugs <b data-fb-count="bug"></b></span>
+              <span style="--tone: var(--ember)"><i></i>Ideas <b data-fb-count="idea"></b></span>
+              <span style="--tone: var(--fb-question)"><i></i>Questions <b data-fb-count="question"></b></span>
+            </span>
+            <span class="fb-now">
+              <span class="fb-now-label"><i aria-hidden="true"></i>Being worked on</span>
+              <span class="fb-rows" data-fb-progress>
+                <span class="fb-row is-skel"></span>
+                <span class="fb-row is-skel"></span>
+                <span class="fb-row is-skel"></span>
+              </span>
+            </span>
+            <span class="fb-open">Open the board <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></span>
+          </a>
+          <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         </div>
       </section>
 
@@ -998,7 +1031,7 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
         <div class="section-head" data-reveal>
           <p class="label">FAQ</p>
           <h2 id="faq-title">Fair questions.</h2>
-          <p class="section-lead">Something missing? <a class="inline" href="https://github.com/tristmeister/HEISS-UI/issues">Ask on GitHub</a>.</p>
+          <p class="section-lead">Something missing? <a class="inline" href="./board/?new=question">Ask on the board</a>.</p>
         </div>
 
         <div class="section-body faq" data-reveal>
@@ -1062,6 +1095,7 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
           <a href="./models/">Models</a>
           <a href="./hardware/">Hardware</a>
           <a href="./compare/">Compare</a>
+          <a href="./board/">Feedback</a>
           <a href="https://github.com/tristmeister/HEISS-UI">GitHub</a>
           <a href="https://github.com/tristmeister/HEISS-UI/issues">Issues</a>
           <a href="https://github.com/tristmeister/HEISS-UI/blob/main/LICENSE">License</a>
@@ -1072,5 +1106,22 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
         <canvas class="bigmark-fx"></canvas>
       </div>
     </footer>
+
+    <aside class="nudge" data-nudge hidden aria-label="Feedback board">
+      <a class="nudge-link" href="./board/" data-nudge-link>
+        <span class="nudge-vote" aria-hidden="true">
+          <svg viewBox="0 0 16 16"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M4 9.75 8 5.75l4 4" /></svg>
+          <span class="nudge-count"><span>1</span><span>2</span></span>
+        </span>
+        <span class="nudge-text">
+          <strong>Idea or bug?</strong>
+          <span>Tell us on the board</span>
+        </span>
+        <svg class="icon nudge-arrow" aria-hidden="true"><use href="#i-arrow" /></svg>
+      </a>
+      <button class="nudge-x" type="button" data-nudge-close aria-label="Don’t show this again">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="m4.5 4.5 7 7M11.5 4.5l-7 7" /></svg>
+      </button>
+    </aside>
   </body>
 </html>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, Download, LifeBuoy, Minimize2, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
+import { AlertTriangle, Bug, ChevronDown, ChevronRight, Download, LifeBuoy, Minimize2, RefreshCw, RotateCcw, RotateCw } from 'lucide-react';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl, withDiagnostics } from './diagnostics';
+import { openFeedback } from './feedback';
 import { NodeInstall } from './NodeInstall';
 import { useThisComputer } from './device';
 import { cn } from './format';
@@ -125,6 +126,8 @@ export function FailurePanel({ item, onCopy, onReuse, fixes, showToast, onNodesI
       <div className={cn('failure-actions', buttons.length > 0 && 'is-secondary')}>
         {onReuse ? <button type="button" className={cn('btn', !buttons.length && 'is-primary', buttons.length > 0 && 'is-ghost')} onClick={onReuse}><RotateCcw size={14} /> Use these settings</button> : null}
         <button type="button" className={cn('btn', buttons.length > 0 && 'is-ghost')} onClick={() => copyWith(copyReport)}><CopyIcon copied={Boolean(copied)} /> {copied ? 'Copied' : 'Copy report'}</button>
+        {/* Straight to the feedback board, filled in; the setup lines are added (and shown) in the dialog. */}
+        <button type="button" className="btn is-ghost" onClick={() => openFeedback({ kind: 'bug', title: `Generation failed: ${failure.title}`, body: reportFor(item, failure).split('\n').slice(1).join('\n').trim(), withSetup: true, from: 'failure' })}><Bug size={14} /> Report bug</button>
         <a className="btn is-ghost" href={troubleshootingUrl(failure.help)} target="_blank" rel="noreferrer"><LifeBuoy size={14} /> Troubleshooting</a>
       </div>
       {hasDetail ? (

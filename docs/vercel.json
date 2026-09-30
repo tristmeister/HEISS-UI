@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "trailingSlash": true,
+  "rewrites": [{ "source": "/api/board/", "destination": "/api/board" }],
   "headers": [
     {
       "source": "/fonts/(.*)",

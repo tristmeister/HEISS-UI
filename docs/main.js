@@ -44,6 +44,86 @@ if (location.hostname === "tristmeister.github.io") {
     })
     .catch(() => {});
 
+  /* ── Feedback board: the teaser's live numbers, and the corner nudge ── */
+
+  const peek = $("[data-fb-progress]");
+  if (peek) {
+    const TONES = { bug: "var(--fb-bug)", idea: "var(--ember)", question: "var(--fb-question)" };
+    const row = (text, type, quiet) => {
+      const node = document.createElement("span");
+      node.className = `fb-row${quiet ? " is-quiet" : ""}`;
+      if (type) {
+        const kind = document.createElement("span");
+        kind.className = "fb-kind";
+        kind.style.setProperty("--tone", TONES[type] || TONES.idea);
+        node.append(kind);
+      }
+      const label = document.createElement("span");
+      label.textContent = text;
+      node.append(label);
+      return node;
+    };
+    fetch("./api/board/?view=summary")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!data?.counts) throw new Error("no board");
+        for (const type of ["bug", "idea", "question"]) {
+          const node = $(`[data-fb-count="${type}"]`);
+          if (node) node.textContent = String(data.counts[type] ?? "");
+        }
+        peek.replaceChildren(...(data.progress.length ? data.progress.map((card) => row(card.title, card.type)) : [row("Nothing in progress right now. What should be next?", "", true)]));
+      })
+      .catch(() => peek.replaceChildren(row("Bugs, ideas and questions, all in one place.", "", true)));
+  }
+
+  const nudge = $("[data-nudge]");
+  if (nudge) {
+    const KEY = "heiss-nudge";
+    let closedAt = 0;
+    let seen = false;
+    try {
+      closedAt = Number(localStorage.getItem(KEY)) || 0;
+      seen = sessionStorage.getItem(KEY) === "seen";
+    } catch {}
+    // Closed means quiet for a month; otherwise once per visit.
+    const quiet = Date.now() - closedAt < 30 * 86_400_000 || seen;
+    const section = $("#feedback");
+    let sectionSeen = false;
+    const hide = () => {
+      nudge.classList.remove("is-in");
+      setTimeout(() => (nudge.hidden = true), 450);
+    };
+    const markSeen = () => {
+      try {
+        sessionStorage.setItem(KEY, "seen");
+      } catch {}
+    };
+    if (section) {
+      new IntersectionObserver(([e]) => {
+        if (!e.isIntersecting) return;
+        sectionSeen = true;
+        // The section says the same thing; the nudge steps aside.
+        if (!nudge.hidden) hide();
+      }, { threshold: 0.5 }).observe(section);
+    }
+    if (!quiet) {
+      setTimeout(() => {
+        if (sectionSeen || document.hidden) return;
+        nudge.hidden = false;
+        markSeen();
+        requestAnimationFrame(() => requestAnimationFrame(() => nudge.classList.add("is-in")));
+        setTimeout(() => nudge.classList.add("is-voted"), 1100);
+      }, 4500);
+    }
+    $("[data-nudge-close]", nudge).addEventListener("click", () => {
+      try {
+        localStorage.setItem(KEY, String(Date.now()));
+      } catch {}
+      hide();
+    });
+    $("[data-nudge-link]", nudge).addEventListener("click", markSeen);
+  }
+
   /* ── Download: the zip for this system ────────────────────────────── */
 
   // The HTML links the v0.13.0 zips, so it works without JS or the API.
