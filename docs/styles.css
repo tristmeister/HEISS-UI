@@ -898,7 +898,7 @@ kbd {
 }
 @keyframes ai-in { from { opacity: 0; transform: translateY(8px); } }
 
-/* 07 · workflow → controls */
+/* 08 · workflow → controls */
 .map path { fill: none; stroke: var(--ember); stroke-width: 1.5; stroke-dasharray: 1; stroke-dashoffset: 0; }
 .map-pulse path { fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-dasharray: 0.07 1.2; stroke-dashoffset: 1.1; opacity: 0; }
 .ctl rect { stroke: var(--ember); stroke-opacity: 0; }
@@ -1012,7 +1012,29 @@ kbd {
 @keyframes p-sheet { 0%, 24% { transform: translateY(160px); } 34%, 76% { transform: none; } 86%, 100% { transform: translateY(160px); } }
 @keyframes p-pick { 0%, 52% { opacity: 0; } 56%, 70% { opacity: 1; } 74%, 100% { opacity: 0; } }
 
-/* 04 · find: type to search, stars pop, walk through recent prompts */
+/* 04 · LAN: a prompt travels to the PC, then the result reaches both screens.
+   Resting styles show the finished scene when motion is reduced. */
+.lan-links path { stroke-width: 1.5; }
+.lan-gpu { fill: rgb(255 154 82 / 0.1); stroke: var(--ember); stroke-width: 1; }
+.lan-gpu-mark { fill: none; stroke: var(--ember); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.lan-packets path { stroke: #fff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 0.12 1.2; opacity: 0; }
+.lan-progress { transform-box: fill-box; transform-origin: left center; }
+.stage.in-view .is-active .lan-request { animation: lan-packet 8s linear infinite both; }
+.stage.in-view .is-active .lan-response { animation: lan-packet 8s linear infinite both; animation-delay: 2.8s; }
+.stage.in-view .is-active .lan-message { animation: lan-message 8s var(--ease) infinite both; }
+.stage.in-view .is-active .lan-progress { animation: lan-render 8s var(--ease-ui) infinite both; }
+.stage.in-view .is-active .lan-result { animation: lan-result 8s var(--ease) infinite both; }
+@keyframes lan-packet {
+  0%, 15% { stroke-dashoffset: 0.12; opacity: 0; }
+  16% { stroke-dashoffset: 0.12; opacity: 1; }
+  30% { stroke-dashoffset: -1; opacity: 1; }
+  31%, 100% { stroke-dashoffset: -1; opacity: 0; }
+}
+@keyframes lan-message { 0% { opacity: 0; transform: translateY(8px); } 10%, 78% { opacity: 1; transform: none; } 90%, 100% { opacity: 0; } }
+@keyframes lan-render { 0%, 25% { transform: scaleX(0); } 60%, 100% { transform: scaleX(1); } }
+@keyframes lan-result { 0%, 58% { opacity: 0; } 68%, 88% { opacity: 1; } 100% { opacity: 0; } }
+
+/* 05 · find: type to search, stars pop, walk through recent prompts */
 .f-badge { fill: rgb(10 10 10 / 0.6); }
 .f-star { color: var(--ember); }
 .f-star-off { color: #4a4a4a; }
@@ -1040,7 +1062,7 @@ kbd {
   80%, 100% { transform: none; }
 }
 
-/* 05 · vault: lock, type, unlock */
+/* 06 · vault: lock, type, unlock */
 .v-lock { transform-box: fill-box; transform-origin: center; }
 .v-dots rect { fill: #d8d8d8; transform-box: fill-box; transform-origin: center; }
 .v-btn { transform-box: fill-box; transform-origin: center; }
@@ -1068,7 +1090,7 @@ kbd {
 .stage.in-view .is-active .v-btn { animation: press 7s var(--ease-ui) infinite both; }
 @keyframes press { 0%, 38% { transform: none; } 40% { transform: scale(0.92); } 44%, 100% { transform: none; } }
 
-/* 06 · upscale compare */
+/* 07 · upscale compare */
 .u-split { transform-box: fill-box; transform-origin: left center; transform: scaleX(0.5); }
 .u-handle { transform: translateX(200px); }
 .u-line { stroke: #fff; stroke-width: 2; }

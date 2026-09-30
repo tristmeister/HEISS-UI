@@ -144,7 +144,7 @@
                 "name": "Can I use it from my phone?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "On your own network, yes. Turn on Open on other devices in Settings › Connection, set a studio password and scan the code with your phone. The phone gets a studio for your thumb: prompt, browse, share and upscale. Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust."
+                  "text": "On your own network, yes. On the PC running HEISS UI, open Settings › Connection and turn on “Open on other devices”. Set a studio password under “Signing in”, then scan the QR code with your phone and sign in. Laptops, tablets and other desktops can open the network address in their browser too. The phone gets a studio for your thumb: prompt, browse, share and upscale. Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust."
                 }
               },
               {
@@ -509,7 +509,74 @@
                   </g>
                 </svg>
 
-                <!-- 04 · Find it again -->
+                <!-- 04 · Your studio, over LAN -->
+                <svg class="art art-lan" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <clipPath id="lan-laptop-image"><rect x="56" y="102" width="120" height="72" rx="6" /></clipPath>
+                    <clipPath id="lan-tablet-image"><rect x="322" y="242" width="100" height="76" rx="6" /></clipPath>
+                  </defs>
+
+                  <g class="f-link lan-links" fill="none">
+                    <path d="M206 136H236Q250 136 250 150V188" />
+                    <path d="M284 228H356Q372 228 372 242" />
+                  </g>
+                  <g class="map lan-links">
+                    <path pathLength="1" style="--w: 0" d="M206 136H236Q250 136 250 150V188" />
+                    <path pathLength="1" style="--w: 1" d="M284 228H356Q372 228 372 242" />
+                  </g>
+                  <g class="lan-packets" fill="none">
+                    <path class="lan-request" pathLength="1" d="M206 136H236Q250 136 250 150V188" />
+                    <path class="lan-response" pathLength="1" d="M284 228H356Q372 228 372 242" />
+                  </g>
+
+                  <g class="ai" style="--s: 0">
+                    <text x="116" y="42" text-anchor="middle" class="f-lo" font-size="11">Your laptop</text>
+                    <rect x="26" y="54" width="180" height="150" rx="14" class="f-raised" />
+                    <rect x="34" y="62" width="164" height="134" rx="8" class="f-screen" />
+                    <rect x="44" y="72" width="144" height="20" rx="6" class="f-pill" />
+                    <circle cx="54" cy="82" r="2" class="f-ok" />
+                    <text x="64" y="85.5" class="f-mono f-lo" font-size="8">192.168.1.20:8787</text>
+                    <rect x="56" y="102" width="120" height="72" rx="6" class="f-pill" />
+                    <image class="lan-result" href="./images/features/forest-lake.webp" x="56" y="102" width="120" height="72" clip-path="url(#lan-laptop-image)" preserveAspectRatio="xMidYMid slice" />
+                    <path d="M16 204H216L206 212H26Z" class="f-raised" />
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="204" y="188" width="80" height="126" rx="16" class="f-raised" />
+                    <rect x="216" y="204" width="56" height="62" rx="8" class="f-screen" />
+                    <circle cx="244" cy="234" r="19" class="lan-gpu" />
+                    <path d="M234 226L244 242L254 226M239 234H249" class="lan-gpu-mark" />
+                    <rect x="220" y="282" width="48" height="4" rx="2" class="f-pill" />
+                    <rect x="220" y="282" width="48" height="4" rx="2" class="f-ember lan-progress" />
+                    <circle cx="244" cy="300" r="3" class="f-ok" />
+                    <text x="244" y="338" text-anchor="middle" class="f-hi f-strong" font-size="12">Your PC renders</text>
+                    <text x="244" y="355" text-anchor="middle" class="f-lo" font-size="10">Same models. Same gallery.</text>
+                  </g>
+
+                  <g class="ai" style="--s: 2">
+                    <text x="372" y="196" text-anchor="middle" class="f-lo" font-size="11">Your tablet</text>
+                    <rect x="300" y="208" width="144" height="126" rx="17" class="f-raised" />
+                    <rect x="308" y="216" width="128" height="110" rx="10" class="f-screen" />
+                    <text x="322" y="233" class="f-lo" font-size="9">HEISS UI</text>
+                    <circle cx="420" cy="230" r="2.5" class="f-ok" />
+                    <rect x="322" y="242" width="100" height="76" rx="6" class="f-pill" />
+                    <image class="lan-result" href="./images/features/forest-lake.webp" x="322" y="242" width="100" height="76" clip-path="url(#lan-tablet-image)" preserveAspectRatio="xMidYMid slice" />
+                  </g>
+
+                  <g class="ai" style="--s: 3">
+                    <rect x="268" y="52" width="176" height="48" rx="14" class="f-card" />
+                    <circle cx="286" cy="76" r="3" class="f-ok" />
+                    <text x="298" y="73" class="f-hi f-strong" font-size="11">One studio. Any device.</text>
+                    <text x="298" y="88" class="f-lo" font-size="9.5">Connected over your local network</text>
+                    <g class="lan-message">
+                      <rect x="38" y="224" width="140" height="42" rx="12" class="f-card" />
+                      <text x="50" y="242" class="f-lo" font-size="9">Prompt from your laptop</text>
+                      <text x="50" y="256" class="f-hi" font-size="10">A quiet lake at sunrise</text>
+                    </g>
+                  </g>
+                </svg>
+
+                <!-- 05 · Find it again -->
                 <svg class="art art-find" viewBox="0 0 480 400" data-art>
                   <defs>
                     <linearGradient id="s-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2550" /><stop offset=".6" stop-color="#6a4a8c" /><stop offset="1" stop-color="#f4a36b" /></linearGradient>
@@ -573,7 +640,7 @@
                   </g>
                 </svg>
 
-                <!-- 05 · Hidden -->
+                <!-- 06 · Hidden -->
                 <svg class="art art-vault" viewBox="0 0 480 400" data-art>
                   <defs>
                     <linearGradient id="v-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d5b7a" /><stop offset="1" stop-color="#d7a86e" /></linearGradient>
@@ -641,7 +708,7 @@
                   </g>
                 </svg>
 
-                <!-- 06 · Upscale and compare -->
+                <!-- 07 · Upscale and compare -->
                 <svg class="art art-upscale" viewBox="0 0 480 400" data-art>
                   <defs>
                     <clipPath id="u-frame"><rect x="40" y="36" width="400" height="260" rx="18" /></clipPath>
@@ -678,7 +745,7 @@
                   </g>
                 </svg>
 
-                <!-- 07 · Bring your own workflow -->
+                <!-- 08 · Bring your own workflow -->
                 <svg class="art art-flow" viewBox="0 0 480 400" data-art>
                   <g class="ai" style="--s: 0">
                     <rect x="24" y="28" width="184" height="34" rx="10" class="f-raised" />
@@ -774,7 +841,7 @@
                 </svg>
               </div>
 
-              <div class="stage-ticks" data-stage-ticks><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="stage-ticks" data-stage-ticks><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
@@ -796,27 +863,34 @@
               <span class="feature-idx">03</span>
               <h3>Phone studio</h3>
               <p>On a phone, the studio is laid out for your thumb. Prompt, browse, share and upscale from the couch while the computer renders.</p>
-              <p>Turn on Open on other devices in Settings › Connection, set a studio password and scan the code.</p>
+              <p>On your PC, open Settings › Connection and turn on “Open on other devices”. Set a studio password under “Signing in”, then scan the QR code with your phone and sign in. Both devices need to be on the same trusted network.</p>
               <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#on-your-phone">Phone setup <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </li>
             <li class="feature">
               <span class="feature-idx">04</span>
+              <h3>Your studio, over LAN</h3>
+              <p>Open HEISS UI in a browser on any other device on your local network: a laptop, tablet, phone or another desktop. Prompt, browse and upscale while your PC does the rendering, with the same models and gallery.</p>
+              <p>On your PC, enable “Open on other devices” in Settings › Connection and set a studio password. Open the network address shown there on your other device, then sign in. Works over Wi-Fi or wired LAN on a network you trust.</p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#connect-over-lan">LAN setup <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            </li>
+            <li class="feature">
+              <span class="feature-idx">05</span>
               <h3>Find it again</h3>
               <p>Press <kbd>↑</kbd> in an empty prompt for recent prompts, or <kbd>/</kbd> to search the gallery by prompt, model or LoRA. Star the prompts and images worth keeping.</p>
               <p>Older ComfyUI, AUTOMATIC1111 or Forge folders can join the gallery where they are.</p>
             </li>
             <li class="feature">
-              <span class="feature-idx">05</span>
+              <span class="feature-idx">06</span>
               <h3>Hidden</h3>
               <p>A locked place for images you keep to yourself. Generate into it or hide anything later, and unlock it with Touch ID, Windows Hello or a password. While it’s locked, nothing shows.</p>
             </li>
             <li class="feature">
-              <span class="feature-idx">06</span>
+              <span class="feature-idx">07</span>
               <h3>Upscale and compare</h3>
               <p>Upscale any image in one click with SeedVR2, then drag across it to see what changed. An optional face detail pass (beta) redraws small faces first.</p>
             </li>
             <li class="feature">
-              <span class="feature-idx">07</span>
+              <span class="feature-idx">08</span>
               <h3>Bring your own workflow</h3>
               <p>Built something good in ComfyUI? Import its JSON and it turns into a clean set of controls, with your graph running underneath. The import review shows what each control is connected to, and you can change any of them.</p>
               <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">Workflow guide <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
@@ -1036,7 +1110,7 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
           </details>
           <details name="faq">
             <summary>Can I use it from my phone?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>On your own network, yes. Turn on <strong>Open on other devices</strong> in Settings › Connection, set a studio password and scan the code with your phone. The phone gets a studio for your thumb: prompt, browse, share and upscale.</p><p>Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust.</p></div>
+            <div class="answer"><p>On your own network, yes. On the PC running HEISS UI, open <strong>Settings › Connection</strong> and turn on <strong>Open on other devices</strong>. Set a studio password under <strong>Signing in</strong>, then scan the QR code with your phone and sign in. Laptops, tablets and other desktops can open the network address in their browser too. The phone gets a studio for your thumb: prompt, browse, share and upscale.</p><p>Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust.</p></div>
           </details>
           <details name="faq">
             <summary>Where does HEISS UI come from?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
