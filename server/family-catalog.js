@@ -201,7 +201,7 @@ const hy15Shift = (shift) => ({ node: "ModelSamplingSD3", shift });
  * Silicon (MPS), where a setting is known to break; `stepsFromName` takes the
  * steps from a count in the file name ("…_4step"), for files distilled for
  * exactly that many (see variantDefaults).
- * MODELS.md walks through adding a family.
+ * docs/guides/MODELS.md walks through adding a family.
  */
 export const families = {
   sd15: {

@@ -39,7 +39,7 @@ export function setPackInstallTransport(fn) {
 const tailLimit = 4000;
 const stepTimeoutMs = 15 * 60 * 1000;
 
-// What to do about it, since Manager itself only says "not allowed" (TROUBLESHOOTING.md has the steps).
+// What to do about it, since Manager itself only says "not allowed" (docs/guides/TROUBLESHOOTING.md has the steps).
 export const managerRefusedMessage = "ComfyUI-Manager’s security level blocks this install. Set security_level = normal in Manager’s config.ini (ComfyUI/user/__manager/config.ini, or user/default/ComfyUI-Manager/config.ini in older versions), restart ComfyUI and try again, or use the terminal command.";
 
 function snapshot(state) {

@@ -1,4 +1,4 @@
-// Cuts a HEISS UI release. See CONTRIBUTING.md, "Versions and releases".
+// Cuts a HEISS UI release. See docs/guides/CONTRIBUTING.md, "Versions and releases".
 //
 //   npm run release -- minor          # 0.2.0 -> 0.3.0: new features (or a breaking change before 1.0)
 //   npm run release -- patch          # 0.2.0 -> 0.2.1: fixes only

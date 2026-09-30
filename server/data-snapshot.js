@@ -5,7 +5,7 @@
  * back (Hidden's list of names, sign-in sessions, the gallery file). Before
  * anything else loads, the files a version may rewrite are copied to
  * data/.backups/<from>-to-<to>-<time>/, so going back to the previous version
- * is a matter of stopping HEISS UI and copying them back (TROUBLESHOOTING.md).
+ * is a matter of stopping HEISS UI and copying them back (docs/guides/TROUBLESHOOTING.md).
  *
  * Only the small state files are copied. Thumbnails, reference images and
  * Hidden's encrypted image files stay where they are: no update rewrites

@@ -80,9 +80,10 @@ copy("server", (file) => !/\.test\.js$/.test(file) && !file.split(path.sep).incl
 copy("workflows");
 copy("scripts/ensure-runtime-dependencies.mjs");
 copy("scripts/start.mjs");
-for (const file of ["package-lock.json", ".env.example", "README.md", "TROUBLESHOOTING.md", "CHANGELOG.md", "LICENSE"]) {
+for (const file of ["package-lock.json", ".env.example", "README.md", "CHANGELOG.md", "LICENSE"]) {
   if (fs.existsSync(path.join(root, file))) copy(file);
 }
+copy("docs/guides/TROUBLESHOOTING.md");
 
 // A release only ever runs `npm start`, through the supervisor that also
 // installs updates. Build scripts would need the missing dev tools.

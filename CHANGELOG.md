@@ -3,7 +3,7 @@
 Every release of HEISS UI, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and versions follow
 [Semantic Versioning](https://semver.org/) as described in
-[CONTRIBUTING.md](CONTRIBUTING.md#versions-and-releases).
+[docs/guides/CONTRIBUTING.md](docs/guides/CONTRIBUTING.md#versions-and-releases).
 
 Add notes under **Unreleased** as changes land; `npm run release` turns that
 section into the next version and uses it as the GitHub release notes. Each
@@ -112,7 +112,7 @@ version opens with a `> ` summary line, which the update pill shows.
 - **Admin from other devices is off** until you turn on Trust other devices
   with admin at the computer running HEISS UI.
 - **HEISS UI keeps a copy of its data first**, in `data/.backups/`, so going
-  back to 0.11 works (see TROUBLESHOOTING.md).
+  back to 0.11 works (see [the troubleshooting guide](docs/guides/TROUBLESHOOTING.md)).
 
 ### Security
 - **Other websites can't drive HEISS UI any more.** Every request must name
@@ -750,7 +750,7 @@ version opens with a `> ` summary line, which the update pill shows.
   in and out. Models, workflows and smart upscale refresh by themselves.
 - A new empty state for a gallery with nothing in it yet: a blank pixel
   canvas where a picture keeps developing and fading.
-- MODELS.md documents how a new model family, and the custom nodes, text
+- [The model guide](docs/guides/MODELS.md) documents how a new model family, and the custom nodes, text
   encoders or VAEs it needs, gets added.
 
 ### Fixed

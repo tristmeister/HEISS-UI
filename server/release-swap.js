@@ -32,7 +32,7 @@ export const PORT_IN_USE_CODE = 78;
 const KEEP = new Set(["data", ".env", "node_modules", "runtime", ".update", ".git"]);
 
 /** What releases before the manifest shipped at their top level. */
-const LEGACY_ENTRIES = ["dist", "server", "workflows", "scripts", "package.json", "package-lock.json", "release.json", ".env.example", "README.md", "CHANGELOG.md", "LICENSE", "Start HEISS UI.command", "Start HEISS UI.bat", "Start HEISS UI.sh"];
+const LEGACY_ENTRIES = ["dist", "server", "workflows", "scripts", "package.json", "package-lock.json", "release.json", ".env.example", "README.md", "TROUBLESHOOTING.md", "CHANGELOG.md", "LICENSE", "Start HEISS UI.command", "Start HEISS UI.bat", "Start HEISS UI.sh"];
 
 /**
  * Each system's double-click launcher. The update zip is the same for every

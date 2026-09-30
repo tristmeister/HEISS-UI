@@ -194,7 +194,7 @@ Model files are recognised from their weights, so a renamed file still works. Ea
 
 Both all-in-one checkpoints and model-only files work. Parts a file doesn't carry come from compatible files already installed, or get a Download button. A file that isn't recognised can be given a type under **Settings › Models › Model types**.
 
-Adding a family is mostly data. [MODELS.md](./MODELS.md) walks through it.
+Adding a family is mostly data. [MODELS.md](./docs/guides/MODELS.md) walks through it.
 
 </details>
 
@@ -373,7 +373,7 @@ Images, prompts, settings and upscales in Hidden are encrypted on disk with a ke
 
 Passkeys need the page at `localhost` (not `127.0.0.1`) or over HTTPS, and a browser with passkey PRF support (current Chrome, Edge and Safari). Everywhere else, the password works.
 
-ComfyUI writes a working file while it renders. That file is encrypted and removed when the run finishes, along with the run's entry in ComfyUI's history and any image ComfyUI was handed. Hiding an image later also removes its cached thumbnail and any copy ComfyUI kept from using it as a reference. Downloads and shares from Hidden leave out the prompt and workflow (Settings › Hidden › Share without settings). All of this needs ComfyUI's output folder, which is usually found without help and can be set in Settings › Library. Hidden keeps things out of casual view. It isn't a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running. [SECURITY.md](./SECURITY.md) has the technical details.
+ComfyUI writes a working file while it renders. That file is encrypted and removed when the run finishes, along with the run's entry in ComfyUI's history and any image ComfyUI was handed. Hiding an image later also removes its cached thumbnail and any copy ComfyUI kept from using it as a reference. Downloads and shares from Hidden leave out the prompt and workflow (Settings › Hidden › Share without settings). All of this needs ComfyUI's output folder, which is usually found without help and can be set in Settings › Library. Hidden keeps things out of casual view. It isn't a forensic guarantee against an administrator, disk recovery, swap, or backups taken while a job was running. [SECURITY.md](./docs/guides/SECURITY.md) has the technical details.
 
 There's no password reset. If the password and every passkey are lost, **Erase Hidden** in Settings › Hidden starts over and takes everything in Hidden with it.
 
@@ -386,7 +386,7 @@ There's no password reset. If the password and every passkey are lost, **Erase H
 <details>
 <summary><b>How a downloaded release updates</b></summary>
 
-**Settings › About › Install update** downloads the new release, checks that it's signed with the HEISS UI release key, and swaps it in when you press **Restart now**. A release without a valid signature isn't installed. The `data` folder, `.env` and installed packages stay where they are. The previous version is kept in `.update/backup` and comes back if the new one doesn't start, and a copy of the data waits in `data/.backups/` for 14 days in case you want to [go back a version](./TROUBLESHOOTING.md#going-back-to-an-earlier-version). This needs the copy to run through its launcher (or `npm start`) and a release from 0.3.1 on; older copies need one manual download first.
+**Settings › About › Install update** downloads the new release, checks that it's signed with the HEISS UI release key, and swaps it in when you press **Restart now**. A release without a valid signature isn't installed. The `data` folder, `.env` and installed packages stay where they are. The previous version is kept in `.update/backup` and comes back if the new one doesn't start, and a copy of the data waits in `data/.backups/` for 14 days in case you want to [go back a version](./docs/guides/TROUBLESHOOTING.md#going-back-to-an-earlier-version). This needs the copy to run through its launcher (or `npm start`) and a release from 0.3.1 on; older copies need one manual download first.
 
 A downloaded release also checks for a new version every few hours and offers it once, in a small pill at the top with **Update** and then **Restart**. The check only asks GitHub for the latest version and stays quiet when you're offline. **Settings › About › Check automatically** turns it off. That choice and any **Later** are saved in `data/updates.json`.
 
@@ -425,7 +425,7 @@ COMFY_OUTPUT_DIR=
 
 `COMFY_OUTPUT_DIR` is optional; the folder is usually found without it. The folder is needed to delete files along with their cards and to remove ComfyUI's copies of what goes into Hidden. Settings only accepts a folder ComfyUI writes to (one with ComfyUI's images, or next to its `models` or `custom_nodes`). **Delete all finished images** moves them to `.heiss-trash` in that folder, where they wait 30 days (`HEISS_TRASH_DAYS`) in case you want them back.
 
-For other devices: `HEISS_ALLOWED_HOSTS` (extra names to answer to, comma-separated), `HEISS_DEVICE_SESSION_DAYS` (how long a device stays signed in, 1 to 30 days, 7 by default), and `HEISS_TLS_CERT`, `HEISS_TLS_KEY` and `HEISS_HTTPS_PORT` for HTTPS. See [Connect over LAN](#connect-over-lan), [On your phone](#on-your-phone) and [SECURITY.md](./SECURITY.md).
+For other devices: `HEISS_ALLOWED_HOSTS` (extra names to answer to, comma-separated), `HEISS_DEVICE_SESSION_DAYS` (how long a device stays signed in, 1 to 30 days, 7 by default), and `HEISS_TLS_CERT`, `HEISS_TLS_KEY` and `HEISS_HTTPS_PORT` for HTTPS. See [Connect over LAN](#connect-over-lan), [On your phone](#on-your-phone) and [SECURITY.md](./docs/guides/SECURITY.md).
 
 Also optional: `HEISS_NO_BROWSER=1` keeps the launcher from opening the browser, and `HEISS_THUMBNAIL_CACHE_MB` caps the gallery's thumbnail cache (2048 by default; the least recently shown go first).
 
@@ -458,14 +458,14 @@ Start-Process "http://localhost:8787/"
 
 ## Troubleshooting
 
-[TROUBLESHOOTING.md](./TROUBLESHOOTING.md) covers the common problems in plain words, from ComfyUI not being found, the port and Node.js to each kind of failed generation, downloads and node packs, updates and phones. A failed card links to its section.
+[TROUBLESHOOTING.md](./docs/guides/TROUBLESHOOTING.md) covers the common problems in plain words, from ComfyUI not being found, the port and Node.js to each kind of failed generation, downloads and node packs, updates and phones. A failed card links to its section.
 
 <details>
 <summary><b>Quick fixes</b></summary>
 
 - **No models showing up?** Make sure ComfyUI is running. On this computer it connects on port 8188 or 8000; anywhere else, set its address in Settings › Connection. After adding files, use **Settings › Models › Rescan**. With no model at all, the studio offers [a first one](#your-first-model).
-- **A generation fails?** Open the card. It says what went wrong and offers a fix. **Report bug** sends it to the [feedback board](#feedback) with versions and GPU, and **Copy report** copies the same for an issue.
-- **A GGUF won't load?** See [ComfyUI-GGUF can't load this model yet](./TROUBLESHOOTING.md#comfyui-gguf-cant-load-this-model-yet).
+- **A generation fails?** Open the card. It says what went wrong and offers a fix. **Copy report** includes versions and GPU for an issue.
+- **A GGUF won't load?** See [ComfyUI-GGUF can't load this model yet](./docs/guides/TROUBLESHOOTING.md#comfyui-gguf-cant-load-this-model-yet).
 - **Looking for video?** Switch the sidebar from Image to **Video** (beta). Wan 2.1, Wan 2.2 5B and 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, and the model's setup lists anything missing.
 - **Asking for help?** **Settings › About › Copy diagnostics** copies versions, system and GPU, without prompts or images.
 
@@ -514,7 +514,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` starts Vite and the local API server together, and `npm test` runs the server and script tests. Contributions are welcome. See [CONTRIBUTING.md](./CONTRIBUTING.md), and leave generated media, model files, logs and `.env` files out of commits.
+`npm run dev` starts Vite and the local API server together, and `npm test` runs the server and script tests. Contributions are welcome. See [CONTRIBUTING.md](./docs/guides/CONTRIBUTING.md), and leave generated media, model files, logs and `.env` files out of commits.
 
 <details>
 <summary><b>Missing packages and demo mode</b></summary>
@@ -538,27 +538,3 @@ The app is set in [Geist](https://vercel.com/font). The pixel wordmark on the we
 ## License
 
 [MIT](./LICENSE). The original J-AI Studio copyright notice is kept alongside HEISS UI's, as the license asks.
-
-## Alternative: Pinokio
-
-Install HEISS UI from [its GitHub repository](https://github.com/tristmeister/HEISS-UI) in Pinokio. Choose **Install** to set up the app, then **Start** to open the studio. The launcher includes update and repair actions.
-
-You still need ComfyUI running separately. HEISS UI connects to ComfyUI at `http://127.0.0.1:8188` or ComfyUI Desktop at `http://127.0.0.1:8000`; the Pinokio launcher does not install ComfyUI or download models.
-
-The local health endpoint is `GET /api/ping` (replace the port if Pinokio selects another one):
-
-```js
-const response = await fetch("http://localhost:8787/api/ping");
-console.log(await response.json());
-```
-
-```python
-from urllib.request import urlopen
-
-with urlopen("http://localhost:8787/api/ping") as response:
-    print(response.read().decode())
-```
-
-```sh
-curl http://localhost:8787/api/ping
-```

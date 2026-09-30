@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describeFailure, failureTitles, troubleshootingAnchor } from "./failures.js";
 
-test("every failure headline has its own section in TROUBLESHOOTING.md, which the card links to", () => {
-  const doc = fs.readFileSync(new URL("../TROUBLESHOOTING.md", import.meta.url), "utf8");
+test("every failure headline has its own section in docs/guides/TROUBLESHOOTING.md, which the card links to", () => {
+  const doc = fs.readFileSync(new URL("../docs/guides/TROUBLESHOOTING.md", import.meta.url), "utf8");
   // Windows checkouts can bring the file with \r\n line ends.
   const headings = doc.split(/\r?\n/).filter((line) => line.startsWith("#")).map((line) => line.replace(/^#+\s*/, ""));
-  for (const title of failureTitles) assert.ok(headings.includes(title), `TROUBLESHOOTING.md has no "### ${title}"`);
+  for (const title of failureTitles) assert.ok(headings.includes(title), `docs/guides/TROUBLESHOOTING.md has no "### ${title}"`);
   assert.equal(describeFailure({ message: "CUDA error: out of memory" }).help, "the-gpu-ran-out-of-memory");
   assert.equal(describeFailure({ message: "Error while deserializing header: header is too large", nodeType: "VAELoader" }).help, "a-model-file-is-damaged-or-incomplete");
   assert.equal(describeFailure({ message: "saved nothing", noOutput: true }).help, "no-image-was-saved");

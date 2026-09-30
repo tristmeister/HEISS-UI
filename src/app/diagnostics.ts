@@ -36,5 +36,5 @@ export function withDiagnostics(report: string, diagnostics: string) {
 
 /** TROUBLESHOOTING.md on GitHub, at a failure's section when it names one. */
 export function troubleshootingUrl(anchor = '') {
-  return `${githubUrl}/blob/main/TROUBLESHOOTING.md${anchor ? `#${anchor}` : ''}`;
+  return `${githubUrl}/blob/main/docs/guides/TROUBLESHOOTING.md${anchor ? `#${anchor}` : ''}`;
 }

@@ -23,9 +23,9 @@ npm run build
 - Keep server changes local-only by default.
 - Document any new environment variable in `.env.example` and the README.
 - Don't commit model files, generated media, logs or `.env` files.
-- New workflow templates belong in `workflows/` with a `heissUi` mapping block. See [the workflow guide](./workflows/README.md).
+- New workflow templates belong in `workflows/` with a `heissUi` mapping block. See [the workflow guide](../../workflows/README.md).
 - New model families (and the custom nodes, encoders or VAEs they need) follow [the model guide](./MODELS.md).
-- Add a line for anything people will notice under **Unreleased** in [CHANGELOG.md](./CHANGELOG.md).
+- Add a line for anything people will notice under **Unreleased** in [CHANGELOG.md](../../CHANGELOG.md).
 
 ## Versions and releases
 

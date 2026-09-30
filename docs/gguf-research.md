@@ -280,7 +280,7 @@ Sizes in GB, from the Hugging Face API:
   swap, and the pack-missing listing, all on tiny synthetic GGUF files.
 
 **Not verified end-to-end.** The local ComfyUI has no ComfyUI-GGUF, and
-installing it there was out of scope. MODELS.md step 10 (queue once on
+installing it there was out of scope. `docs/guides/MODELS.md` step 10 (queue once on
 `/prompt`) is still open.
 
 **Next steps, in order of value:**

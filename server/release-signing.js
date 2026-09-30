@@ -10,7 +10,7 @@ import crypto from "node:crypto";
  *
  * Until the key below is filled in, updates are checked by SHA-256 alone, as
  * before. Once it is, a release without a valid signature is refused. Make
- * the key with `node scripts/release-keygen.mjs` (see CONTRIBUTING.md).
+ * the key with `node scripts/release-keygen.mjs` (see docs/guides/CONTRIBUTING.md).
  */
 
 // The release public key (base64 SPKI DER, one line), printed by
