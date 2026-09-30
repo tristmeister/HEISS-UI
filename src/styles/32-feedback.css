@@ -1,0 +1,188 @@
+/* Feedback: the send dialog, Settings › Feedback, and the crash screen. */
+
+/* ------------------------------------------------------------- Dialog */
+
+.feedback-modal .modal-titles a { color: hsl(var(--foreground)); text-decoration: underline; text-decoration-color: rgb(255 255 255 / .28); text-underline-offset: 3px; }
+.feedback-modal .modal-titles a:hover { text-decoration-color: currentColor; }
+
+.feedback-form { display: grid; gap: 14px; padding-bottom: 4px; }
+.feedback-form .field { margin: 0; }
+.feedback-form .field em { font-style: normal; font-weight: 400; opacity: .7; }
+.feedback-form .segmented { width: 100%; }
+.feedback-form .segmented button { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.feedback-form textarea { min-height: 110px; }
+.feedback-form textarea.is-long { min-height: 180px; font-size: 12.5px; }
+
+.feedback-setup {
+  display: grid;
+  gap: 8px;
+  padding: 12px 12px 12px 14px;
+  border-radius: var(--r-item, 12px);
+  background: hsl(var(--input));
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+}
+.feedback-setup-row { display: flex; align-items: center; gap: 12px; }
+.feedback-setup-row > div { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.feedback-setup-row strong { font-size: 13px; font-weight: 550; }
+.feedback-setup-row span { font-size: 12px; color: hsl(var(--muted-foreground)); }
+.feedback-peek {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.feedback-peek:hover { color: hsl(var(--foreground)); }
+.feedback-peek svg { transition: rotate 200ms var(--ease-out); }
+.feedback-peek[aria-expanded="true"] svg { rotate: 180deg; }
+.feedback-setup-text {
+  margin: 0;
+  max-height: 160px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / .3);
+  color: hsl(var(--muted-foreground));
+  font: 400 11.5px/1.65 var(--font-mono, ui-monospace, monospace);
+  white-space: pre-wrap;
+}
+
+.feedback-note { margin: 0; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.5; text-wrap: pretty; }
+.feedback-error {
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: rgb(255 120 100 / .1);
+  color: #ffb4a8;
+  font-size: 12.5px;
+}
+.feedback-modal .modal-foot .feedback-web { margin-right: auto; }
+.feedback-done-icon {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: #5ee08a;
+}
+
+/* ---------------------------------------------- Settings › Feedback */
+
+.feedback-hero {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 22px 22px 20px;
+  border-radius: var(--r-card, 18px);
+  background:
+    radial-gradient(circle, rgb(255 255 255 / .05) .8px, transparent 1px) 0 0 / 18px 18px,
+    linear-gradient(180deg, #151515, #101010);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+}
+.feedback-hero strong { font-size: 17px; font-weight: 600; letter-spacing: -.02em; }
+.feedback-hero p { margin: 0; max-width: 460px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.55; }
+
+.feedback-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.feedback-tile {
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: 10px;
+  padding: 14px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--control-fill);
+  color: hsl(var(--foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast), scale 100ms;
+}
+.feedback-tile:hover { background: var(--control-hover); }
+.feedback-tile:active { scale: .98; }
+.feedback-tile:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.feedback-tile-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  color: var(--tone);
+}
+.feedback-tile strong { font-size: 13.5px; font-weight: 600; }
+.feedback-tile span:last-child { margin-top: -6px; color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.45; }
+.feedback-tile.is-bug { --tone: #ff6f64; }
+.feedback-tile.is-idea { --tone: var(--ember); }
+.feedback-tile.is-question { --tone: #86abff; }
+
+@media (max-width: 720px) {
+  .feedback-tiles { grid-template-columns: minmax(0, 1fr); }
+  .feedback-tile { grid-template-columns: 30px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 2px; }
+  .feedback-tile-icon { grid-row: span 2; }
+  .feedback-tile span:last-child { margin-top: 0; }
+}
+
+/* A quiet line under the settings sections, always in reach. */
+.set-nav-feedback {
+  margin-top: auto;
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border: 0;
+  border-radius: var(--r-item);
+  background: var(--ember-soft);
+  color: hsl(var(--foreground));
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-fast);
+}
+.set-nav-feedback:hover { background: rgb(255 154 82 / .22); }
+.set-nav-feedback:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.set-nav-feedback strong { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+.set-nav-feedback strong::before { content: ""; width: 6px; height: 6px; background: var(--ember); box-shadow: var(--ember-glow); }
+.set-nav-feedback span { color: hsl(var(--muted-foreground)); font-size: 11.5px; line-height: 1.4; }
+@media (max-width: 720px) { .set-nav-feedback { display: none; } }
+
+/* ------------------------------------------------------ Crash screen */
+
+.crash {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #0a0a0a;
+  color: hsl(var(--foreground));
+}
+.crash-card {
+  width: min(480px, 100%);
+  display: grid;
+  gap: 14px;
+  padding: 28px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #151515, #101010);
+  box-shadow: inset 0 0 0 1px var(--surface-border), 0 40px 100px -30px rgb(0 0 0 / .9);
+}
+.crash-mark { display: grid; grid-template-columns: repeat(2, 8px); gap: 3px; }
+.crash-mark i { width: 8px; height: 8px; border-radius: 2px; background: #2e2e2e; }
+.crash-mark i:nth-child(2) { background: var(--ember); box-shadow: var(--ember-glow); animation: crash-blink 1.1s steps(2) infinite; }
+@keyframes crash-blink { 50% { opacity: .3; } }
+.crash h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+.crash p { margin: 0; color: hsl(var(--muted-foreground)); font-size: 13.5px; line-height: 1.55; }
+.crash pre {
+  margin: 0;
+  max-height: 140px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / .35);
+  color: #ffb4a8;
+  font: 400 11.5px/1.6 var(--font-mono, ui-monospace, monospace);
+  white-space: pre-wrap;
+}
+.crash-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+@media (prefers-reduced-motion: reduce) { .crash-mark i:nth-child(2) { animation: none; } }

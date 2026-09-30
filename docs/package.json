@@ -1,0 +1,6 @@
+{
+  "name": "heiss-ui-website",
+  "private": true,
+  "type": "module",
+  "description": "The heiss-ui.vercel.app site: static pages plus the feedback board's function in api/."
+}

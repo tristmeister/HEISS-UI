@@ -11,6 +11,18 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Added
+- **A public feedback board** at [heiss-ui.vercel.app/board](https://heiss-ui.vercel.app/board/)
+  for bugs, ideas and questions. Anyone can post, upvote and comment, no
+  account needed, and each post shows whether it's open, planned, in progress
+  or done.
+- **Send feedback from the app.** Settings › Feedback sends a bug, idea or
+  question to the board, and a failed generation has **Report bug** with the
+  error filled in. The dialog shows everything a post carries, setup lines
+  included only if you leave them on, and nothing goes until you press Send.
+- **A crash screen** instead of a blank page if the studio hits an error it
+  can't recover from, with Reload and Report this bug.
+
 ## [0.14.0] - 2026-09-29
 
 > Generated images in the feature mockups

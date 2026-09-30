@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, Info, LifeBuoy, LockKeyhole, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
 import { cn } from './format';
 import { BetaTag, NumberPicker, Skeleton, StudioSelect } from './components';
@@ -20,6 +20,7 @@ import { shortcuts } from './shortcuts';
 import { SettingsDrawer } from './SettingsDrawer';
 import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
+import { boardUrl, openFeedback } from './feedback';
 import { HuggingFaceTokenSettings } from './HuggingFaceToken';
 import { OtherDevicesGroup } from './OtherDevices';
 import { TrashRow } from './TrashRow';
@@ -33,6 +34,7 @@ export const SETTINGS_SECTIONS = [
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
   { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
   { id: 'connection', label: 'Connection', icon: Plug, description: 'Where ComfyUI runs, and opening the studio on other devices.' },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquarePlus, description: 'Report a bug, share an idea or ask a question.' },
   { id: 'about', label: 'About', icon: Info, description: 'Version, stats, updates and credits.' }
 ] as const;
 export type SettingsSection = typeof SETTINGS_SECTIONS[number]['id'];
@@ -385,6 +387,9 @@ function HelpGroup({ copyToClipboard }: { copyToClipboard: (text: string) => Pro
   };
   return (
     <Group title="Help">
+      <Row label="Report a bug" description="Sends it to the feedback board, with your setup if you want. You see everything before it goes.">
+        <button className="btn" onClick={() => openFeedback({ kind: 'bug', from: 'settings' })}><Bug size={13} /> Report</button>
+      </Row>
       <Row label="Troubleshooting" description="Common errors and how to fix them.">
         <a className="btn is-ghost" href={troubleshootingUrl()} target="_blank" rel="noreferrer"><LifeBuoy size={13} /> Open</a>
       </Row>
@@ -668,6 +673,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </button>
           );
         })}
+        <button type="button" className="set-nav-feedback" onClick={() => openFeedback({ from: 'settings' })}>
+          <strong>Idea or bug?</strong>
+          <span>Send it to the board</span>
+        </button>
       </nav>
 
       {/* A region named by its heading, so a screen reader hears where it landed. */}
@@ -886,6 +895,37 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
           </>
         ) : null}
 
+        {section === 'feedback' ? (
+          <>
+            <section className="feedback-hero">
+              <strong>Found a bug? Have an idea?</strong>
+              <p>Send it to the feedback board. It’s public: others can upvote it, and you can follow along as it gets worked on.</p>
+              <div className="feedback-tiles">
+                <button type="button" className="feedback-tile is-bug" onClick={() => openFeedback({ kind: 'bug', from: 'settings' })}>
+                  <span className="feedback-tile-icon"><Bug size={15} /></span>
+                  <strong>Report a bug</strong>
+                  <span>Something doesn’t work the way it should.</span>
+                </button>
+                <button type="button" className="feedback-tile is-idea" onClick={() => openFeedback({ kind: 'idea', from: 'settings' })}>
+                  <span className="feedback-tile-icon"><Lightbulb size={15} /></span>
+                  <strong>Share an idea</strong>
+                  <span>Something it could do, or do better.</span>
+                </button>
+                <button type="button" className="feedback-tile is-question" onClick={() => openFeedback({ kind: 'question', from: 'settings' })}>
+                  <span className="feedback-tile-icon"><HelpCircle size={15} /></span>
+                  <strong>Ask a question</strong>
+                  <span>Not sure how something works?</span>
+                </button>
+              </div>
+            </section>
+            <Group title="Board" note="Nothing is sent on its own. A post carries what you write, plus the setup lines (versions, system, GPU) if you leave them on. No prompts, images or file names.">
+              <Row label="Open the feedback board" description="See what’s planned and in progress, and upvote what you’d like next.">
+                <a className="btn is-ghost" href={boardUrl} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Open</a>
+              </Row>
+            </Group>
+          </>
+        ) : null}
+
         {section === 'about' ? (
           <>
             <section className="about-hero">
@@ -963,7 +1003,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Links">
               <div className="about-links">
                 <a href={githubUrl} target="_blank" rel="noreferrer"><Github size={15} /><span>Source on GitHub</span><ExternalLink size={12} /></a>
-                <a href={`${githubUrl}/issues`} target="_blank" rel="noreferrer"><Bug size={15} /><span>Report an issue</span><ExternalLink size={12} /></a>
+                <a href={boardUrl} target="_blank" rel="noreferrer"><MessageSquarePlus size={15} /><span>Feedback board</span><ExternalLink size={12} /></a>
                 <a href="https://heiss-ui.vercel.app/" target="_blank" rel="noreferrer"><Globe size={15} /><span>Website</span><ExternalLink size={12} /></a>
                 <a href={`${githubUrl}/blob/main/LICENSE`} target="_blank" rel="noreferrer"><Scale size={15} /><span>MIT license</span><ExternalLink size={12} /></a>
               </div>

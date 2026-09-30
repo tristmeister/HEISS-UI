@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Feedback board
+    url: https://heiss-ui.vercel.app/board/
+    about: Bugs, ideas and questions, with upvotes and status. No account needed. From the app, Settings › Feedback sends one straight there.
+  - name: Security issue
+    url: https://github.com/tristmeister/HEISS-UI/security/advisories/new
+    about: Please report security issues privately, not on the board or in a public issue.

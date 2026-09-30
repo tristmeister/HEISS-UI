@@ -38,6 +38,7 @@ import { EmptyStage } from './EmptyStage';
 import { SettingsDialog, type SettingsSection } from './SettingsDialog';
 import { GetModelsSheet, StarterModels } from './StarterModels';
 import { NoComfySheet } from './NoComfySheet';
+import { FeedbackHost } from './FeedbackDialog';
 import { ShortcutsSheet } from './shortcuts';
 import { useHistoryDismiss } from './useHistoryDismiss';
 import { useFocusTrap } from './useFocusTrap';
@@ -820,6 +821,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       <NoComfySheet open={noComfyOpen} onOpenChange={setNoComfyOpen} onChangeAddress={thisComputer ? () => openSettings("connection") : undefined} />
       <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={thisComputer ? modelFolders?.openDialog : undefined} />
       <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      <FeedbackHost />
       {modelFolders ? <ModelFoldersDialog folders={modelFolders} runningCount={runningCount} /> : null}
       <UpscaleSetupDialog
         setup={upscaleSetup}

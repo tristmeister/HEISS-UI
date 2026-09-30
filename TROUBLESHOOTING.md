@@ -2,7 +2,7 @@
 
 Common problems and how to get past them. A failed generation's card links to its section below.
 
-Still stuck? **Settings › About › Copy diagnostics** copies the HEISS UI, Node.js and ComfyUI versions, the system and the GPU, without prompts, images or file names. Paste it into [an issue](https://github.com/tristmeister/HEISS-UI/issues) with what you did and what happened. **Copy report** on a failed card adds the error itself.
+Still stuck? **Settings › About › Copy diagnostics** copies the HEISS UI, Node.js and ComfyUI versions, the system and the GPU, without prompts, images or file names. Paste it into [an issue](https://github.com/tristmeister/HEISS-UI/issues) with what you did and what happened. **Copy report** on a failed card adds the error itself. Or skip the pasting: **Report bug** on a failed card and **Settings › Feedback** send it to the [feedback board](https://heiss-ui.vercel.app/board/), with the setup lines if you want them.
 
 - [Starting HEISS UI](#starting-heiss-ui)
 - [When a generation fails](#when-a-generation-fails)

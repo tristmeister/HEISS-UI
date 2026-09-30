@@ -14,6 +14,7 @@ import { deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks,
 import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
 import { DeviceGate } from './app/DeviceGate';
+import { CrashBoundary } from './app/CrashScreen';
 import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
@@ -1463,4 +1464,5 @@ function App() {
 }
 
 // Other devices sign in before the studio loads (DeviceGate.tsx).
-createRoot(document.getElementById("root")!).render(<DeviceGate><App /></DeviceGate>);
+// A render error anywhere shows the crash screen (with Reload and Report) instead of a blank page.
+createRoot(document.getElementById("root")!).render(<CrashBoundary><DeviceGate><App /></DeviceGate></CrashBoundary>);
