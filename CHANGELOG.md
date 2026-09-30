@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> A feedback board, right from the app
+
 ### Added
 - **A public feedback board** at [heiss-ui.vercel.app/board](https://heiss-ui.vercel.app/board/)
   for bugs, ideas and questions. Anyone can post, upvote and comment, no
