@@ -139,11 +139,13 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       </Group>
 
       <Group title="Auto-lock" note="Locks after this long without activity, on each device separately.">
-        <div className="segmented hidden-autolock" role="radiogroup" aria-label="Lock Hidden after">
-          {autoLockChoices.map((choice) => (
-            <button key={choice.value} type="button" role="radio" aria-checked={autoLock === choice.value} className={cn(autoLock === choice.value && 'active')} onClick={() => setPrefs({ hiddenAutoLockMinutes: choice.value })}>{choice.label}</button>
-          ))}
-        </div>
+        <Row label="Lock Hidden after" description="Without activity on this device.">
+          <div className="segmented" role="radiogroup" aria-label="Lock Hidden after">
+            {autoLockChoices.map((choice) => (
+              <button key={choice.value} type="button" role="radio" aria-checked={autoLock === choice.value} className={cn(autoLock === choice.value && 'active')} onClick={() => setPrefs({ hiddenAutoLockMinutes: choice.value })}>{choice.label}</button>
+            ))}
+          </div>
+        </Row>
       </Group>
 
       <Group title="Sharing">

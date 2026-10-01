@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, Sparkles, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, CircleArrowUp, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
 import { cn } from './format';
 import { BetaTag, NumberPicker, Skeleton, StudioSelect } from './components';
@@ -29,7 +29,7 @@ import type { ShowToast } from './toast';
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, restarts and reset.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and starting values.' },
-  { id: 'upscale', label: 'Upscale', icon: Sparkles, description: 'Makes a larger, sharper copy of a finished image with SeedVR2.' },
+  { id: 'upscale', label: 'Upscale', icon: CircleArrowUp, description: 'Makes a larger, sharper copy of a finished image with SeedVR2.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where images are saved and what the gallery shows.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
   { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
@@ -262,10 +262,11 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
   }
   if (status.substituting) {
     const effort = upscaleQualityLabel(status.quality);
+    const scale = upscaleEfforts.find((item) => item.value === status.quality)?.scale;
     return (
       <Row
-        label={<Status tone="warn">Using a fallback model</Status>}
-        description={`${effort} uses ${status.fallbackFile || 'another installed SeedVR2 weight'} until its own weights are downloaded. Results can differ.`}
+        label={<Status tone="warn">Download needed</Status>}
+        description={`${effort} still upscales${scale ? ` at ${scale}` : ''} with a model you already have, so results can look different. Download its own model for the best quality.`}
         stacked
       >
         <button className="btn is-primary" onClick={onDownload}>Download {effort} · {formatBytes(status.downloadBytes)}</button>
@@ -567,7 +568,7 @@ function formatDay(value: string) {
 
 export function SettingsDialog({ view, open, section, onSectionChange, onClose }: { view: Record<string, any>; open: boolean; section: SettingsSection; onSectionChange: (section: SettingsSection) => void; onClose: () => void }) {
   const {
-    prefs, setPrefs, setZenMode, zenGalleryOpen, setZenGalleryOpen,
+    prefs, setPrefs,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
     gallery, galleryLoaded, paths, saveOutputDirectory, openOutputFolder, copyToClipboard, showToast,
     clearFailedItems, clearGallery, clearAllCache, resetAllSettings, confirmAction,
@@ -688,13 +689,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'general' ? (
           <>
-            <Group title="Layout">
-              <SwitchRow label="Zen mode" description="Full screen, one image at a time with the composer below. Press Escape to leave." checked={prefs.zenMode} onChange={setZenMode} />
-              <SwitchRow label="Gallery strip in zen" description="Shows recent images and videos in a strip across the top." checked={zenGalleryOpen} onChange={setZenGalleryOpen} />
-              {phoneDevice || prefs.fullStudioOnPhone ? <SwitchRow label="Simple phone studio" description="A simpler layout for making, browsing and sharing. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} /> : null}
-              <SwitchRow label="Follow the latest output" description="Shows each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
-              <SwitchRow label="Wide images take two columns" description="Landscape images span two gallery columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
-            </Group>
+            {phoneDevice || prefs.fullStudioOnPhone ? <Group title="Layout">
+              <SwitchRow label="Simple phone studio" description="A simpler layout for making, browsing and sharing. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} />
+            </Group> : null}
             <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
               <ShortcutsDrawer />
             </Group>
@@ -808,6 +805,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               ) : null}
             </Group> : null}
             <Group title="Gallery">
+              <SwitchRow label="Follow the latest output" description="Shows each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
+              <SwitchRow label="Wide images take two columns" description="Landscape images span two gallery columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
               <SwitchRow label="Show failed items" description="Shows interrupted and failed generations in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>

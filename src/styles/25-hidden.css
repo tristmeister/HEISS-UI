@@ -329,7 +329,6 @@
 
 .hidden-way { display: inline-flex; align-items: center; gap: 8px; }
 .hidden-way svg { color: hsl(var(--muted-foreground)); }
-.hidden-autolock { width: max-content; }
 .btn.is-disabled { opacity: .45; pointer-events: none; }
 
 /* ------------------------------------------------------------ Empty state */
