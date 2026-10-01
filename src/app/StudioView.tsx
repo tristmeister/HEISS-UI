@@ -23,6 +23,7 @@ import { useUpdateActivity } from './UpdateActivity';
 import { useGenerationActivity, useTilesOnScreen } from './GenerationActivity';
 import { ActivityColumn } from './Activities';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
+import { ViewerActions } from './ViewerActions';
 import { WorkflowGallery } from './WorkflowGallery';
 import { HiddenLockScreen, HiddenUnlockSheet } from './HiddenLock';
 import { HiddenSetupDialog } from './HiddenSetup';
@@ -898,13 +899,14 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                           </div>
                         </div>
                       ) : null}
-                      {active.library && !active.prompt ? null : <Tip content="Load its prompt and settings. You can undo this."><button className="copy-all-settings" onClick={() => applyAllSettings(active)}>Use these settings</button></Tip>}
-                      {/* An earlier image shown from another folder carries a prompt at most: Copy prompt above covers it. */}
-                      {active.library ? null : <Tip content="Copy the prompt, model, steps, seed and size as text"><button className="copy-all-settings" onClick={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}><CopyIcon copied={viewerCopy.copied === "settings"} size={13} /> {viewerCopy.copied === "settings" ? "Copied" : "Copy settings"}</button></Tip>}
-                      {active.library ? null : <Tip content="Load its LoRAs"><button className="copy-all-settings" onClick={() => applyLoras(active)}>Use its LoRAs</button></Tip>}
-                      {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? (
-                        <Tip content="Use as the reference image for the next run"><button className="copy-all-settings" onClick={() => useOutputAsStartImage(active)}>Use as reference</button></Tip>
-                      ) : null}
+                      <ViewerActions
+                        item={active}
+                        copied={viewerCopy.copied === "settings"}
+                        onUseSettings={() => applyAllSettings(active)}
+                        onCopySettings={() => viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings")}
+                        onUseLoras={() => applyLoras(active)}
+                        onUseAsReference={canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? () => useOutputAsStartImage(active) : undefined}
+                      />
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>
                           <summary>Generation settings</summary>

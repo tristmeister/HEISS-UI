@@ -111,19 +111,41 @@
      children (the disclosure) auto rows would otherwise shrink to fit. */
   grid-auto-rows: max-content;
 }
-.copy-all-settings {
-  width: 100%;
-  min-height: 36px;
-  border: 1px solid hsl(var(--border));
-  background: hsl(var(--secondary));
-  color: hsl(var(--secondary-foreground));
-  border-radius: var(--radius);
-  font-size: 12px; font-weight: 500;
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  cursor: pointer;
-  transition: background 160ms var(--ease-out), border-color 160ms var(--ease-out);
+/* The detail actions: one white pill for the main move, the rest a quieter
+   row of equal-width pills under it. Hover, press and focus come from .btn;
+   .btn loads later, so the overrides carry its class too. */
+.viewer-actions { display: grid; gap: 8px; min-width: 0; }
+.viewer-action-main { width: 100%; }
+.viewer-action-row { display: flex; gap: 6px; min-width: 0; }
+.btn.viewer-action {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 34px; min-height: 34px;
+  padding: 0 10px;
+  gap: 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
 }
-.copy-all-settings:hover { background: hsl(var(--accent)); border-color: hsl(var(--border-strong)); }
+.btn.viewer-action:hover:not(:disabled),
+.btn.viewer-action.is-copied { color: hsl(var(--foreground)); }
+.viewer-action svg { flex: none; }
+.viewer-action-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.viewer-action-count {
+  display: inline-grid; place-items: center;
+  flex: none;
+  min-width: 17px; height: 17px;
+  padding: 0 5px;
+  border-radius: var(--r-pill);
+  /* A step above the hover fill, so the badge stays visible on hover. */
+  background: rgb(255 255 255 / .14);
+  color: hsl(var(--foreground));
+  font-size: 10.5px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+@media (pointer: coarse) {
+  .btn.viewer-action { height: 40px; min-height: 40px; }
+}
 
 .prompt-readout { display: grid; gap: 6px; }
 .prompt-readout span,
