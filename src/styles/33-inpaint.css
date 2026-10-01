@@ -27,7 +27,8 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  background: var(--well);
+  /* No fill: around the image the popover's own frosted glass shows, like the other menus. */
+  background: transparent;
 }
 .inpaint-viewport.is-brush,
 .inpaint-viewport.is-eraser { cursor: none; }
