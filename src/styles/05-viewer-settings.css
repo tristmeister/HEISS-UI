@@ -107,6 +107,9 @@
   padding: 18px 20px;
   display: grid; gap: 18px;
   align-content: start;
+  /* Rows keep their full height and the body scrolls; with overflow:hidden
+     children (the disclosure) auto rows would otherwise shrink to fit. */
+  grid-auto-rows: max-content;
 }
 .copy-all-settings {
   width: 100%;
@@ -208,11 +211,20 @@
   flex: 0 0 auto;
 }
 .settings-disclosure[open] summary::after { content: "-"; }
-.settings-disclosure .detail-grid {
+.settings-disclosure .detail-section {
+  display: grid; gap: 8px;
   padding: 12px;
   border-top: 1px solid hsl(var(--border));
+}
+.detail-section h4 {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 11px; font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.settings-disclosure .detail-grid {
   margin-top: 0;
-  grid-template-columns: minmax(80px, auto) minmax(0, 1fr);
+  grid-template-columns: 72px minmax(0, 1fr);
 }
 
 .viewer-arrow {
@@ -220,9 +232,9 @@
   display: grid; place-items: center;
   cursor: pointer;
   z-index: 3;
-  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 260ms var(--ease-out), box-shadow 260ms var(--ease-out);
+  transition: background 200ms var(--ease-out), border-color 200ms var(--ease-out), transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
 }
-.viewer-arrow:hover { border-color: hsl(var(--border-strong)); box-shadow: 0 4px 16px rgb(0 0 0 / 0.3); }
+.viewer-arrow:hover { border-color: hsl(var(--border-strong)); }
 .viewer-arrow.prev { left: 16px; }
 .viewer-arrow.next { right: 16px; }
 .viewer-stage.with-side .viewer-arrow.next { right: calc(380px + 16px); }

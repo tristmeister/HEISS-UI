@@ -157,8 +157,10 @@
 .viewer-dock .icon-button.danger-tone:hover:not(:disabled) { background: var(--danger-fill); color: var(--danger-ink); }
 .zen-control-button:hover,
 .zen-gallery-restore:hover,
-.zen-arrows button:hover,
-.viewer-arrow:hover { background: rgb(36 36 36 / .94); transform: none; }
+.zen-arrows button:hover { background: rgb(36 36 36 / .94); transform: none; }
+/* The viewer arrows are centred with translateY(-50%), so resetting the
+   transform on hover made them jump half their height. Tint only. */
+.viewer-arrow:hover { background: rgb(36 36 36 / .94); box-shadow: var(--shadow-float-sm); }
 
 /* --------------------------------------------------------------- 3. Modals
    Solid sheets for things you open on purpose. Dialogs are <Modal>, styled in

@@ -908,13 +908,18 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>
                           <summary>Generation settings</summary>
-                          <div className="detail-grid">
-                            {generationDetailEntries(active).map(([key, value]: [string, string]) => (
-                              <React.Fragment key={key}>
-                                <span>{key}</span><strong>{value}</strong>
-                              </React.Fragment>
-                            ))}
-                          </div>
+                          {generationDetailEntries(active).map((section: { title: string; rows: Array<[string, string]> }) => (
+                            <div className="detail-section" key={section.title}>
+                              <h4>{section.title}</h4>
+                              <div className="detail-grid">
+                                {section.rows.map(([key, value], index) => (
+                                  <React.Fragment key={`${key}-${index}`}>
+                                    <span>{key}</span><strong>{value}</strong>
+                                  </React.Fragment>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </details>
                       ) : null}
                     </div>

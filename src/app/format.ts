@@ -124,37 +124,56 @@ export function settingsText(item: GalleryItem) {
   return lines.filter(Boolean).join("\n");
 }
 
-export function generationDetailEntries(item: GalleryItem) {
+export type GenerationDetailSection = { title: string; rows: Array<[string, string]> };
+
+/**
+ * The "Generation settings" panel, most useful first: what made the picture
+ * (model, LoRAs), then how it was sampled, then the size, then file metadata.
+ */
+export function generationDetailEntries(item: GalleryItem): GenerationDetailSection[] {
   const settings = item.settings || {};
-  const rows: Array<[string, string]> = [];
-  const add = (label: string, value: unknown) => {
-    if (value === "" || value === undefined || value === null || value === 0 || value === false) return;
-    rows.push([label, String(value)]);
+  const sections: GenerationDetailSection[] = [];
+  const section = (title: string, build: (add: (label: string, value: unknown) => void) => void) => {
+    const rows: Array<[string, string]> = [];
+    build((label, value) => {
+      if (value === "" || value === undefined || value === null || value === 0 || value === false) return;
+      rows.push([label, String(value)]);
+    });
+    if (rows.length) sections.push({ title, rows });
   };
-  add("Aspect", `${item.width || "?"}x${item.height || "?"}`);
-  add("Model", item.model);
-  add("Output", item.outputName || item.filename);
-  add("Generated", formatGeneratedAt(item.createdAt));
-  add("Time", item.durationMs ? formatElapsed(item.durationMs) : "");
-  add("Type", item.type);
-  add("Workflow", settings.workflow);
-  add("Steps", settings.steps);
-  add("CFG", settings.cfg);
-  add("Sampler", settings.sampler);
-  add("Scheduler", settings.scheduler);
-  add("Seed", settings.seed);
-  add("LoRAs", formatLoraStack(settings.loras));
-  if (item.type === "image") {
-    const count = Number(settings.count || 0);
-    if (count > 1) add("Images", count);
-    if (item.referenceImage || settings.referenceImageName) add("Reference", settings.referenceImageName || item.referenceImageName || "Selected");
-    if (item.referenceImage || settings.referenceImageName) add("Denoise", settings.denoise);
-  }
-  if (item.type === "video") {
-    add("Frames", settings.frames);
-    add("FPS", settings.fps);
-  }
-  return rows;
+  const model = settings.modelName || (String(item.model || "").startsWith("custom:") ? "" : item.model);
+  section("Model", (add) => {
+    add("Model", model ? fileStem(model) : "");
+    add("Workflow", settings.workflow);
+    activeLoras(settings.loras).forEach((lora) => add("LoRA", `${fileStem(lora.name)} · ${Number(lora.strength ?? 0.7).toFixed(2)}`));
+  });
+  section("Sampling", (add) => {
+    add("Steps", settings.steps);
+    add("CFG", settings.cfg);
+    add("Sampler", settings.sampler);
+    add("Scheduler", settings.scheduler);
+    add("Seed", settings.seed);
+    if (item.type === "image" && (item.referenceImage || settings.referenceImageName)) add("Denoise", settings.denoise);
+  });
+  section(item.type === "video" ? "Video" : "Image", (add) => {
+    add("Aspect", `${item.width || "?"}x${item.height || "?"}`);
+    if (item.type === "image") {
+      const count = Number(settings.count || 0);
+      if (count > 1) add("Images", count);
+      if (item.referenceImage || settings.referenceImageName) add("Reference", settings.referenceImageName || item.referenceImageName || "Selected");
+    }
+    if (item.type === "video") {
+      add("Frames", settings.frames);
+      add("FPS", settings.fps);
+    }
+  });
+  section("File", (add) => {
+    add("Output", item.outputName || item.filename);
+    add("Generated", formatGeneratedAt(item.createdAt));
+    add("Time", item.durationMs ? formatElapsed(item.durationMs) : "");
+    add("Type", item.type);
+  });
+  return sections;
 }
 
 // crypto.randomUUID is exposed only in secure contexts, so it is missing when the
