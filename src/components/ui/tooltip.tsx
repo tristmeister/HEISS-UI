@@ -69,7 +69,7 @@ function Tooltip({
   children,
   side = "top",
   sideOffset = 8,
-  delayDuration = 200,
+  delayDuration = 600,
   className,
   forceOpen,
   onOpenChange: onOpenChangeProp,
