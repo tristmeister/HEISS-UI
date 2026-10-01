@@ -955,6 +955,8 @@ export function generationSettings(body) {
   if (body.kind === "image") {
     settings.count = Number(body.count || 1);
     if (body.startImage || body.startImageId) settings.denoise = Number(body.denoise || 0);
+    // Where the painted part sat in the reference; the mask itself is never kept.
+    if (body.inpaint?.box) settings.inpaint = { box: body.inpaint.box, strength: body.inpaint.strength, feather: body.inpaint.feather };
   }
   if (body.kind === "video") {
     settings.frames = Number(body.frames || 0);

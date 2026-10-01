@@ -1,13 +1,14 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Image as ImageIcon, Images, LoaderCircle, LockKeyhole, Plus, Trash2, Upload, X } from "lucide-react";
+import { Brush, Check, Image as ImageIcon, Images, LoaderCircle, LockKeyhole, Plus, Trash2, Upload, X } from "lucide-react";
 import { cn } from "./format";
 import { Tip } from "./components";
 import { useDismiss } from "./useDismiss";
 import { useHiddenActions } from "./hiddenContext";
 import { deleteReferenceAsset, listReferenceAssets, referenceAssetFromGallery, uploadReferenceAsset } from "./api";
-import type { MediaInput, ReferenceAsset, SelectedReferenceAsset } from "./types";
+import type { MediaInput, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from "./types";
+import { InpaintStudio } from "./InpaintStudio";
 import { SafeImg } from './SafeImg';
 
 type PickerTab = "generation" | "hidden" | "upload";
@@ -289,13 +290,22 @@ function DropBadge({ text }: { text: string }) {
 /** How much a start image may change (the sampler's denoise), 0-1. */
 export type ReferenceStrength = { value: number; onChange: (value: number) => void; meta?: { min?: number; max?: number; step?: number } };
 
+// The menu opens a beat after the pointer arrives and stays a moment after it
+// leaves, so passing over the chip or wobbling off its edge never flickers it.
+const hoverOpenDelay = 70;
+const hoverCloseDelay = 260;
+const inpaintIntroKey = "heiss-ui-inpaint-introduced";
+const inpaintIntroduced = () => { try { return localStorage.getItem(inpaintIntroKey) === "1"; } catch { return true; } };
+const coarsePointer = () => typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+const rememberInpaintIntro = () => { try { localStorage.setItem(inpaintIntroKey, "1"); } catch { /* shown again next time, which is fine */ } };
+
 /**
  * One reference input as a chip in the composer's top-right corner. Empty, it
  * introduces itself as "Add reference" (or "Add start image" for plain
  * image-to-image) and settles into a round +. With an
  * image it becomes a squircle thumbnail that opens into a small menu on hover.
  */
-function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh, onOpen, onRemove }: {
+function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh, paint, onOpen, onRemove }: {
   input: MediaInput;
   strength?: ReferenceStrength | null;
   selected: ReferenceAsset | null;
@@ -303,6 +313,8 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
   busy: boolean;
   progress: number;
   fresh: boolean;
+  /** Painting on this image, for a model that can inpaint: the studio's state and how to open it. */
+  paint?: { masked: boolean; open: boolean; intro: boolean; onOpen: () => void } | null;
   onOpen: () => void;
   onRemove: () => void;
 }) {
@@ -317,6 +329,14 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
     const id = window.setTimeout(() => setIntroduced(true), 2600);
     return () => window.clearTimeout(id);
   }, []);
+  const [hover, setHover] = React.useState(false);
+  const hoverTimer = React.useRef(0);
+  React.useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+  const hoverTo = (next: boolean, event: React.PointerEvent) => {
+    if (event.pointerType === "touch") return;
+    window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => setHover(next), next ? hoverOpenDelay : hoverCloseDelay);
+  };
 
   if (busy) {
     return (
@@ -347,7 +367,11 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
   }
 
   return (
-    <div className={cn("ref-chip ref-selected", open && "is-open", fresh && "is-new")}>
+    <div
+      className={cn("ref-chip ref-selected", (open || paint?.open) && "is-open", hover && "is-hover", paint?.intro && "is-intro", fresh && "is-new")}
+      onPointerEnter={(event) => hoverTo(true, event)}
+      onPointerLeave={(event) => hoverTo(false, event)}
+    >
       {/* The menu reveals leftward from behind the thumbnail with a clip-path, so
           nothing reflows and the thumbnail never moves. */}
       <div className="ref-menu">
@@ -355,7 +379,7 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
           <strong>{selected.name}</strong>
           <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Hidden" : "Upload"} · change</small>
         </button>
-        {isStart && strength ? (
+        {isStart && strength && !paint?.masked ? (
           <Tip content="How much the image can change. Low stays close; high keeps only its layout and colors.">
             <label className="ref-strength">
               <span>Change<b>{Math.round(strength.value * 100)}%</b></span>
@@ -374,10 +398,22 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
         <Tip content={`Remove ${label.toLowerCase()}`}>
           <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
         </Tip>
+        {paint ? (
+          <>
+            <span className="ref-menu-divider" aria-hidden="true" />
+            <Tip content={paint.masked ? "Change the painted part" : "Paint over a part to change only that"}>
+              <button type="button" className={cn("ref-menu-paint", paint.masked && "is-masked", paint.open && "is-active")} aria-label={paint.masked ? "Edit the painted part" : "Paint the part to change"} aria-pressed={paint.open} onClick={paint.onOpen}>
+                <Brush size={17} />
+                <span className="ref-menu-paint-label"><span>{coarsePointer() ? "Tap" : "Click"} to inpaint</span></span>
+              </button>
+            </Tip>
+          </>
+        ) : null}
       </div>
       <button type="button" data-open-trigger className="ref-thumb" onClick={onOpen} aria-label={`Change ${label.toLowerCase()}, currently ${selected.name}`} aria-expanded={open}>
         {image && !broken ? <img src={image} alt="" draggable={false} onError={() => setBroken(true)} /> : selected.source === "vault" ? <LockKeyhole size={14} /> : <ImageIcon size={15} />}
       </button>
+      {paint?.masked ? <i className="ref-mask-badge" aria-hidden="true"><Brush size={9} strokeWidth={2.6} /></i> : null}
     </div>
   );
 }
@@ -388,9 +424,10 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
  * Every reference input of the workflow, top right of the composer, plus the
  * picker popover and drop-and-paste uploads on the whole prompt bar.
  */
-export function ReferenceSlots({ inputs, strength = null, selected, onSelect, onRemove, confirmDelete, onError }: {
+export function ReferenceSlots({ inputs, strength = null, inpaint = null, selected, onSelect, onRemove, confirmDelete, onError }: {
   inputs: MediaInput[];
   strength?: ReferenceStrength | null;
+  inpaint?: ReferenceInpaint | null;
   selected: SelectedReferenceAsset[];
   onSelect: (slot: string, asset: ReferenceAsset) => void;
   onRemove: (slot: string) => void;
@@ -410,10 +447,28 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
   const overlayRef = React.useRef<HTMLDivElement>(null);
   const close = React.useCallback(() => setOpenSlot(""), []);
   useDismiss([rootRef, popRef], Boolean(openSlot), close);
+  // The inpaint studio stays open while the prompt is typed into: the whole bar counts as inside it.
+  const [painting, setPainting] = React.useState(false);
+  const studioRef = React.useRef<HTMLDivElement>(null);
+  const hostRef = React.useRef<HTMLElement | null>(null);
+  const stopPainting = React.useCallback(() => setPainting(false), []);
+  useDismiss([hostRef, studioRef], painting, stopPainting);
+  React.useEffect(() => { if (!inpaint) setPainting(false); }, [inpaint]);
+  const paintedAsset = inpaint ? selected.find((item) => item.slot === inpaint.slot)?.asset || null : null;
+  React.useEffect(() => { setPainting(false); }, [paintedAsset?.id]);
+  // The first image that can be painted on shows where the brush is, once, by opening its menu for a moment.
+  const [introSlot, setIntroSlot] = React.useState("");
+  React.useEffect(() => {
+    if (!inpaint || !paintedAsset || inpaintIntroduced()) return;
+    const start = window.setTimeout(() => setIntroSlot(inpaint.slot), 500);
+    const end = window.setTimeout(() => { setIntroSlot(""); rememberInpaintIntro(); }, 3600);
+    return () => { window.clearTimeout(start); window.clearTimeout(end); setIntroSlot(""); };
+  }, [inpaint?.slot, paintedAsset?.id]);
   // Find the prompt bar whenever this renders into it. On first mount there may be
   // no inputs yet (the workflow is still loading), so nothing is rendered to look from.
   React.useLayoutEffect(() => {
     const next = rootRef.current?.closest<HTMLElement>(".zen-prompt, .phone-compose") || null;
+    hostRef.current = next;
     setHost((current) => current === next ? current : next);
   });
 
@@ -554,7 +609,13 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
             busy={uploadSlot === input.id}
             progress={progress}
             fresh={freshSlot === input.id}
-            onOpen={() => setOpenSlot((current) => current === input.id ? "" : input.id)}
+            paint={inpaint && inpaint.slot === input.id && assetFor(input.id) ? {
+              masked: Boolean(inpaint.mask),
+              open: painting,
+              intro: introSlot === input.id,
+              onOpen: () => { setOpenSlot(""); setIntroSlot(""); rememberInpaintIntro(); setPainting((current) => !current); }
+            } : null}
+            onOpen={() => { setPainting(false); setOpenSlot((current) => current === input.id ? "" : input.id); }}
             onRemove={() => onRemove(input.id)}
           />
         ))}
@@ -575,6 +636,19 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
             confirmDelete={confirmDelete}
             onError={onError}
             upload={{ busy: Boolean(uploadSlot), progress, start: (file) => upload(file, openInput.id) }}
+          />
+        ) : null}
+      </AnimatePresence>
+      <AnimatePresence>
+        {painting && inpaint && paintedAsset && host ? (
+          <InpaintStudio
+            key={paintedAsset.id}
+            anchor={host}
+            asset={paintedAsset}
+            mask={inpaint.mask}
+            popRef={studioRef}
+            onChange={inpaint.onChange}
+            onClose={stopPainting}
           />
         ) : null}
       </AnimatePresence>

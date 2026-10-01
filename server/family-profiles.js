@@ -3,6 +3,7 @@ import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
 import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
+import { inpaintNodes } from './inpaint.js';
 import { ggufEncoderNames, ggufModelNames, isGguf } from './gguf.js';
 import { missingPackPart } from './node-install.js';
 import { classifyModel, familyLabel, modelFileBytes } from './model-families.js';
@@ -68,6 +69,18 @@ const downloadSources = {
  */
 // ReferenceLatent edits scale, encode and chain each image; an encoder that reads images needs nothing more.
 const referenceLatentNodes = ["ImageScaleToTotalPixels", "VAEEncode", "ReferenceLatent", "GetImageSize"];
+/**
+ * Inpainting needs a family that can take an image in (an edit model's
+ * reference, or img2img's start image) through the shared graph, plus the
+ * core nodes the crop-and-stitch graph adds (inpaint.js).
+ */
+const ownGraphs = new Set(["ideogram4", "mage", "h3", "sana", "pair"]);
+function canInpaint(family, info, references) {
+  if (family.kind !== "image" || ownGraphs.has(family.sampling) || family.ownLoaders) return false;
+  if (!references && !family.img2img) return false;
+  return inpaintNodes.every((node) => hasNode(info, node));
+}
+
 function canReference(family, info) {
   if (!family.references) return false;
   return family.referenceVia === "encoder" || referenceLatentNodes.every((node) => hasNode(info, node));
@@ -392,6 +405,8 @@ export function familyProfiles(info, helpers) {
         clipType: family.clipType || "",
         weightDtype: weightDtypes.includes("default") ? "default" : weightDtypes[0] || "default",
         denoise: family.img2img ? 0.65 : 1,
+        // An edit model rebuilds the painted part from scratch; img2img keeps a little of what was there.
+        inpaintStrength: references ? 1 : 0.8,
         ...(family.kind === "video" ? { frames: family.frames, fps: family.fps } : {})
       },
       aspects: aspectSet({ width, height }, family.aspects, { width: widthRange, height: heightRange }),
@@ -414,6 +429,7 @@ export function familyProfiles(info, helpers) {
         startImage: Boolean(family.img2img || family.startImage),
         startImageRequired: family.startImage === "required",
         denoise: Boolean(family.img2img),
+        inpaint: canInpaint(family, info, references),
         frames: family.kind === "video",
         fps: family.kind === "video"
       }

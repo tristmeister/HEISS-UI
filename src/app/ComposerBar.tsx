@@ -5,7 +5,7 @@ import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ReferenceSlots, type ReferenceStrength } from './ReferenceMediaPicker';
-import type { AspectPreset, MediaInput, Profile, ReferenceAsset, SelectedReferenceAsset } from './types';
+import type { AspectPreset, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from './types';
 import { estimatePhrase, formatAbout, type GenerationEstimate } from './useGenerationEstimate';
 
 /* ---------------------------------------------------------------------------
@@ -238,6 +238,7 @@ export type ComposerBarProps = {
   comfyRetrying?: boolean;
   referenceInputs?: MediaInput[];
   referenceStrength?: ReferenceStrength | null;
+  referenceInpaint?: ReferenceInpaint | null;
   referenceAssets?: SelectedReferenceAsset[];
   onReferenceSelect: (slot: string, asset: ReferenceAsset) => void;
   onReferenceRemove: (slot: string) => void;
@@ -264,7 +265,7 @@ export function ComposerBar(props: ComposerBarProps) {
     hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
-    referenceInputs = [], referenceStrength = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
+    referenceInputs = [], referenceStrength = null, referenceInpaint = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
     pinnedSeed = "", onRandomSeed, generationEstimate = null, generateKey = "", onToggleHistory, historyOpen = false
   } = props;
 
@@ -338,7 +339,7 @@ export function ComposerBar(props: ComposerBarProps) {
 
   return (
     <>
-      <ReferenceSlots inputs={referenceInputs} strength={referenceStrength} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
+      <ReferenceSlots inputs={referenceInputs} strength={referenceStrength} inpaint={referenceInpaint} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (
         <motion.div

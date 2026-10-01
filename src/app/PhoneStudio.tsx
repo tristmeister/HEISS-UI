@@ -416,7 +416,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
       {!hiddenLocked && !selecting ? (
         <div className={cn('phone-create-pill', hiddenSpace && 'is-hidden')}>
           <button type="button" className="phone-create-open" onClick={() => setCreateOpen(true)}>
-            <strong className={cn(!prompt.trim() && 'is-placeholder')}>{prompt.trim() ? truncate(prompt, 90) : hiddenSpace ? 'Describe what to make, privately…' : 'Describe what to make…'}</strong>
+            <strong className={cn(!prompt.trim() && 'is-placeholder')}>{prompt.trim() ? truncate(prompt, 90) : view.referenceInpaint?.mask ? 'Describe what the painted part becomes…' : hiddenSpace ? 'Describe what to make, privately…' : 'Describe what to make…'}</strong>
             <small>{stepLine ? <span className="phone-step-line">{pending.length > 1 ? `Generating ${pending.length} · ` : 'Generating · '}{stepLine}{pending.length === 1 && pending[0].progress?.endsAt ? <> · <RunLeft progress={pending[0].progress} /></> : null}</span> : workflowName}</small>
           </button>
           <button
@@ -482,7 +482,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const {
     prompt, setPrompt, promptLimit, clampText, negative, setNegative, negativeLimit, currentProfile, hiddenSpace,
     aspectOptions, aspectPickerValue, aspectLocked, defaultAspectSize, mode, count, countMeta, setCount, steps, stepsMeta, setSteps,
-    referenceInputs, referenceStrength, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
+    referenceInputs, referenceStrength, referenceInpaint, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
     generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls, generationEstimate
   } = view;
   const [sheet, setSheet] = React.useState<'' | 'workflow' | 'aspect' | 'advanced'>('');
@@ -536,6 +536,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
         <ReferenceSlots
           inputs={referenceInputs || []}
           strength={referenceStrength}
+          inpaint={referenceInpaint}
           selected={referenceAssets || []}
           onSelect={selectReferenceAsset}
           onRemove={removeReferenceAsset}
@@ -545,7 +546,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
         <textarea
           aria-label={hiddenSpace ? 'Prompt (Hidden)' : 'Prompt'}
           value={prompt}
-          placeholder={hiddenSpace ? 'Describe what to make, privately…' : 'Describe what to make…'}
+          placeholder={referenceInpaint?.mask ? 'Describe what the painted part becomes…' : hiddenSpace ? 'Describe what to make, privately…' : 'Describe what to make…'}
           onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))}
           rows={4}
           autoFocus={!prompt.trim()}

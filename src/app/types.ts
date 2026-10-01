@@ -33,6 +33,10 @@ export type ReferenceAsset = {
   galleryItemId?: string;
 };
 export type SelectedReferenceAsset = { slot: string; asset: ReferenceAsset };
+/** A mask painted on a reference image: white where it should change, as a PNG data URL. */
+export type InpaintMask = { assetId: string; dataUrl: string };
+/** The composer's painting on its first reference slot: the current mask, and how to change it. */
+export type ReferenceInpaint = { slot: string; mask: string | null; onChange: (dataUrl: string | null) => void };
 export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
 export type UpscaleQuality = "fast" | "balanced" | "high";

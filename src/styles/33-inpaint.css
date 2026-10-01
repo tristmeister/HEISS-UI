@@ -1,0 +1,247 @@
+/* ---------------------------------------------------------------------------
+   Inpaint studio (src/app/InpaintStudio.tsx)
+
+   Rises out of the prompt bar like the reference picker, in the same glass.
+   The image fills it edge to edge; the tools float over it: a pill at the
+   top, the brush size on the left.
+--------------------------------------------------------------------------- */
+
+.inpaint-studio {
+  position: fixed;
+  z-index: 90; /* the reference picker's layer: over the deck and composer, under modals and toasts */
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-panel);
+  background: var(--surface-grain), var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float);
+  transform-origin: 94% 100%;
+  isolation: isolate;
+}
+
+.inpaint-viewport {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  background: var(--well);
+}
+.inpaint-viewport.is-brush,
+.inpaint-viewport.is-eraser { cursor: none; }
+.inpaint-viewport.is-hand { cursor: grab; }
+.inpaint-viewport.is-hand.is-panning { cursor: grabbing; }
+
+.inpaint-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.inpaint-stage img,
+.inpaint-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+/* The paint is opaque on the canvas, so overlapping strokes never darken; the
+   whole layer is see-through instead. */
+.inpaint-stage canvas { opacity: .55; }
+
+.inpaint-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 12.5px;
+  color: hsl(var(--muted-foreground));
+}
+
+/* The brush outline follows the pointer at its true size. */
+.inpaint-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / .9), 0 0 0 2px rgb(0 0 0 / .35), inset 0 0 0 1px rgb(0 0 0 / .35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms var(--ease-out), width 140ms var(--ease-out), height 140ms var(--ease-out);
+}
+.inpaint-ring.is-eraser { box-shadow: 0 0 0 1px rgb(255 255 255 / .9), 0 0 0 2px rgb(0 0 0 / .35); background: rgb(255 255 255 / .08); }
+.inpaint-ring.is-preview { background: rgb(255 154 82 / .3); }
+
+.inpaint-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 2;
+  margin: 0;
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  background: rgb(20 20 20 / .62);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  backdrop-filter: blur(14px) saturate(1.4);
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+  color: hsl(var(--foreground));
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  translate: -50% 0;
+  pointer-events: none;
+  transition: opacity 260ms var(--ease-out), translate 360ms var(--ease-out), filter 260ms var(--ease-out);
+}
+.inpaint-hint.is-hidden { opacity: 0; translate: -50% 6px; filter: blur(3px); }
+
+/* ------------------------------------------------------------- Tool pill */
+
+.inpaint-pill {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--r-pill);
+  background: var(--surface-grain), rgb(30 30 30 / .82);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: inset 0 0 0 1px var(--surface-border), var(--shadow-float-sm);
+  translate: -50% 0;
+}
+.inpaint-tool {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), scale 100ms;
+}
+.inpaint-tool:hover:not(:disabled) { background: var(--control-hover); color: hsl(var(--foreground)); }
+.inpaint-tool:active:not(:disabled) { scale: .92; }
+.inpaint-tool.is-active { background: var(--selected); color: #fff; }
+.inpaint-tool:disabled { opacity: .35; cursor: default; }
+.inpaint-tool:focus-visible,
+.inpaint-zoom-reset:focus-visible,
+.inpaint-size:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inpaint-divider { flex: none; width: 1px; height: 20px; margin: 0 4px; background: var(--surface-border); }
+
+/* Fit-to-view appears only once zoomed, as the zoom level. */
+.inpaint-zoom { display: grid; grid-template-columns: 0fr; transition: grid-template-columns 360ms var(--ease-out); }
+.inpaint-zoom.is-shown { grid-template-columns: 1fr; }
+.inpaint-zoom > * { min-width: 0; overflow: hidden; }
+.inpaint-zoom-reset {
+  height: 36px;
+  margin-left: 2px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out), background var(--dur-fast);
+}
+.inpaint-zoom.is-shown .inpaint-zoom-reset { opacity: 1; }
+.inpaint-zoom-reset:hover { background: var(--control-hover); }
+
+/* -------------------------------------------------------- Brush size */
+
+/* At rest a slim pill; hovered or dragged, a wedge that is wide at the top
+   (big brush) and fine at the bottom (small brush). */
+.inpaint-size {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  z-index: 3;
+  width: 44px;
+  height: min(200px, calc(100% - 96px));
+  padding: 14px 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-grain), rgb(30 30 30 / .82);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: inset 0 0 0 1px var(--surface-border), var(--shadow-float-sm);
+  translate: 0 -50%;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.inpaint-size-track { position: relative; height: 100%; }
+.inpaint-size-wedge {
+  position: absolute;
+  inset: 0 0 0 0;
+  background: rgb(255 255 255 / .28);
+  /* Collapsed: a 4px rod. Open: the wedge. Both shapes have the same points, so it morphs. */
+  clip-path: polygon(calc(50% - 2px) 0, calc(50% + 2px) 0, calc(50% + 2px) 100%, calc(50% - 2px) 100%);
+  transition: clip-path 360ms var(--ease-out), background var(--dur-fast);
+}
+.inpaint-size:hover .inpaint-size-wedge,
+.inpaint-size:focus-visible .inpaint-size-wedge,
+.inpaint-size.is-dragging .inpaint-size-wedge {
+  background: rgb(255 255 255 / .34);
+  clip-path: polygon(calc(50% - 9px) 0, calc(50% + 9px) 0, calc(50% + 1px) 100%, calc(50% - 1px) 100%);
+}
+.inpaint-size-thumb {
+  position: absolute;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .45), 0 0 0 .5px rgb(0 0 0 / .2);
+  translate: -50% -50%;
+  transition: top 160ms var(--ease-out), scale 160ms var(--ease-out);
+}
+.inpaint-size:hover .inpaint-size-thumb,
+.inpaint-size.is-dragging .inpaint-size-thumb { scale: 1.12; }
+.inpaint-size.is-dragging .inpaint-size-thumb { transition: scale 160ms var(--ease-out); }
+
+/* ------------------------------------------------------------- Phone */
+
+.inpaint-studio.is-sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 70;
+  width: auto;
+  height: min(640px, 82dvh);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-radius: 24px 24px 0 0;
+  transform-origin: 50% 100%;
+}
+@media (max-width: 620px) {
+  .inpaint-pill { top: 10px; }
+  .inpaint-tool { width: 40px; height: 40px; }
+  .inpaint-size { left: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inpaint-ring,
+  .inpaint-hint,
+  .inpaint-zoom,
+  .inpaint-zoom-reset,
+  .inpaint-size-wedge,
+  .inpaint-size-thumb,
+  .ref-menu-paint-label,
+  .ref-menu-paint-label > span { transition: none; }
+  .ref-mask-badge { animation: none; }
+}
