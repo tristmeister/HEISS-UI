@@ -5,7 +5,7 @@ import { cn } from './format';
 import { Modal } from './Modal';
 import { CellBar } from './UpscaleDialogs';
 import { formatEta } from './UpscaleDownloadActivity';
-import { downloadFor, useModelDownloads } from './useModelDownloads';
+import { downloadFor, scrollRevealed, useDownloadReveal, useModelDownloads } from './useModelDownloads';
 import { formatDownload, formatGB, hardwareSentence, memoryWord, type Hardware } from './hardware';
 import { useThisComputer } from './device';
 import type { ModelDownload } from './types';
@@ -41,6 +41,19 @@ function useStarterPlan() {
   }, []);
   React.useEffect(() => { load(); }, [load]);
   return { plan, reload: load };
+}
+
+const hasFile = (plan: StarterPlan, file: string) => plan.families.some((family) => family.versions.some((version) => version.downloads.some((item) => item.file === file)));
+
+/** Whether a file belongs to a starter model, as far as the plan already loaded says; null before it has loaded. */
+export function starterHas(file: string) {
+  return planCache ? hasFile(planCache, file) : null;
+}
+
+/** The same, loading the plan first if it has to: the download island asks it to know where to take people. */
+export async function isStarterFile(file: string) {
+  const plan = planCache || await apiJson<StarterPlan & { ok: boolean }>('/api/starter-models').then((data) => (planCache = data)).catch(() => null);
+  return plan ? hasFile(plan, file) : false;
 }
 
 type Progress = { state: 'idle' | 'moving' | 'paused' | 'error' | 'done'; received: number; total: number; speed: number; error: string; retryable: boolean };
@@ -83,6 +96,17 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   const { state, landed, start, pause } = useModelDownloads({ onDone: () => reload() });
   const thisComputer = useThisComputer();
   const [chosen, setChosen] = React.useState<Record<string, string>>({});
+  // Opened from the download island: that family's card shows the version downloading, lit up. Only in the sheet, which the island opens.
+  const reveal = useDownloadReveal('starter');
+  const revealing = compact && reveal ? reveal.file : '';
+  // Kept once the light fades: the card goes on showing the version that is downloading.
+  React.useEffect(() => {
+    if (!revealing || !plan) return;
+    for (const family of plan.families) {
+      const version = family.versions.find((item) => item.downloads.some((download) => download.file === revealing));
+      if (version) setChosen((current) => ({ ...current, [family.family]: version.id }));
+    }
+  }, [revealing, plan]);
   if (!plan) return <div className={cn('starter-models', 'is-loading', compact && 'is-compact')} aria-busy="true" />;
   const hardware = plan.hardware;
   const canDownload = plan.local !== false && thisComputer;
@@ -91,7 +115,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   const get = async (family: StarterFamily, version: StarterVersion) => {
     try {
       // The model file last: the studio lists it once every part is in place, ready to run.
-      for (const item of version.downloads) if (!item.onDisk && !landed.has(item.file)) await start(item.id);
+      for (const item of version.downloads) if (!item.onDisk && !landed.has(item.file)) await start(item.id, { kind: 'starter' });
       onStarted({ family: version.family, file: version.file, title: family.title });
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Couldn’t start the download', 'error');
@@ -111,7 +135,8 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
       </p>
       <div className="starter-grid">
         {plan.families.map((family) => {
-          const selectedId = chosen[family.family] || family.best || family.versions[0]?.id;
+          const revealedVersion = revealing ? family.versions.find((item) => item.downloads.some((download) => download.file === revealing)) : undefined;
+          const selectedId = revealedVersion?.id || chosen[family.family] || family.best || family.versions[0]?.id;
           const version = family.versions.find((item) => item.id === selectedId) || family.versions[0];
           if (!version) return null;
           const fitting = family.versions.filter((item) => item.fits).length;
@@ -120,7 +145,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
           const fitNote = version.fits ? (version.id === family.best && fitting > 1 ? 'Best on this computer' : 'Fits this computer') : '';
           const left = progress.total - progress.received;
           return (
-            <article key={family.family} className={cn('starter-card', progress.state !== 'idle' && !ready && 'is-busy')} aria-label={family.title}>
+            <article key={family.family} ref={revealedVersion ? scrollRevealed : undefined} className={cn('starter-card', progress.state !== 'idle' && !ready && 'is-busy', revealedVersion && 'is-revealed')} aria-label={family.title}>
               <header className="starter-card-head">
                 <h3>{family.title}</h3>
                 <p>{family.blurb}</p>

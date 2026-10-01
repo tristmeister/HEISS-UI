@@ -8,6 +8,7 @@ import { BetaTag, Field, StudioSelect as Select } from './components';
 import { Segmented } from './SettingsDialog';
 import { workflowState } from './workflowStatus';
 import { ModelSetup } from './ModelSetup';
+import { peekDownloadReveal } from './useModelDownloads';
 import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
 import type { Mode, Profile, WorkflowImportPreview, WorkflowPreferences, WorkflowRisk, WorkflowSummary } from './types';
@@ -22,6 +23,15 @@ type Filter = "all" | "favorites" | "attention";
 /** The file lines the setup panel already shows as rows (see custom-workflows.js workflowOptionIssues). */
 const missingFileIssue = /^Missing (diffusion model|checkpoint|text encoder|VAE|upscale model|file):/;
 
+
+/** The workflow whose setup panel lists a file, where the download pill leads: the one it was started from, else the first that needs it. */
+function workflowNeeding(workflows: WorkflowSummary[], profiles: Profile[] = [], file: string, subject = "") {
+  const needs = (workflow: WorkflowSummary) => {
+    const missing = profiles.find((profile) => profile.id === workflow.profileId)?.missing || workflow.validation.missingParts || [];
+    return missing.some((part) => part.downloads.some((download) => download.file === file));
+  };
+  return (subject ? workflows.find((workflow) => workflow.id === subject || workflow.profileId === subject) : undefined) || workflows.find(needs);
+}
 
 function timeLabel(value = "") {
   if (!value) return "";
@@ -174,10 +184,15 @@ export function WorkflowGallery({ view }: { view: any }) {
     chooseModel: (id: string) => void;
     models: { profiles: Profile[] } | null;
   };
-  const [kind, setKind] = useState<Mode>(mode);
+  // Opened from the download pill: straight to the workflow whose setup panel has that file (ModelSetup lights the row).
+  const [revealed] = useState(() => {
+    const reveal = peekDownloadReveal("setup");
+    return reveal ? workflowNeeding(workflows, models?.profiles, reveal.file, reveal.subject) : undefined;
+  });
+  const [kind, setKind] = useState<Mode>(revealed?.kind || mode);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
-  const [selectedId, setSelectedId] = useState(model || workflows.find((item) => item.kind === mode)?.id || "");
+  const [selectedId, setSelectedId] = useState(revealed?.id || model || workflows.find((item) => item.kind === mode)?.id || "");
   const [importOpen, setImportOpen] = useState(false);
   const [importStep, setImportStep] = useState<"choose" | "review">("choose");
   const [pasteJson, setPasteJson] = useState("");
@@ -185,7 +200,7 @@ export function WorkflowGallery({ view }: { view: any }) {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(false);
+  const [mobileDetailsOpen, setMobileDetailsOpen] = useState(Boolean(revealed));
   const fileInput = useRef<HTMLInputElement>(null);
   // The filter pills scroll sideways with a plain wheel; their scrollbar is hidden.
   const filtersWheelRef = useWheelRef<HTMLDivElement>(scrollSideways);

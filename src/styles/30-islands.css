@@ -85,6 +85,77 @@ button.activity-main { cursor: pointer; }
 .activity .cell-bar { height: 5px; }
 .activity-body > .island-action { margin-right: 4px; }
 .activity-body > .island-action:last-child { margin-right: 12px; }
+/* A count after the title ("+2"): more of the same work waiting its turn. */
+.activity-badge {
+  flex: none;
+  margin-right: auto;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .08);
+  font: 600 10.5px var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: hsl(var(--muted-foreground));
+}
+
+/* Expanded, Dynamic Island style: the glass widens a little on a spring and
+   grows a row of round buttons under the words, which stay where they are.
+   The height follows by itself (Activities.tsx measures the body). */
+.activity { transition: width 520ms var(--spring); }
+.activity.is-expanded { width: min(400px, calc(100vw - 12px)); }
+.activity.is-wide.is-expanded { width: min(440px, calc(100vw - 12px)); }
+.activity-body { flex-wrap: wrap; }
+.activity-controls {
+  display: flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 8px;
+  /* Under the words, past the glyph: the main row's padding, the glyph and the gap. */
+  padding: 0 12px 11px 62px;
+  transform-origin: 50% 0;
+}
+.activity-control {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .09);
+  color: #f2f2f2;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease-out);
+}
+.activity-control:hover { background: rgb(255 255 255 / .16); color: #fff; }
+.activity-control:active { transform: scale(.92); }
+.activity-control:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.activity-control.is-danger:hover { background: rgb(255 110 90 / .2); color: #ff8b78; }
+.activity-control-hint {
+  margin-left: auto;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font: inherit;
+  font-size: 11.5px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color var(--dur-fast);
+}
+.activity-control-hint:hover { color: #fff; }
+.activity-control-hint:focus-visible { outline: none; border-radius: 6px; box-shadow: var(--focus-ring); }
+@media (pointer: coarse) {
+  .activity-control { width: 40px; height: 40px; }
+  .activity-control-hint { padding: 11px 4px; }
+}
+
+/* Paused: the arrow keeps its fill but stops glowing and twinkling. Canceled: it dims as well. */
+.model-dl-glyph { display: grid; place-items: center; transition: opacity var(--dur-base), filter var(--dur-base); }
+.model-dl-glyph.is-paused .udw-arrow { filter: saturate(.55); }
+.model-dl-glyph.is-paused :is(.udw-twinkle, .udw-spark) { animation-play-state: paused; }
+.model-dl-glyph.is-canceled { opacity: .45; filter: grayscale(1); }
+.model-dl-glyph.is-canceled :is(.udw-twinkle, .udw-spark) { animation: none; }
+
 .activity-thumb { flex: none; width: 34px; height: 34px; object-fit: cover; border-radius: 9px; outline: 1px solid rgb(255 255 255 / .1); outline-offset: -1px; }
 .activity-thumb.is-waiting { opacity: .75; filter: saturate(.7); }
 
@@ -323,7 +394,26 @@ button.activity-main { cursor: pointer; }
 .toast-close:focus-visible { opacity: 1; }
 @media (hover: none) { .toast-close { opacity: .8; } }
 
+/* ------------------------------------------- Where a download island leads
+   Opened from the island, the setup row or starter card for that download
+   lights up once, so the eye lands on it (see revealDownload). */
+
+.model-setup-item.is-revealed,
+.starter-card.is-revealed { animation: download-reveal 2.2s var(--ease-out); }
+@keyframes download-reveal {
+  0%, 35% { box-shadow: 0 0 0 1.5px rgb(255 154 82 / .85), 0 0 22px rgb(255 154 82 / .28); }
+  100% { box-shadow: 0 0 0 1.5px rgb(255 154 82 / 0), 0 0 22px rgb(255 154 82 / 0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .activity,
+  .activity-control,
+  .model-dl-glyph { transition: none; }
+  .activity.is-expanded { width: min(380px, calc(100vw - 24px)); }
+  .activity.is-wide.is-expanded { width: min(420px, calc(100vw - 24px)); }
+  /* Still lit, just without the fade: a plain outline that stays while it lasts. */
+  .model-setup-item.is-revealed,
+  .starter-card.is-revealed { animation: none; box-shadow: 0 0 0 1.5px rgb(255 154 82 / .85); }
   .activity-frame.is-working::after,
   .activity-heat rect,
   .activity-fan .activity-frame { animation: none; }

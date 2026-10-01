@@ -6,7 +6,7 @@ import { NodeInstall, ShellCommand } from './NodeInstall';
 import { CellBar } from './UpscaleDialogs';
 import { formatEta } from './UpscaleDownloadActivity';
 import { cn } from './format';
-import { downloadFor, useModelDownloads } from './useModelDownloads';
+import { downloadFor, scrollRevealed, useDownloadReveal, useModelDownloads } from './useModelDownloads';
 import type { MissingPart, ModelDownload, PartDownload, Profile } from './types';
 import { useThisComputer } from './device';
 import type { ShowToast } from './toast';
@@ -63,7 +63,12 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   alsoNeedsNodes?: boolean;
 }) {
   const reduced = useReducedMotion();
-  const { state, landed, start, pause, discard } = useModelDownloads();
+  const { state, landed, start: startDownload, pause, discard } = useModelDownloads();
+  // Remembered with each download, so the top pill can bring people back to this panel.
+  const start = (id: string) => startDownload(id, { kind: 'setup', subject: profile.id });
+  // Opened from that pill: its row lights up. Only in the gallery, which is what the pill opens.
+  const reveal = useDownloadReveal('setup');
+  const revealing = variant === 'gallery' && reveal ? reveal.file : '';
   const [remoteAnswer, setRemote] = React.useState(false);
   // Known before anyone clicks: a ComfyUI elsewhere cannot receive downloads from here.
   const thisComputer = useThisComputer();
@@ -221,8 +226,9 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
           const row = rowFor.get(key);
           if (!row) return <SetupRowShell key={key} item={memory!.get(key)!} rowState="installed" />;
           const { item, download, current, rowState } = row;
+          const revealed = Boolean(revealing) && item.downloads.some((entry) => entry.file === revealing);
           return (
-          <li key={key} className={cn('model-setup-item', `is-${rowState}`)}>
+          <li key={key} ref={revealed ? scrollRevealed : undefined} className={cn('model-setup-item', `is-${rowState}`, revealed && 'is-revealed')}>
             <SetupRowHead item={item} rowState={rowState}>
               <RowActions rowState={rowState} download={download} current={current} remote={remote} run={run} start={start} pause={pause} discard={discard} />
             </SetupRowHead>

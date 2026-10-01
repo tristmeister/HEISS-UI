@@ -1,7 +1,8 @@
-import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { CellBar } from './UpscaleDialogs';
+import { Tip } from './components';
 import { cn } from './format';
 import { usePageHidden, usePausableTimeout } from '@/hooks/use-pausable-timeout';
 
@@ -22,6 +23,12 @@ import { usePageHidden, usePausableTimeout } from '@/hooks/use-pausable-timeout'
 
 export type ActivityState = 'live' | 'done' | 'error';
 export type ActivityCommand = { label: string; run: () => void };
+/**
+ * A round icon button in the island's expanded row: `label` for screen
+ * readers, `tip` on hover. `run` may return a promise; once it settles, focus
+ * that went with a button the new phase took away comes back to the island.
+ */
+export type ActivityControl = { key: string; label: string; tip: string; icon: React.ReactNode; tone?: 'danger'; run: () => unknown };
 
 export type Activity = {
   /** Stable for as long as it is the same work: the island stays and its content morphs. */
@@ -33,6 +40,8 @@ export type Activity = {
   title: React.ReactNode;
   /** A figure right of the title, like the percentage. */
   figure?: React.ReactNode;
+  /** A small count after the title, like "+2" for more waiting their turn. */
+  badge?: React.ReactNode;
   /** 0–1: a cell bar under the title. */
   progress?: number;
   meta?: React.ReactNode;
@@ -45,6 +54,14 @@ export type Activity = {
   wide?: boolean;
   /** Clicking the body: where this work lives. */
   open?: ActivityCommand;
+  /**
+   * Buttons the island grows to hold, like the Dynamic Island: on hover, on
+   * keyboard focus, or on a first tap where there is no hover (the second
+   * tap opens). The words stay where they are; a row opens under them.
+   */
+  controls?: ActivityControl[];
+  /** Where `open` goes, said quietly at the end of that row, like "Show in Workflows". */
+  openHint?: string;
   /** One bright capsule. */
   action?: ActivityCommand;
   dismiss?: ActivityCommand & { title?: string };
@@ -84,15 +101,47 @@ export function ActivityColumn({ activities, onHeight }: {
   );
 }
 
+const HOVER_IN_MS = 90;
+const HOVER_OUT_MS = 240;
+
+/** Focus that came from the keyboard. A click or tap focuses too, and that is hover's (or the tap's) business. */
+function keyboardFocus(target: EventTarget) {
+  try { return (target as HTMLElement).matches(':focus-visible'); } catch { return true; }
+}
+
 function ActivityIsland({ activity }: { activity: Activity }) {
   const reduced = useReducedMotion();
   const [held, setHeld] = useState(false);
   const pageHidden = usePageHidden();
   const [height, setHeight] = useState<number>();
+  const islandRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const { expire } = activity;
+  const mainRef = useRef<HTMLElement>(null);
+  const { expire, controls } = activity;
 
-  usePausableTimeout(expire ? expire.after : null, () => expire?.run(), held || pageHidden, `${activity.id}:${activity.phase}`);
+  // Open while hovered, while a key has focus inside, or pinned by a tap; the hover with a little intent either way.
+  const canExpand = Boolean(controls?.length);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [pinned, setPinned] = useState(false);
+  const expanded = canExpand && (hovered || focused || pinned);
+  const hoverTimer = useRef(0);
+  const pointer = useRef('');
+  const hover = (on: boolean) => {
+    window.clearTimeout(hoverTimer.current);
+    hoverTimer.current = window.setTimeout(() => setHovered(on), on ? HOVER_IN_MS : HOVER_OUT_MS);
+  };
+  useEffect(() => () => window.clearTimeout(hoverTimer.current), []);
+  useEffect(() => { if (!canExpand) setPinned(false); }, [canExpand]);
+  // A tap anywhere else folds a pinned island back.
+  useEffect(() => {
+    if (!pinned) return;
+    const away = (event: PointerEvent) => { if (!islandRef.current?.contains(event.target as Node)) setPinned(false); };
+    document.addEventListener('pointerdown', away, true);
+    return () => document.removeEventListener('pointerdown', away, true);
+  }, [pinned]);
+
+  usePausableTimeout(expire ? expire.after : null, () => expire?.run(), held || expanded || pageHidden, `${activity.id}:${activity.phase}`);
 
   // The glass follows its content's height, so a new phase grows or shrinks it smoothly.
   useLayoutEffect(() => {
@@ -105,11 +154,38 @@ function ActivityIsland({ activity }: { activity: Activity }) {
     return () => observer.disconnect();
   }, []);
 
+  const clickMain = () => {
+    // No hover on touch: the first tap shows the buttons, the next one opens.
+    if (canExpand && pointer.current === 'touch' && !expanded) { setPinned(true); return; }
+    activity.open?.run();
+  };
+  // A control that swaps the island's phase can take its own button away; focus stays on the island.
+  const runControl = (control: ActivityControl) => {
+    Promise.resolve(control.run()).catch(() => null).finally(() => window.requestAnimationFrame(() => {
+      const island = islandRef.current;
+      // Only focus that fell to the page; never pull it back from somewhere it was moved to.
+      if (!island || document.activeElement !== document.body) return;
+      // In this order: a list selector would always find the main button first.
+      const next = ['.activity-control', '.island-action', '.activity-main'].map((selector) => island.querySelector<HTMLElement>(selector)).find(Boolean);
+      next?.focus();
+    }));
+  };
+  const fold = (event: React.KeyboardEvent) => {
+    if (event.key !== 'Escape' || !expanded) return;
+    event.stopPropagation();
+    // Off a button that is about to go, back onto the island itself.
+    if (!mainRef.current?.contains(document.activeElement) && activity.open) mainRef.current?.focus();
+    setPinned(false);
+    setFocused(false);
+    setHovered(false);
+  };
+
   const Main = activity.open ? 'button' : 'div';
   return (
     <motion.div
+      ref={islandRef}
       layout="position"
-      className={cn('island', 'activity', `is-${activity.state}`, activity.wide && 'is-wide')}
+      className={cn('island', 'activity', `is-${activity.state}`, activity.wide && 'is-wide', expanded && 'is-expanded')}
       role="status"
       aria-live="polite"
       // Opacity on the glass itself: on a parent it would cut off the backdrop blur.
@@ -117,14 +193,17 @@ function ActivityIsland({ activity }: { activity: Activity }) {
       animate={{ opacity: 1, y: 0, scale: 1, height: height ?? 'auto' }}
       exit={reduced ? { opacity: 0 } : { opacity: 0, y: -14, scale: 0.96 }}
       transition={reduced ? { duration: 0.15 } : ENTER}
-      onPointerEnter={() => setHeld(true)}
-      onPointerLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
-      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setHeld(false); }}
+      onPointerDownCapture={(event) => { pointer.current = event.pointerType; }}
+      onPointerEnter={(event) => { setHeld(true); if (event.pointerType !== 'touch') hover(true); }}
+      onPointerLeave={(event) => { setHeld(false); if (event.pointerType !== 'touch') hover(false); }}
+      onFocus={(event) => { setHeld(true); if (keyboardFocus(event.target)) setFocused(true); }}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) { setHeld(false); setFocused(false); } }}
+      onKeyDown={fold}
     >
       <div ref={bodyRef} className="activity-body">
         <Main
-          {...(activity.open ? { type: 'button' as const, onClick: activity.open.run, 'aria-label': activity.open.label } : {})}
+          ref={mainRef as React.Ref<never>}
+          {...(activity.open ? { type: 'button' as const, onClick: clickMain, 'aria-label': activity.open.label } : canExpand ? { onClick: clickMain } : {})}
           className="activity-main"
         >
           <span className="activity-glyph">{activity.glyph}</span>
@@ -140,6 +219,7 @@ function ActivityIsland({ activity }: { activity: Activity }) {
               >
                 <span className="activity-title">
                   <strong>{activity.title}</strong>
+                  {activity.badge !== undefined ? <span className="activity-badge">{activity.badge}</span> : null}
                   {activity.figure !== undefined ? <em>{activity.figure}</em> : null}
                 </span>
                 {activity.progress !== undefined ? <CellBar value={activity.progress} /> : null}
@@ -155,6 +235,33 @@ function ActivityIsland({ activity }: { activity: Activity }) {
         {activity.dismiss ? (
           <button type="button" className="island-close" onClick={activity.dismiss.run} aria-label={activity.dismiss.label} title={activity.dismiss.title}><X size={13} /></button>
         ) : null}
+        {/* Popped out of the flow as it leaves, so the glass closes while the buttons fade. */}
+        <AnimatePresence mode="popLayout" initial={false}>
+          {expanded ? (
+            <motion.div
+              key="controls"
+              className="activity-controls"
+              role="group"
+              aria-label="Controls"
+              aria-live="off"
+              initial={reduced ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.94, filter: 'blur(4px)' }}
+              animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+              exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6, scale: 0.97, filter: 'blur(4px)' }}
+              transition={reduced ? { duration: 0.12 } : { type: 'spring', duration: 0.4, bounce: 0.12 }}
+            >
+              {controls!.map((control) => (
+                <Tip key={control.key} content={control.tip}>
+                  <button type="button" className={cn('activity-control', control.tone === 'danger' && 'is-danger')} aria-label={control.label} onClick={() => runControl(control)}>
+                    {control.icon}
+                  </button>
+                </Tip>
+              ))}
+              {activity.open && activity.openHint ? (
+                <button type="button" className="activity-control-hint" onClick={activity.open.run}>{activity.openHint}</button>
+              ) : null}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

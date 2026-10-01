@@ -318,8 +318,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   // A text encoder or VAE landing rescans models, so every panel catches up at once.
   const modelActivity = useModelDownloadActivity({
     onDone: () => { refreshModels(false); refreshWorkflows(); },
-    hidden: Boolean(workflowGalleryOpen),
-    onOpen: () => setWorkflowGalleryOpen(true)
+    // Either place shows the same download with its own controls.
+    hidden: Boolean(workflowGalleryOpen) || getModelsOpen,
+    // To the download itself: its starter card, or the setup panel of the workflow that needs it.
+    onOpen: (where) => (where === "starter" ? setGetModelsOpen(true) : setWorkflowGalleryOpen(true))
   });
   const thisComputer = useThisComputer();
   const updateActivity = useUpdateActivity({
