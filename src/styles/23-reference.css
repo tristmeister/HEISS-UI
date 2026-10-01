@@ -5,7 +5,7 @@
    composer to pick one, and a drop target over the whole prompt bar.
 --------------------------------------------------------------------------- */
 
-.zen-prompt:has(.composer-reference-slots) textarea { padding-right: 64px; }
+.zen-prompt:has(.composer-reference-slots) textarea { padding-right: 72px; }
 
 .composer-reference-slots {
   position: absolute;
@@ -22,7 +22,7 @@
 .ref-chip {
   display: inline-flex;
   align-items: center;
-  height: 36px;
+  height: 40px;
   border-radius: var(--r-pill);
   color: hsl(var(--foreground));
   font-size: 12.5px;
@@ -33,7 +33,7 @@
 /* Empty: "+ Add reference" that settles into a round +. The chip is anchored
    on the right, so animating max-width grows and shrinks it toward the left. */
 .ref-add {
-  max-width: 36px;
+  max-width: 40px;
   padding: 0;
   overflow: hidden;
   border: 0;
@@ -47,7 +47,7 @@
   transition: max-width 480ms var(--ease-out), background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), scale 100ms;
 }
 .ref-add.is-expanded { max-width: 240px; }
-.ref-add > svg { flex: none; margin: 0 10.5px; transition: rotate 320ms var(--ease-out); }
+.ref-add > svg { flex: none; margin: 0 12.5px; transition: rotate 320ms var(--ease-out); }
 .ref-add.is-open > svg { rotate: 45deg; }
 .ref-add-label { display: inline-flex; margin-left: -4px; }
 .ref-add-label > span {
@@ -75,18 +75,18 @@
 
 /* Chosen: the thumbnail never moves. Its menu is a panel behind it that a
    clip-path wipes open to the left, so nothing reflows while it animates. */
-.ref-selected { position: relative; display: block; }
+.ref-selected { position: relative; display: block; height: 44px; }
 .ref-thumb {
   position: relative;
   z-index: 2;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   padding: 0;
   overflow: hidden;
   border: 0;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--well);
   box-shadow: 0 0 0 1px rgb(255 255 255 / .16), 0 4px 12px rgb(0 0 0 / .35);
   color: hsl(var(--muted-foreground));
@@ -94,31 +94,35 @@
   transition: scale 200ms var(--ease-out), box-shadow var(--dur-fast);
 }
 .ref-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ref-thumb:hover { scale: 1.06; box-shadow: 0 0 0 1px rgb(255 255 255 / .32), 0 6px 16px rgb(0 0 0 / .4); }
+.ref-selected.is-hover .ref-thumb { scale: 1.04; box-shadow: 0 0 0 1px rgb(255 255 255 / .32), 0 6px 16px rgb(0 0 0 / .4); }
 .ref-menu {
   position: absolute;
   top: -3px;
   right: -3px;
-  width: max-content; /* its parent is only the 36px thumbnail */
-  height: 42px;
+  width: max-content; /* its parent is only the 44px thumbnail */
+  height: 50px;
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 46px 0 6px;
-  border-radius: 16px;
+  padding: 0 54px 0 6px;
+  border-radius: 18px;
   background: var(--surface-grain), rgb(30 30 30 / .9);
   box-shadow: inset 0 0 0 1px var(--surface-border), var(--shadow-float-sm);
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
-  clip-path: inset(0 0 0 calc(100% - 42px) round 16px);
+  clip-path: inset(0 0 0 calc(100% - 50px) round 18px);
   transition: clip-path 420ms var(--ease-out), opacity 160ms var(--ease-out);
 }
-.ref-selected:hover .ref-menu,
+/* Hover is set from script with a short delay each way (ReferenceSlot), so the
+   menu neither flickers on a pass nor snaps shut on a wobble off its edge. */
+.ref-selected.is-hover .ref-menu,
+.ref-selected.is-intro .ref-menu,
 .ref-selected:focus-within .ref-menu,
-.ref-selected.is-open .ref-menu { opacity: 1; pointer-events: auto; clip-path: inset(0 0 0 0 round 16px); }
+.ref-selected.is-open .ref-menu { opacity: 1; pointer-events: auto; clip-path: inset(0 0 0 0 round 18px); }
 .ref-menu > * { opacity: 0; translate: 8px 0; transition: opacity 200ms var(--ease-out), translate 360ms var(--ease-out); }
-.ref-selected:hover .ref-menu > *,
+.ref-selected.is-hover .ref-menu > *,
+.ref-selected.is-intro .ref-menu > *,
 .ref-selected:focus-within .ref-menu > *,
 .ref-selected.is-open .ref-menu > * { opacity: 1; translate: 0 0; transition-delay: 70ms; }
 .ref-menu-name {
@@ -149,6 +153,61 @@
   cursor: pointer;
 }
 .ref-menu-remove:hover { background: var(--danger-fill); color: var(--danger-ink); }
+
+/* Inpaint: the brush sits right next to the thumbnail. */
+.ref-menu-divider { flex: none; width: 1px; height: 22px; margin: 0 4px; background: var(--surface-border); }
+.ref-menu-paint {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  min-width: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--control-fill);
+  color: hsl(var(--foreground));
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), scale 100ms;
+}
+.ref-menu-paint > svg { flex: none; margin: 0 10.5px; }
+.ref-menu-paint:hover { background: var(--control-hover); }
+.ref-menu-paint:active { scale: .95; }
+.ref-menu-paint.is-active { background: var(--action); color: var(--action-ink); }
+.ref-menu-paint.is-masked:not(.is-active) > svg { color: var(--ember); }
+/* The one-time intro: a label slides out of the brush, then back in. */
+.ref-menu-paint-label { display: grid; grid-template-columns: 0fr; transition: grid-template-columns 420ms var(--ease-out); }
+.ref-menu-paint-label > span {
+  min-width: 0;
+  overflow: hidden;
+  padding-right: 0;
+  font-size: 12px;
+  font-weight: 550;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out), padding 420ms var(--ease-out);
+}
+.ref-selected.is-intro .ref-menu-paint { background: var(--action); color: var(--action-ink); }
+.ref-selected.is-intro .ref-menu-paint-label { grid-template-columns: 1fr; }
+.ref-selected.is-intro .ref-menu-paint-label > span { padding-right: 14px; margin-left: -4px; opacity: 1; transition-delay: 0ms, 0ms; }
+
+/* A painted reference says so without a hover. */
+.ref-mask-badge {
+  position: absolute;
+  z-index: 3;
+  right: -4px;
+  bottom: -4px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ember);
+  color: #1a0d04;
+  box-shadow: 0 0 0 2px rgb(24 24 24);
+  pointer-events: none;
+  animation: ref-pop 420ms var(--ease-out);
+}
 
 /* A freshly dropped or uploaded image pops into place. */
 .ref-selected.is-new .ref-thumb { animation: ref-pop 620ms var(--ease-out); }

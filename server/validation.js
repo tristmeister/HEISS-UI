@@ -60,6 +60,25 @@ function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", ma
 }
 
 /**
+ * A painted mask on the first reference: only for a model that can inpaint,
+ * with a reference to paint on. The mask itself is checked when it is read
+ * (inpaint.js); here only its shape and the two settings.
+ */
+function sanitizeInpaint(input, profile, referenceAssets) {
+  const mask = String(input.inpaint?.mask || "");
+  if (!mask || !profile.capabilities.inpaint || !referenceAssets.length) return null;
+  if (!mask.startsWith("data:image/png;base64,")) throw new Error("The painted mask didn’t come through. Paint it again.");
+  const fallback = profile.defaults.inpaintStrength ?? 1;
+  const strength = Number(input.inpaint.strength);
+  const feather = Number(input.inpaint.feather);
+  return {
+    mask,
+    strength: Number.isFinite(strength) ? Math.round(Math.min(1, Math.max(0.05, strength)) * 100) / 100 : fallback,
+    feather: Number.isFinite(feather) ? Math.min(1, Math.max(0, feather)) : 0.4
+  };
+}
+
+/**
  * A built-in family request, checked against the profile HEISS built for that
  * model file: encoders must be files that fit their slot, the VAE must fit (or
  * be the checkpoint's own), and nothing the model needs may be missing.
@@ -136,6 +155,7 @@ function sanitizeFamilyBody(input, info, stats) {
     startImageId: profile.capabilities.startImage ? String(input.startImageId || "") : "",
     startImageName: String(input.startImageName || ""),
     referenceAssets,
+    inpaint: sanitizeInpaint(input, profile, referenceAssets),
     promptPolicy: null,
     loras: sanitizeLoras(input, info, profile, kind, 8),
     // A retry after the GPU ran out of memory while decoding; only where this ComfyUI has the node.

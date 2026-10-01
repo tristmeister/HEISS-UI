@@ -52,7 +52,19 @@ async function builtInGraph(body) {
   const referenceImages = (body.referenceAssets || []).map((item) => item?.comfyName).filter(Boolean);
   const staged = referenceImages[0] || "";
   const startImageComfy = staged || ((body.startImage || body.startImageId) ? await uploadBodyStartImage(body) : "");
-  return withGgufLoaders(familyGraph({ ...body, startImageComfy, referenceImages }));
+  // Inpainting samples the crop around the painted part, at its own working size (inpaint.js).
+  const inpaint = body.inpaint?.crop ? body.inpaint : null;
+  if (inpaint) {
+    return withGgufLoaders(familyGraph({
+      ...body,
+      width: inpaint.work.width,
+      height: inpaint.work.height,
+      startImageComfy: inpaint.crop,
+      referenceImages: [inpaint.crop, ...referenceImages.slice(1)],
+      inpaint
+    }));
+  }
+  return withGgufLoaders(familyGraph({ ...body, startImageComfy, referenceImages, inpaint: null }));
 }
 
 function cloneGraph(graph) {

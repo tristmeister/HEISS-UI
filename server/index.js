@@ -50,6 +50,7 @@ import { forgetComfyRun } from './hidden-traces.js';
 import { adoptHiddenRuns, forgetHiddenRunKeys, settleHiddenRuns, withoutHiddenRuns } from './hidden-runs.js';
 import { sendGalleryExport } from './gallery-export.js';
 import { applyLoraOps, clearLoraState, loadLoraLibrary, loadLoraStack, saveLoraLibrary, saveLoraStack } from './lora-stacks.js';
+import { inpaintInputNames, prepareInpaint } from './inpaint.js';
 import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readUploadedReference, referenceAssetFromGallery, saveUploadedReference, stageReferenceAssets } from './reference-assets.js';
 import { nodePack, nodePacks } from './node-packs.js';
 import { beginComfyRestart, comfyRestartStartedAt, comfyRestarting, finishComfyRestart, lastComfyRestart, noteComfyRestart } from './comfy-restart.js';
@@ -1524,11 +1525,26 @@ app.post("/api/generate", async (req, res) => {
       return;
     }
   }
+  // A painted mask becomes a crop, its masks and where to stitch them back (inpaint.js).
+  // The mask itself goes no further: it is never stored with the run.
+  if (body.inpaint) {
+    try {
+      body.inpaint = isMockJob ? null : await prepareInpaint(req, body);
+    } catch (error) {
+      res.status(400).json({ ok: false, error: error.message });
+      return;
+    }
+  }
   // Every image this run handed ComfyUI: all of them go after a Hidden run, and
   // after a normal one, the copies of any Hidden image used as its reference.
   const staged = (body.referenceAssets || []).filter((item) => item.comfyName);
-  body.stagedInputNames = staged.map((item) => item.comfyName);
-  body.hiddenInputNames = staged.filter((item) => String(item.assetId || "").startsWith("vault:")).map((item) => item.comfyName);
+  const inpaintNames = inpaintInputNames(body.inpaint);
+  body.stagedInputNames = [...staged.map((item) => item.comfyName), ...inpaintNames];
+  const fromHiddenImage = String(body.referenceAssets?.[0]?.assetId || "").startsWith("vault:");
+  body.hiddenInputNames = [
+    ...staged.filter((item) => String(item.assetId || "").startsWith("vault:")).map((item) => item.comfyName),
+    ...(fromHiddenImage ? inpaintNames : [])
+  ];
   // A random seed is drawn here rather than inside the graph, so the gallery
   // records the number that actually ran and the image can be made again.
   if (!/^\d+$/.test(String(body.seed ?? "").trim())) {

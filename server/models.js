@@ -250,8 +250,8 @@ export function mockModelResult() {
       model: "flux1-schnell.safetensors",
       workflow: "builtin-flux-schnell",
       family: "flux",
-      defaults: { width: 1024, height: 1024, steps: 4, cfg: 1, sampler: "euler", scheduler: "simple" },
-      capabilities: { lora: true, startImage: true, startImageRequired: false }
+      defaults: { width: 1024, height: 1024, steps: 4, cfg: 1, sampler: "euler", scheduler: "simple", denoise: 0.65, inpaintStrength: 0.8 },
+      capabilities: { lora: true, startImage: true, startImageRequired: false, denoise: true, inpaint: true }
     }),
     buildProfile({
       id: "mock-sdxl-turbo",

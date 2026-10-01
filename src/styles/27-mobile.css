@@ -49,6 +49,11 @@
     overflow-x: auto;
     clip-path: none;
   }
+  /* In the phone's create sheet the thumbnail sits on the left: the menu opens rightward from it. */
+  .phone-compose .ref-menu { right: auto; left: -3px; }
+  /* The brush leads, next to the thumbnail, so it never scrolls out of reach. */
+  .phone-compose .ref-menu-paint { order: -2; }
+  .phone-compose .ref-menu-divider { order: -1; }
 }
 
 /* -------------------------------------------------------------- Gallery tiles */

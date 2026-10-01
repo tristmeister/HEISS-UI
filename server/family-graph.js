@@ -205,6 +205,7 @@ export function familyGraph(body) {
   // picked pixel count, encoded, and chained onto both conditionings, as
   // ComfyUI's Flux 2 edit templates do. The first one's size frames the output.
   let editSize = null;
+  let firstReference = null;
   if (family.references && family.referenceVia !== "encoder") {
     const references = (body.referenceImages || []).slice(0, family.references);
     const megapixels = Math.max(0.01, Math.round(width * height / 10_000) / 100);
@@ -212,6 +213,7 @@ export function familyGraph(body) {
       const scaled = [add("ImageScaleToTotalPixels", { image: [add("LoadImage", { image: name }), 0], upscale_method: "lanczos", megapixels, resolution_steps: 1 }), 0];
       if (index === 0) editSize = add("GetImageSize", { image: scaled });
       const encoded = [add("VAEEncode", { pixels: scaled, vae }), 0];
+      if (index === 0) firstReference = encoded;
       positive = [add("ReferenceLatent", { conditioning: positive, latent: encoded }), 0];
       if (negative) negative = [add("ReferenceLatent", { conditioning: negative, latent: encoded }), 0];
     });
@@ -222,8 +224,19 @@ export function familyGraph(body) {
   // ---- Latent (optionally from a start image)
   let latent;
   let denoise = 1;
-  const startImage = body.startImageComfy && !editLatent && !editSize && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
-  if (editLatent) {
+  const inpaint = family.kind === "image" ? body.inpaint || null : null;
+  const startImage = body.startImageComfy && !inpaint && !editLatent && !editSize && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
+  if (inpaint) {
+    // Inpainting: the crop's own latent, repainted only where the mask says.
+    // An edit model starts from the latent of its first reference (the crop).
+    const base = editLatent || firstReference || [add("VAEEncode", { pixels: [add("LoadImage", { image: inpaint.crop }), 0], vae }), 0];
+    const mask = [add("LoadImageMask", { image: inpaint.mask, channel: "red" }), 0];
+    const masked = [add("SetLatentNoiseMask", { samples: base, mask }), 0];
+    latent = count > 1 ? [add("RepeatLatentBatch", { samples: masked, amount: count }), 0] : masked;
+    denoise = Number(inpaint.strength ?? 1);
+    // A soft mask becomes a soft change: strongest where it was painted, easing out at the edge.
+    model = [add("DifferentialDiffusion", { model }), 0];
+  } else if (editLatent) {
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent;
   } else if (family.imageToVideo) {
     // Image-to-video: one node puts the start image into both conditionings and
@@ -255,9 +268,11 @@ export function familyGraph(body) {
   // ---- Sample
   let samples;
   if (family.sampling === "custom") {
-    const sigmas = family.scheduler === "flux2"
+    let sigmas = family.scheduler === "flux2"
       ? add("Flux2Scheduler", { steps: Number(body.steps || 20), width: latentWidth, height: latentHeight })
-      : add("BasicScheduler", { model, scheduler: body.scheduler || "simple", steps: Number(body.steps || 20), denoise: 1 });
+      : add("BasicScheduler", { model, scheduler: body.scheduler || "simple", steps: Number(body.steps || 20), denoise });
+    // Flux 2's scheduler always runs the full schedule; partial strength keeps its tail.
+    if (family.scheduler === "flux2" && denoise < 1) sigmas = [add("SplitSigmasDenoise", { sigmas: [sigmas, 0], denoise }), 1];
     const guider = negative
       ? add("CFGGuider", { model, positive, negative, cfg: Number(body.cfg || 1) })
       : add("BasicGuider", { model, conditioning: positive });
@@ -278,7 +293,8 @@ export function familyGraph(body) {
   }
 
   // ---- Decode and save
-  const images = [decode(add, samples, vae, body), 0];
+  let images = [decode(add, samples, vae, body), 0];
+  if (inpaint) images = stitchInpaint(add, images, inpaint, count);
   if (family.kind === "video") {
     const video = add("CreateVideo", { images, fps: Number(body.fps || family.fps || 16) });
     add("SaveVideo", { video: [video, 0], filename_prefix: "heiss-ui/video", format: "mp4", codec: "h264" });
@@ -340,5 +356,20 @@ export function ideogram4Preset(steps) {
 function customSampler(add, { seed, sampler, guider, sigmas, latent }) {
   const noise = add("RandomNoise", { noise_seed: seed });
   const samplerNode = add("KSamplerSelect", { sampler_name: sampler });
-  return [add("SamplerCustomAdvanced", { noise: [noise, 0], guider: [guider, 0], sampler: [samplerNode, 0], sigmas: [sigmas, 0], latent_image: latent }), 0];
+  return [add("SamplerCustomAdvanced", { noise: [noise, 0], guider: [guider, 0], sampler: [samplerNode, 0], sigmas: Array.isArray(sigmas) ? sigmas : [sigmas, 0], latent_image: latent }), 0];
+}
+
+/**
+ * Lays the sampled crop back onto the original: scaled to the box it came
+ * from and blended through the feathered stitch mask. The destination is the
+ * reference as ComfyUI loaded it, so everything outside the mask is the
+ * original's own pixels.
+ */
+function stitchInpaint(add, images, inpaint, count) {
+  const { box } = inpaint;
+  const source = [add("ImageScale", { image: images, upscale_method: "lanczos", width: box.width, height: box.height, crop: "disabled" }), 0];
+  let destination = [add("LoadImage", { image: inpaint.original }), 0];
+  if (count > 1) destination = [add("RepeatImageBatch", { image: destination, amount: count }), 0];
+  const mask = [add("LoadImageMask", { image: inpaint.composite, channel: "red" }), 0];
+  return [add("ImageCompositeMasked", { destination, source, x: box.x, y: box.y, resize_source: false, mask }), 0];
 }

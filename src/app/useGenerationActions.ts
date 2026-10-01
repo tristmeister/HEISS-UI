@@ -20,7 +20,7 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus, refreshModels
+    referenceAssets, inpaint, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus, refreshModels
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -157,6 +157,8 @@ export function useGenerationActions(view: any) {
         fps,
         loras,
         referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
+        // A painted mask on the first reference: change only that part.
+        ...(inpaint ? { inpaint } : {}),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
         privateVault: Boolean(hiddenSpace)
@@ -170,7 +172,9 @@ export function useGenerationActions(view: any) {
         // Separate runs from one pinned seed would all be the same picture; step it per run.
         const baseSeed = retry ? String(requestBody.seed || "") : seed;
         const runSeed = imageRuns > 1 && /^\d+$/.test(String(baseSeed || "").trim()) ? String(Number(baseSeed) + index) : baseSeed;
-        const optimisticBody = { ...requestBody, seed: runSeed, count: requestCount, startImageId: retry ? requestBody.startImageId : canUseStartImage ? startImageId : "" };
+        // An inpainted image keeps its reference's size, so its tile has that shape while it renders.
+        const paintedOn = requestBody.inpaint ? (referenceAssets || [])[0]?.asset : null;
+        const optimisticBody = { ...requestBody, ...(paintedOn?.width && paintedOn?.height ? { width: paintedOn.width, height: paintedOn.height } : {}), seed: runSeed, count: requestCount, startImageId: retry ? requestBody.startImageId : canUseStartImage ? startImageId : "" };
         const optimisticItems = pendingItemsFor(clientJobId, optimisticBody);
         galleryUpsert(optimisticItems);
         if (prefs.zenMode) setZenSelectedId(optimisticItems[0].id);

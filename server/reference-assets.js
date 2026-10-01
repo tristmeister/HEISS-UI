@@ -333,7 +333,7 @@ export async function bytesForReference(req, id) {
   return preferUpscale(original, () => publicGalleryBuffer({ id: url, url, outputName, type: "image" }));
 }
 
-async function uploadBufferToComfy({ buffer, mime, name }, { unique = false } = {}) {
+export async function uploadBufferToComfy({ buffer, mime, name }, { unique = false } = {}) {
   await inspectImage(buffer, mime);
   // Content-named files are shared between runs; a Hidden run gets its own copy,
   // so removing it afterwards can never pull an input out from under another job.

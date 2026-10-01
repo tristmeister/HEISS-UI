@@ -75,7 +75,8 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
     fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, mode, models, profileOptions, sampler, scheduler, seed,
     setCfg, setDenoise, setFps, setFrames, setHeight, setLoras, setSampler, setScheduler, setSeed, setTextEncoder, setVae,
     setWeightDtype, setWidth, textEncoder, vae, weightDtype, width, widthMeta, loraLibrary, rememberedLoraStrength,
-    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast
+    textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast,
+    inpaintActive, inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather
   } = view;
   const { loraOptions, loraLimit, loraUnavailable } = loraSetup(view);
   const samplers = profileOptions.samplers?.length ? profileOptions.samplers : models?.samplers?.length ? models.samplers : fallbackSamplers;
@@ -115,7 +116,12 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
         <PhoneSelect label="Scheduler" value={scheduler} options={schedulers} onChange={setScheduler} />
       </div>
       <PhoneSlider label="Prompt strength (CFG)" value={cfg} min={cfgMeta.min ?? 0} max={Math.min(cfgMeta.max ?? 30, 20)} step={cfgMeta.step || 0.5} onChange={setCfg} format={(value) => value.toFixed(1)} hint={<><span>Looser</span><span>Follows the prompt closely</span></>} />
-      {canUseStartImage && currentProfile?.capabilities.denoise ? (
+      {inpaintActive ? (
+        <>
+          <PhoneSlider label="Inpaint strength" value={inpaintStrength} min={0.05} max={1} step={0.05} onChange={setInpaintStrength} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Touch it up</span><span>Paint it anew</span></>} />
+          <PhoneSlider label="Edge softness" value={inpaintFeather} min={0} max={1} step={0.05} onChange={setInpaintFeather} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Crisp</span><span>Soft</span></>} />
+        </>
+      ) : canUseStartImage && currentProfile?.capabilities.denoise ? (
         <PhoneSlider label="Change from the reference" value={denoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} onChange={setDenoise} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Keep it close</span><span>Change a lot</span></>} />
       ) : null}
 
@@ -174,7 +180,8 @@ export function SidebarControls({ view }: { view: any }) {
     setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
     width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
     textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast, modelFolders,
-    sidebarTab: tab, setSidebarTab: setTab, recommended
+    sidebarTab: tab, setSidebarTab: setTab, recommended,
+    inpaintActive, inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather
   } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void; recommended?: { differs: boolean; restore: () => void; family: string } };
 
   const { loraOptions, loraLimit, loraUnavailable } = loraSetup(view);
@@ -274,7 +281,14 @@ export function SidebarControls({ view }: { view: any }) {
             </div>
             <NumberPicker label="Prompt strength (CFG)" value={cfg} onChange={setCfg} min={cfgMeta.min ?? 0} max={cfgMeta.max ?? 30} step={cfgMeta.step || 0.5} precision={1} fill />
             <div className="sidebar-scale-hint" aria-hidden="true"><span>Looser</span><span>Follows the prompt closely</span></div>
-            {canUseStartImage && currentProfile?.capabilities.denoise ? (
+            {inpaintActive ? (
+              <>
+                <NumberPicker label="Inpaint strength" value={inpaintStrength} onChange={setInpaintStrength} min={0.05} max={1} step={0.05} precision={2} fill />
+                <div className="sidebar-scale-hint" aria-hidden="true"><span>Touch it up</span><span>Paint it anew</span></div>
+                <NumberPicker label="Edge softness" value={inpaintFeather} onChange={setInpaintFeather} min={0} max={1} step={0.05} precision={2} fill />
+                <div className="sidebar-scale-hint" aria-hidden="true"><span>Crisp</span><span>Soft</span></div>
+              </>
+            ) : canUseStartImage && currentProfile?.capabilities.denoise ? (
               <>
                 <NumberPicker label="Change from the reference" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
                 <div className="sidebar-scale-hint" aria-hidden="true"><span>Keep it close</span><span>Change a lot</span></div>
