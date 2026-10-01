@@ -6,6 +6,7 @@ import { Tip } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { emptySearch, searchActive, type GallerySearch } from './favorites';
 import { haptic } from './phoneControls';
+import { SearchMark } from './SearchMark';
 
 /* ---------------------------------------------------------------------------
    Gallery search
@@ -153,14 +154,14 @@ export function SearchEmpty({ search, onClear, hiddenSpace = false }: { search: 
   return (
     <section className="gallery">
       <div className="empty stage-empty search-empty" aria-live="polite">
-        <div className="search-empty-glyph">{onlyStars ? <Star size={22} /> : <Search size={22} />}</div>
+        <div className="stage-mark"><SearchMark className="stage-layer" star={onlyStars} /></div>
         <div className="stage-copy">
           <h2>{onlyStars ? 'No favourites yet' : <>Nothing matches “{words}”{search.favorites ? ' in favourites' : ''}</>}</h2>
           <p>{onlyStars
             ? `Star an image${hiddenSpace ? ' in Hidden' : ''} and it shows up here.`
             : 'Search covers prompts, models and LoRAs. Try fewer words.'}</p>
           <div className="empty-actions">
-            <button type="button" className="reconnect-btn" onClick={onClear}><X size={13} /> {onlyStars ? 'Show everything' : 'Clear search'}</button>
+            <button type="button" className="reconnect-btn primary" onClick={onClear}><X size={13} /> {onlyStars ? 'Show everything' : 'Clear search'}</button>
           </div>
         </div>
       </div>

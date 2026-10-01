@@ -59,9 +59,29 @@ ${SCENE_CELL}
 
     if (body > 0.5 || shackle > 0.5) {
       // The same brushed gray as the plug, lighter at the top.
-      float shade = body > 0.5 ? mix(0.52, 0.34, (c.y - 12.0) / 9.0) : mix(0.62, 0.48, (c.y + lift - 4.0) / 7.0);
-      col = vec3(shade + 0.08 * v);
+      float sy = c.y + lift;
+      float shade;
+      if (body > 0.5) {
+        shade = mix(0.52, 0.34, (c.y - 12.0) / 9.0);
+        // Bevelled: lit from the top left, a dark lower edge, so the body reads as a slab.
+        shade += 0.09 * (1.0 - smoothstep(0.5, 2.5, c.x - 23.0)) - 0.1 * (1.0 - smoothstep(0.5, 2.5, 36.0 - c.x));
+        shade += 0.1 * step(c.y, 13.5) - 0.1 * step(20.5, c.y);
+      } else {
+        shade = mix(0.62, 0.48, (sy - 4.0) / 7.0);
+        // Round bar: the outer edge catches the light, the inner edge falls away.
+        float outer = step(4.0, abs(c.x - 29.5));
+        shade += outer > 0.5 ? (c.x < 29.5 ? 0.08 : -0.06) : -0.05;
+        shade += 0.08 * step(sy, 4.5);
+      }
+      // A slow sheen drifts across the metal.
+      float sheen = exp(-pow((c.x + c.y * 0.5 - 18.0 - mod(t * 5.0, 40.0)) / 2.0, 2.0)) * 0.07;
+      col = vec3(shade + 0.08 * v + sheen);
       a = 1.0;
+      if (body > 0.5 && key < 0.5) {
+        // The keyhole's ember warms the metal around it.
+        float halo = 1.0 - smoothstep(1.5, 5.0, length((c - vec2(29.5, 16.0)) * vec2(1.0, 0.85)));
+        col = mix(col, fire(0.3 + 0.3 * uKey), halo * uKey * 0.3 * (1.0 - uCool));
+      }
       if (body > 0.5) {
         // Opening: heat runs up the body and cools to white.
         vec3 warm = fire(0.45 + 0.35 * v + 0.2 * hash(id + floor(t * 12.0)));

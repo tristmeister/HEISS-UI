@@ -300,18 +300,7 @@
   }
 }
 
-/* Nothing matched: a quiet glyph instead of a scene. */
-.search-empty .search-empty-glyph {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  margin-bottom: 16px;
-  border-radius: 18px;
-  background: var(--control-fill);
-  color: hsl(var(--muted-foreground));
-  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
-}
+/* Nothing matched: the magnifier scene, then the caption. */
 .search-empty h2 { overflow-wrap: anywhere; }
 .search-empty .stage-copy { min-height: 0; }
 
