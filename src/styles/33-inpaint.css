@@ -141,10 +141,8 @@
 .inpaint-size:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .inpaint-divider { flex: none; width: 1px; height: 20px; margin: 0 4px; background: var(--surface-border); }
 
-/* Fit-to-view appears only once zoomed, as the zoom level. */
-.inpaint-zoom { display: grid; grid-template-columns: 0fr; transition: grid-template-columns 360ms var(--ease-out); }
-.inpaint-zoom.is-shown { grid-template-columns: 1fr; }
-.inpaint-zoom > * { min-width: 0; overflow: hidden; }
+/* Fit-to-view appears only once zoomed, as the zoom level (mounted only then). */
+.inpaint-zoom { flex: none; overflow: hidden; }
 .inpaint-zoom-reset {
   height: 36px;
   margin-left: 2px;
@@ -158,10 +156,8 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   cursor: pointer;
-  opacity: 0;
-  transition: opacity 200ms var(--ease-out), background var(--dur-fast);
+  transition: background var(--dur-fast);
 }
-.inpaint-zoom.is-shown .inpaint-zoom-reset { opacity: 1; }
 .inpaint-zoom-reset:hover { background: var(--control-hover); }
 
 /* -------------------------------------------------------- Brush size */
@@ -237,8 +233,6 @@
 @media (prefers-reduced-motion: reduce) {
   .inpaint-ring,
   .inpaint-hint,
-  .inpaint-zoom,
-  .inpaint-zoom-reset,
   .inpaint-size-wedge,
   .inpaint-size-thumb,
   .ref-menu-paint-label,

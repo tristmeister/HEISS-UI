@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Brush, Eraser, Hand, Redo2, Undo2, X } from "lucide-react";
 import { cn } from "./format";
 import { Tip } from "./components";
@@ -581,11 +581,23 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
         <Tip content={<>Redo <kbd>⇧⌘Z</kbd></>}>
           <button type="button" className="inpaint-tool" aria-label="Redo" disabled={!history.redo} onClick={redoStroke}><Redo2 size={16} /></button>
         </Tip>
-        <div className={cn("inpaint-zoom", !zoom.fit && "is-shown")}>
-          <Tip content={<>Fit to view <kbd>0</kbd></>}>
-            <button type="button" className="inpaint-zoom-reset" tabIndex={zoom.fit ? -1 : 0} aria-hidden={zoom.fit} onClick={resetZoom}>{zoom.percent}%</button>
-          </Tip>
-        </div>
+        {/* Only there while zoomed in: at fit it takes no room and has no tooltip. */}
+        <AnimatePresence initial={false}>
+          {!zoom.fit ? (
+            <motion.div
+              key="zoom"
+              className="inpaint-zoom"
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: "auto", opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.32, bounce: 0 }}
+            >
+              <Tip content={<>Fit to view <kbd>0</kbd></>}>
+                <button type="button" className="inpaint-zoom-reset" onClick={resetZoom}>{zoom.percent}%</button>
+              </Tip>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
         <span className="inpaint-divider" aria-hidden="true" />
         <Tip content={<>Done <kbd>Esc</kbd></>}>
           <button type="button" className="inpaint-tool" aria-label="Done painting" onClick={onClose}><X size={16} /></button>
