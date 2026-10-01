@@ -104,7 +104,8 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
     if (!dropped) return;
     setTab("upload");
     setNewId(dropped.asset.id);
-    setPages((current) => ({ ...current, upload: { ...current.upload, loaded: true, items: [dropped.asset, ...current.upload.items.filter((item) => item.id !== dropped.asset.id)] } }));
+    // Not marked loaded: the rest of the uploads still have to come from the server.
+    setPages((current) => ({ ...current, upload: { ...current.upload, items: [dropped.asset, ...current.upload.items.filter((item) => item.id !== dropped.asset.id)] } }));
   }, [dropped]);
 
   const load = React.useCallback(async (target: PickerTab, cursor = "") => {
@@ -139,7 +140,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
   const uploadAndUse = async (file: File | undefined) => {
     const asset = await upload.start(file);
     if (!asset) return;
-    setPages((current) => ({ ...current, upload: { ...current.upload, loaded: true, items: [asset, ...current.upload.items] } }));
+    setPages((current) => ({ ...current, upload: { ...current.upload, items: [asset, ...current.upload.items.filter((item) => item.id !== asset.id)] } }));
     onClose();
   };
 
@@ -409,6 +410,9 @@ export function ReferenceSlots({ inputs, strength = null, selected, onSelect, on
   const popRef = React.useRef<HTMLDivElement>(null);
   const overlayRef = React.useRef<HTMLDivElement>(null);
   const close = React.useCallback(() => setOpenSlot(""), []);
+  // A drop only belongs to the popover it landed on; forget it on close so the
+  // next open starts on the default tab and fetches the full list.
+  React.useEffect(() => { if (!openSlot) setDropped(null); }, [openSlot]);
   useDismiss([rootRef, popRef], Boolean(openSlot), close);
   // Find the prompt bar whenever this renders into it. On first mount there may be
   // no inputs yet (the workflow is still loading), so nothing is rendered to look from.
