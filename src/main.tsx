@@ -15,6 +15,7 @@ import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
 import { DeviceGate } from './app/DeviceGate';
 import { CrashBoundary } from './app/CrashScreen';
+import { TooltipProvider } from './components/ui/tooltip';
 import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
@@ -1465,4 +1466,5 @@ function App() {
 
 // Other devices sign in before the studio loads (DeviceGate.tsx).
 // A render error anywhere shows the crash screen (with Reload and Report) instead of a blank page.
-createRoot(document.getElementById("root")!).render(<CrashBoundary><DeviceGate><App /></DeviceGate></CrashBoundary>);
+// One tooltip provider for the whole app holds the shared hover delay and lets neighbours open at once.
+createRoot(document.getElementById("root")!).render(<TooltipProvider><CrashBoundary><DeviceGate><App /></DeviceGate></CrashBoundary></TooltipProvider>);

@@ -154,12 +154,17 @@ const generateButtonSpring = { type: "spring" as const, stiffness: 520, damping:
  * `blocked` looks disabled but stays focusable and clickable, so a press (or a
  * tap on a phone, where there is no tooltip) explains why nothing can run yet.
  * `disabled` is only for a genuinely busy button.
+ * The rest (ref, pointer and focus handlers, aria-describedby) is what the
+ * wrapping Tip hangs on its trigger; without it the tooltip never opens.
  */
-function GenerateButton({ children, className, disabled, blocked, busy, onClick, "aria-label": ariaLabel }: { children: React.ReactNode; className?: string; disabled?: boolean; blocked?: boolean; busy?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>; "aria-label"?: string }) {
+type GenerateButtonPassthrough = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children" | "className" | "disabled" | "onClick" | "aria-label" | "type" | "style" | "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd">;
+function GenerateButton({ children, className, disabled, blocked, busy, onClick, "aria-label": ariaLabel, ref, ...rest }: GenerateButtonPassthrough & { children: React.ReactNode; className?: string; disabled?: boolean; blocked?: boolean; busy?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>; "aria-label"?: string; ref?: React.Ref<HTMLButtonElement> }) {
   const prefersReducedMotion = useReducedMotion();
   const inert = disabled || blocked;
   return (
     <motion.button
+      {...rest}
+      ref={ref}
       type="button"
       className={className}
       onClick={onClick}
