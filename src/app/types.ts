@@ -115,6 +115,8 @@ export type Profile = {
   capabilities: Record<string, boolean>;
   mediaInputs?: MediaInput[];
   aspectPolicy?: "manual" | "reference";
+  /** Imported workflows: the other knobs found in the graph ("More settings"). */
+  settings?: WorkflowSetting[];
   /** LoRAs the workflow's loader accepts; rgthree stacks take 4. */
   maxLoras?: number;
   /** Built-in families: where the file sits, which variant it is, and what fills its parts. */
@@ -218,6 +220,35 @@ export type WorkflowSummary = {
   tags?: string[];
   validation: WorkflowValidation;
 };
+export type ControlMapping = { node: string; input: string };
+export type WorkflowSetting = {
+  key: string;
+  node: string;
+  input: string;
+  label: string;
+  group?: string;
+  type: "INT" | "FLOAT" | "BOOLEAN" | "COMBO" | "STRING";
+  multiline?: boolean;
+  default: string | number | boolean | null;
+  options?: string[];
+  min?: number;
+  max?: number;
+  step?: number;
+};
+export type ResolvedPack = { key: string; name: string; repository: string; managerId: string; version: string; commit: string; registry: boolean; nodes: string[]; source: "stamp" | "map"; folder?: string };
+export type ImportSourceItem = { id: string; name: string; at: string; runs: number; ok: boolean; thumbnail: string; video: boolean; nodes: number };
+export type SavedWorkflowItem = { path: string; name: string; modified: string; size: number };
+export type PromptQuestion = { kind: "prompt"; text: string; candidates: Array<{ id: string; node: string; input: string; title: string; text: string; mappings: ControlMapping[] }> };
+export type WorkflowSetupState = {
+  id: string;
+  workflowName: string;
+  status: "running" | "done" | "regressed" | "rolled-back" | "needs-restart" | "error" | "undone";
+  step: string;
+  packs: Array<{ key: string; name: string; status: string; error: string }>;
+  snapshotId: string;
+  health: { ok: boolean; comfyDown: boolean; broke: string[]; lostNodes: string[]; newFailed: string[] } | null;
+  message: string;
+};
 export type WorkflowPreferences = { favorites: string[]; lastUsed: Record<string, string>; thumbnails: Record<string, string> };
 export type WorkflowImportPreview = {
   filename?: string;
@@ -229,9 +260,12 @@ export type WorkflowImportPreview = {
     description?: string;
     kind: Mode;
     family: string;
-    controls: Record<string, { node: string; input: string }>;
-    /** Connections found by node type and order rather than declared by the workflow. */
+    controls: Record<string, ControlMapping | ControlMapping[]>;
+    /** Connections found in the graph rather than declared by the workflow. */
     guessed?: string[];
+    confidence?: { prompt: "high" | "asked" | "none" };
+    question?: PromptQuestion | null;
+    settings?: WorkflowSetting[];
     loraStack?: { adapter: string; node: string; max?: number } | null;
     defaults?: Record<string, unknown>;
     capabilities?: Record<string, boolean>;
@@ -244,6 +278,23 @@ export type WorkflowImportPreview = {
   validation: WorkflowValidation;
   /** Nodes that run code, read or write files elsewhere, or go online (server/workflow-risk.js). */
   risks?: WorkflowRisk[];
+  graph?: Record<string, unknown>;
+  source?: "file" | "history" | "saved" | "media";
+  thumbnail?: string;
+  conversion?: "stored" | "comfy-page" | "heiss";
+  warnings?: string[];
+  packs?: { packs: ResolvedPack[]; unresolved: string[] };
+  models?: ModelPlan;
+};
+export type FileSwap = { node: string; input: string; file: string; wanted: string; reason: string };
+export type ModelPlan = {
+  swaps: FileSwap[];
+  suggestions: FileSwap[];
+  downloads: Array<{ id: string; file: string; folder: string; label: string; size: string; node: string; input: string }>;
+  skippedLoras: Array<{ node: string; file: string }>;
+  loraEntriesOff: Array<{ node: string; key: string; lora: string }>;
+  substitutes: FileSwap[];
+  unresolved: Array<{ file: string; folder: string }>;
 };
 
 export type WorkflowRisk = { node: string; classType: string; title?: string; kind: "code" | "files" | "network"; reason: string; detail?: string };

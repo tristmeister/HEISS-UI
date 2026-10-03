@@ -20,12 +20,33 @@ version opens with a `> ` summary line, which the update pill shows.
   studio rises out of the prompt bar: a brush, an eraser and a hand, undo, zoom
   and a brush size on the left. **Inpaint strength** and **Edge softness** are
   in the sidebar under Advanced once something is painted.
+- **Import a workflow from what you ran in ComfyUI.** Workflows › Import opens
+  on your recent ComfyUI runs (with their pictures) and the workflows saved in
+  ComfyUI. A workflow file, or an image or video ComfyUI made, works too. No
+  more "export as API".
+- **HEISS finds the prompt by itself**, by following the wires back to the text
+  you typed, through prompt enhancers and string joins. When two texts are
+  equally likely it asks which is your prompt, showing the texts.
+- **More settings** for imported workflows: every other knob in the workflow,
+  grouped by its node titles, in the sidebar's Advanced tab.
+- **Add-ons install on import.** Node packs from the ComfyUI registry install
+  without asking; a pack from outside the registry asks first. A snapshot is
+  taken before, and if an install stops other nodes from loading you're
+  offered an undo. If ComfyUI doesn't come back after an install, it's undone
+  for you.
+- **Model files sorted out on import:** your own copy filed in another folder
+  is used, files with a known download (HEISS's catalog, ComfyUI-Manager's
+  list) download with the import, missing LoRAs are left out, and a missing
+  main model can be stood in for by one of the same family you have.
 
 ### Changed
 - Reference images in the prompt bar are bigger, and their menu no longer
   flickers when the pointer passes over or slips off its edge.
 - On a phone, a reference's menu opens toward the screen instead of off its
   left edge.
+- Visual workflows are converted with subgraphs, bypassed and muted nodes,
+  Primitive nodes and KJNodes Set/Get resolved, and with ComfyUI's own page
+  when Playwright is installed.
 
 ## [0.15.0] - 2026-09-30
 

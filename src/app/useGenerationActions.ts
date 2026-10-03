@@ -162,6 +162,8 @@ export function useGenerationActions(view: any) {
         ...(inpaint ? { inpaint } : {}),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
+        // An imported workflow's "More settings" the person changed; the rest keep the workflow's values.
+        ...(view.workflowSettings && Object.keys(view.workflowSettings).length ? { workflowSettings: view.workflowSettings } : {}),
         privateVault: Boolean(hiddenSpace)
       };
       const queuedJobs: string[] = [];
