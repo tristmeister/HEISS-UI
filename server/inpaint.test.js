@@ -62,7 +62,8 @@ test("only a PNG data URL is read as a mask", () => {
 test("img2img inpainting samples the crop with a noise mask at the inpaint strength and stitches it back", () => {
   const graph = familyGraph({ family: "zimage", variant: "turbo", source: "unet", model: "z_image_turbo.safetensors", encoders: ["qwen_3_4b.safetensors"], vae: "ae.safetensors", prompt: "a red jacket", steps: 8, cfg: 1, seed: 1, width: inpaint.work.width, height: inpaint.work.height, count: 2, startImageComfy: "crop.png", inpaint: { ...inpaint, strength: 0.8 } });
   assertWired(graph);
-  assert.equal(byType(graph, "DifferentialDiffusion").length, 1);
+  // A hard sampling mask, no differential diffusion: few-step models leave a soft edge half-done.
+  assert.equal(byType(graph, "DifferentialDiffusion").length, 0);
   assert.equal(byType(graph, "SetLatentNoiseMask").length, 1);
   assert.equal(byType(graph, "KSampler")[0].inputs.denoise, 0.8);
   assert.equal(byType(graph, "EmptySD3LatentImage").length, 0);
@@ -111,7 +112,7 @@ test("without a mask nothing changes", () => {
   for (const node of ["DifferentialDiffusion", "SetLatentNoiseMask", "ImageCompositeMasked"]) assert.equal(byType(graph, node).length, 0, node);
 });
 
-test("the files: an exact crop, a softened sampling mask and a feathered stitch mask", async () => {
+test("the files: an exact crop, a hard grown sampling mask and a feathered stitch mask", async () => {
   const sharp = (await import("sharp")).default;
   const width = 1600;
   const height = 1200;
@@ -143,7 +144,8 @@ test("the files: an exact crop, a softened sampling mask and a feathered stitch 
   const sampling = await sharp(files.samplingMask).extractChannel(0).raw().toBuffer({ resolveWithObject: true });
   const scale = files.work.width / 512;
   assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(256 * scale)], 255);
-  assert.ok(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(150 * scale)] > 0, "grown a little past the painted edge");
+  assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(150 * scale)], 255, "grown a little past the painted edge, at full strength");
+  assert.ok(sampling.data.every((value) => value === 0 || value === 255), "hard: on or off, no half-way edge");
 
   const empty = await sharp(Buffer.alloc(400 * 300), { raw: { width: 400, height: 300, channels: 1 } }).png().toBuffer();
   assert.equal(await inpaintFiles(sharp, source, empty, { targetPixels: 1024 * 1024, feather: 0.4 }), null);

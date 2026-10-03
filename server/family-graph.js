@@ -237,8 +237,6 @@ export function familyGraph(body) {
     const masked = [add("SetLatentNoiseMask", { samples: base, mask }), 0];
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: masked, amount: count }), 0] : masked;
     denoise = Number(inpaint.strength ?? 1);
-    // A soft mask becomes a soft change: strongest where it was painted, easing out at the edge.
-    model = [add("DifferentialDiffusion", { model }), 0];
   } else if (editLatent) {
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent;
   } else if (family.imageToVideo) {

@@ -1636,6 +1636,12 @@ app.post("/api/generate", async (req, res) => {
     }
   }
   // An empty painted mask falls back to a normal run, so apply normal sizing too.
+  if (body.inpaint?.box) {
+    const { box, image, work } = body.inpaint;
+    console.log(`[HEISS] Inpaint: repainting ${box.width}×${box.height} at ${box.x},${box.y} of ${image?.width}×${image?.height}, sampled at ${work.width}×${work.height}, strength ${body.inpaint.strength}`);
+  }
+  // Said back to the page: a mask was sent but nothing in it was painted, so this runs as a plain edit.
+  const inpaintSkipped = Boolean(!isMockJob && req.body?.inpaint?.mask && !body.inpaint);
   if (!isMockJob && req.body?.inpaint && !body.inpaint && body.referenceAssets?.length) {
     try {
       const [first, ...others] = body.referenceAssets;
@@ -1681,7 +1687,7 @@ app.post("/api/generate", async (req, res) => {
   markWorkflowUsed(body.profileId || body.model || body.workflow || "");
   setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
   jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
-  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue() });
+  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue(), ...(inpaintSkipped ? { notice: "Nothing painted showed up in the mask, so this ran as a normal edit of the whole picture." } : {}) });
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {

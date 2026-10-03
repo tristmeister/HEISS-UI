@@ -1,6 +1,6 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { useDismiss } from './useDismiss';
-import { ChevronDown, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
+import { Brush, ChevronDown, ImagePlus, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -427,6 +427,24 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * all it offers "Get a model" instead. Arrow keys move, Enter picks, typing
  * searches.
  */
+/**
+ * What a model can do with a picture, as two small round marks before its
+ * family badge: edits from reference images, and inpainting (paint over part
+ * of a reference to change only that).
+ */
+function ModelAbilities({ profile }: { profile: Profile }) {
+  // An edit model takes references without a start-image strength; img2img models have one.
+  const edits = Boolean(profile.mediaInputs?.length && !profile.capabilities.denoise);
+  const inpaints = Boolean(profile.capabilities.inpaint);
+  if (!edits && !inpaints) return null;
+  return (
+    <span className="model-abilities">
+      {edits ? <span className="model-ability" title="Edits from reference images" aria-label="Edits from reference images"><ImagePlus size={10} strokeWidth={2.2} /></span> : null}
+      {inpaints ? <span className="model-ability" title="Inpainting: paint over part of an image to change only that" aria-label="Inpainting"><Brush size={10} strokeWidth={2.2} /></span> : null}
+    </span>
+  );
+}
+
 export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const hardware = useHardware();
   const [open, setOpen] = useState(false);
@@ -569,6 +587,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                               <strong>{profile.displayName || profile.label}</strong>
                               {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>}
                             </span>
+                            <ModelAbilities profile={profile} />
                             {badge ? <span className="model-badge">{badge}</span> : null}
                           </button></Tip>
                         {menu ? (

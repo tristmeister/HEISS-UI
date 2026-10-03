@@ -465,3 +465,22 @@ input.is-framed:focus-visible {
   45% { transform: translateY(-1px) rotate(-6deg); }
   70% { transform: translateY(0) rotate(4deg); }
 }
+
+/* What a model can do with a picture: small round marks before its family badge. */
+.model-abilities { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.model-ability {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid hsl(var(--muted-foreground) / .45);
+  color: hsl(var(--muted-foreground));
+}
+.model-option:hover .model-ability { color: hsl(var(--foreground) / .85); border-color: hsl(var(--foreground) / .35); }
+.model-option.active .model-ability { color: hsl(var(--primary-foreground) / .7); border-color: hsl(var(--primary-foreground) / .35); }
+/* With ability marks the row has three columns: name, marks, family badge. */
+.model-option:has(.model-abilities) { grid-template-columns: minmax(0, 1fr) auto auto; }
+@media (max-width: 620px) {
+  .model-option:has(.model-abilities) { grid-template-columns: minmax(0, 1fr) auto; }
+}
