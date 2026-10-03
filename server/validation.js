@@ -155,6 +155,7 @@ function sanitizeFamilyBody(input, info, stats) {
     startImageId: profile.capabilities.startImage ? String(input.startImageId || "") : "",
     startImageName: String(input.startImageName || ""),
     referenceAssets,
+    autoResizeInputs: input.autoResizeInputs !== false,
     inpaint: sanitizeInpaint(input, profile, referenceAssets),
     promptPolicy: null,
     loras: sanitizeLoras(input, info, profile, kind, 8),
@@ -254,6 +255,7 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     startImageId: String(input.startImageId || ""),
     startImageName: String(input.startImageName || ""),
     referenceAssets,
+    autoResizeInputs: input.autoResizeInputs !== false,
     promptPolicy: workflowInfo.promptComposition ? {
       policy: workflowInfo.promptComposition.policy,
       version: workflowInfo.promptComposition.version

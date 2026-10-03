@@ -194,6 +194,9 @@ export function loadPrefs(): Preferences {
       localStorage.setItem(prefsMigrationKey, "run-cooldown-1");
       if (parsed.runCooldownMinutes === 5) delete parsed.runCooldownMinutes;
     }
+    // Carry an explicit Original choice from the earlier size control into the switch.
+    if (parsed.autoResizeInputs === undefined && parsed.referenceMaxEdge === 0) parsed.autoResizeInputs = false;
+    delete parsed.referenceMaxEdge;
     return { ...defaultPrefs, ...parsed };
   } catch {
     return { ...defaultPrefs };

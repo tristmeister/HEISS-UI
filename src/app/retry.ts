@@ -19,8 +19,8 @@ export function smallerSide(value: number) {
 export function retryRequest(item: GalleryItem, options: RetryOptions = {}): RetryRequest {
   const settings = item.settings || {};
   const kind = item.type === 'video' ? 'video' : 'image';
-  const width = Number(item.width || settings.width || 0);
-  const height = Number(item.height || settings.height || 0);
+  const width = Number(settings.width || item.width || 0);
+  const height = Number(settings.height || item.height || 0);
   const references = Array.isArray(settings.referenceAssets) ? settings.referenceAssets as Array<{ slot?: string; assetId?: string }> : [];
   const seed = String(settings.seed ?? '');
   const body: Record<string, unknown> = {
@@ -47,6 +47,7 @@ export function retryRequest(item: GalleryItem, options: RetryOptions = {}): Ret
     count: Number(settings.count || 1),
     ...(kind === 'video' ? { frames: Number(settings.frames || 0) || undefined, fps: Number(settings.fps || 0) || undefined } : {}),
     loras: normalizeLoras(settings.loras),
+    autoResizeInputs: settings.autoResizeInputs !== false,
     referenceAssets: references.filter((ref) => ref?.assetId).map((ref) => ({ slot: ref.slot || 'reference', assetId: ref.assetId })),
     startImageId: item.startImageId || item.referenceImage || '',
     startImageName: item.referenceImageName || String(settings.referenceImageName || ''),

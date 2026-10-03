@@ -7,6 +7,7 @@ import sharp from "sharp";
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-reference-assets-"));
 process.env.HEISS_DATA_DIR = temporary;
+process.env.COMFY_INPUT_DIR = temporary;
 const referenceAssets = await import(`./reference-assets.js?test=${Date.now()}`);
 
 test("uploaded references are validated, indexed, thumbnailed, and deletable", async () => {
@@ -24,6 +25,65 @@ test("uploaded references are validated, indexed, thumbnailed, and deletable", a
 
 test("non-image uploads are rejected", async () => {
   await assert.rejects(() => referenceAssets.saveUploadedReference({ buffer: Buffer.from("not an image"), name: "fake.png", mime: "image/png" }));
+});
+
+test("staging resizes every slot before upload, keeps originals, and isolates temporary copies", async (t) => {
+  const source = await sharp({ create: { width: 3000, height: 4000, channels: 4, background: { r: 30, g: 60, b: 90, alpha: 0.4 } } }).png().toBuffer();
+  const asset = await referenceAssets.saveUploadedReference({ buffer: source, name: "portrait.png", mime: "image/png" });
+  const uploads = [];
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    const file = init.body.get("image");
+    uploads.push({ name: file.name, buffer: Buffer.from(await file.arrayBuffer()) });
+    return new Response(JSON.stringify({ name: file.name }), { headers: { "content-type": "application/json" } });
+  });
+  const refs = [{ slot: "start", assetId: asset.id }, { slot: "reference", assetId: asset.id }];
+  const generation = { family: "sdxl", width: 1024, height: 1024 };
+  const staged = await referenceAssets.stageReferenceAssets({}, refs, { generation });
+  assert.equal(staged.length, 2);
+  assert.notEqual(staged[0].comfyName, staged[1].comfyName, "parallel runs must not share deletable resized files");
+  for (const item of staged) {
+    assert.equal(item.temporary, true);
+    assert.ok(item.width * item.height <= 1024 ** 2);
+    assert.equal(item.width % 8, 0);
+    assert.equal(item.height % 8, 0);
+  }
+  assert.ok((await sharp(uploads[0].buffer).metadata()).hasAlpha);
+  assert.deepEqual((await referenceAssets.bytesForReference({}, asset.id)).buffer, source);
+
+  const off = await referenceAssets.stageReferenceAssets({}, refs.slice(0, 1), { generation: { ...generation, autoResizeInputs: false } });
+  assert.equal(off[0].temporary, undefined);
+  assert.deepEqual(uploads.at(-1).buffer, source);
+  await referenceAssets.stageReferenceAssets({}, refs.slice(0, 1));
+  assert.deepEqual(uploads.at(-1).buffer, source, "upscale operations keep full resolution");
+
+  const painted = await referenceAssets.stageReferenceAssets({}, refs, { generation: { ...generation, inpaint: { mask: "painted" } } });
+  assert.equal(painted[0].temporary, undefined);
+  assert.deepEqual(uploads.at(-2).buffer, source, "inpaint source and mask retain their coordinate system");
+  assert.equal(painted[1].temporary, true, "additional references still resize");
+  delete process.env.COMFY_INPUT_DIR;
+  const remote = await referenceAssets.stageReferenceAssets({}, refs, { generation });
+  assert.equal(remote[0].comfyName, remote[1].comfyName, "remote runs reuse content-named resized uploads");
+  assert.equal(remote[0].temporary, undefined);
+  process.env.COMFY_INPUT_DIR = temporary;
+  referenceAssets.deleteUploadedReference(asset.id);
+});
+
+test("failed staging removes already-uploaded temporary copies", async (t) => {
+  const buffer = await sharp({ create: { width: 2000, height: 2000, channels: 3, background: "#334455" } }).png().toBuffer();
+  const asset = await referenceAssets.saveUploadedReference({ buffer, name: "rollback.png", mime: "image/png" });
+  let uploadedFile;
+  t.mock.method(globalThis, "fetch", async (_url, init) => {
+    const file = init.body.get("image");
+    uploadedFile = path.join(temporary, file.name);
+    fs.writeFileSync(uploadedFile, Buffer.from(await file.arrayBuffer()));
+    return new Response(JSON.stringify({ name: file.name }), { headers: { "content-type": "application/json" } });
+  });
+  await assert.rejects(() => referenceAssets.stageReferenceAssets({}, [
+    { slot: "start", assetId: asset.id }, { slot: "reference", assetId: "gone" }
+  ], { generation: { width: 512, height: 512 } }));
+  assert.ok(uploadedFile);
+  assert.equal(fs.existsSync(uploadedFile), false);
+  referenceAssets.deleteUploadedReference(asset.id);
 });
 
 test.after(() => fs.rmSync(temporary, { recursive: true, force: true }));

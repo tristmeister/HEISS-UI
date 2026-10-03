@@ -941,6 +941,8 @@ export function generationSettings(body) {
     clipType: body.clipType || "",
     weightDtype: body.weightDtype || "",
     referenceImageName: body.startImageName || "",
+    autoResizeInputs: body.autoResizeInputs !== false,
+    ...(body.requestedSize ? { width: body.requestedSize.width, height: body.requestedSize.height } : {}),
     referenceAssets: Array.isArray(body.referenceAssets) ? body.referenceAssets.map(({ slot, assetId, source, name }) => ({ slot, assetId, source, name })) : [],
     promptPolicy: body.promptPolicy || null
   };

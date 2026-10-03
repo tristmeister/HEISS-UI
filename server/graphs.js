@@ -2,27 +2,45 @@ import crypto from "node:crypto";
 import { comfy } from './comfy.js';
 import { getCustomWorkflow } from './custom-workflows.js';
 import { startImageDataUrl } from './start-images.js';
+import { prepareInputImage } from './input-image-sizing.js';
+import { families } from './family-catalog.js';
 import { familyGraph } from './family-graph.js';
 import { withGgufLoaders } from './gguf.js';
 
-export async function uploadReferenceImage(dataUrl) {
+export async function uploadReferenceImage(dataUrl, body = {}) {
   if (!dataUrl || !dataUrl.includes(",")) return "";
   const [header, data] = dataUrl.split(",", 2);
   const match = header.match(/data:(.*?);base64/);
-  const type = match?.[1] || "image/png";
-  const ext = type.includes("jpeg") ? "jpg" : "png";
+  let type = match?.[1] || "image/png";
+  const family = families[body.family];
+  const directImg2img = family?.img2img && !family.references;
+  const prepared = await prepareInputImage({ buffer: Buffer.from(data, "base64"), mime: type, name: "start-image" }, {
+    pixels: body.autoResizeInputs !== false ? Number(body.width) * Number(body.height) : 0,
+    step: directImg2img ? family.sizeStep || 8 : 1
+  });
+  if (directImg2img && prepared.width) {
+    body.requestedSize ||= { width: body.width, height: body.height };
+    body.width = prepared.width;
+    body.height = prepared.height;
+  }
+  type = prepared.mime;
+  const ext = type.includes("jpeg") ? "jpg" : type.includes("webp") ? "webp" : "png";
   const filename = `heiss-ui-reference-${crypto.randomUUID()}.${ext}`;
-  const bytes = Buffer.from(data, "base64");
+  const bytes = prepared.buffer;
   const form = new FormData();
   form.append("image", new Blob([bytes], { type }), filename);
   form.append("type", "input");
   const uploaded = await comfy("/upload/image", { method: "POST", body: form });
-  return uploaded.name || filename;
+  const comfyName = uploaded.name || filename;
+  body.stagedInputNames = [...(body.stagedInputNames || []), comfyName];
+  // Legacy uploads are unique too; release their temporary copy when the run ends.
+  body.hiddenInputNames = [...(body.hiddenInputNames || []), comfyName];
+  return comfyName;
 }
 
 async function uploadBodyStartImage(body) {
   const dataUrl = body.startImage || startImageDataUrl(body.startImageId);
-  return dataUrl ? uploadReferenceImage(dataUrl) : "";
+  return dataUrl ? uploadReferenceImage(dataUrl, body) : "";
 }
 
 export function composeWorkflowPrompt(workflow, userPrompt = "") {

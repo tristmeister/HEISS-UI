@@ -731,6 +731,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <Segmented label="Generation previews" value={prefs.generationPreviewMode === 'simple' ? 'simple' : 'advanced'} onChange={(next) => setPrefs({ generationPreviewMode: next })} options={[{ value: 'advanced', label: 'Mosaic' }, { value: 'simple', label: 'Simple' }]} />
               </Row>
             </Group>
+            <Group title="Input images">
+              <SwitchRow label="Automatically resize input images" description="Fits large start and reference images to the generation size. Keeps their proportions and your originals." checked={prefs.autoResizeInputs !== false} onChange={(next) => setPrefs({ autoResizeInputs: next })} />
+            </Group>
             <Group title="Starting values" note="Used when a model doesn’t set its own. The current draft stays as it is.">
               <Row label="Variants"><NumberPicker label="Variants" value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
               <Row label="Image steps"><NumberPicker label="Steps" value={Number(prefs.defaultImageSteps)} onChange={(next) => setPrefs({ defaultImageSteps: next })} min={1} max={150} /></Row>

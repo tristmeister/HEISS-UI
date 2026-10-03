@@ -2,13 +2,16 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Busboy from "busboy";
-import { comfy, comfyOutputDir } from "./comfy.js";
+import { comfy, comfyOutputDir, comfyInputDir } from "./comfy.js";
 import { dataDir, filterVisibleGallery, gallery, galleryKey, outputFileCandidates } from "./gallery-store.js";
 import { encryptionKeyFromRequest } from "./privacy.js";
 import { readVaultAsset, vaultGalleryItemsForRequest } from "./vault.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
 import { loadSharp } from "./sharp-loader.js";
+import { prepareInputImage } from "./input-image-sizing.js";
+import { forgetComfyRun } from "./hidden-traces.js";
+import { families } from "./family-catalog.js";
 import { mimeExtension, referenceInputName } from "./reference-names.js";
 
 const assetsDir = path.join(dataDir, "reference-assets");
@@ -346,15 +349,30 @@ export async function uploadBufferToComfy({ buffer, mime, name }, { unique = fal
   return { comfyName: uploaded.name || filename, name: safeName(name), mime };
 }
 
-export async function stageReferenceAssets(req, references = [], { unique = false } = {}) {
+export async function stageReferenceAssets(req, references = [], { unique = false, generation = null } = {}) {
   const staged = [];
-  for (const reference of Array.isArray(references) ? references : []) {
-    const assetId = String(reference?.assetId || "");
-    const slot = String(reference?.slot || "reference");
-    if (!assetId) continue;
-    const bytes = await bytesForReference(req, assetId);
-    const uploaded = await uploadBufferToComfy(bytes, { unique: unique || assetId.startsWith("vault:") });
-    staged.push({ slot, assetId, source: String(reference?.source || ""), ...uploaded });
+  try {
+    for (const reference of Array.isArray(references) ? references : []) {
+      const assetId = String(reference?.assetId || "");
+      const slot = String(reference?.slot || "reference");
+      if (!assetId) continue;
+      const family = generation && families[generation.family];
+      // Inpaint stitches the crop back onto the full original. Its existing crop pipeline
+      // already limits sampling pixels and keeps the painted mask aligned.
+      const keepOriginal = generation?.inpaint && staged.length === 0;
+      const pixels = generation && generation.autoResizeInputs !== false && !keepOriginal
+        ? Number(generation.width) * Number(generation.height) : 0;
+      const step = family?.img2img && !family.references ? family.sizeStep || 8 : 1;
+      const bytes = await prepareInputImage(await bytesForReference(req, assetId), { pixels, step });
+      // Remote ComfyUI has no native input-delete endpoint. Reuse content names there
+      // instead of accumulating a new public resized file on every run.
+      const temporary = unique || assetId.startsWith("vault:") || Boolean(bytes.resized && comfyInputDir());
+      const uploaded = await uploadBufferToComfy(bytes, { unique: temporary });
+      staged.push({ slot, assetId, source: String(reference?.source || ""), ...uploaded, ...(temporary ? { temporary: true } : {}), ...(bytes.width ? { width: bytes.width, height: bytes.height } : {}) });
+    }
+    return staged;
+  } catch (error) {
+    await forgetComfyRun({ inputNames: staged.filter((item) => item.temporary).map((item) => item.comfyName) });
+    throw error;
   }
-  return staged;
 }

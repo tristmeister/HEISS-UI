@@ -21,6 +21,7 @@ import { httpsListening, httpsProblem, startServers } from './listen.js';
 import { httpsPort, inspectTls, startupTls, tlsHostNames, tlsSummary } from './tls.js';
 import { envFileKeys, writeLocalEnvValue } from './env.js';
 import { inferModels, mockModelResult, offlineModelResult } from './models.js';
+import { families } from './family-catalog.js';
 import { primeModelMetadata, setModelChoice } from './model-families.js';
 import { catalogDownload } from './family-profiles.js';
 import { cancelDownload, discardDownload, downloadState, replaceDownload, startDownload } from './model-downloads.js';
@@ -1513,11 +1514,11 @@ app.post("/api/generate", async (req, res) => {
   // send only the image's id; treat it as the reference instead of losing it.
   if (!isMockJob && !body.referenceAssets?.length && body.startImageId && !body.startImage) {
     // Not a library id (an old start-image upload): keep the legacy path for it.
-    body.referenceAssets = await stageReferenceAssets(req, [{ slot: "reference", assetId: body.startImageId }]).catch(() => []);
+    body.referenceAssets = await stageReferenceAssets(req, [{ slot: "reference", assetId: body.startImageId }], { unique: body.privateVault, generation: body }).catch(() => []);
   }
   if (!isMockJob && body.referenceAssets?.length && !body.referenceAssets.every((item) => item.comfyName)) {
     try {
-      body.referenceAssets = await stageReferenceAssets(req, body.referenceAssets, { unique: body.privateVault });
+      body.referenceAssets = await stageReferenceAssets(req, body.referenceAssets, { unique: body.privateVault, generation: body });
       body.startImageId ||= body.referenceAssets[0]?.assetId || "";
       body.startImageName ||= body.referenceAssets[0]?.name || "";
     } catch (error) {
@@ -1531,18 +1532,40 @@ app.post("/api/generate", async (req, res) => {
     try {
       body.inpaint = isMockJob ? null : await prepareInpaint(req, body);
     } catch (error) {
+      await forgetComfyRun({ inputNames: (body.referenceAssets || []).filter((item) => item.temporary).map((item) => item.comfyName) });
       res.status(400).json({ ok: false, error: error.message });
       return;
     }
   }
+  // An empty painted mask falls back to a normal run, so apply normal sizing too.
+  if (!isMockJob && req.body?.inpaint && !body.inpaint && body.referenceAssets?.length) {
+    try {
+      const [first, ...others] = body.referenceAssets;
+      const [replacement] = await stageReferenceAssets(req, [first], { unique: body.privateVault, generation: body });
+      if (first.temporary) await forgetComfyRun({ inputNames: [first.comfyName] });
+      body.referenceAssets = [replacement, ...others];
+    } catch (error) {
+      await forgetComfyRun({ inputNames: (body.referenceAssets || []).filter((item) => item.temporary).map((item) => item.comfyName) });
+      res.status(400).json({ ok: false, error: error.message });
+      return;
+    }
+  }
+  // Plain img2img samples at the staged image's size, irrespective of the empty latent controls.
+  const startSize = body.referenceAssets?.[0];
+  const inputFamily = families[body.family];
+  if (!body.inpaint && inputFamily?.img2img && !inputFamily.references && startSize?.width) {
+    body.requestedSize = { width: body.width, height: body.height };
+    body.width = startSize.width;
+    body.height = startSize.height;
+  }
   // Every image this run handed ComfyUI: all of them go after a Hidden run, and
-  // after a normal one, the copies of any Hidden image used as its reference.
+  // after a normal one, temporary resized copies and any Hidden references.
   const staged = (body.referenceAssets || []).filter((item) => item.comfyName);
   const inpaintNames = inpaintInputNames(body.inpaint);
   body.stagedInputNames = [...staged.map((item) => item.comfyName), ...inpaintNames];
   const fromHiddenImage = String(body.referenceAssets?.[0]?.assetId || "").startsWith("vault:");
   body.hiddenInputNames = [
-    ...staged.filter((item) => String(item.assetId || "").startsWith("vault:")).map((item) => item.comfyName),
+    ...staged.filter((item) => item.temporary || String(item.assetId || "").startsWith("vault:")).map((item) => item.comfyName),
     ...(fromHiddenImage ? inpaintNames : [])
   ];
   // A random seed is drawn here rather than inside the graph, so the gallery

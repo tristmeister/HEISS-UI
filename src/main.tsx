@@ -1129,10 +1129,12 @@ function App() {
   useEffect(() => {
     if (!aspectLocked || !referenceForAspect) return;
     setCustomSize(false);
-    setWidth(snapDimension(referenceForAspect.width, widthMeta));
-    setHeight(snapDimension(referenceForAspect.height, heightMeta));
+    const pixels = Number(currentProfile?.defaults.width || 1024) * Number(currentProfile?.defaults.height || 1024);
+    const scale = prefs.autoResizeInputs === false ? 1 : Math.min(1, Math.sqrt(pixels / (referenceForAspect.width * referenceForAspect.height)));
+    setWidth(snapDimension(referenceForAspect.width * scale, widthMeta));
+    setHeight(snapDimension(referenceForAspect.height * scale, heightMeta));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspectLocked, referenceForAspect?.id, model]);
+  }, [aspectLocked, referenceForAspect?.id, model, prefs.autoResizeInputs]);
   const frameMeta = currentProfile?.constraints?.frames || {};
   const countMeta = currentProfile?.constraints?.count || {};
   const stepsMeta = currentProfile?.constraints?.steps || {};

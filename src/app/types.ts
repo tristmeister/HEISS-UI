@@ -254,6 +254,8 @@ export type Preferences = {
   defaultVideoFrames: number;
   defaultVideoSteps: number;
   defaultFps: number;
+  /** Downscale oversized start and reference images to the generation pixel budget. */
+  autoResizeInputs: boolean;
   generationPreviewMode: "advanced" | "simple";
   variationQueueMode: "batch" | "separate";
   zenMode: boolean;

@@ -155,6 +155,7 @@ export function useGenerationActions(view: any) {
         count: effectiveCount,
         frames,
         fps,
+        autoResizeInputs: prefs.autoResizeInputs !== false,
         loras,
         referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
         // A painted mask on the first reference: change only that part.
