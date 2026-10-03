@@ -183,6 +183,8 @@ export function metadataFromJson(raw, file) {
     aspectPolicy: meta.aspectPolicy === "reference" ? "reference" : "manual",
     capabilities: {
       negativePrompt: Boolean(controls.negative),
+      // No sampler or scheduler wired to the studio: hide those pickers rather than show ones that do nothing.
+      ...(controls.sampler || controls.scheduler ? {} : { sampler: false }),
       variations: Boolean(controls.count),
       frames: Boolean(controls.frames),
       fps: Boolean(controls.fps),
