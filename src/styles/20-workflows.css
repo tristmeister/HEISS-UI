@@ -394,3 +394,6 @@
 @media (max-width: 560px) {
   .wf-recent { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+.wf-install-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 12.5px; }
+.wf-install-row span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wf-install-row em { flex: none; font-style: normal; font-size: 11px; color: hsl(var(--muted-foreground)); }

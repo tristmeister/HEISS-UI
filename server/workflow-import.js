@@ -14,6 +14,10 @@ import { convertVisualWorkflow, visualTitles } from "./workflow-convert.js";
 import { importFromHistory, unwrapWorkflow, workflowFromMedia } from "./workflow-sources.js";
 import { nodePackMap, packStamps, resolveMissingNodes } from "./workflow-packs.js";
 import { missingModelRefs, modelNameList, planModels } from "./workflow-models.js";
+import { nodePacks } from "./node-packs.js";
+
+const repoKey = (url = "") => String(url).replace(/\.git$/, "").replace(/\/+$/, "").toLowerCase();
+const reviewed = new Map(Object.values(nodePacks).map((pack) => [repoKey(pack.repository), pack]));
 
 /** The prompt without keys ComfyUI's validator doesn't expect. */
 function cleanPrompt(api) {
@@ -75,7 +79,14 @@ export async function readImportSource(request = {}, fetchers = {}) {
 export async function packPlan(missingNodes = [], visual = null, { map = null } = {}) {
   if (!missingNodes.length) return { packs: [], unresolved: [] };
   const packMap = map || await nodePackMap().catch(() => ({ packs: {} }));
-  return resolveMissingNodes(missingNodes, { stamps: packStamps(visual), map: packMap });
+  const plan = resolveMissingNodes(missingNodes, { stamps: packStamps(visual), map: packMap });
+  // A pack HEISS has reviewed installs at its reviewed commit when it installs locally.
+  for (const pack of plan.packs) {
+    const known = reviewed.get(repoKey(pack.repository));
+    if (!known) continue;
+    Object.assign(pack, { reviewed: true, commit: known.commit || pack.commit, folder: known.folder || pack.folder, managerId: pack.managerId || known.manager || "" });
+  }
+  return plan;
 }
 
 /** The whole preview for one import. */

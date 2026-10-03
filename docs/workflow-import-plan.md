@@ -1,6 +1,7 @@
 # Workflow import overhaul: master plan
 
-Status: plan only, nothing built. Written 2026-10-03.
+Status: built on branch `claude/friendly-hopper-48woyr` (2026-10-03), except
+the items listed under "Not built yet" at the end. Written 2026-10-03.
 
 This plan comes out of a long design discussion. It draws on:
 - a close read of a friend's app, ComfyPort
@@ -512,3 +513,33 @@ and every download is checksum-verified.
   "Open in ComfyUI").
 - Workflows that need a human mid-run (hand-painted masks, interactive picker
   nodes): mark them "best used in ComfyUI".
+
+---
+
+## 7. What was built, and where
+
+| Phase | Built | Code |
+|---|---|---|
+| A | Corpus of 18 real workflows (16 official templates, 2 from ComfyPort) with expected answers, plus synthetic cases; runs in `npm test` | `server/fixtures/workflows/`, `server/workflow-import.test.js`, `server/workflow-import-routes.test.js` |
+| B | Picker: recent ComfyUI runs (runs of one workflow folded, HEISS's own runs left out), saved workflows, drop or choose JSON / PNG / WebP / video, paste | `server/workflow-sources.js`, `GET /api/workflows/sources`, `src/app/WorkflowGallery.tsx` |
+| C | Stored prompt first; ComfyUI's own page via Playwright when installed (`HEISS_COMFY_PAGE=0` turns it off); new converter with subgraphs, bypass, mute, Reroute, PrimitiveNode, KJNodes Set/Get | `server/workflow-import.js`, `server/comfy-page-convert.js`, `server/workflow-convert.js` |
+| D | Prompt traced to typed text through enhancers and joins; content question; seeds, size (wires, then titled primitives), sampler knobs, frames/fps, main model, images, empty rgthree LoRA stack; More settings in the sidebar; prompts mapped to several boxes | `server/workflow-understand.js`, `src/app/WorkflowSettings.tsx`, `server/graphs.js` |
+| E | Stamps, then Manager's node map (best cover, originals over forks by stars); registry packs install on import, others ask; snapshot, held torch/numpy/OpenCV, health check, undo card, automatic rollback when ComfyUI doesn't come back; install history with undo | `server/workflow-packs.js`, `server/install-safety.js`, `server/workflow-setup.js`, `server/pack-installer.js` |
+| F | Same file in another folder used; exact names from the catalog and Manager's model list download with the import; near names offered; missing LoRAs skipped; same-family, same-format stand-ins for main models | `server/workflow-models.js`, `server/workflow-fallbacks.js` |
+
+### Not built yet
+
+- **Civitai name index (F3).** Waiting on the two checks in section 5 (#6 and
+  #7): whether the redirects serve files without a key, and Civitai's terms
+  for an index. Until then Civitai-only files show as "still needs".
+- **Hugging Face mirror by checksum (F4).** Depends on F3's checksums.
+- **Validation through ComfyUI's `/prompt` before saving (C).** Imports are
+  checked against `/object_info` (missing node types, missing files), not
+  queued.
+- **New reviewed packs (E3).** The resolver uses the reviewed commit for packs
+  already in `server/node-packs.js`; adding the candidates in E3 means
+  reviewing each one, which is a person's job.
+- **Header check for near-name files (F1).** Near names are offered, never
+  taken silently, so no header read is needed yet.
+- **The registry API (E1.3)** was never reachable from the research sandbox;
+  "registry" means stamped `cnr_id` or an id in Manager's list.

@@ -12,6 +12,7 @@ import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
 import type { ControlMapping, FileSwap, ImportSourceItem, Mode, Profile, SavedWorkflowItem, WorkflowImportPreview, WorkflowPreferences, WorkflowRisk, WorkflowSetupState, WorkflowSummary } from './types';
 import { useThisComputer } from './device';
+import { SafeImg } from './SafeImg';
 import type { ShowToast } from './toast';
 import { CopyIcon, useCopyFeedback } from "./CopyFeedback";
 import { agentPrompt, agentPromptFor, controlLabel, loraNodes, workflowControls } from "./workflowAgentGuide";
@@ -327,6 +328,44 @@ function SetupStrip({ setup, onUndo, onDismiss, busy }: { setup: WorkflowSetupSt
   return null;
 }
 
+type InstallRecord = { id: string; at: string; reason: string; packs: Array<{ name: string }>; status: string; canUndo: boolean };
+
+/** Add-ons installed for workflows, newest first, each with an undo. Loaded only when opened. */
+function InstallHistory({ showToast, onUndone }: { showToast: ShowToast; onUndone: () => void }) {
+  const [items, setItems] = useState<InstallRecord[] | null>(null);
+  const [working, setWorking] = useState("");
+  const load = () => apiJson<{ installs: InstallRecord[] }>("/api/installs").then((data) => setItems(data.installs || [])).catch(() => setItems([]));
+  const undo = async (id: string) => {
+    setWorking(id);
+    try {
+      await apiJson("/api/workflows/setup/undo", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ snapshotId: id }) });
+      showToast("Undone. ComfyUI is restarting with what it had before.", "success");
+      onUndone();
+      await load();
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Couldn’t undo the install", "error");
+    } finally {
+      setWorking("");
+    }
+  };
+  return (
+    <details className="wf-mapping" onToggle={(event) => { if ((event.currentTarget as HTMLDetailsElement).open && !items) load(); }}>
+      <summary>Add-ons installed for workflows</summary>
+      {items === null ? <p className="wf-pick-hint">Loading…</p> : !items.length ? <p className="wf-pick-hint">Nothing yet.</p> : (
+        <ul className="wf-saved">
+          {items.map((item) => (
+            <li key={item.id} className="wf-install-row">
+              <span>{item.packs.map((pack) => pack.name).join(", ") || item.reason}</span>
+              <em>{item.status === "undone" ? "undone" : relativeTime(item.at)}</em>
+              {item.canUndo && item.status !== "undone" ? <button type="button" className="btn is-ghost" disabled={Boolean(working)} onClick={() => undo(item.id)}><Undo2 size={12} /> Undo</button> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </details>
+  );
+}
+
 /** Recent runs from ComfyUI's history: the workflow behind a picture you made, one tap away. */
 function RecentRuns({ items, onPick, disabled }: { items: ImportSourceItem[]; onPick: (item: ImportSourceItem) => void; disabled: boolean }) {
   return (
@@ -334,7 +373,7 @@ function RecentRuns({ items, onPick, disabled }: { items: ImportSourceItem[]; on
       {items.map((item) => (
         <button key={item.id} type="button" className="wf-recent-tile" disabled={disabled} onClick={() => onPick(item)} title={`${item.name}${item.runs > 1 ? `, run ${item.runs} times` : ""}`}>
           <span className="wf-recent-thumb">
-            {item.thumbnail && !item.video ? <img src={item.thumbnail} alt="" loading="lazy" draggable={false} /> : <span aria-hidden="true">{item.video ? <Film size={18} /> : <Wand2 size={18} />}</span>}
+            {item.thumbnail && !item.video ? <SafeImg src={item.thumbnail} fallback={<Wand2 size={18} />} /> : <span aria-hidden="true">{item.video ? <Film size={18} /> : <Wand2 size={18} />}</span>}
           </span>
           <span className="wf-recent-copy">
             <strong>{item.name}</strong>
@@ -850,6 +889,7 @@ export function WorkflowGallery({ view }: { view: any }) {
               <button className="btn" onClick={previewPaste} disabled={busy || !pasteJson.trim()}>Read it</button>
               <AgentGuide onCopy={() => copyAgent(agentPrompt(), "guide")} copied={agentCopy.copied === "guide"} />
             </details>
+            <InstallHistory showToast={showToast} onUndone={() => { refreshModels(false); refreshWorkflows(); }} />
           </div>
         ) : (
           <div className="wf-review">
@@ -861,7 +901,7 @@ export function WorkflowGallery({ view }: { view: any }) {
               return (
                 <div className="wf-review-card" key={`${item.filename}-${index}`}>
                   <div className="wf-review-head">
-                    {item.preview.thumbnail ? <span className="wf-review-thumb"><img src={item.preview.thumbnail} alt="" draggable={false} /></span> : null}
+                    {item.preview.thumbnail ? <span className="wf-review-thumb"><SafeImg src={item.preview.thumbnail} fallback={<Wand2 size={16} />} /></span> : null}
                     <input className="modal-input wf-review-name" aria-label="Name" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} />
                     {imports.length > 1 ? <button type="button" className="modal-close" aria-label="Remove from import" onClick={() => setImports((current) => current.filter((_, i) => i !== index))}><X size={14} /></button> : null}
                   </div>
