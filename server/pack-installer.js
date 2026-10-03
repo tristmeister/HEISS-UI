@@ -44,7 +44,7 @@ export const managerRefusedMessage = "ComfyUI-Manager’s security level blocks 
 
 function snapshot(state) {
   if (!state) return null;
-  const { child, ...rest } = state;
+  const { child, done, ...rest } = state;
   return rest;
 }
 
@@ -105,6 +105,8 @@ function run(state, command, args, cwd, env = process.env) {
 
 /** The packages a node pack must never replace: what ComfyUI's PyTorch stands on. */
 export const heldPackages = ["torch", "torchvision", "torchaudio", "numpy"];
+// Packs mix opencv-python, -headless and -contrib, and installing a second flavour breaks the first: hold whichever is there.
+const heldPrefixes = ["opencv-"];
 
 /**
  * A pip constraints file pinning heldPackages at whatever ComfyUI's Python has
@@ -117,7 +119,7 @@ export function constraintsFrom(freeze = "") {
     .map((line) => line.trim())
     .filter((line) => {
       const name = line.split(/[=<>!~ @]/)[0].toLowerCase().replace(/_/g, "-");
-      return wanted.has(name) && /==/.test(line);
+      return (wanted.has(name) || heldPrefixes.some((prefix) => name.startsWith(prefix))) && /==/.test(line);
     })
     .join("\n");
 }
@@ -187,7 +189,7 @@ async function installWithManager(state, pack) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ui_id: uiId, client_id: "heiss-ui", kind: "install",
-        params: { id: pack.manager, version: "latest", selected_version: "latest", mode: "remote", channel: "default" }
+        params: { id: pack.manager, version: pack.version || "latest", selected_version: pack.version || "latest", mode: "remote", channel: "default" }
       })
     });
   } catch (error) {
@@ -222,7 +224,7 @@ async function installWithManager3(state, pack) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        ui_id: `heiss-${crypto.randomUUID()}`, id: pack.manager, version: "latest", selected_version: "latest",
+        ui_id: `heiss-${crypto.randomUUID()}`, id: pack.manager, version: pack.version || "latest", selected_version: pack.version || "latest",
         mode: "remote", channel: "default", skip_post_install: false
       })
     });
@@ -256,18 +258,39 @@ async function installWithManager3(state, pack) {
  */
 export async function startPackInstall(id, { overrideManager = false } = {}) {
   const pack = nodePack(id);
+  return beginInstall(id, pack, packInstallRoutes(id), { overrideManager });
+}
+
+/**
+ * Installs a pack an imported workflow needs, described by the resolver
+ * (workflow-packs.js): { key, name, managerId, version, repository, folder,
+ * commit }. Registry packs go through ComfyUI-Manager by id; a pack outside
+ * the registry is cloned into custom_nodes (at the workflow's commit when it
+ * named one) and its requirements installed under the same held packages.
+ */
+export async function startResolvedPackInstall(spec, { overrideManager = false } = {}) {
+  if (!spec?.key || !spec?.name) throw new Error("Unknown node pack.");
+  if (spec.repository && !/^https:\/\/(github\.com|gitlab\.com|codeberg\.org)\/[\w.-]+\/[\w.-]+$/i.test(spec.repository)) throw new Error(`${spec.name} isn’t on GitHub, so it can’t be installed from here.`);
+  const folder = String(spec.folder || spec.repository?.split("/").pop() || "").replace(/[^\w.-]+/g, "-");
+  if (!folder || folder.startsWith(".")) throw new Error(`${spec.name} has no usable folder name.`);
+  const pack = { name: spec.name, manager: spec.managerId || "", version: spec.version || "", repository: spec.repository || "", folder, commit: spec.commit || "", ref: spec.commit ? spec.commit.slice(0, 7) : "" };
+  const root = comfyRootDir();
+  const routes = { manager: Boolean(pack.manager), local: Boolean(root && comfyPython(root) && pack.repository) };
+  return beginInstall(spec.key, pack, routes, { overrideManager });
+}
+
+async function beginInstall(id, pack, routes, { overrideManager = false } = {}) {
   const current = installs.get(id);
   if (current?.status === "running") return snapshot(current);
-  const routes = packInstallRoutes(id);
   if (overrideManager && !routes.local) throw new Error("ComfyUI isn't on this computer, so only ComfyUI-Manager can install this.");
   const generation = routes.manager && !overrideManager ? await managerGeneration() : 0;
   const viaManager = generation > 0;
   if (!viaManager && !routes.local) {
     throw new Error("ComfyUI runs on another computer and ComfyUI-Manager can’t install this pack. Use the steps below.");
   }
-  const state = { id, name: pack.name, route: viaManager ? "manager" : "local", status: "running", step: "Starting", log: "", error: "", startedAt: Date.now(), finishedAt: 0 };
+  const state = { id, name: pack.name, route: viaManager ? "manager" : "local", status: "running", step: "Starting", log: "", error: "", startedAt: Date.now(), finishedAt: 0, folder: pack.folder || "" };
   installs.set(id, state);
-  (async () => {
+  state.done = (async () => {
     try {
       if (transport) {
         await transport(state, pack);
@@ -295,4 +318,11 @@ export async function startPackInstall(id, { overrideManager = false } = {}) {
     }
   })();
   return snapshot(state);
+}
+
+/** Waits for an install started here to end, and returns its final state. */
+export async function packInstallFinished(id) {
+  const state = installs.get(id);
+  if (state?.done) await state.done;
+  return snapshot(installs.get(id));
 }

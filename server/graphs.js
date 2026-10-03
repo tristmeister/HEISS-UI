@@ -59,10 +59,33 @@ function cloneGraph(graph) {
   return JSON.parse(JSON.stringify(graph || {}));
 }
 
+/** Writes a value to a control's input, or to each of them: one prompt can feed several boxes (base and refiner). */
 function setMappedInput(graph, mapping, value) {
-  if (!mapping?.node || !mapping?.input || !graph[mapping.node]) return;
-  graph[mapping.node].inputs ||= {};
-  graph[mapping.node].inputs[mapping.input] = value;
+  for (const item of [].concat(mapping || [])) {
+    if (!item?.node || !item?.input || !graph[item.node]) continue;
+    graph[item.node].inputs ||= {};
+    graph[item.node].inputs[item.input] = value;
+  }
+}
+
+/** A "More settings" value, kept to the type its input takes. */
+function settingValue(setting, value) {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (setting.type === "INT") return Number.isFinite(Number(value)) ? Math.round(Number(value)) : undefined;
+  if (setting.type === "FLOAT") return Number.isFinite(Number(value)) ? Number(value) : undefined;
+  if (setting.type === "BOOLEAN") return value === true || value === "true" || value === 1;
+  if (setting.type === "COMBO") return Array.isArray(setting.options) && setting.options.length && !setting.options.includes(String(value)) ? undefined : String(value);
+  return String(value).slice(0, 20000);
+}
+
+/** The person's "More settings" values, by setting key; anything not set keeps the workflow's saved value. */
+export function applyWorkflowSettings(graph, workflow, values = {}) {
+  for (const setting of workflow.settings || []) {
+    if (!Object.hasOwn(values || {}, setting.key)) continue;
+    const value = settingValue(setting, values[setting.key]);
+    if (value !== undefined) setMappedInput(graph, setting, value);
+  }
+  return graph;
 }
 
 async function applyMappedInputs(graph, workflow, body) {
@@ -168,11 +191,40 @@ export function saveIntoHeissFolder(graph) {
   return graph;
 }
 
+/**
+ * Substitutes and skips decided when the workflow was set up (model fetching,
+ * workflow-models.js): a renamed local file in place of the one the workflow
+ * names, and LoRAs that couldn't be found wired around.
+ */
+function applyMissingFileFallbacks(graph, workflow) {
+  for (const swap of workflow.fileSwaps || []) setMappedInput(graph, swap, swap.file);
+  for (const id of workflow.skippedLoras || []) bypassLoraNode(graph, String(id));
+}
+
+/** Takes a LoRA loader out of the graph: whatever read its outputs reads its model and clip inputs instead. */
+export function bypassLoraNode(graph, id) {
+  const node = graph[id];
+  if (!node) return graph;
+  const passthrough = [node.inputs?.model, node.inputs?.clip];
+  for (const other of Object.values(graph)) {
+    for (const [name, value] of Object.entries(other.inputs || {})) {
+      if (Array.isArray(value) && String(value[0]) === id) {
+        const source = passthrough[Number(value[1])] || passthrough[0];
+        if (Array.isArray(source)) other.inputs[name] = source;
+      }
+    }
+  }
+  delete graph[id];
+  return graph;
+}
+
 export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
   if (!workflow) throw new Error("This workflow isn’t installed.");
   const graph = cloneGraph(workflow.graph);
+  applyWorkflowSettings(graph, workflow, body.workflowSettings);
   await applyMappedInputs(graph, workflow, body);
+  applyMissingFileFallbacks(graph, workflow);
   if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);
   else applyPowerLoraStack(graph, body, workflow.loraStack);
   return body.privateVault ? saveIntoHeissFolder(graph) : graph;
