@@ -428,7 +428,7 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * searches.
  */
 /**
- * What a model can do with a picture, as two small round marks before its
+ * What a model can do with a picture, as two small plain icons before its
  * family badge: edits from reference images, and inpainting (paint over part
  * of a reference to change only that).
  */
@@ -439,8 +439,8 @@ function ModelAbilities({ profile }: { profile: Profile }) {
   if (!edits && !inpaints) return null;
   return (
     <span className="model-abilities">
-      {edits ? <span className="model-ability" title="Edits from reference images" aria-label="Edits from reference images"><ImagePlus size={11} strokeWidth={2.2} /></span> : null}
-      {inpaints ? <span className="model-ability" title="Inpainting: paint over part of an image to change only that" aria-label="Inpainting"><Brush size={11} strokeWidth={2.2} /></span> : null}
+      {edits ? <span className="model-ability" title="Edits from reference images" aria-label="Edits from reference images"><ImagePlus size={13} strokeWidth={1.75} /></span> : null}
+      {inpaints ? <span className="model-ability" title="Inpainting: paint over part of an image to change only that" aria-label="Inpainting"><Brush size={13} strokeWidth={1.75} /></span> : null}
     </span>
   );
 }
@@ -587,7 +587,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                               <strong>{profile.displayName || profile.label}</strong>
                               {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>}
                             </span>
-                            {badge ? <span className="model-badge"><ModelAbilities profile={profile} />{badge}</span> : <ModelAbilities profile={profile} />}
+                            <span className="model-tags"><ModelAbilities profile={profile} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
                         {menu ? (
                           <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>

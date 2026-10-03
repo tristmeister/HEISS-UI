@@ -466,9 +466,9 @@ input.is-framed:focus-visible {
   70% { transform: translateY(0) rotate(4deg); }
 }
 
-/* What a model can do with a picture: small icons at the start of its family badge,
-   so the row keeps one chip and the name keeps its room. */
-.model-badge:has(.model-abilities) { display: inline-flex; align-items: center; gap: 5px; }
-.model-abilities { display: inline-flex; align-items: center; gap: 3px; flex: none; }
-.model-badge .model-abilities { padding-right: 5px; border-right: 1px solid currentColor; opacity: .9; }
-.model-ability { display: grid; place-items: center; width: 12px; height: 12px; color: inherit; }
+/* What a model can do with a picture: bare muted icons just before its family badge. */
+.model-tags { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.model-abilities { display: inline-flex; align-items: center; gap: 6px; color: hsl(var(--muted-foreground) / .8); }
+.model-ability { display: grid; place-items: center; }
+.model-option:hover .model-abilities,
+.model-option.active .model-abilities { color: hsl(var(--foreground) / .8); }
