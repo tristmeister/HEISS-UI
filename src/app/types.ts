@@ -280,6 +280,17 @@ export type WorkflowImportPreview = {
   conversion?: "stored" | "comfy-page" | "heiss";
   warnings?: string[];
   packs?: { packs: ResolvedPack[]; unresolved: string[] };
+  models?: ModelPlan;
+};
+export type FileSwap = { node: string; input: string; file: string; wanted: string; reason: string };
+export type ModelPlan = {
+  swaps: FileSwap[];
+  suggestions: FileSwap[];
+  downloads: Array<{ id: string; file: string; folder: string; label: string; size: string; node: string; input: string }>;
+  skippedLoras: Array<{ node: string; file: string }>;
+  loraEntriesOff: Array<{ node: string; key: string; lora: string }>;
+  substitutes: FileSwap[];
+  unresolved: Array<{ file: string; folder: string }>;
 };
 
 export type WorkflowRisk = { node: string; classType: string; title?: string; kind: "code" | "files" | "network"; reason: string; detail?: string };

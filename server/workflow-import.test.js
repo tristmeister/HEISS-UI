@@ -314,3 +314,37 @@ test("install safety: freeze parsing, the restore plan, and the health check", (
   assert.deepEqual(newOnly.newFailed, ["ComfyUI-Foo"]);
   assert.equal(installHealth(snapshot, { comfyBack: false }).comfyDown, true);
 });
+
+const { planModels, reduceModelList, nameSimilarity } = await import("./workflow-models.js");
+const { effectiveGraph } = await import("./workflow-fallbacks.js");
+
+test("model plan: same file elsewhere is used, known names download, LoRAs are skipped, main models stand in by family only", () => {
+  const modelInfo = JSON.parse(JSON.stringify(info));
+  modelInfo.CheckpointLoaderSimple.input.required.ckpt_name[0] = ["SDXL/juggernautXL_ragnarok.safetensors", "chroma-unlocked-v40-Q5.gguf", "flux1-dev-fp8.safetensors"];
+  modelInfo.UNETLoader.input.required.unet_name[0] = ["chroma1-hd-fp8.safetensors", "flux1-dev.safetensors"];
+  modelInfo.LoraLoader.input.required.lora_name[0] = ["detail.safetensors"];
+  const graph = {
+    1: { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "juggernautXL_ragnarok.safetensors" } },
+    2: { class_type: "UNETLoader", inputs: { unet_name: "chroma-unlocked-v50.safetensors", weight_dtype: "default" } },
+    3: { class_type: "LoraLoader", inputs: { lora_name: "film_grain_v3.safetensors", strength_model: 1, strength_clip: 1, model: ["1", 0], clip: ["1", 1] } },
+    4: { class_type: "VAELoader", inputs: { vae_name: "ae.safetensors" } },
+    5: { class_type: "CheckpointLoaderSimple", inputs: { ckpt_name: "flux1-dev-fp8-e4m3fn.safetensors" } },
+    6: { class_type: "UNETLoader", inputs: { unet_name: "sd3.5_large.safetensors", weight_dtype: "default" } },
+    7: { class_type: "Power Lora Loader (rgthree)", inputs: { lora_1: { on: true, lora: "gone.safetensors", strength: 1 }, lora_2: { on: true, lora: "detail.safetensors", strength: 0.5 }, model: ["1", 0] } }
+  };
+  modelInfo["Power Lora Loader (rgthree)"] = { input: { required: {} } };
+  const list = reduceModelList({ models: [{ name: "FLUX VAE", type: "VAE", save_path: "default", filename: "ae.safetensors", url: "https://huggingface.co/x/ae.safetensors", size: "335MB" }] });
+  const plan = planModels(graph, modelInfo, { list });
+  assert.deepEqual(plan.swaps.map((item) => [item.node, item.file]), [["1", "SDXL/juggernautXL_ragnarok.safetensors"]]);
+  assert.deepEqual(plan.downloads.map((item) => item.file), ["ae.safetensors"]);
+  assert.deepEqual(plan.suggestions.map((item) => [item.node, item.file]), [["5", "flux1-dev-fp8.safetensors"]]);
+  assert.deepEqual(plan.skippedLoras.map((item) => item.node), ["3"]);
+  assert.deepEqual(plan.loraEntriesOff.map((item) => item.key), ["lora_1"]);
+  assert.deepEqual(plan.substitutes.map((item) => [item.node, item.file]), [["2", "chroma1-hd-fp8.safetensors"]]);
+  assert.deepEqual(plan.unresolved.map((item) => item.file), ["sd3.5_large.safetensors"], "no SD3 here: no stand-in from another family");
+  const running = effectiveGraph({ graph, fileSwaps: plan.swaps, skippedLoras: plan.skippedLoras.map((item) => item.node), loraEntriesOff: plan.loraEntriesOff });
+  assert.equal(running[1].inputs.ckpt_name, "SDXL/juggernautXL_ragnarok.safetensors");
+  assert.equal(running[3], undefined);
+  assert.equal(running[7].inputs.lora_1.on, false);
+  assert.ok(nameSimilarity("flux1-dev-fp8.safetensors", "flux1-dev-fp8-e4m3fn.safetensors") >= 0.6);
+});

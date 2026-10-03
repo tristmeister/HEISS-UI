@@ -13,6 +13,7 @@ import { previewWorkflowImport } from "./workflow-catalog.js";
 import { convertVisualWorkflow, visualTitles } from "./workflow-convert.js";
 import { importFromHistory, unwrapWorkflow, workflowFromMedia } from "./workflow-sources.js";
 import { nodePackMap, packStamps, resolveMissingNodes } from "./workflow-packs.js";
+import { missingModelRefs, modelNameList, planModels } from "./workflow-models.js";
 
 /** The prompt without keys ComfyUI's validator doesn't expect. */
 function cleanPrompt(api) {
@@ -78,7 +79,7 @@ export async function packPlan(missingNodes = [], visual = null, { map = null } 
 }
 
 /** The whole preview for one import. */
-export async function prepareImport(request, { info = {}, fetchers = {}, pageConvert = null, map = null } = {}) {
+export async function prepareImport(request, { info = {}, fetchers = {}, pageConvert = null, map = null, modelList = null } = {}) {
   const read = await readImportSource(request, fetchers);
   const { graph, conversion, warnings } = await runnableGraph(read, { info, pageConvert });
   const titles = read.visual ? visualTitles(read.visual) : {};
@@ -86,12 +87,16 @@ export async function prepareImport(request, { info = {}, fetchers = {}, pageCon
   const raw = read.raw && typeof read.raw === "object" ? read.raw : { graph };
   const preview = previewWorkflowImport(raw?.graph ? raw : { ...raw, graph }, request.filename || "", info, { graph, titles, variants: read.variants || [], name: read.name });
   const packs = await packPlan(preview.validation.missingNodes || [], read.visual, { map });
+  // Model files: only looked up online when something is missing.
+  const list = missingModelRefs(graph, info).length ? modelList || await modelNameList().catch(() => ({ files: {} })) : { files: {} };
+  const models = planModels(graph, info, { list });
   return {
     ...preview,
     source: read.source,
     thumbnail: read.thumbnail || "",
     conversion,
     warnings,
-    packs
+    packs,
+    models
   };
 }

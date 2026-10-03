@@ -160,6 +160,7 @@ export function metadataFromJson(raw, file) {
     // Decided at setup: local files standing in for missing ones, and LoRAs run without.
     fileSwaps: (Array.isArray(meta.fileSwaps) ? meta.fileSwaps : []).filter((item) => item?.node && item?.input && typeof item.file === "string").map((item) => ({ node: String(item.node), input: String(item.input), file: item.file, wanted: String(item.wanted || ""), reason: String(item.reason || "") })),
     skippedLoras: (Array.isArray(meta.skippedLoras) ? meta.skippedLoras : []).map(String),
+    loraEntriesOff: (Array.isArray(meta.loraEntriesOff) ? meta.loraEntriesOff : []).filter((item) => item?.node && item?.key).map((item) => ({ node: String(item.node), key: String(item.key), lora: String(item.lora || "") })),
     requiredNodes: Array.isArray(meta.requiredNodes) && meta.requiredNodes.length ? meta.requiredNodes : classes,
     defaults: {
       model: graphDefault("model") || "",

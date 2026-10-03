@@ -10,13 +10,13 @@ import { workflowState } from './workflowStatus';
 import { ModelSetup } from './ModelSetup';
 import { ComfyRestart, useComfyRestarting } from './ComfyRestart';
 import { scrollSideways, useWheelRef } from './wheel';
-import type { ControlMapping, ImportSourceItem, Mode, Profile, SavedWorkflowItem, WorkflowImportPreview, WorkflowPreferences, WorkflowRisk, WorkflowSetupState, WorkflowSummary } from './types';
+import type { ControlMapping, FileSwap, ImportSourceItem, Mode, Profile, SavedWorkflowItem, WorkflowImportPreview, WorkflowPreferences, WorkflowRisk, WorkflowSetupState, WorkflowSummary } from './types';
 import { useThisComputer } from './device';
 import type { ShowToast } from './toast';
 import { CopyIcon, useCopyFeedback } from "./CopyFeedback";
 import { agentPrompt, agentPromptFor, controlLabel, loraNodes, workflowControls } from "./workflowAgentGuide";
 
-type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"]; approved: string[] };
+type ImportDraft = { raw: unknown; filename: string; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"]; approved: string[]; fileChoices: Record<string, boolean> };
 type ImportRequest = { source: "file" | "history" | "saved" | "media"; workflow?: unknown; filename?: string; promptId?: string; path?: string; media?: string };
 
 /** A control's first mapping: one prompt can go to several boxes, the first names it. */
@@ -239,6 +239,59 @@ function ImportAddOns({ item, onApprove }: { item: ImportDraft; onApprove: (key:
         <p className="wf-addons-line is-quiet">Nobody publishes {unresolved.length === 1 ? "a node" : "nodes"} it uses ({unresolved.slice(0, 4).join(", ")}{unresolved.length > 4 ? "…" : ""}). It may still run if you have them in ComfyUI.</p>
       ) : null}
     </section>
+  );
+}
+
+const fileName = (file = "") => file.split(/[\\/]/).pop() || file;
+const swapKey = (swap: { node: string; input: string }) => `${swap.node}.${swap.input}`;
+
+/** What an import does about model files ComfyUI doesn't list: the file stand-ins and downloads it will use, in plain lines. */
+export function importFileDecisions(item: ImportDraft) {
+  const plan = item.preview.models;
+  if (!plan) return { fileSwaps: [] as FileSwap[], skippedLoras: [] as string[], loraEntriesOff: [] as ModelPlanEntryOff[], downloads: [] as string[] };
+  const chosen = (swap: FileSwap, fallback: boolean) => item.fileChoices[swapKey(swap)] ?? fallback;
+  const fileSwaps = [
+    ...plan.swaps,
+    ...plan.suggestions.filter((swap) => chosen(swap, false)),
+    ...plan.substitutes.filter((swap) => chosen(swap, true)),
+    // A download lands as its plain name; a workflow that named a subfolder is pointed at it.
+    ...plan.downloads.map((download) => ({ node: download.node, input: download.input, file: download.file, wanted: "", reason: "download" }))
+      .filter((swap) => {
+        const current = (item.preview.graph as Record<string, { inputs?: Record<string, unknown> }> | undefined)?.[swap.node]?.inputs?.[swap.input];
+        return typeof current === "string" && current !== swap.file;
+      })
+  ];
+  return { fileSwaps, skippedLoras: plan.skippedLoras.map((entry) => entry.node), loraEntriesOff: plan.loraEntriesOff, downloads: plan.downloads.map((download) => download.id) };
+}
+type ModelPlanEntryOff = { node: string; key: string; lora: string };
+
+/**
+ * Model files, said quietly: what's used from this computer, what downloads
+ * with the import, what runs without. Only a near-name file asks, and a
+ * stand-in model can be switched off.
+ */
+function ImportFiles({ item, onChoose }: { item: ImportDraft; onChoose: (key: string, on: boolean) => void }) {
+  const plan = item.preview.models;
+  if (!plan) return null;
+  const lines: React.ReactNode[] = [];
+  if (plan.swaps.length) lines.push(<p key="swaps" className="wf-found is-quiet">Uses your own {plan.swaps.length === 1 ? `copy of ${fileName(plan.swaps[0].wanted)}` : `copies of ${plan.swaps.length} files`}, filed in another folder.</p>);
+  if (plan.downloads.length) lines.push(<p key="downloads" className="wf-found is-quiet">Downloads {plan.downloads.map((download) => `${fileName(download.file)}${download.size ? ` (${download.size})` : ""}`).join(", ")} from Hugging Face when you import.</p>);
+  if (plan.skippedLoras.length || plan.loraEntriesOff.length) {
+    const names = [...plan.skippedLoras.map((entry) => entry.file), ...plan.loraEntriesOff.map((entry) => entry.lora)].map(fileName);
+    lines.push(<p key="loras" className="wf-found is-quiet">Runs without {names.join(", ")}: {names.length === 1 ? "that LoRA isn’t" : "those LoRAs aren’t"} on this computer.</p>);
+  }
+  return (
+    <>
+      {lines}
+      {[...plan.substitutes.map((swap) => ({ swap, fallback: true, text: <>Use your <strong>{fileName(swap.file)}</strong> in place of {fileName(swap.wanted)}, which isn’t here</> })),
+        ...plan.suggestions.map((swap) => ({ swap, fallback: false, text: <>Use your <strong>{fileName(swap.file)}</strong> for {fileName(swap.wanted)}? The names are close.</> }))].map(({ swap, fallback, text }) => (
+        <label key={swapKey(swap)} className="wf-addons-outside">
+          <input type="checkbox" checked={item.fileChoices[swapKey(swap)] ?? fallback} onChange={(event) => onChoose(swapKey(swap), event.target.checked)} />
+          <span>{text}</span>
+        </label>
+      ))}
+      {plan.unresolved.length ? <p className="wf-found is-quiet">Still needs {plan.unresolved.map((entry) => `${fileName(entry.file)} (models/${entry.folder})`).join(", ")}. HEISS couldn’t find {plan.unresolved.length === 1 ? "it" : "them"} to download.</p> : null}
+    </>
   );
 }
 
@@ -472,7 +525,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify(request)
     });
-    setImports((current) => [...current, { raw, filename: request.filename || data.preview.detected.name, preview: data.preview, metadata: data.preview.detected, approved: [] }]);
+    setImports((current) => [...current, { raw, filename: request.filename || data.preview.detected.name, preview: data.preview, metadata: data.preview.detected, approved: [], fileChoices: {} }]);
   };
 
   const pickSource = async (request: ImportRequest) => {
@@ -529,11 +582,16 @@ export function WorkflowGallery({ view }: { view: any }) {
       const packs = new Map<string, NonNullable<WorkflowImportPreview["packs"]>["packs"][number]>();
       for (const item of imports) {
         const { nodes: _nodes, guessed: _guessed, question: _question, confidence: _confidence, ...metadata } = item.metadata;
+        const files = importFileDecisions(item);
         await apiJson("/api/workflows/import", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ graph: item.preview.graph, filename: item.filename, metadata: { ...metadata, source: item.preview.source || "file" } })
+          body: JSON.stringify({ graph: item.preview.graph, filename: item.filename, metadata: { ...metadata, source: item.preview.source || "file", fileSwaps: files.fileSwaps, skippedLoras: files.skippedLoras, loraEntriesOff: files.loraEntriesOff } })
         });
+        // Its model files download in the background, in the usual downloads list.
+        for (const id of files.downloads) {
+          await apiJson("/api/models/downloads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }).catch((error) => showToast(error instanceof Error ? error.message : "Couldn’t start a download", "error"));
+        }
         for (const pack of item.preview.packs?.packs || []) {
           if (pack.registry || item.approved.includes(pack.key)) packs.set(pack.key, pack);
         }
@@ -585,6 +643,10 @@ export function WorkflowGallery({ view }: { view: any }) {
       ...item,
       metadata: { ...item.metadata, controls: { ...item.metadata.controls, prompt: mappings.length === 1 ? mappings[0] : mappings }, confidence: { prompt: "high" } }
     } : item));
+  };
+
+  const chooseFile = (index: number, key: string, on: boolean) => {
+    setImports((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, fileChoices: { ...item.fileChoices, [key]: on } } : item));
   };
 
   const approvePack = (index: number, key: string, on: boolean) => {
@@ -738,7 +800,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         size="form"
         busy={busy}
         className="wf-import"
-        title={<>{importStep === "choose" ? "Import a workflow" : imports.length > 1 ? `${imports.length} workflows` : imports[0]?.metadata.name || "Workflow"}</>}
+        title={<>{importStep === "choose" ? "Import a workflow" : imports.length > 1 ? `Ready to import ${imports.length} workflows` : "Ready to import"}</>}
         description={importStep === "choose"
           ? "Pick something you ran in ComfyUI, or drop a workflow or an image ComfyUI made."
           : "It runs the way you made it in ComfyUI. Your prompt and the usual controls go in from here."}
@@ -808,7 +870,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                     {parts.length ? <>Follows your {parts.join(", ").replace(/, ([^,]*)$/, " and $1")}{more ? <>, with {more} more setting{more === 1 ? "" : "s"} in Advanced</> : null}.</> : "Runs as saved: nothing in it takes your prompt."}
                   </p>
                   <ImportAddOns item={item} onApprove={(key, on) => approvePack(index, key, on)} />
-                  {missingFiles.length ? (
+                  {item.preview.models ? <ImportFiles item={item} onChoose={(key, on) => chooseFile(index, key, on)} /> : missingFiles.length ? (
                     <p className="wf-found is-quiet">Needs {missingFiles.length === 1 ? "a model file" : `${missingFiles.length} model files`} ComfyUI doesn’t have yet: {missingFiles.map((part) => part.label).slice(0, 3).join(", ")}{missingFiles.length > 3 ? "…" : ""}. Its card says where each one goes.</p>
                   ) : null}
                   {status.state === "missing-nodes" && item.preview.validation.missingNodes?.some((node) => !packsCover.has(node)) && !item.preview.packs?.unresolved?.length ? <p className="wf-found is-quiet">Won’t run until ComfyUI has: {item.preview.validation.missingNodes.filter((node) => !packsCover.has(node)).join(", ")}</p> : null}

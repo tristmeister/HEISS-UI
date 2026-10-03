@@ -63,6 +63,7 @@ import { recentFromHistory, savedWorkflowList } from './workflow-sources.js';
 import { convertWithComfyPage, resetComfyPage } from './comfy-page-convert.js';
 import { startWorkflowSetup, undoWorkflowSetup, workflowSetupState } from './workflow-setup.js';
 import { installHistory } from './install-safety.js';
+import { listDownload } from './workflow-models.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
@@ -782,7 +783,8 @@ app.get("/api/models/downloads", (_req, res) => {
 // accepted, so the server never downloads from a URL a request supplies.
 app.post("/api/models/downloads", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const spec = catalogDownload(req.body?.id);
+  // "list:<file>": a file an imported workflow names, from ComfyUI-Manager's model list, resolved here again.
+  const spec = String(req.body?.id || "").startsWith("list:") ? await listDownload(req.body.id) : catalogDownload(req.body?.id);
   if (!spec) {
     res.status(400).json({ ok: false, error: "Unknown file." });
     return;
@@ -829,9 +831,10 @@ app.post("/api/settings/hf-token", (req, res) => {
 });
 
 // "Download again" for a catalog file a run found damaged: the broken copy goes first.
-app.post("/api/models/downloads/replace", (req, res) => {
+app.post("/api/models/downloads/replace", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const spec = catalogDownload(req.body?.id);
+  // "list:<file>": a file an imported workflow names, from ComfyUI-Manager's model list, resolved here again.
+  const spec = String(req.body?.id || "").startsWith("list:") ? await listDownload(req.body.id) : catalogDownload(req.body?.id);
   if (!spec) {
     res.status(400).json({ ok: false, error: "Unknown file." });
     return;

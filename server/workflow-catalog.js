@@ -3,6 +3,7 @@ import path from "node:path";
 import { dataDir, gallery } from './gallery-store.js';
 import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, mappingList, validateGraph, workflowMissingFiles, workflowOptionIssues } from './custom-workflows.js';
 import { visualTitles } from './workflow-convert.js';
+import { effectiveGraph } from './workflow-fallbacks.js';
 import { catalogDownloadsForFile } from './family-profiles.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 import { workflowRisks } from "./workflow-risk.js";
@@ -98,7 +99,9 @@ export function validateWorkflow(workflow, info = {}, profile = null) {
       if (classType && !info[classType]) issues.push(`Missing node class: ${classType}`);
     }
   }
-  issues.push(...workflowOptionIssues(workflow, info));
+  // Files decided at import (a local stand-in, a skipped LoRA) count as there.
+  const running = { ...workflow, graph: effectiveGraph(workflow) };
+  issues.push(...workflowOptionIssues(running, info));
   const graph = workflow.graph || {};
   for (const [key, value] of Object.entries(workflow.controls || {})) {
     for (const mapping of mappingList(value)) {
@@ -120,7 +123,7 @@ export function validateWorkflow(workflow, info = {}, profile = null) {
     issues,
     warnings,
     missingNodes: issues.filter((issue) => issue.startsWith("Missing node class:")).map((issue) => issue.replace("Missing node class:", "").trim()),
-    missingParts: missingFileParts(workflow, info)
+    missingParts: missingFileParts(running, info)
   };
 }
 

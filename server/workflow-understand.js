@@ -65,6 +65,9 @@ function numberLimits(info, classType, name) {
 
 function isFreeText(info, classType, name, value) {
   if (typeof value !== "string") return false;
+  // Joiners (", ", "\n") and separators aren't text anyone types a prompt into.
+  if (/delimiter|separator|joiner|join_with/i.test(name)) return false;
+  if (value.trim() && !/\p{L}/u.test(value)) return false;
   const spec = specFor(info, classType, name);
   if (spec) return spec[0] === "STRING";
   if (fileLike.test(value)) return false;
@@ -72,7 +75,7 @@ function isFreeText(info, classType, name, value) {
 }
 
 function humanize(name = "") {
-  const text = String(name).replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  const text = String(name).replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ").replace(/\s+/g, " ").trim();
   return text ? text[0].toUpperCase() + text.slice(1) : name;
 }
 

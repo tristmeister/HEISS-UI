@@ -4,6 +4,8 @@ import { getCustomWorkflow } from './custom-workflows.js';
 import { startImageDataUrl } from './start-images.js';
 import { familyGraph } from './family-graph.js';
 import { withGgufLoaders } from './gguf.js';
+import { applyFileFallbacks } from './workflow-fallbacks.js';
+export { bypassLoraNode } from './workflow-fallbacks.js';
 
 export async function uploadReferenceImage(dataUrl) {
   if (!dataUrl || !dataUrl.includes(",")) return "";
@@ -191,40 +193,13 @@ export function saveIntoHeissFolder(graph) {
   return graph;
 }
 
-/**
- * Substitutes and skips decided when the workflow was set up (model fetching,
- * workflow-models.js): a renamed local file in place of the one the workflow
- * names, and LoRAs that couldn't be found wired around.
- */
-function applyMissingFileFallbacks(graph, workflow) {
-  for (const swap of workflow.fileSwaps || []) setMappedInput(graph, swap, swap.file);
-  for (const id of workflow.skippedLoras || []) bypassLoraNode(graph, String(id));
-}
-
-/** Takes a LoRA loader out of the graph: whatever read its outputs reads its model and clip inputs instead. */
-export function bypassLoraNode(graph, id) {
-  const node = graph[id];
-  if (!node) return graph;
-  const passthrough = [node.inputs?.model, node.inputs?.clip];
-  for (const other of Object.values(graph)) {
-    for (const [name, value] of Object.entries(other.inputs || {})) {
-      if (Array.isArray(value) && String(value[0]) === id) {
-        const source = passthrough[Number(value[1])] || passthrough[0];
-        if (Array.isArray(source)) other.inputs[name] = source;
-      }
-    }
-  }
-  delete graph[id];
-  return graph;
-}
-
 export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
   if (!workflow) throw new Error("This workflow isn’t installed.");
   const graph = cloneGraph(workflow.graph);
   applyWorkflowSettings(graph, workflow, body.workflowSettings);
   await applyMappedInputs(graph, workflow, body);
-  applyMissingFileFallbacks(graph, workflow);
+  applyFileFallbacks(graph, workflow);
   if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);
   else applyPowerLoraStack(graph, body, workflow.loraStack);
   return body.privateVault ? saveIntoHeissFolder(graph) : graph;
