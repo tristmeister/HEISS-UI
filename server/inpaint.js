@@ -128,22 +128,10 @@ export async function inpaintFiles(sharp, sourceBuffer, maskBuffer, { targetPixe
   const workMask = await rawGray(gray(boxMask, box.width, box.height).resize(work.width, work.height, { fit: "fill" }));
   const grown = await rawGray(gray(workMask, work.width, work.height).blur(Math.max(1, Math.min(work.width, work.height) * 0.012)));
   const samplingMask = await pngGray(gray(grown, work.width, work.height).threshold(12));
-  // The edit model's reference: the crop with the painted part blurred away, so a model
-  // that copies its reference (Qwen-Image 2.1, Flux.2) can't just redraw what was there.
-  // Its colours stay, so a recolour still knows where it is; its detail goes.
-  const { data: cropRaw } = await sharp(crop).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  const blurredRaw = await sharp(crop).removeAlpha().blur(Math.max(4, Math.min(work.width, work.height) * 0.04)).raw().toBuffer();
-  const hardRaw = await rawGray(gray(grown, work.width, work.height).threshold(12).blur(2));
-  const mixed = Buffer.alloc(cropRaw.length);
-  for (let index = 0, pixel = 0; index < cropRaw.length; index += 3, pixel += 1) {
-    const weight = hardRaw[pixel] / 255;
-    for (let channel = 0; channel < 3; channel += 1) mixed[index + channel] = Math.round(cropRaw[index + channel] * (1 - weight) + blurredRaw[index + channel] * weight);
-  }
-  const referenceCrop = await sharp(mixed, { raw: { width: work.width, height: work.height, channels: 3 } }).png().toBuffer();
   // Stitching: at the box's own size, feathered by the edge-softness setting.
   // The solid core grows a little past the paint, so the soft band sits on repainted pixels (the sampling mask is grown too).
   const compositeMask = await pngGray(gray(await rawGray(gray(boxMask, box.width, box.height).blur(featherSigma(feather, box))), box.width, box.height).linear(1.6, 0));
-  return { box, work, crop, referenceCrop, samplingMask, compositeMask, image: { width: imageWidth, height: imageHeight } };
+  return { box, work, crop, samplingMask, compositeMask, image: { width: imageWidth, height: imageHeight } };
 }
 
 /**
@@ -166,13 +154,11 @@ export async function prepareInpaint(req, body) {
   const unique = Boolean(body.privateVault) || String(reference.assetId).startsWith("vault:");
   const upload = (buffer, name) => uploadBufferToComfy({ buffer, mime: "image/png", name }, { unique });
   const crop = await upload(files.crop, "inpaint-crop.png");
-  const referenceCrop = await upload(files.referenceCrop, "inpaint-reference.png");
   const mask = await upload(files.samplingMask, "inpaint-mask.png");
   const composite = await upload(files.compositeMask, "inpaint-stitch.png");
   return {
     original: reference.comfyName,
     crop: crop.comfyName,
-    reference: referenceCrop.comfyName,
     mask: mask.comfyName,
     composite: composite.comfyName,
     box: files.box,
@@ -187,5 +173,5 @@ export async function prepareInpaint(req, body) {
 
 /** The staged file names an inpaint run adds, for cleanup after Hidden runs. */
 export function inpaintInputNames(inpaint) {
-  return inpaint ? [inpaint.crop, inpaint.reference, inpaint.mask, inpaint.composite].filter(Boolean) : [];
+  return inpaint ? [inpaint.crop, inpaint.mask, inpaint.composite].filter(Boolean) : [];
 }

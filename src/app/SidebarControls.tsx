@@ -119,7 +119,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
       <PhoneSlider label="Prompt strength (CFG)" value={cfg} min={cfgMeta.min ?? 0} max={Math.min(cfgMeta.max ?? 30, 20)} step={cfgMeta.step || 0.5} onChange={setCfg} format={(value) => value.toFixed(1)} hint={<><span>Looser</span><span>Follows the prompt closely</span></>} />
       {inpaintActive ? (
         <>
-          <PhoneSlider label="Inpaint strength" value={inpaintStrength} min={0.05} max={1} step={0.05} onChange={setInpaintStrength} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Touch it up</span><span>Paint it anew</span></>} />
+          {currentProfile?.capabilities.denoise ? <PhoneSlider label="Inpaint strength" value={inpaintStrength} min={0.05} max={1} step={0.05} onChange={setInpaintStrength} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Touch it up</span><span>Paint it anew</span></>} /> : null}
           <PhoneSlider label="Edge softness" value={inpaintFeather} min={0} max={1} step={0.05} onChange={setInpaintFeather} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Crisp</span><span>Soft</span></>} />
         </>
       ) : canUseStartImage && currentProfile?.capabilities.denoise ? (
@@ -284,8 +284,13 @@ export function SidebarControls({ view }: { view: any }) {
             <div className="sidebar-scale-hint" aria-hidden="true"><span>Looser</span><span>Follows the prompt closely</span></div>
             {inpaintActive ? (
               <>
-                <NumberPicker label="Inpaint strength" value={inpaintStrength} onChange={setInpaintStrength} min={0.05} max={1} step={0.05} precision={2} fill />
-                <div className="sidebar-scale-hint" aria-hidden="true"><span>Touch it up</span><span>Paint it anew</span></div>
+                {/* Edit models edit the crop whole, so only image-to-image models have a strength here. */}
+                {currentProfile?.capabilities.denoise ? (
+                  <>
+                    <NumberPicker label="Inpaint strength" value={inpaintStrength} onChange={setInpaintStrength} min={0.05} max={1} step={0.05} precision={2} fill />
+                    <div className="sidebar-scale-hint" aria-hidden="true"><span>Touch it up</span><span>Paint it anew</span></div>
+                  </>
+                ) : null}
                 <NumberPicker label="Edge softness" value={inpaintFeather} onChange={setInpaintFeather} min={0} max={1} step={0.05} precision={2} fill />
                 <div className="sidebar-scale-hint" aria-hidden="true"><span>Crisp</span><span>Soft</span></div>
               </>

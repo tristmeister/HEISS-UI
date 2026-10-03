@@ -77,33 +77,23 @@ test("img2img inpainting samples the crop with a noise mask at the inpaint stren
   assert.equal(byType(graph, "LoadImage").map((item) => item.inputs.image).sort().join(","), "crop.png,original.png");
 });
 
-test("Flux.2 Klein inpaints from its first reference's latent and trims the schedule for partial strength", () => {
+test("Flux.2 Klein inpaints as an ordinary edit of the crop, then stitches only the painted part", () => {
   const body = { family: "flux2_klein_4b", variant: "distilled", source: "unet", model: "flux-2-klein-4b.safetensors", encoders: ["qwen_3_4b.safetensors"], vae: "flux2-vae.safetensors", prompt: "make it red", steps: 4, cfg: 1, seed: 1, width: 912, height: 1136, referenceImages: ["crop.png", "style.png"] };
-  const full = familyGraph({ ...body, inpaint });
-  assertWired(full);
-  const [noiseMask] = byType(full, "SetLatentNoiseMask");
-  assert.equal(full[noiseMask.inputs.samples[0]].class_type, "VAEEncode", "the crop's encoded reference is the starting latent");
-  assert.equal(byType(full, "ReferenceLatent").length, 4, "both references still guide both conditionings");
-  assert.equal(byType(full, "EmptyFlux2LatentImage").length, 0);
-  assert.equal(byType(full, "SplitSigmasDenoise").length, 0);
-
-  const partial = familyGraph({ ...body, inpaint: { ...inpaint, strength: 0.6 } });
-  assertWired(partial);
-  const [split] = byType(partial, "SplitSigmasDenoise");
-  assert.equal(split.inputs.denoise, 0.6);
-  assert.deepEqual(byType(partial, "SamplerCustomAdvanced")[0].inputs.sigmas[1], 1, "the low end of the split schedule");
+  const graph = familyGraph({ ...body, inpaint });
+  assertWired(graph);
+  // Edit models see the whole crop and edit it; noise inside a mask made them invent or copy.
+  assert.equal(byType(graph, "SetLatentNoiseMask").length, 0);
+  assert.equal(byType(graph, "EmptyFlux2LatentImage").length, 1);
+  assert.equal(byType(graph, "ReferenceLatent").length, 4, "both references still guide both conditionings");
+  assert.equal(byType(graph, "ImageCompositeMasked").length, 1, "only the painted part goes back onto the original");
 });
 
-test("Qwen-Image 2.1 repaints the crop's own pixels, with the crop as its reference", () => {
+test("Qwen-Image 2.1 inpaints as an ordinary edit of the crop, then stitches only the painted part", () => {
   const graph = familyGraph({ family: "qwen_image_21", variant: "standard", source: "unet", model: "qwen_image_2.1.safetensors", encoders: ["qwen3vl_8b.safetensors"], vae: "qwen_image_21_vae.safetensors", prompt: "make it red", negative: "", steps: 25, cfg: 1, seed: 1, width: 912, height: 1136, referenceImages: ["crop.png"], inpaint });
   assertWired(graph);
-  const [noiseMask] = byType(graph, "SetLatentNoiseMask");
-  // The encoder's latent is a canvas at its own framing, not the picture: start from the crop itself.
-  const encode = graph[noiseMask.inputs.samples[0]];
-  assert.equal(encode.class_type, "VAEEncode");
-  assert.equal(graph[encode.inputs.pixels[0]].inputs.image, inpaint.crop);
+  assert.equal(byType(graph, "SetLatentNoiseMask").length, 0);
   const [encoder] = byType(graph, "TextEncodeQwenImage21");
-  assert.equal(graph[encoder.inputs["images.image_1"][0]].inputs.image, "crop.png");
+  assert.equal(graph[encoder.inputs["images.image_1"][0]].inputs.image, "crop.png", "the crop itself is the reference");
   assert.equal(byType(graph, "ImageCompositeMasked").length, 1);
 });
 
@@ -146,13 +136,6 @@ test("the files: an exact crop, a hard grown sampling mask and a feathered stitc
   assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(256 * scale)], 255);
   assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(150 * scale)], 255, "grown a little past the painted edge, at full strength");
   assert.ok(sampling.data.every((value) => value === 0 || value === 255), "hard: on or off, no half-way edge");
-
-  // The edit model's reference: the crop outside the paint, blurred inside it.
-  const plain = await sharp(files.crop).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  const reference = await sharp(files.referenceCrop).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  assert.equal(reference.info.width, files.work.width);
-  const pixel = (buffer, x, y) => buffer.data[(y * files.work.width + x) * 3];
-  assert.equal(pixel(reference, 2, 2), pixel(plain, 2, 2), "outside the paint it is the crop itself");
 
   const empty = await sharp(Buffer.alloc(400 * 300), { raw: { width: 400, height: 300, channels: 1 } }).png().toBuffer();
   assert.equal(await inpaintFiles(sharp, source, empty, { targetPixels: 1024 * 1024, feather: 0.4 }), null);
