@@ -240,3 +240,8 @@
   .ref-menu-paint-label > span { transition: none; }
   .ref-mask-badge { animation: none; }
 }
+
+/* A menu opened from the prompt bar (models, prompt history, aspect, the
+   settings drawer) opens over the inpaint studio, not behind it. The bar
+   itself never overlaps the studio, so lifting the whole bar is safe. */
+.zen-prompt:has(.model-menu, .prompt-history, .aspect-menu, .composer-drawer, .studio-select-menu) { z-index: 95; }

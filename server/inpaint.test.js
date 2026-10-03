@@ -93,11 +93,16 @@ test("Flux.2 Klein inpaints from its first reference's latent and trims the sche
   assert.deepEqual(byType(partial, "SamplerCustomAdvanced")[0].inputs.sigmas[1], 1, "the low end of the split schedule");
 });
 
-test("Qwen-Image 2.1 masks the latent its encoder made from the crop", () => {
+test("Qwen-Image 2.1 repaints the crop's own pixels, with the crop as its reference", () => {
   const graph = familyGraph({ family: "qwen_image_21", variant: "standard", source: "unet", model: "qwen_image_2.1.safetensors", encoders: ["qwen3vl_8b.safetensors"], vae: "qwen_image_21_vae.safetensors", prompt: "make it red", negative: "", steps: 25, cfg: 1, seed: 1, width: 912, height: 1136, referenceImages: ["crop.png"], inpaint });
   assertWired(graph);
   const [noiseMask] = byType(graph, "SetLatentNoiseMask");
-  assert.equal(graph[noiseMask.inputs.samples[0]].class_type, "TextEncodeQwenImage21");
+  // The encoder's latent is a canvas at its own framing, not the picture: start from the crop itself.
+  const encode = graph[noiseMask.inputs.samples[0]];
+  assert.equal(encode.class_type, "VAEEncode");
+  assert.equal(graph[encode.inputs.pixels[0]].inputs.image, inpaint.crop);
+  const [encoder] = byType(graph, "TextEncodeQwenImage21");
+  assert.equal(graph[encoder.inputs["images.image_1"][0]].inputs.image, "crop.png");
   assert.equal(byType(graph, "ImageCompositeMasked").length, 1);
 });
 

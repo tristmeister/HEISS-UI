@@ -98,3 +98,38 @@
 @media (forced-colors: active) {
   .beta-tag { outline: 1px solid CanvasText; outline-offset: -1px; }
 }
+
+/* ------------------------------------------------- LoRA mismatch note
+   Sits just above the prompt bar, centred: a question, not an alarm. */
+.lora-mismatch {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  translate: -50% 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--r-pill);
+  background: var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm), inset 0 0 0 1px rgb(255 190 120 / .18);
+  color: hsl(var(--foreground) / .92);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.lora-mismatch > svg { flex: none; color: var(--ember); }
+.lora-mismatch > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lora-mismatch b { font-weight: 600; }
+.lora-mismatch-action { flex: none; height: 26px; padding: 0 10px; border: 0; border-radius: var(--r-pill); background: var(--control-fill); color: hsl(var(--foreground)); font: inherit; font-weight: 550; cursor: pointer; }
+.lora-mismatch-action:hover { background: var(--control-hover); }
+.lora-mismatch-action.is-quiet { background: none; color: hsl(var(--foreground) / .7); }
+.lora-mismatch-action.is-quiet:hover { color: hsl(var(--foreground)); background: var(--control-hover); }
+.lora-mismatch-close { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 50%; background: none; color: hsl(var(--foreground) / .6); cursor: pointer; }
+.lora-mismatch-close:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+@media (max-width: 640px) {
+  .lora-mismatch { white-space: normal; border-radius: 16px; }
+}

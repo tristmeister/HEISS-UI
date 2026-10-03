@@ -19,6 +19,8 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
+import { loraFit, useLoraInfo } from './app/useLoraInfo';
+import type { LoraMismatch } from './app/LoraMismatchChip';
 import { loadWorkflowSettingValues, saveWorkflowSettingValues, type WorkflowSettingValues } from './app/WorkflowSettings';
 import { useViewerControls } from './app/useViewerControls';
 import { useGalleryBundles } from './app/useGalleryBundles';
@@ -1223,6 +1225,19 @@ function App() {
     : modelSetupMissing ? "This model needs files first"
     : !currentProfile ? (models ? "Choose a model" : "Loading models…") : undefined;
   const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
+  // Active LoRAs whose files clearly say another model family (lora-info.js): a quiet note above the prompt bar.
+  const loraOptionNames = useMemo(() => ((currentProfile?.options?.loras || models?.loras || []) as unknown[]).map((option) => typeof option === "string" ? option : String((option as { name?: string })?.name || "")).filter(Boolean), [currentProfile, models]);
+  const loraInfos = useLoraInfo(loraActiveCount ? loraOptionNames : []);
+  const [dismissedLoraWarnings, setDismissedLoraWarnings] = useState<string[]>([]);
+  const loraMismatch = useMemo<LoraMismatch | null>(() => {
+    if (!loraActiveCount || !currentProfile) return null;
+    const wrong = loras.filter((item) => item.enabled && item.name && loraFit(loraInfos[item.name], currentProfile) === "other").map((item) => item.name);
+    if (!wrong.length) return null;
+    const key = `${currentProfile.id}|${[...wrong].sort().join("|")}`;
+    if (dismissedLoraWarnings.includes(key)) return null;
+    return { key, names: wrong, madeFor: [...new Set(wrong.map((name) => loraInfos[name]?.base).filter(Boolean))] as string[], model: currentProfile.familyName || currentProfile.displayName || currentProfile.label };
+  }, [loraActiveCount, currentProfile, loras, loraInfos, dismissedLoraWarnings]);
+  const dismissLoraMismatch = useCallback((key: string) => setDismissedLoraWarnings((current) => [...current, key]), []);
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
     if (!hasMoreGallery) return;
@@ -1498,7 +1513,7 @@ function App() {
     mask: activeInpaintMask?.dataUrl || null,
     onChange: (dataUrl: string | null) => setInpaintMask(dataUrl ? { assetId: referenceAsset.id, dataUrl } : null)
   } : null;
-  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceStrength, referenceInpaint };
+  const view = { ...baseView, loraMismatch, dismissLoraMismatch, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceStrength, referenceInpaint };
   return (
     <>
       <StudioView view={view} />

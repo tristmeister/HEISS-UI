@@ -13,6 +13,15 @@ export function generationIdentity(item: GalleryItem) {
 }
 
 /** Keep this surface mounted when a pending record becomes a finished output. */
+type InpaintPreview = { box: { x: number; y: number; width: number; height: number }; image: { width: number; height: number }; referenceId: string };
+
+/** An inpaint run's crop and the picture it sits in, when the run recorded both (server/gallery-store.js). */
+function inpaintPreviewOf(item: GalleryItem): InpaintPreview | null {
+  const value = (item.settings as Record<string, unknown> | undefined)?.inpaint as Partial<InpaintPreview> | undefined;
+  if (!value?.box || !value.image?.width || !value.image?.height || !value.referenceId) return null;
+  return value as InpaintPreview;
+}
+
 export function GenerationMedia({ item, muted = false, fit = 'cover', children }: React.PropsWithChildren<{ item: GalleryItem; muted?: boolean; fit?: 'cover' | 'contain' }>) {
   return <GenerationMediaInstance key={generationIdentity(item)} item={item} muted={muted} fit={fit}>{children}</GenerationMediaInstance>;
 }
@@ -32,7 +41,9 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   useEffect(() => {
     if (pending || resolved || !advanced || item.status !== 'done') lastPending.current = item;
   }, [item, pending, resolved, advanced]);
-  const resolving = item.status === 'done' && item.type === 'image' && beganPending.current && advanced && !resolved;
+  // An inpaint run previews in place: over its original, only where the painted crop is being made.
+  const inpaint = inpaintPreviewOf(item);
+  const resolving = item.status === 'done' && item.type === 'image' && beganPending.current && advanced && !resolved && !inpaint;
   const displayUrl = upscaleDisplayUrl(item);
   const displayThumbnail = upscaleDisplayThumbnail(item);
   useEffect(() => setUseFullImage(false), [displayUrl, displayThumbnail]);
@@ -50,7 +61,19 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
             setResolved(true);
           }} />
       ) : !pending ? <Media item={item} muted={muted} /> : null}
-      {pending || resolving ? <GenerationPreview preview={previewItem.preview} fit={fit} aspectRatio={(item.width || 1) / (item.height || 1)}
+      {pending && inpaint ? (
+        <div className="generation-inpaint" aria-hidden="true">
+          <SafeImg className="generation-inpaint-base" src={`/api/reference-assets/${encodeURIComponent(inpaint.referenceId)}/media`} draggable={false} />
+          <div className="generation-inpaint-box" style={{
+            left: `${(inpaint.box.x / inpaint.image.width) * 100}%`,
+            top: `${(inpaint.box.y / inpaint.image.height) * 100}%`,
+            width: `${(inpaint.box.width / inpaint.image.width) * 100}%`,
+            height: `${(inpaint.box.height / inpaint.image.height) * 100}%`
+          }}>
+            <GenerationPreview preview={previewItem.preview} fit="cover" aspectRatio={inpaint.box.width / inpaint.box.height} />
+          </div>
+        </div>
+      ) : pending || resolving ? <GenerationPreview preview={previewItem.preview} fit={fit} aspectRatio={(item.width || 1) / (item.height || 1)}
         finalSource={resolving && loadedSource === source ? source : undefined}
         onResolved={() => setResolved(true)} /> : null}
       {pending ? children : null}

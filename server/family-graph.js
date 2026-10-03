@@ -228,8 +228,11 @@ export function familyGraph(body) {
   const startImage = body.startImageComfy && !inpaint && !editLatent && !editSize && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
   if (inpaint) {
     // Inpainting: the crop's own latent, repainted only where the mask says.
-    // An edit model starts from the latent of its first reference (the crop).
-    const base = editLatent || firstReference || [add("VAEEncode", { pixels: [add("LoadImage", { image: inpaint.crop }), 0], vae }), 0];
+    // Always the crop's pixels, encoded at the working size the mask was made
+    // for: an edit encoder's latent is a blank canvas at its own framing
+    // (Qwen-Image 2.1), so starting from it repainted noise, not the picture.
+    // The edit model still sees the crop as its reference.
+    const base = [add("VAEEncode", { pixels: [add("LoadImage", { image: inpaint.crop }), 0], vae }), 0];
     const mask = [add("LoadImageMask", { image: inpaint.mask, channel: "red" }), 0];
     const masked = [add("SetLatentNoiseMask", { samples: base, mask }), 0];
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: masked, amount: count }), 0] : masked;
