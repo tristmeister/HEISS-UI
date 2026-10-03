@@ -478,7 +478,7 @@ input.is-framed:focus-visible {
   color: hsl(var(--muted-foreground));
 }
 .model-option:hover .model-ability { color: hsl(var(--foreground) / .85); border-color: hsl(var(--foreground) / .35); }
-.model-option.active .model-ability { color: hsl(var(--primary-foreground) / .7); border-color: hsl(var(--primary-foreground) / .35); }
+.model-option.active .model-ability { color: hsl(var(--foreground) / .9); border-color: hsl(var(--foreground) / .45); }
 /* With ability marks the row has three columns: name, marks, family badge. */
 .model-option:has(.model-abilities) { grid-template-columns: minmax(0, 1fr) auto auto; }
 @media (max-width: 620px) {
