@@ -147,6 +147,13 @@ test("the files: an exact crop, a hard grown sampling mask and a feathered stitc
   assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(150 * scale)], 255, "grown a little past the painted edge, at full strength");
   assert.ok(sampling.data.every((value) => value === 0 || value === 255), "hard: on or off, no half-way edge");
 
+  // The edit model's reference: the crop outside the paint, blurred inside it.
+  const plain = await sharp(files.crop).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const reference = await sharp(files.referenceCrop).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  assert.equal(reference.info.width, files.work.width);
+  const pixel = (buffer, x, y) => buffer.data[(y * files.work.width + x) * 3];
+  assert.equal(pixel(reference, 2, 2), pixel(plain, 2, 2), "outside the paint it is the crop itself");
+
   const empty = await sharp(Buffer.alloc(400 * 300), { raw: { width: 400, height: 300, channels: 1 } }).png().toBuffer();
   assert.equal(await inpaintFiles(sharp, source, empty, { targetPixels: 1024 * 1024, feather: 0.4 }), null);
 });

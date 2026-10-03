@@ -80,7 +80,8 @@ async function builtInGraph(body) {
       width: inpaint.work.width,
       height: inpaint.work.height,
       startImageComfy: inpaint.crop,
-      referenceImages: [inpaint.crop, ...referenceImages.slice(1)],
+      // Edit models see the crop with the painted part blurred away (inpaint.js); the latent is still the crop's own.
+      referenceImages: [inpaint.reference || inpaint.crop, ...referenceImages.slice(1)],
       inpaint
     }));
   }
