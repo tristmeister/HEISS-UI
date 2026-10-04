@@ -31,7 +31,7 @@ import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
 import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { clearPromptHistory, forgetPrompts, listPrompts, promptHistoryEnabled, promptKey, recordPrompt, setPromptHistoryEnabled, setPromptPinned } from './prompt-history.js';
 import { addLibraryFolder, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
-import { forgetItemVideoPreviews, getComfyVideoPreview, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
+import { forgetItemVideoPreviews, forgetPrivateVideoPreviews, getComfyVideoPreview, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
 import { sendMediaBuffer } from './media-response.js';
 import { civitaiPrefs, saveCivitaiPrefs } from './civitai.js';
 import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
@@ -340,7 +340,7 @@ app.post("/api/privacy/setup", async (req, res) => {
     // Creating the password does not need ComfyUI; hiding images later does, to
     // remove its copies, and says so then.
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
-    if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
+    if (!isPrivacyEnabled() && vaultConfigured()) { retireVault(); forgetPrivateVideoPreviews(); }
     const key = await setupPrivacy(req.body?.password || "");
     setUnlockCookie(res, key, sessionSeconds(req), req);
     res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
@@ -435,6 +435,7 @@ app.post("/api/privacy/erase", (req, res) => {
   }
   eraseVault();
   erasePrivacy();
+  forgetPrivateVideoPreviews();
   forgetHiddenRunKeys();
   // Copies taken before an update may still hold Hidden's older records.
   try { dropSnapshots(); } catch { /* held open (Windows); they go within 14 days anyway */ }
@@ -522,7 +523,9 @@ app.post("/api/hidden/unhide", async (req, res) => {
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
-    const restored = await unhideItems(key, (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String);
+    const restored = await unhideItems(key, ids);
+    for (const id of ids) forgetPrivateVideoPreviews(id);
     addGalleryItems(restored);
     res.json({ ok: true, restored: restored.length, revision: galleryRevisionValue() });
   } catch (error) {
@@ -1146,7 +1149,7 @@ app.get('/api/vault/video-preview/:id', async (req, res) => {
   const asset = readVaultAsset(req, req.params.id, 'original');
   if (!asset || asset.item.type !== 'video') { res.status(404).end(); return; }
   try {
-    const preview = await getPrivateVideoPreview(asset.buffer);
+    const preview = await getPrivateVideoPreview(asset.buffer, req.params.id);
     if (req.query.poster === '1') await sendVideoPoster(req, res, preview);
     else sendMediaBuffer(req, res, preview);
   }
@@ -2041,6 +2044,7 @@ app.delete("/api/gallery/:id", (req, res) => {
       return;
     }
     vault = deleteVaultItems(key, [id]);
+    forgetPrivateVideoPreviews(id);
   }
   const before = gallery.length;
   const removed = gallery.filter((item) => item.id === id || item.url === id);

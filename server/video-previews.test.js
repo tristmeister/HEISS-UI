@@ -44,8 +44,12 @@ test('real encoder produces a small silent preview, reuses it, and invalidates/r
     assert.equal((await response.arrayBuffer()).byteLength, 8);
   } finally { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); }
   const before = fs.readdirSync(path.dirname(one));
-  const privateBuffer = await previews.getPrivateVideoPreview(fs.readFileSync(source));
+  const [privateBuffer, sameTime] = await Promise.all([previews.getPrivateVideoPreview(fs.readFileSync(source), 'vault:one'), previews.getPrivateVideoPreview(fs.readFileSync(source), 'vault:one')]);
   assert.ok(privateBuffer.length > 100);
+  assert.equal(sameTime, privateBuffer, 'requests at the same time share one encode');
+  assert.equal(await previews.getPrivateVideoPreview(fs.readFileSync(source), 'vault:one'), privateBuffer, 'a Hidden preview is encoded once, then kept in memory');
+  previews.forgetPrivateVideoPreviews('vault:one');
+  assert.notEqual(await previews.getPrivateVideoPreview(fs.readFileSync(source), 'vault:one'), privateBuffer, 'forgetting drops it');
   assert.deepEqual(fs.readdirSync(path.dirname(one)), before, 'Hidden preview leaves no plaintext file');
   const privateFile = path.join(dir, 'private-preview.mp4');
   fs.writeFileSync(privateFile, privateBuffer); // Test-only output so its decoder/streams can be inspected.

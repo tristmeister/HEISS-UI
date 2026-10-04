@@ -25,6 +25,20 @@ version opens with a `> ` summary line, which the update pill shows.
   left edge.
 - Refined gallery, viewer, settings, and tooltip interactions.
 
+### Fixed
+- **References come off when you remove them.** With an edit model and more
+  than one reference, taking the first one off left the next picture showing
+  in both slots, and its × did nothing until you picked another model. The
+  others now move up instead. Removing a later reference works too: its ×
+  was hidden behind the reference next to it.
+- Deleting an upload in the picker takes it out of every slot that holds it.
+- On a phone, a video swipes to the next item and swipes down to close, like
+  a picture. The timeline still scrubs.
+- Hidden videos preview without the long wait: each one is made once and kept
+  in memory, never on disk.
+- A grid video whose preview can't load shows its placeholder instead of a
+  broken image.
+
 ## [0.15.0] - 2026-09-30
 
 > A feedback board, right from the app

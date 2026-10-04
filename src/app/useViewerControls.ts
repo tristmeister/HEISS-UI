@@ -292,7 +292,10 @@ export function useViewerControls(view: any) {
   // there does nothing but log a warning; touch-action: none on the stage is
   // what keeps the browser from scrolling or zooming the page meanwhile.
   function startViewerTouch(event: React.TouchEvent) {
-    if ((event.target as Element).closest('[data-video-viewer]')) return;
+    // A video swipes like a picture, except from its controls (the timeline
+    // scrubs), and never pinches or pans: it has no zoom.
+    const target = event.target as Element;
+    if (target.closest('[data-video-viewer]') && (event.touches.length !== 1 || viewerZoom > 1 || target.closest('.heiss-video-controls, .heiss-video-error'))) return;
     if (event.touches.length === 2) {
       const center = touchCenter(event.touches);
       touchGestureRef.current = {

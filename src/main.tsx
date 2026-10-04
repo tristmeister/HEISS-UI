@@ -10,6 +10,7 @@ import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromG
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
 import { useGalleryColumnCount } from './app/gallery';
 import { normalizeLoras, sameBaseModel } from './app/loras';
+import { arrangeReferences, withReference, withoutReferences } from './app/referenceSlots';
 import { deleteLoraStack, loraFamilyKey, loraFavorites, loraRecents, loraStacks, recordLoraRecents, rememberActiveLoras, rememberedLoraStrength, rememberLoraStrengths, renameLoraStack, saveLoraStack, startLoraSync, subscribeLoraLibrary, subscribeLoraSync, toggleLoraFavorite, updateLoraStack, type LoraSnapshot, type LoraSyncStatus } from './app/lora-storage';
 import { useConfirmation } from './app/useConfirmation';
 import { StudioView } from './app/StudioView';
@@ -1093,10 +1094,13 @@ function App() {
   const aspectOptions = currentProfile?.aspectPresets?.length ? currentProfile.aspectPresets : fallbackAspectPresets[mode];
   const referenceInputs = imageInputsForProfile(currentProfile);
   const referenceInput = referenceInputs[0] || null;
-  const storedReferenceAsset = referenceInput ? referenceAssets.find((item) => item.slot === referenceInput.id)?.asset || referenceAssets[0]?.asset || null : null;
+  // One picture per slot, in slot order, whatever the saved list says (referenceSlots.js).
+  const arrangedReferenceAssets = arrangeReferences(referenceAssets, referenceInputs);
+  const storedReferenceAsset = referenceInput ? arrangedReferenceAssets.find((item) => item.slot === referenceInput.id)?.asset || null : null;
   const referenceAsset: ReferenceAsset | null = storedReferenceAsset || (referenceInput && startImageId ? {
     id: startImageId,
-    source: "upload",
+    source: startImageId.startsWith("vault:") ? "vault" : "upload",
+    ...(startImageId.startsWith("vault:") ? { privacyDomain: "vault" as const } : {}),
     name: startImageName || "Reference image",
     mime: "",
     width: 0,
@@ -1107,9 +1111,9 @@ function App() {
     // uploads can still be previewed from it, anything else falls back to an icon.
     thumbnailUrl: `/api/reference-assets/${encodeURIComponent(startImageId)}/thumbnail`
   } : null);
-  const composerReferenceAssets = referenceAsset && referenceInput && !referenceAssets.some((item) => item.slot === referenceInput.id)
-    ? [{ slot: referenceInput.id, asset: referenceAsset }, ...referenceAssets]
-    : referenceAssets;
+  const composerReferenceAssets = referenceAsset && referenceInput && !storedReferenceAsset
+    ? arrangeReferences([{ slot: referenceInput.id, asset: referenceAsset }, ...arrangedReferenceAssets], referenceInputs)
+    : arrangedReferenceAssets;
   const canUseStartImage = Boolean(referenceInput);
   // A mask belongs to the image it was painted on, for a model that can inpaint.
   const canInpaint = Boolean(currentProfile?.capabilities.inpaint && referenceInput && (referenceAsset?.url || referenceAsset?.thumbnailUrl));
@@ -1288,7 +1292,7 @@ function App() {
 
   function selectReferenceAsset(slot: string, asset: ReferenceAsset) {
     if (!referenceInputs.some((input) => input.id === slot)) return;
-    setReferenceAssets((current) => [{ slot, asset }, ...current.filter((item) => item.slot !== slot)]);
+    setReferenceAssets((current) => withReference(current, referenceInputs, slot, asset));
     setStartImage("");
     if (slot === referenceInput?.id) {
       setStartImageId(asset.id);
@@ -1296,13 +1300,14 @@ function App() {
     }
   }
 
-  function removeReferenceAsset(slot: string) {
-    setReferenceAssets((current) => current.filter((item) => item.slot !== slot));
-    if (slot === referenceInput?.id) {
-      setStartImage("");
-      setStartImageId("");
-      setStartImageName("");
-    }
+  /** Takes the pictures in `slots` off, from what the composer shows, and closes up the rest. */
+  function removeReferenceAsset(slots: string | string[]) {
+    const next = withoutReferences(composerReferenceAssets, referenceInputs, Array.isArray(slots) ? slots : [slots]);
+    const first = next.find((item) => item.slot === referenceInput?.id)?.asset;
+    setReferenceAssets(next);
+    setStartImage("");
+    setStartImageId(first?.id || "");
+    setStartImageName(first?.name || "");
   }
 
   async function useOutputAsStartImage(item: GalleryItem) {

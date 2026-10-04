@@ -50,7 +50,7 @@ export default function VideoViewer({ item }: { item: Output & { width?: number;
   }} onError={() => setError('This video couldn’t be played. Try again, or save the original using the viewer actions.')} />;
   return (
     <div ref={host} className="heiss-video-viewer" data-video-viewer
-      onPointerDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchMove={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}>
       <VideoPlayer key={`${item.url}:${attempt}`} title={titleFromPrompt(item.prompt || item.filename)}>
