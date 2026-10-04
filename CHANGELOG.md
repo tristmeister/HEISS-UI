@@ -19,6 +19,10 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ### Changed
 - Download activity can return to the model or workflow that needs the file.
+- Reference images in the prompt bar are bigger, and their menu no longer
+  flickers when the pointer passes over or slips off its edge.
+- On a phone, a reference's menu opens toward the screen instead of off its
+  left edge.
 - Refined gallery, viewer, settings, and tooltip interactions.
 
 ## [0.15.0] - 2026-09-30
