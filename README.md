@@ -445,6 +445,8 @@ Found a bug, want a feature, or not sure how something works? Post it on the **[
 
 From the app, **Settings › Feedback** sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
 
+When `DISCORD_BOARD_WEBHOOK_URL` is configured as a server-only Vercel Secret, the board keeps one roadmap summary message current in the Discord channel connected to that webhook. It refreshes when cards are added, edited, reordered or removed; the board remains the full source of truth.
+
 ## FAQ
 
 <details>
