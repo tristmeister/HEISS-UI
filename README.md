@@ -506,3 +506,5 @@ The app is set in [Geist](https://vercel.com/font). The pixel wordmark on the we
 ## License
 
 [MIT](./LICENSE). The original J-AI Studio copyright notice is kept alongside HEISS UI's, as the license asks.
+
+The downloads include an [FFmpeg](https://ffmpeg.org) build (via [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static)) for video previews. It's licensed separately under the GPL, with its license and source at those links.
