@@ -457,6 +457,7 @@ function App() {
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (document.querySelector(OPEN_DIALOG)) return;
+      if (event.defaultPrevented || document.fullscreenElement) return;
       if (event.key !== "Escape") return;
       if (settings) {
         event.preventDefault();
@@ -612,6 +613,7 @@ function App() {
     const currentIndex = viewerItems.findIndex((item) => item.id === activeItem.id);
     function onKeyDown(event: KeyboardEvent) {
       if (document.querySelector(OPEN_DIALOG)) return;
+      if (event.defaultPrevented || (event.target instanceof Element && event.target.closest('[data-video-viewer]'))) return;
       if (event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLInputElement) return;
       if (event.key === "ArrowRight" && currentIndex >= 0) {
         event.preventDefault();
@@ -625,11 +627,11 @@ function App() {
         setViewerPan({ x: 0, y: 0 });
         setActive(viewerItems[(currentIndex - 1 + viewerItems.length) % viewerItems.length]);
       }
-      if (event.key === "+" || event.key === "=") {
+      if (activeItem.type === 'image' && (event.key === "+" || event.key === "=")) {
         event.preventDefault();
         setViewerZoom((value) => Math.min(6, Number((value + 0.25).toFixed(2))));
       }
-      if (event.key === "-" || event.key === "_") {
+      if (activeItem.type === 'image' && (event.key === "-" || event.key === "_")) {
         event.preventDefault();
         setViewerZoom((value) => Math.max(0.5, Number((value - 0.25).toFixed(2))));
       }

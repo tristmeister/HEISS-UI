@@ -137,9 +137,9 @@ function zipFolder(zip, cwd) {
 }
 
 // npm is npm.cmd on Windows, which Node only runs through a shell.
-function runNpm(args, cwd) {
+function runNpm(args, cwd, extraEnv = {}) {
   const cli = process.env.npm_execpath;
-  const options = { cwd, stdio: "inherit" };
+  const options = { cwd, stdio: "inherit", env: { ...process.env, ...extraEnv } };
   if (cli && /npm-cli\.[cm]?js$/.test(cli)) return execFileSync(process.execPath, [cli, ...args], options);
   if (process.platform === "win32") return execSync(`npm ${args.join(" ")}`, options);
   return execFileSync("npm", args, options);
@@ -201,6 +201,8 @@ for (const bundle of bundles) {
   fs.cpSync(target, path.join(stage, name), { recursive: true });
   for (const launcher of Object.keys(LAUNCHER_FILES)) if (foreignLauncher(launcher, bundle.os)) fs.rmSync(path.join(stage, name, launcher));
   runNpm(["ci", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts", `--os=${bundle.os}`, `--cpu=${bundle.cpu}`, ...(bundle.libc ? [`--libc=${bundle.libc}`] : [])], path.join(stage, name));
+  // Download the target encoder without executing a foreign binary.
+  runNpm(["rebuild", "ffmpeg-static", "--no-audit", "--no-fund"], path.join(stage, name), { npm_config_platform: bundle.os, npm_config_arch: bundle.cpu });
   await bundledNode(path.join(stage, name), bundle);
   const bundleZip = path.join(outDir, `${name}-${bundle.id}.zip`);
   fs.rmSync(`${bundleZip}.sig`, { force: true });

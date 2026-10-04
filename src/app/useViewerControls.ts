@@ -224,6 +224,7 @@ export function useViewerControls(view: any) {
   // Attached natively and non-passive (useWheelRef), so preventDefault holds
   // and Ctrl+wheel or a touchpad pinch never zooms the page as well.
   function wheelViewer(event: WheelEvent, element: HTMLElement) {
+    if (active?.type === 'video') return;
     event.preventDefault();
     event.stopPropagation();
     const { y } = wheelPixels(event, element.clientHeight);
@@ -235,6 +236,7 @@ export function useViewerControls(view: any) {
   }
 
   function clickViewer(event: React.MouseEvent) {
+    if ((event.target as Element).closest('[data-video-viewer]')) return;
     event.stopPropagation();
     if (Date.now() - viewerDragEndRef.current < 220) return;
     if (viewerDragRef.current?.moved) return;
@@ -259,6 +261,7 @@ export function useViewerControls(view: any) {
   }
 
   function startViewerDrag(event: React.PointerEvent) {
+    if ((event.target as Element).closest('[data-video-viewer]')) return;
     if (event.pointerType === "touch") return;
     event.currentTarget.setPointerCapture(event.pointerId);
     viewerDragRef.current = { id: event.pointerId, x: event.clientX, y: event.clientY, panX: viewerPan.x, panY: viewerPan.y, moved: false };
@@ -289,6 +292,7 @@ export function useViewerControls(view: any) {
   // there does nothing but log a warning; touch-action: none on the stage is
   // what keeps the browser from scrolling or zooming the page meanwhile.
   function startViewerTouch(event: React.TouchEvent) {
+    if ((event.target as Element).closest('[data-video-viewer]')) return;
     if (event.touches.length === 2) {
       const center = touchCenter(event.touches);
       touchGestureRef.current = {

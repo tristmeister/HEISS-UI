@@ -1,4 +1,5 @@
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import React, { lazy, Suspense, memo, useCallback, useEffect, useRef, useState } from 'react';
+import { VideoPreview } from './VideoPreview';
 import { useDismiss } from './useDismiss';
 import { ChevronDown, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
@@ -11,6 +12,7 @@ import { formatDownload, modelFits, useHardware } from './hardware';
 
 /** How much room a composer control gets: full label, icon-only, or bare essentials. */
 export type ControlDensity = "full" | "compact" | "mini";
+const VideoViewer = lazy(() => import('./VideoViewer'));
 
 export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -44,19 +46,10 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
   const source = isThumbnail ? item.thumbnailUrl : item.url;
   if (!source || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || "Output unavailable"}</span></div>;
   if (item.type === "video") {
-    return (
-      <video
-        className={cn(!loaded && "media-loading")}
-        src={source}
-        controls={!muted}
-        muted={muted}
-        loop
-        autoPlay={muted}
-        preload="metadata"
-        draggable={false}
-        onLoadedData={reveal}
-        onError={() => isThumbnail ? setUseFullImage(true) : setFailed(true)}
-      />
+    return muted ? <VideoPreview key={item.url} source={item.url} /> : (
+      <Suspense fallback={<div className="video-viewer-loading" role="status">Loading video…</div>}>
+        <VideoViewer key={item.url} item={item} />
+      </Suspense>
     );
   }
   return (

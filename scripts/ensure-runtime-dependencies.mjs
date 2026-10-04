@@ -63,6 +63,16 @@ if (wrongPlatform) {
   }
 }
 
+// Older release installs skipped optional package download scripts.
+const encoderBinary = path.join(projectRoot, 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
+if (installed('ffmpeg-static') && !existsSync(encoderBinary)) {
+  try {
+    runNpm(['rebuild', 'ffmpeg-static', '--no-audit', '--no-fund'], { cwd: projectRoot, stdio: 'inherit' });
+  } catch (error) {
+    console.warn(`Could not restore the preview encoder (${error.message}). Videos still open; grid previews use a static tile.`);
+  }
+}
+
 // A source checkout that was never built: build it now if the tools are here.
 if (!wantDev && !existsSync(path.join(projectRoot, "dist", "index.html"))) {
   if (installed("vite")) {

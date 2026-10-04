@@ -12,20 +12,14 @@ version opens with a `> ` summary line, which the update pill shows.
 ## [Unreleased]
 
 ### Added
-- **Inpainting.** Hover a reference image and press the brush to paint over the
-  part that should change, then say what it becomes. Only the painted part is
-  redrawn; the rest of the picture keeps its own pixels. Works with the edit
-  models (Flux.2, Klein, Qwen-Image 2.1) and every model that can start from an
-  image (Z-Image, SDXL, Flux.1 and more), with no extra nodes to install. The
-  studio rises out of the prompt bar: a brush, an eraser and a hand, undo, zoom
-  and a brush size on the left. **Inpaint strength** and **Edge softness** are
-  in the sidebar under Advanced once something is painted.
+- Video playback in the gallery, with generated previews and a dedicated
+  viewer for playback controls, seeking, and sharing.
+- Automatic resizing for oversized start and reference images, while keeping
+  the original assets unchanged.
 
 ### Changed
-- Reference images in the prompt bar are bigger, and their menu no longer
-  flickers when the pointer passes over or slips off its edge.
-- On a phone, a reference's menu opens toward the screen instead of off its
-  left edge.
+- Download activity can return to the model or workflow that needs the file.
+- Refined gallery, viewer, settings, and tooltip interactions.
 
 ## [0.15.0] - 2026-09-30
 

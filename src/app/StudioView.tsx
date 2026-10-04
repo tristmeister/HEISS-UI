@@ -1,4 +1,5 @@
 import React from 'react';
+import { GridAutoplayButton } from './GridAutoplayButton';
 import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit, settingsText } from './format';
@@ -743,6 +744,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <PanelLeft size={16} />
           </button></Tip>
           {hiddenLocked ? null : <GallerySearchButton search={gallerySearch} open={searchOpen} setOpen={setSearchOpen} />}
+          {hiddenLocked ? null : <GridAutoplayButton />}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
           <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
@@ -854,7 +856,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div className="viewer-shell" onClick={(event) => event.stopPropagation()}>
               <div className={cn("viewer-stage", showDetails && "with-side")} data-viewer-empty>
                 <div
-                  className={cn("viewer-canvas", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging")}
+                  className={cn("viewer-canvas", active.type === 'video' && 'is-video', viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging")}
                   data-open-surface
                   style={{ "--zoom": viewerZoom, "--pan-x": `${viewerPan.x}px`, "--pan-y": `${viewerPan.y}px` } as React.CSSProperties}
                   ref={viewerWheelRef}
