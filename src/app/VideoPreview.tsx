@@ -31,8 +31,11 @@ function useRetry(source: string) {
 export function VideoPreview({ source }: { source: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const [load, setLoad] = useState(false);
-  const [ready, setReady] = useState(false);
-  const [posterReady, setPosterReady] = useState(false);
+  // What has loaded is kept as the address that loaded, not a flag reset when
+  // the source changes: a still from the browser's cache can finish loading
+  // before such a reset runs, and the reset then hid it for good.
+  const [readySrc, setReadySrc] = useState('');
+  const [posterLoaded, setPosterLoaded] = useState('');
   const preview = videoPreviewUrl(source);
   const posterTry = useRetry(preview);
   const videoTry = useRetry(preview);
@@ -40,32 +43,33 @@ export function VideoPreview({ source }: { source: string }) {
     if (!video.current) return;
     return observeVideoPreview(video.current, setLoad);
   }, []);
-  useEffect(() => { setReady(false); setPosterReady(false); }, [source]);
   const videoSrc = load && preview && !videoTry.gaveUp ? withTry(preview, videoTry.attempt) : undefined;
+  const posterSrc = preview && !posterTry.gaveUp ? withTry(preview, posterTry.attempt, 'poster=1') : '';
+  const ready = Boolean(videoSrc) && readySrc === videoSrc;
+  const posterReady = Boolean(posterSrc) && posterLoaded === posterSrc;
   useEffect(() => {
     // Clearing src alone can leave an old network request/decoder alive in Safari.
-    if (!load) setReady(false);
     video.current?.load();
     refreshVideoPreviews();
   }, [load, videoSrc]);
   return (
     <div className={`video-preview${ready ? ' is-ready' : ''}`}>
-      {preview && !posterTry.gaveUp ? (
+      {posterSrc ? (
         <img
           className="video-preview-poster"
-          src={withTry(preview, posterTry.attempt, 'poster=1')}
+          src={posterSrc}
           alt=""
           loading="lazy"
           decoding="async"
           draggable={false}
-          style={posterReady ? undefined : { visibility: 'hidden' }}
-          onLoad={() => setPosterReady(true)}
-          onError={() => { setPosterReady(false); posterTry.fail(); }}
+          style={posterReady ? undefined : { opacity: 0 }}
+          onLoad={() => setPosterLoaded(posterSrc)}
+          onError={() => posterTry.fail()}
         />
       ) : null}
       <video ref={video} src={videoSrc} muted playsInline loop preload={load ? 'auto' : 'none'}
         disablePictureInPicture disableRemotePlayback draggable={false} aria-hidden="true"
-        onLoadedData={() => setReady(true)} onError={() => { if (videoSrc) { setReady(false); videoTry.fail(); } }} />
+        onLoadedData={() => { if (videoSrc) setReadySrc(videoSrc); }} onError={() => { if (videoSrc) videoTry.fail(); }} />
       {!ready && !posterReady ? <span className="video-preview-placeholder"><Play size={22} /><span>{videoTry.gaveUp && posterTry.gaveUp ? 'Video' : 'Preview'}</span></span> : null}
     </div>
   );

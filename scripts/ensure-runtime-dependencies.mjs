@@ -1,5 +1,5 @@
-import { execFileSync, execSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { execFileSync, execSync, spawnSync } from "node:child_process";
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,18 +63,60 @@ if (wrongPlatform) {
   }
 }
 
-// Older release installs skipped optional package download scripts.
-const encoderBinary = path.join(projectRoot, 'node_modules', 'ffmpeg-static', process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg');
-if (installed('ffmpeg-static') && !existsSync(encoderBinary)) {
+// The video encoder for grid previews (ffmpeg-static) is an optional package:
+// its binary is downloaded from GitHub when it installs, and if that download
+// fails (offline, a firewall) npm leaves it out without a word and nothing
+// would ever try again. So: put the binary back if only it is missing, and
+// install the package again if it is missing, at most once a day so a computer
+// without internet doesn't wait at every start. A system ffmpeg makes it moot.
+const encoderBinary = path.join(projectRoot, "node_modules", "ffmpeg-static", process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg");
+const encoderWanted = Boolean(packageJson.optionalDependencies?.["ffmpeg-static"] || packageJson.dependencies?.["ffmpeg-static"]);
+const systemEncoder = () => {
+  if (process.env.HEISS_FFMPEG_PATH) return true;
+  try { return spawnSync("ffmpeg", ["-version"], { stdio: "ignore", timeout: 5000, windowsHide: true }).status === 0; } catch { return false; }
+};
+const encoderStamp = path.join(projectRoot, "node_modules", ".heiss-encoder-attempt");
+const triedToday = () => { try { return Date.now() - statSync(encoderStamp).mtimeMs < 24 * 60 * 60 * 1000; } catch { return false; } };
+if (encoderWanted && !existsSync(encoderBinary) && !systemEncoder() && !triedToday()) {
+  try { writeFileSync(encoderStamp, new Date().toISOString()); } catch { /* no node_modules yet: npm makes it */ }
+  const releaseInstall = !wantDev && !installed("vite");
   try {
-    runNpm(['rebuild', 'ffmpeg-static', '--no-audit', '--no-fund'], { cwd: projectRoot, stdio: 'inherit' });
+    if (installed("ffmpeg-static")) runNpm(["rebuild", "ffmpeg-static", "--no-audit", "--no-fund"], { cwd: projectRoot, stdio: "inherit" });
+    else {
+      console.warn("The video preview encoder is missing. Installing it...");
+      runNpm(["install", "--no-audit", "--no-fund", ...(releaseInstall ? ["--omit=dev"] : [])], { cwd: projectRoot, stdio: "inherit" });
+    }
   } catch (error) {
-    console.warn(`Could not restore the preview encoder (${error.message}). Videos still open; grid previews use a static tile.`);
+    console.warn(`Could not install the video preview encoder (${error.message}). Videos still open; grid tiles show a placeholder. It's tried again tomorrow, or install ffmpeg yourself.`);
   }
+  if (!existsSync(encoderBinary)) console.warn("No video preview encoder yet. Videos still open; grid tiles show a placeholder until it's installed (or ffmpeg is on the PATH).");
 }
 
-// A source checkout that was never built: build it now if the tools are here.
-if (!wantDev && !existsSync(path.join(projectRoot, "dist", "index.html"))) {
+// A source checkout started with the launcher builds the app itself: when it
+// was never built, and when anything the page is built from changed since the
+// last build (a `git pull`, an edit). Otherwise the server would run the new
+// code and the browser would still get the old page.
+const builtAt = (() => { try { return statSync(path.join(projectRoot, "dist", "index.html")).mtimeMs; } catch { return 0; } })();
+function newestSource() {
+  let newest = 0;
+  const visit = (target) => {
+    let stat;
+    try { stat = statSync(target); } catch { return; }
+    if (stat.isDirectory()) { for (const name of readdirSync(target)) visit(path.join(target, name)); return; }
+    newest = Math.max(newest, stat.mtimeMs);
+  };
+  for (const entry of ["src", "public", "index.html", "vite.config.ts", "package-lock.json"]) visit(path.join(projectRoot, entry));
+  return newest;
+}
+const sourceCheckout = existsSync(path.join(projectRoot, "src"));
+if (!wantDev && builtAt && sourceCheckout && installed("vite") && newestSource() > builtAt) {
+  console.warn("The app changed since it was last built. Building it again...");
+  try {
+    runNpm(["run", "build"], { cwd: projectRoot, stdio: "inherit" });
+  } catch (error) {
+    console.warn(`The build failed (${error.message}). Starting with the previous build.`);
+  }
+} else if (!wantDev && !existsSync(path.join(projectRoot, "dist", "index.html"))) {
   if (installed("vite")) {
     console.warn("No built app in dist/ yet. Building it once...");
     runNpm(["run", "build"], { cwd: projectRoot, stdio: "inherit" });

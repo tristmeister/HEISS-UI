@@ -59,6 +59,13 @@ version opens with a `> ` summary line, which the update pill shows.
   while it waits or while previews are paused, and a preview that isn't ready
   yet is tried again instead of staying blank until a reload.
 - The play/pause button for grid previews only shows when the grid has videos.
+- A video tile's still shows even when it comes from the browser's cache,
+  instead of sometimes staying hidden behind a grey tile.
+- **Starting from a source checkout rebuilds the app when it changed**, so
+  after a `git pull` the browser gets the new page, not the last build.
+- **The video preview encoder installs itself again if its download failed**
+  during an install or update, at most once a day, unless ffmpeg is already
+  on the computer.
 
 ## [0.15.0] - 2026-09-30
 
