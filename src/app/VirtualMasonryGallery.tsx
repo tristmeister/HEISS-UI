@@ -125,9 +125,10 @@ export function VirtualMasonryGallery({
   // left, the same layout a reload gives. That places every tile by the ones
   // before it, so a tile that goes (deleted, hidden, stopped) only moves the
   // tiles after it, but a result landing at the top moves them all. While the
-  // pointer is over the grid, landing tiles take the top of whichever column's
-  // top tile is oldest instead and nothing else moves, so no tile slides out
-  // from under the cursor; the grid settles once the pointer leaves. With
+  // pointer is over the grid, results from elsewhere take the top of whichever
+  // column's top tile is oldest instead and nothing else moves, so no tile
+  // slides out from under the cursor; the grid settles once the pointer
+  // leaves. A generation started here always lands top left. With
   // spanWide, wide images take two level columns (masonry.js has the rules).
   const [holding, setHolding] = useState(false);
   const releaseTimer = useRef(0);
@@ -138,6 +139,10 @@ export function VirtualMasonryGallery({
   const layout = useMemo(() => {
     const signature = `${safeColumns}:${columnWidth}:${spanWide}`;
     const previous = placement.current.signature === signature ? placement.current.slots : null;
+    // What you just started here lands top left at once, hold or not: you
+    // pressed Generate, so the grid moving now is expected. Results from
+    // another device or tab still wait for the pointer to leave.
+    const ownLanding = Boolean(previous) && items.some((item) => item.optimistic && !previous!.has(placementKey(item)));
     const next = packMasonry({
       count: items.length,
       columns: safeColumns,
@@ -147,7 +152,7 @@ export function VirtualMasonryGallery({
       heightOf: (index, span) => estimatedHeight(items[index], span === 2 ? wideWidth : columnWidth, expandedBundles),
       wideOf: (index) => spanWide && isWide(items[index]),
       previous,
-      holding,
+      holding: holding && !ownLanding,
     });
     placement.current = { signature, slots: next.placement };
     return next;

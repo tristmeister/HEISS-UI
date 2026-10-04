@@ -30,8 +30,8 @@ import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, fi
 import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
 import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { clearPromptHistory, forgetPrompts, listPrompts, promptHistoryEnabled, promptKey, recordPrompt, setPromptHistoryEnabled, setPromptPinned } from './prompt-history.js';
-import { addLibraryFolder, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
-import { forgetItemVideoPreviews, forgetPrivateVideoPreviews, getComfyVideoPreview, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
+import { addLibraryFolder, fillVideoSizes, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
+import { forgetItemVideoPreviews, forgetPrivateVideoPreviews, getComfyVideoPoster, getComfyVideoPreview, getFileVideoPoster, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
 import { sendMediaBuffer } from './media-response.js';
 import { civitaiPrefs, saveCivitaiPrefs } from './civitai.js';
 import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
@@ -1357,9 +1357,9 @@ app.get('/api/library/video-preview', async (req, res) => {
   const file = libraryFile(req.query.folder, req.query.path);
   if (!file || !/\.(mp4|webm|mov|mkv)$/i.test(file)) { res.status(404).end(); return; }
   try {
-    const preview = await getFileVideoPreview(file, `library:${String(req.query.folder)}:${String(req.query.path)}`);
-    if (req.query.poster === '1') await sendVideoPoster(req, res, preview);
-    else sendVideoPreview(req, res, preview);
+    const identity = `library:${String(req.query.folder)}:${String(req.query.path)}`;
+    if (req.query.poster === '1') await sendVideoPoster(req, res, await getFileVideoPoster(file, identity));
+    else sendVideoPreview(req, res, await getFileVideoPreview(file, identity));
   }
   catch { if (!res.headersSent) res.status(503).end(); }
 });
@@ -2144,9 +2144,9 @@ app.get('/comfy/video-preview', async (req, res) => {
     res.status(404).end(); return;
   }
   try {
-    const preview = await getComfyVideoPreview(filename, subfolder, type);
-    if (req.query.poster === '1') await sendVideoPoster(req, res, preview);
-    else sendVideoPreview(req, res, preview);
+    // The still comes from the original, ahead of any preview still being encoded.
+    if (req.query.poster === '1') await sendVideoPoster(req, res, await getComfyVideoPoster(filename, subfolder, type));
+    else sendVideoPreview(req, res, await getComfyVideoPreview(filename, subfolder, type));
   }
   catch { if (!res.headersSent) res.status(503).end(); }
 });
@@ -2281,7 +2281,9 @@ if (fs.existsSync(dist)) serveApp(app, dist);
 setTimeout(() => recoverGalleryFromHistory().catch(() => null)
   // A library scan skips the output folder, so it has to be known before one runs.
   .then(() => (libraryFolders().length ? autoDetectOutputDir() : null))
-  .then(() => rescanLibraryFolders()).catch(() => null), 1200);
+  .then(() => rescanLibraryFolders())
+  // Videos imported before their size was read get it now.
+  .then(() => fillVideoSizes()).catch(() => null), 1200);
 scheduleTrashPurge();
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }

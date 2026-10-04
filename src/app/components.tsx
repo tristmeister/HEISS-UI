@@ -1,5 +1,6 @@
 import React, { lazy, Suspense, memo, useCallback, useEffect, useRef, useState } from 'react';
 import { VideoPreview } from './VideoPreview';
+import { mediaUrl } from './mediaUrl';
 import { useDismiss } from './useDismiss';
 import { ChevronDown, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
@@ -43,10 +44,10 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
   };
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
   const isThumbnail = muted && Boolean(item.thumbnailUrl) && !useFullImage;
-  const source = isThumbnail ? item.thumbnailUrl : item.url;
+  const source = mediaUrl(isThumbnail ? item.thumbnailUrl : item.url, item as { id?: string; createdAt?: string });
   if (!source || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || "Output unavailable"}</span></div>;
   if (item.type === "video") {
-    return muted ? <VideoPreview key={item.url} source={item.url} /> : (
+    return muted ? <VideoPreview key={source} source={source} /> : (
       <Suspense fallback={<div className="video-viewer-loading" role="status">Loading video…</div>}>
         <VideoViewer key={item.url} item={item} />
       </Suspense>

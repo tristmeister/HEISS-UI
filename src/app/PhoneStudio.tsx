@@ -385,7 +385,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         {!hiddenLocked ? (
           <button type="button" className={cn('phone-icon', searchActive(gallerySearch) && 'is-on')} aria-label="Search" aria-expanded={searchOpen || searchActive(gallerySearch)} onClick={() => { if (searchOpen || searchActive(gallerySearch)) { setGallerySearch(emptySearch); setSearchOpen(false); } else setSearchOpen(true); }}><Search size={21} /></button>
         ) : null}
-        {!hiddenLocked ? (
+        {!hiddenLocked && gallery.some((item) => item.type === 'video') ? (
           <GridAutoplayButton phone />
         ) : null}
         {!hiddenSpace ? (

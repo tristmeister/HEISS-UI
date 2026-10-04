@@ -744,7 +744,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <PanelLeft size={16} />
           </button></Tip>
           {hiddenLocked ? null : <GallerySearchButton search={gallerySearch} open={searchOpen} setOpen={setSearchOpen} />}
-          {hiddenLocked ? null : <GridAutoplayButton />}
+          {/* Only a grid with videos in it has previews to pause. */}
+          {hiddenLocked || !renderedGallery.some((item: GalleryItem) => item.type === 'video') ? null : <GridAutoplayButton />}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
           <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}

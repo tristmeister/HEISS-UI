@@ -9,16 +9,20 @@ import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { dataDir } from './gallery-store.js';
-import { comfyUrl, localOutputFile } from './comfy.js';
+import { comfyUrl } from './comfy.js';
 import { renameWithRetry } from './json-store.js';
 import { sendMediaBuffer } from './media-response.js';
+import { trustedLocalOutput } from './thumbnails.js';
 
 const require = createRequire(import.meta.url);
 let encoder = process.env.HEISS_FFMPEG_PATH;
 if (!encoder) { try { const bundled = require('ffmpeg-static'); if (bundled && fs.existsSync(bundled)) encoder = bundled; } catch { /* System ffmpeg remains usable. */ } }
 encoder ||= 'ffmpeg';
 const dir = path.join(dataDir, '.video-previews');
-const version = 'v1-384-12-8';
+// Grid tiles run up to ~700 CSS px on a 2x screen: 720 keeps them sharp at a few MB per clip.
+const version = 'v2-720-24-8';
+const previewEdge = 720;
+const posterEdge = 768;
 const maxSourceBytes = 512 * 1024 * 1024;
 const maxCacheBytes = Math.max(16, Number(process.env.HEISS_VIDEO_PREVIEW_CACHE_MB) || 512) * 1024 * 1024;
 const pending = new Map();
@@ -27,14 +31,22 @@ const queue = [];
 let running = false;
 let lastSweep = 0;
 
-function queued(work) {
-  if (queue.length >= 24) return Promise.reject(new Error('Video preview queue is busy.'));
-  return new Promise((resolve, reject) => { queue.push({ work, resolve, reject }); void drain(); });
+/**
+ * One encoder at a time, posters first: a still is a fraction of a second and
+ * is what a paused or waiting tile shows. Nothing is turned away; a grid of
+ * hundreds of imported videos simply works down the list.
+ */
+const posterQueue = [];
+function queued(work, { poster = false } = {}) {
+  return new Promise((resolve, reject) => { (poster ? posterQueue : queue).push({ work, resolve, reject }); void drain(); });
 }
 async function drain() {
   if (running) return;
   running = true;
-  while (queue.length) { const job = queue.shift(); try { job.resolve(await job.work()); } catch (error) { job.reject(error); } }
+  while (posterQueue.length || queue.length) {
+    const job = posterQueue.shift() || queue.shift();
+    try { job.resolve(await job.work()); } catch (error) { job.reject(error); }
+  }
   running = false;
 }
 
@@ -42,8 +54,8 @@ async function drain() {
 function encode(input, output = 'pipe:1') {
   return new Promise((resolve, reject) => {
     const child = spawn(encoder, ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-threads', '1', '-i', input,
-      '-t', '8', '-map', '0:v:0', '-an', '-sn', '-dn', '-filter_threads', '1', '-vf', "fps=12,scale=w='min(384,iw)':h='min(384,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1",
-      '-c:v', 'libx264', '-threads', '1', '-preset', 'veryfast', '-crf', '29', '-pix_fmt', 'yuv420p', '-map_metadata', '-1',
+      '-t', '8', '-map', '0:v:0', '-an', '-sn', '-dn', '-filter_threads', '1', '-vf', `fps=24,scale=w='min(${previewEdge},iw)':h='min(${previewEdge},ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1`,
+      '-c:v', 'libx264', '-threads', '1', '-preset', 'veryfast', '-crf', '26', '-pix_fmt', 'yuv420p', '-map_metadata', '-1',
       '-movflags', output === 'pipe:1' ? 'frag_keyframe+empty_moov+default_base_moof' : '+faststart', '-f', 'mp4', output],
       { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     try { os.setPriority(child.pid, os.constants.priority.PRIORITY_LOW); } catch { /* Not all platforms permit nice. */ }
@@ -51,8 +63,8 @@ function encode(input, output = 'pipe:1') {
     let length = 0;
     let stderr = '';
     let timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 60_000);
-    child.stdout.on('data', (chunk) => { length += chunk.length; if (length > 8 * 1024 * 1024) child.kill('SIGKILL'); else chunks.push(chunk); });
+    const timer = setTimeout(() => { timedOut = true; child.kill('SIGKILL'); }, 180_000);
+    child.stdout.on('data', (chunk) => { length += chunk.length; if (length > 32 * 1024 * 1024) child.kill('SIGKILL'); else chunks.push(chunk); });
     child.stderr.on('data', (chunk) => { if (stderr.length < 2000) stderr += chunk.toString(); });
     child.on('error', (error) => { clearTimeout(timer); reject(error); });
     child.on('close', (code) => {
@@ -78,9 +90,9 @@ async function sweep() {
   }
 }
 
-function coalesce(key, work) {
+function coalesce(key, work, options) {
   if (pending.has(key)) return pending.get(key);
-  const result = queued(work).finally(() => pending.delete(key));
+  const result = queued(work, options).finally(() => pending.delete(key));
   pending.set(key, result); return result;
 }
 
@@ -102,9 +114,79 @@ export async function getFileVideoPreview(file, identity = file) {
   });
 }
 
+/** Runs ffmpeg for a short job and gives back stdout and stderr. */
+function run(args, { timeout = 20_000, limit = 4 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(encoder, ['-hide_banner', '-nostdin', ...args], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const chunks = []; let length = 0; let stderr = '';
+    const timer = setTimeout(() => child.kill('SIGKILL'), timeout);
+    child.stdout.on('data', (chunk) => { length += chunk.length; if (length > limit) child.kill('SIGKILL'); else chunks.push(chunk); });
+    child.stderr.on('data', (chunk) => { if (stderr.length < 16_000) stderr += chunk.toString(); });
+    child.on('error', (error) => { clearTimeout(timer); reject(error); });
+    child.on('close', (code) => { clearTimeout(timer); resolve({ code, stdout: Buffer.concat(chunks), stderr }); });
+  });
+}
+
+/**
+ * A video's picture size (turned the way it plays, so a phone clip shot
+ * upright comes out tall) and length, read from the file by ffmpeg. Null
+ * when it can't be read. Imported videos have nothing else to go by.
+ */
+export async function probeVideo(file) {
+  try {
+    const { stderr } = await run(['-i', file], { timeout: 15_000 });
+    const size = stderr.match(/Stream #[^\n]*Video:[^\n]*?[\s,](\d{2,5})x(\d{2,5})[\s,[]/);
+    if (!size) return null;
+    let width = Number(size[1]);
+    let height = Number(size[2]);
+    const rotation = stderr.match(/rotation of (-?\d+(?:\.\d+)?) degrees|rotate\s*:\s*(-?\d+)/);
+    if (rotation && Math.abs(Math.round(Number(rotation[1] ?? rotation[2]) / 90)) % 2 === 1) [width, height] = [height, width];
+    const time = stderr.match(/Duration: (\d+):(\d+):(\d+(?:\.\d+)?)/);
+    const durationMs = time ? Math.round(((Number(time[1]) * 60 + Number(time[2])) * 60 + Number(time[3])) * 1000) : 0;
+    return width > 0 && height > 0 ? { width, height, durationMs } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The first frame of the source, as a JPEG that fits a grid tile. */
+async function extractPoster(input) {
+  const { code, stdout } = await run(['-loglevel', 'error', '-threads', '1', '-i', input, '-map', '0:v:0', '-frames:v', '1', '-an',
+    '-vf', `scale=w='min(${posterEdge},iw)':h='min(${posterEdge},ih)':force_original_aspect_ratio=decrease`, '-q:v', '4', '-f', 'image2pipe', '-vcodec', 'mjpeg', 'pipe:1']);
+  if (code !== 0 || !stdout.length) throw new Error('Video thumbnail is unavailable.');
+  return stdout;
+}
+
+/**
+ * A tile's still, cut from the original rather than from its preview: it
+ * comes long before the preview is encoded, and it is all a tile shows while
+ * grid previews are paused. Cached beside the previews, by the same identity.
+ */
+export async function getFileVideoPoster(file, identity = file) {
+  const stat = await fs.promises.stat(file);
+  const key = identityKey(identity);
+  const revision = crypto.createHash('sha256').update(`${stat.size}:${stat.mtimeMs}`).digest('hex');
+  const output = path.join(dir, `${key}-${revision}.jpg`);
+  if (fs.existsSync(output)) return output;
+  return coalesce(`poster:${key}`, async () => {
+    await fs.promises.mkdir(dir, { recursive: true });
+    const temporary = `${output}.${crypto.randomUUID()}.part`;
+    try { await fs.promises.writeFile(temporary, await extractPoster(file)); await renameWithRetry(temporary, output); return output; }
+    finally { await fs.promises.rm(temporary, { force: true }); }
+  }, { poster: true });
+}
+
+/** An output's still: from the file when it's on this computer, else from its preview. */
+export async function getComfyVideoPoster(filename, subfolder, type) {
+  const source = comfySource(filename, subfolder, type);
+  const local = await trustedLocalOutput(filename, subfolder, type);
+  if (local) return getFileVideoPoster(local, source);
+  return getVideoPoster(await getComfyVideoPreview(filename, subfolder, type));
+}
+
 export async function getComfyVideoPreview(filename, subfolder, type) {
   const source = comfySource(filename, subfolder, type);
-  const local = localOutputFile(filename, subfolder, type);
+  const local = await trustedLocalOutput(filename, subfolder, type);
   if (local) return getFileVideoPreview(local, source);
   const key = identityKey(source);
   const known = remoteVersions.get(key);
@@ -230,11 +312,12 @@ export async function getVideoPoster(preview) {
     });
     child.stdin.end(file ? undefined : preview);
   });
-  return file ? coalesce(`poster:${file}`, work) : queued(work);
+  return file ? coalesce(`poster:${file}`, work, { poster: true }) : queued(work, { poster: true });
 }
 
+/** Sends a still: a cached file, or bytes kept in memory (Hidden). `preview` may already be the still. */
 export async function sendVideoPoster(req, res, preview) {
-  const poster = await getVideoPoster(preview);
+  const poster = typeof preview === 'string' && preview.endsWith('.jpg') ? preview : await getVideoPoster(preview);
   if (typeof poster === 'string') res.sendFile(poster, { dotfiles: 'allow', headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=60' } });
   else res.type('image/jpeg').send(poster);
 }

@@ -7,6 +7,7 @@ import { usePhone } from './device';
 import { suspendVideoPreviews } from './videoPreviewScheduler';
 import type { Output } from './types';
 import { titleFromPrompt } from './format';
+import { mediaUrl } from './mediaUrl';
 
 function PlayerControls({ desktop = false }: { desktop?: boolean }) {
   return (
@@ -45,13 +46,39 @@ export default function VideoViewer({ item }: { item: Output & { width?: number;
   }, []);
   const width = Math.min(size.width, size.height * ratio);
   const frame = { width: width || '100%', height: width ? width / ratio : '100%' };
-  const media = <Video src={item.url} playsInline disablePictureInPicture disableRemotePlayback loop preload="metadata" onLoadedMetadata={(event) => {
+  // Opening a video plays it. Where the browser won't start it with sound
+  // (Safari, a page not clicked yet), it starts muted and the mute button says so.
+  // The player settles its own state just after it mounts and can pause the
+  // video again then, so this looks once more a moment after starting it.
+  useEffect(() => {
+    let timer = 0;
+    let tries = 0;
+    let checked = false;
+    const start = () => {
+      const v = host.current?.querySelector('video');
+      if (!v || v.readyState < 2) { if (tries++ < 100) timer = window.setTimeout(start, 100); return; }
+      if (document.hidden) return;
+      if (v.paused) v.play().catch(() => { v.muted = true; return v.play(); }).catch(() => { /* Blocked outright: the play button is there. */ });
+      if (!checked) { checked = true; timer = window.setTimeout(start, 400); }
+    };
+    start();
+    return () => window.clearTimeout(timer);
+  }, [item.url, attempt]);
+  const media = <Video src={mediaUrl(item.url, item as { id?: string; createdAt?: string })} playsInline disablePictureInPicture disableRemotePlayback loop preload="auto" onLoadedMetadata={(event) => {
     const v = event.currentTarget; if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
   }} onError={() => setError('This video couldn’t be played. Try again, or save the original using the viewer actions.')} />;
   return (
     <div ref={host} className="heiss-video-viewer" data-video-viewer
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
+      onKeyDownCapture={(e) => {
+        // Left and right step through the gallery, as they do for pictures, rather
+        // than seek: the player never sees them, and the viewer gets them from the window.
+        if ((e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+        e.stopPropagation();
+        e.preventDefault();
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: e.key }));
+      }}
       onKeyDown={(e) => { if (e.key !== 'Escape') e.stopPropagation(); }}>
       <VideoPlayer key={`${item.url}:${attempt}`} title={titleFromPrompt(item.prompt || item.filename)}>
         {phone ? <Container className="heiss-phone-video" style={frame}>{media}<PlayerControls /></Container> : <VideoSkin className="heiss-desktop-video" style={frame}>{media}<PlayerControls desktop /></VideoSkin>}

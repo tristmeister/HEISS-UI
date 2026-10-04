@@ -5,6 +5,7 @@ import type { GalleryItem } from './types';
 import { generationGridCount, webglMosaicAllowed } from './generationEffect';
 import { upscaleDisplayThumbnail, upscaleDisplayUrl } from './useUpscale';
 import { SafeImg } from './SafeImg';
+import { mediaUrl } from './mediaUrl';
 
 export function generationIdentity(item: GalleryItem) {
   return !item.bundle && item.jobId && Number.isInteger(item.index)
@@ -37,7 +38,8 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   const displayThumbnail = upscaleDisplayThumbnail(item);
   useEffect(() => setUseFullImage(false), [displayUrl, displayThumbnail]);
   const isThumbnail = muted && Boolean(displayThumbnail) && !useFullImage;
-  const source = isThumbnail ? displayThumbnail! : displayUrl;
+  // Unique to this item, so a reused file name never brings back an older picture (mediaUrl.ts).
+  const source = mediaUrl(isThumbnail ? displayThumbnail! : displayUrl, item);
   const previewItem = pending ? item : lastPending.current;
   return (
     <div className={`generation-surface${pending ? ' is-pending' : ''}${resolving ? ' is-resolving' : ''}`}>

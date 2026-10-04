@@ -139,13 +139,54 @@ async function sourceBytes(filename, subfolder, type) {
   }
 }
 
+/*
+ * The local copy of an output is only used when it is the file ComfyUI means.
+ * If the output folder HEISS UI reads isn't ComfyUI's (another install, a
+ * moved folder), a file of the same name there is some other picture, and a
+ * thumbnail made from it shows the wrong image while the viewer, which asks
+ * ComfyUI, shows the right one. So ComfyUI is asked for one byte of the file,
+ * which comes back with the file's full size, and the local copy is trusted
+ * only when the sizes match. Remembered per file version, so it is one tiny
+ * request per new output. With ComfyUI not answering, the disk is all there is.
+ */
+const checkedLocal = new Map();
+
+export async function trustedLocalOutput(filename, subfolder = "", type = "output") {
+  const file = localOutputFile(filename, subfolder, type);
+  if (!file) return null;
+  let stat;
+  try { stat = fs.statSync(file); } catch { return null; }
+  const version = `${file}:${stat.size}:${stat.mtimeMs}`;
+  if (checkedLocal.has(version)) return checkedLocal.get(version) ? file : null;
+  if (comfyRecentlyUnreachable()) return file;
+  let same;
+  try {
+    const params = new URLSearchParams({ filename, subfolder, type });
+    const response = await fetch(`${comfyUrl}/view?${params}`, { headers: { Range: "bytes=0-0" }, signal: AbortSignal.timeout(5000) });
+    noteComfyReachable();
+    await response.body?.cancel().catch(() => {});
+    const total = response.status === 206
+      ? Number(String(response.headers.get("content-range") || "").split("/")[1])
+      : response.ok ? Number(response.headers.get("content-length")) : NaN;
+    // ComfyUI doesn't have it at all: the local file belongs to some other folder.
+    if (response.status === 404) same = false;
+    else same = !Number.isFinite(total) || total <= 0 || total === stat.size;
+  } catch (error) {
+    noteComfyFetchError(error);
+    return file;
+  }
+  if (checkedLocal.size > 5000) checkedLocal.delete(checkedLocal.keys().next().value);
+  checkedLocal.set(version, same);
+  return same ? file : null;
+}
+
 /**
  * An output that is on this computer is identified by its size and modified
  * time, so a cached thumbnail is found with one stat instead of downloading
  * and hashing the full image on every request. A reused filename changes both.
  */
-function localSource(filename, subfolder, type) {
-  const file = localOutputFile(filename, subfolder, type);
+async function localSource(filename, subfolder, type) {
+  const file = await trustedLocalOutput(filename, subfolder, type);
   if (!file) return null;
   try {
     const stat = fs.statSync(file);
@@ -158,7 +199,7 @@ function localSource(filename, subfolder, type) {
 
 async function build(filename, subfolder, type) {
   const key = cacheKey(filename, subfolder, type);
-  const local = localSource(filename, subfolder, type);
+  const local = await localSource(filename, subfolder, type);
   if (local) {
     const file = cachePath(key, local.sourceHash);
     if (fs.existsSync(file)) return { file, etag: `\"${local.sourceHash}\"` };

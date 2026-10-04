@@ -5,7 +5,11 @@
   .app-shell .zen-control-button.grid-autoplay-button { left: calc(max(8px, env(safe-area-inset-left)) + 2 * var(--deck-h) + 16px); }
 }
 .video-preview video { display: block; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-.video-preview .video-preview-poster { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+/* The still sits over the video until the video has a frame: the grid's tile
+   media rule gives a <video> an opaque loading surface and its own layer, which
+   otherwise covered the still whenever previews were paused or still coming. */
+.video-preview .video-preview-poster { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.video-preview:not(.is-ready) video { background: none; }
 .video-preview.is-ready .video-preview-poster { visibility: hidden; }
 .video-preview-placeholder { position: absolute; inset: 0; display: flex !important; align-items: center; justify-content: center; gap: 8px; color: rgb(255 255 255 / .4) !important; font-size: 11px; }
 .video-preview-placeholder > span { font-size: inherit; }

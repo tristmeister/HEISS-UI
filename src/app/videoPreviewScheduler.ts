@@ -22,7 +22,8 @@ function reconcile() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
   let forcedPhone = new URLSearchParams(window.location.search).get('phone') === '1';
   try { forcedPhone ||= window.sessionStorage.getItem('heiss-force-phone') === '1'; } catch { /* Storage may be disabled. */ }
-  const limit = connection?.saveData ? 2 : phone?.matches || forcedPhone ? 3 : 6;
+  // A screenful of tiles plays at once on a computer; phones decode fewer, and Data Saver fewer still.
+  const limit = connection?.saveData ? 2 : phone?.matches || forcedPhone ? 6 : 24;
   const candidates = [...previews.values()].filter((p) => p.near).sort((a, b) => b.ratio - a.ratio);
   const selected = new Set(!suspended && autoplay ? candidates.slice(0, limit) : []);
   for (const p of previews.values()) {

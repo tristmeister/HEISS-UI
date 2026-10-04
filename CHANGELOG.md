@@ -38,6 +38,27 @@ version opens with a `> ` summary line, which the update pill shows.
   in memory, never on disk.
 - A grid video whose preview can't load shows its placeholder instead of a
   broken image.
+- **A new image never shows an older picture.** After deleting the newest
+  image, ComfyUI gives the next one the same file name, and its tile showed
+  the deleted picture until a reload. Each picture is now asked for with its
+  own item's fingerprint, and upscales and videos the same.
+- **Thumbnails come from ComfyUI's own file.** If the output folder set here
+  isn't ComfyUI's, a same-named file there no longer becomes the thumbnail
+  (or a video's still): it's used only when ComfyUI says it's the same size.
+- **Notifications go away on their own again.** After you'd closed one with
+  its × or Undo, every later one stayed until closed by hand, and a deleted
+  image wasn't really deleted until then.
+- **A new generation lands top left at once.** With the pointer over the
+  gallery it used to land on the far right, then jump left.
+- **Videos open playing**, and left and right step to the next item instead
+  of seeking, even after you've used the player's controls.
+- **Imported videos have their real shape and size.** It's read from the file,
+  for videos already in the gallery too, instead of a square tile and ?×?.
+- **Sharper, steadier video tiles.** Previews are 720 px instead of 384, up to
+  24 play at once (6 on a phone), every tile shows a still from the video
+  while it waits or while previews are paused, and a preview that isn't ready
+  yet is tried again instead of staying blank until a reload.
+- The play/pause button for grid previews only shows when the grid has videos.
 
 ## [0.15.0] - 2026-09-30
 

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronsLeftRight } from 'lucide-react';
 import type { GalleryItem } from './types';
 import { SafeImg } from './SafeImg';
+import { mediaUrl } from './mediaUrl';
 
 // How close to the line (CSS px) a press grabs it instead of panning.
 const GRAB_RADIUS = 22;
@@ -133,9 +134,9 @@ export function UpscaleCompare({ item, zoomed }: { item: GalleryItem; zoomed: bo
     >
       <div className="upscale-compare-frame" ref={frameRef}>
         {/* The upscale underneath; the original is revealed from the left, under its tag. */}
-        <SafeImg className="upscale-compare-image" src={item.upscale?.url} draggable={false} />
+        <SafeImg className="upscale-compare-image" src={mediaUrl(item.upscale?.url, item, `upscale:${item.upscale?.jobId || ''}`)} draggable={false} />
         <div className="upscale-compare-reveal">
-          <SafeImg className="upscale-compare-image" src={item.url} draggable={false} />
+          <SafeImg className="upscale-compare-image" src={mediaUrl(item.url, item)} draggable={false} />
         </div>
         <div className="upscale-compare-line" aria-hidden="true">
           <span><ChevronsLeftRight size={15} strokeWidth={2.2} /></span>

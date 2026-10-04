@@ -1,12 +1,13 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { comfyOutputDir, normalizeFolderInput, root } from "./comfy.js";
+import { comfyOutputDir, localOutputFile, normalizeFolderInput, root } from "./comfy.js";
 import { dataDir, dedupeGallery, describeComfyGraph, gallery, galleryKey, galleryLimit, isGalleryHidden, listedInFolder, markGalleryReset, promptTitle, setGallery, setLibraryFileCheck, invalidateVisibleCache } from "./gallery-store.js";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
 import { isInside, samePath } from "./paths.js";
 import { parseA1111Parameters, readPngInfo } from "./png-text.js";
 import { loadSharp } from "./sharp-loader.js";
+import { probeVideo } from "./video-previews.js";
 
 /**
  * Earlier work in the gallery: images from other folders (old ComfyUI
@@ -167,7 +168,9 @@ async function recordFor(file, { url, thumbnailUrl, library }) {
   let stat;
   try { stat = await fs.promises.stat(file); } catch { return null; }
   const type = videoPattern.test(file) ? "video" : "image";
-  const meta = type === "image" ? await readMediaInfo(file) : { width: 0, height: 0, prompt: "", negative: "", model: "" };
+  // A video carries no prompt we read, but its size is in the file: without it the tile can't take its shape.
+  const size = type === "video" ? await probeVideo(file) : null;
+  const meta = type === "image" ? await readMediaInfo(file) : { width: size?.width || 0, height: size?.height || 0, prompt: "", negative: "", model: "" };
   const name = path.basename(file);
   return {
     id: url,
@@ -212,6 +215,46 @@ async function toRecords(files, describe) {
   return records;
 }
 
+/** The file on this computer behind a video in the gallery, or null. */
+function videoFileOf(item) {
+  if (item.library) return libraryFile(item.library.folder, item.library.path);
+  if (typeof item.url !== "string" || !item.url.startsWith("/comfy/view?")) return null;
+  const params = new URLSearchParams(item.url.slice(item.url.indexOf("?") + 1));
+  return localOutputFile(params.get("filename") || "", params.get("subfolder") || "", params.get("type") || "output");
+}
+
+let filling = null;
+
+/**
+ * Videos added before their size was read from the file (and any other video
+ * without one): read it now, in the background, and pass it on in batches,
+ * so their tiles take their real shape and the details stop saying ?×?.
+ */
+export function fillVideoSizes() {
+  if (filling) return filling;
+  filling = (async () => {
+    const missing = gallery.filter((item) => item.type === "video" && item.status === "done" && !item.privateVault && !(Number(item.width) > 0 && Number(item.height) > 0));
+    let filled = 0;
+    let batch = new Map();
+    const flush = () => {
+      if (!batch.size) return;
+      const sizes = batch;
+      batch = new Map();
+      setGallery(gallery.map((item) => (sizes.has(galleryKey(item)) ? { ...item, ...sizes.get(galleryKey(item)) } : item)));
+    };
+    for (const item of missing) {
+      const file = videoFileOf(item);
+      const info = file ? await probeVideo(file) : null;
+      if (info) { batch.set(galleryKey(item), { width: info.width, height: info.height }); filled += 1; }
+      if (batch.size >= 25) flush();
+      await yieldToServer();
+    }
+    flush();
+    return filled;
+  })().finally(() => { filling = null; });
+  return filling;
+}
+
 /* ------------------------------------------------------- The output folder */
 
 /**
@@ -230,7 +273,9 @@ export async function importOutputFolder() {
     const params = new URLSearchParams({ filename: path.basename(rel), subfolder, type: "output" });
     return { url: `/comfy/view?${params}`, thumbnailUrl: `/comfy/thumb?${params}` };
   });
-  return { added: addRecords(records), found: files.length, capped };
+  const added = addRecords(records);
+  fillVideoSizes().catch(() => 0);
+  return { added, found: files.length, capped };
 }
 
 /* ------------------------------------------------------- Other folders */
@@ -255,6 +300,7 @@ export function scanLibraryFolder(id) {
       return { url: libraryUrl("file", folder.id, rel), thumbnailUrl: libraryUrl("thumb", folder.id, rel), library: { folder: folder.id, path: rel.split(path.sep).join("/") } };
     });
     const added = addRecords(records);
+    fillVideoSizes().catch(() => 0);
     folder.scannedAt = new Date().toISOString();
     folder.count = gallery.filter((item) => item.library?.folder === folder.id).length;
     saveFolders();
