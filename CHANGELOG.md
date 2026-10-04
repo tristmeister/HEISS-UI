@@ -11,64 +11,50 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Video in the gallery, and steadier thumbnails and references
+
 ### Added
-- Video playback in the gallery, with generated previews and a dedicated
-  viewer for playback controls, seeking, and sharing.
-- Automatic resizing for oversized start and reference images, while keeping
-  the original assets unchanged.
+- **Videos play in the gallery.** Tiles show a still straight away and play a
+  silent preview (720 px, up to 24 at once, 6 on a phone); the button by
+  search pauses them. Opening a video plays it in a full player with seeking,
+  sound and full screen; left and right step to the next item, and on a phone
+  you swipe between them or down to close. Hidden videos preview too, kept in
+  memory only, never on disk.
+- **Videos from other folders take their real shape.** Their size is read from
+  the file, for ones already in the gallery too, instead of a square tile and
+  ?×? in the details.
+- **Oversized start and reference images are resized** to what the model
+  works at before they're sent. The originals stay as they are.
 
 ### Changed
-- Download activity can return to the model or workflow that needs the file.
+- Download activity can take you back to the model or workflow that needs the
+  file, and can be paused, resumed and canceled from its pill.
 - Reference images in the prompt bar are bigger, and their menu no longer
-  flickers when the pointer passes over or slips off its edge.
-- On a phone, a reference's menu opens toward the screen instead of off its
-  left edge.
-- Refined gallery, viewer, settings, and tooltip interactions.
+  flickers when the pointer passes over or slips off its edge. On a phone it
+  opens toward the screen instead of off its left edge.
+- Calmer loading tiles, a clearer detail view and steadier tooltips.
+- **Starting from a source checkout rebuilds the app when it changed**, so
+  after a `git pull` the browser gets the new page, not the last build.
 
 ### Fixed
-- **The Windows download unzips cleanly in 7-Zip and PeaZip.** It held one
-  link file from npm that recent 7-Zip refuses as unsafe, reported as a fatal
-  error although nothing was missing. Windows downloads now carry no links.
 - **References come off when you remove them.** With an edit model and more
-  than one reference, taking the first one off left the next picture showing
-  in both slots, and its × did nothing until you picked another model. The
-  others now move up instead. Removing a later reference works too: its ×
-  was hidden behind the reference next to it.
-- Deleting an upload in the picker takes it out of every slot that holds it.
-- On a phone, a video swipes to the next item and swipes down to close, like
-  a picture. The timeline still scrubs.
-- Hidden videos preview without the long wait: each one is made once and kept
-  in memory, never on disk.
-- A grid video whose preview can't load shows its placeholder instead of a
-  broken image.
+  than one reference, taking the first one off left the next picture in both
+  slots, and its × did nothing until you picked another model. The others now
+  move up instead, and a later reference's ×, which was hidden behind its
+  neighbour, works too. Deleting an upload takes it out of every slot.
 - **A new image never shows an older picture.** After deleting the newest
   image, ComfyUI gives the next one the same file name, and its tile showed
-  the deleted picture until a reload. Each picture is now asked for with its
-  own item's fingerprint, and upscales and videos the same.
+  the deleted picture until a reload.
 - **Thumbnails come from ComfyUI's own file.** If the output folder set here
-  isn't ComfyUI's, a same-named file there no longer becomes the thumbnail
-  (or a video's still): it's used only when ComfyUI says it's the same size.
+  isn't ComfyUI's, a same-named file there no longer becomes the thumbnail.
 - **Notifications go away on their own again.** After you'd closed one with
   its × or Undo, every later one stayed until closed by hand, and a deleted
   image wasn't really deleted until then.
 - **A new generation lands top left at once.** With the pointer over the
   gallery it used to land on the far right, then jump left.
-- **Videos open playing**, and left and right step to the next item instead
-  of seeking, even after you've used the player's controls.
-- **Imported videos have their real shape and size.** It's read from the file,
-  for videos already in the gallery too, instead of a square tile and ?×?.
-- **Sharper, steadier video tiles.** Previews are 720 px instead of 384, up to
-  24 play at once (6 on a phone), every tile shows a still from the video
-  while it waits or while previews are paused, and a preview that isn't ready
-  yet is tried again instead of staying blank until a reload.
-- The play/pause button for grid previews only shows when the grid has videos.
-- A video tile's still shows even when it comes from the browser's cache,
-  instead of sometimes staying hidden behind a grey tile.
-- **Starting from a source checkout rebuilds the app when it changed**, so
-  after a `git pull` the browser gets the new page, not the last build.
-- **The video preview encoder installs itself again if its download failed**
-  during an install or update, at most once a day, unless ffmpeg is already
-  on the computer.
+- **The Windows download unzips cleanly in 7-Zip and PeaZip.** It held one
+  link file that recent 7-Zip refuses as unsafe, reported as a fatal error
+  although nothing was missing.
 
 ## [0.15.0] - 2026-09-30
 
