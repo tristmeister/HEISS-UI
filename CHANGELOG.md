@@ -26,6 +26,9 @@ version opens with a `> ` summary line, which the update pill shows.
 - Refined gallery, viewer, settings, and tooltip interactions.
 
 ### Fixed
+- **The Windows download unzips cleanly in 7-Zip and PeaZip.** It held one
+  link file from npm that recent 7-Zip refuses as unsafe, reported as a fatal
+  error although nothing was missing. Windows downloads now carry no links.
 - **References come off when you remove them.** With an edit model and more
   than one reference, taking the first one off left the next picture showing
   in both slots, and its × did nothing until you picked another model. The

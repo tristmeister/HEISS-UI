@@ -129,6 +129,22 @@ fs.writeFileSync(path.join(target, "release.json"), `${JSON.stringify({ version:
 // Windows has no zip command, but its tar (bsdtar) writes zips; CI packages there too.
 // Name System32's copy: a GNU tar from Git may come first on PATH and cannot.
 const windowsTar = () => path.join(process.env.SystemRoot || "C:\\Windows", "System32", "tar.exe");
+/**
+ * Takes npm's command links (node_modules/.bin) out of a Windows download.
+ * Built on Linux they are POSIX symlinks, which Windows doesn't use (its
+ * shims are .cmd files), and 7-Zip (PeaZip) refuses one pointing up a folder
+ * as a "dangerous link": a fatal error on unzip, though nothing is missing.
+ */
+function removeLinks(dir) {
+  let removed = 0;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isSymbolicLink()) { fs.rmSync(full); removed += 1; }
+    else if (entry.isDirectory()) removed += removeLinks(full);
+  }
+  return removed;
+}
+
 function zipFolder(zip, cwd) {
   fs.rmSync(zip, { force: true });
   if (process.platform === "win32") execFileSync(windowsTar(), ["-a", "-c", "-f", zip, name], { cwd });
@@ -203,6 +219,7 @@ for (const bundle of bundles) {
   runNpm(["ci", "--omit=dev", "--no-audit", "--no-fund", "--ignore-scripts", `--os=${bundle.os}`, `--cpu=${bundle.cpu}`, ...(bundle.libc ? [`--libc=${bundle.libc}`] : [])], path.join(stage, name));
   // Download the target encoder without executing a foreign binary.
   runNpm(["rebuild", "ffmpeg-static", "--no-audit", "--no-fund"], path.join(stage, name), { npm_config_platform: bundle.os, npm_config_arch: bundle.cpu });
+  if (bundle.os === "win32") removeLinks(path.join(stage, name, "node_modules"));
   await bundledNode(path.join(stage, name), bundle);
   const bundleZip = path.join(outDir, `${name}-${bundle.id}.zip`);
   fs.rmSync(`${bundleZip}.sig`, { force: true });
