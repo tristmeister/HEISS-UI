@@ -28,11 +28,11 @@ function make(entry, fields) {
   const primary = normalize(entry.name), text = fields.map(normalize).join(' ');
   return { ...entry, primary, compact: compact(entry.name), text, tokens: [...new Set([...text.split(' '), ...fields.map(compact)])], phrases: fields.map(compact) };
 }
-export function search(index, query, { includeNsfw = false, kind = 'all', family = '' } = {}) {
+export function search(index, query, { family = '' } = {}) {
   const q = normalize(query), qc = compact(query), tokens = q.split(' ').filter(Boolean);
-  const results = [], hidden = new Set();
+  const results = [];
   for (const entry of index) {
-    if (kind !== 'all' && entry.family.kind !== kind || family && entry.family.id !== family) continue;
+    if (family && entry.family.id !== family) continue;
     let score = 0, fuzzy = false;
     if (q) {
       if (entry.compact === qc) score = 1000;
@@ -52,9 +52,8 @@ export function search(index, query, { includeNsfw = false, kind = 'all', family
       }
       if (entry.primary.includes(q)) score += 20;
     }
-    if (entry.checkpoint?.nsfw && !includeNsfw) { hidden.add(entry.key); continue; }
     results.push({ ...entry, score, fuzzy });
   }
   results.sort((a, b) => b.score - a.score || Number(a.fuzzy) - Number(b.fuzzy) || Number(b.type === 'family') - Number(a.type === 'family'));
-  return { results, hidden: hidden.size };
+  return results;
 }

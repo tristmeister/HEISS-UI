@@ -3,146 +3,215 @@ const stylesheet = new URL('./section.css', import.meta.url).href;
 const defaultCatalog = new URL('../models/model-support-search.json', import.meta.url).href;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
 const icons = {
-  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',
-  arrow: '<path d="M5 12h14m-6-6 6 6-6 6"/>',
-  external: '<path d="M14 4h6v6m0-6L10 14M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-5"/>',
-  image: '<rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8" cy="8" r="1"/><path d="m3 16 5-5 4 4 3-3 6 6"/>',
-  video: '<rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3Z"/>',
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
   close: '<path d="m7 7 10 10M17 7 7 17"/>',
-  check: '<path d="m5 12 4 4L19 6"/>',
+  out: '<path d="M8 16 16 8m-7 0h7v7"/>',
+  chevron: '<path d="m7 10 5 5 5-5"/>',
 };
-const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
+const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
+const EASE = 'cubic-bezier(.16,1,.3,1)';
+const PAGE = 20;
+const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 let sharedCatalog;
 function loadCatalog(url, signal) {
-  if (url === defaultCatalog) return sharedCatalog ||= fetch(url).then(response => { if (!response.ok) throw new Error('Catalog unavailable'); return response.json(); }).catch(error => { sharedCatalog = undefined; throw error; });
-  return fetch(url, { signal }).then(response => { if (!response.ok) throw new Error('Catalog unavailable'); return response.json(); });
+  const get = init => fetch(url, init).then(response => { if (!response.ok) throw new Error('Catalog unavailable'); return response.json(); });
+  if (url === defaultCatalog) return sharedCatalog ||= get().catch(error => { sharedCatalog = undefined; throw error; });
+  return get({ signal });
 }
+function civitaiUrl(value) {
+  try { const url = new URL(value); return url.protocol === 'https:' && url.hostname === 'civitai.com' && /^\/models\/\d+$/.test(url.pathname) ? url.href : ''; } catch { return ''; }
+}
+
 export class HeissModelSearch extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.kind = 'all'; this.family = ''; this.limit = 8; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.family = ''; this.limit = PAGE; }
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
-    this.shadowRoot.innerHTML = `<style>.search-section{visibility:hidden}.search-section.is-ready{visibility:visible}</style><link rel="stylesheet" href="${stylesheet}"><section class="search-section" aria-labelledby="title">
-      <header class="intro"><span class="eyebrow"><i></i> YOUR MODELS, AT HOME</span><h2 id="title">Got a model in mind?</h2><p>Find its family. Find your favorite checkpoint.<br class="desktop-break"> See where it fits in HEISS UI.</p></header>
-      <div class="search-shell"><div class="search-field">${icon('search')}<label class="sr-only" for="query">Search model families and checkpoints</label><input id="query" type="search" placeholder="Try Krea 2, DreamShaper, or a model filename…" autocomplete="off" spellcheck="false" aria-label="Search model families and checkpoints" aria-describedby="search-hint" aria-controls="results"><button class="clear icon-button" type="button" aria-label="Clear search" hidden>${icon('close')}</button><kbd class="shortcut" aria-hidden="true">/</kbd></div>
-      <div class="tools"><div class="segments" role="group" aria-label="Model type"><button data-kind="all" aria-pressed="true">All models</button><button data-kind="image" aria-pressed="false">Image</button><button data-kind="video" aria-pressed="false">Video</button></div><label class="adult-toggle"><input id="adult" type="checkbox"><span class="switch" aria-hidden="true"></span><span>Include NSFW</span></label></div></div>
-      <div class="examples" id="search-hint"><span>Try a favorite</span><button data-query="DreamShaper">DreamShaper</button><button data-query="Krea 2">Krea 2</button><button data-query="Pony">Pony</button><button data-query="Wan 2.2">Wan 2.2</button></div>
-      <div class="result-area" aria-busy="true"><div class="result-bar"><span id="result-heading">Getting the model catalog…</span><span class="count"></span></div><div id="results"><div class="loading"><span></span><span></span><span></span></div></div></div>
-      <div class="bottom-note"><span class="dot"></span><p>Family support is built in. Individual checkpoints may need their own files or nodes.</p></div>
-      <details class="about"><summary>What does a match mean? <span>+</span></summary><p>All 28 listed families are supported by HEISS UI. Checkpoint matches come from a Civitai popularity snapshot; they haven’t all been tested individually, and some source groupings may be imperfect. A missing result doesn’t mean your model is unsupported. NSFW labels are Civitai’s labels for the linked model, not a guarantee about every image on its page.</p></details>
-      <p class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></p>
-      <dialog aria-labelledby="adult-title"><form method="dialog"><div class="dialog-icon">${icon('external')}</div><span class="eyebrow">LEAVING HEISS UI</span><h3 id="adult-title">This page is marked NSFW.</h3><p class="dialog-name"></p><p>Civitai may show adult images. Open this model only if you’re comfortable seeing that content.</p><div class="dialog-actions"><button class="cancel" value="cancel">Stay here</button><a class="continue" target="_blank" rel="noopener noreferrer">Open Civitai ${icon('external')}</a></div></form></dialog>
+    this.shadowRoot.innerHTML = `<style>.ms{visibility:hidden}.ms.is-ready{visibility:visible}</style><link rel="stylesheet" href="${stylesheet}"><section class="ms" aria-labelledby="ms-title">
+      <header class="intro"><p class="label">Models</p><h2 id="ms-title">Got a model in mind?</h2><p class="lead">Every family here runs in HEISS UI. Search the most popular checkpoints on Civitai to find yours.</p></header>
+      <div class="field">${icon('search')}<span class="token" hidden><span class="token-name"></span><button type="button" class="token-x" aria-label="Remove family filter">${icon('close')}</button></span><input id="ms-query" type="search" placeholder="DreamShaper, Pony, Wan 2.2…" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div>
+      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="matches"></div><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"></ul><button type="button" class="more" hidden>Show more</button><div class="empty" hidden></div></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
+      <p class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>`;
     const $ = selector => this.shadowRoot.querySelector(selector);
     this.$ = $;
-    const style = $('link');
-    const show = () => $('.search-section').classList.add('is-ready');
-    if (style.sheet) show(); else { style.addEventListener('load', show, { once:true }); style.addEventListener('error', show, { once:true }); }
-    this.input = $('#query'); this.results = $('#results');
+    const style = $('link'), show = () => $('.ms').classList.add('is-ready');
+    if (style.sheet) show(); else { style.addEventListener('load', show, { once: true }); style.addEventListener('error', show, { once: true }); }
+    this.input = $('#ms-query'); this.stage = $('.stage'); this.list = $('.list');
     this.events = new AbortController(); const options = { signal: this.events.signal };
-    this.input.addEventListener('input', event => { if (event.isComposing) return; clearTimeout(this.timer); this.timer = setTimeout(() => { this.limit = 8; this.render(); }, 65); }, options);
-    this.input.addEventListener('keydown', event => {
-      if (event.key === 'ArrowDown') { event.preventDefault(); this.results.querySelector('.result-action')?.focus(); }
-      if (event.key === 'Escape') { this.input.value = ''; this.family = ''; this.limit = 8; this.render(); }
-    }, options);
-    $('#adult').addEventListener('change', () => { this.limit = 8; this.render(); }, options);
+    this.input.addEventListener('input', event => { if (event.isComposing) return; this.limit = PAGE; this.schedule(); }, options);
+    this.input.addEventListener('keydown', event => this.fieldKey(event), options);
     this.shadowRoot.addEventListener('click', event => this.click(event), options);
-    this.results.addEventListener('keydown', event => {
-      if (!['ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) return;
-      const actions = [...this.results.querySelectorAll('.result-action')];
-      const current = actions.indexOf(this.shadowRoot.activeElement);
-      if (current < 0) return;
-      event.preventDefault();
-      if (event.key === 'Escape' || event.key === 'ArrowUp' && current === 0) this.input.focus();
-      else actions[Math.min(actions.length - 1, Math.max(0, current + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
-    }, options);
+    this.stage.addEventListener('keydown', event => this.stageKey(event), options);
     document.addEventListener('keydown', event => {
       const origin = event.composedPath()[0];
-      if (!event.defaultPrevented && event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey && !origin.matches?.('input,textarea,select,[contenteditable="true"]') && !this.$('dialog').open) { event.preventDefault(); this.input.focus(); }
+      if (!event.defaultPrevented && event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey && !origin.matches?.('input,textarea,select,[contenteditable="true"]')) { event.preventDefault(); this.input.focus(); }
     }, options);
     this.load();
   }
-  disconnectedCallback() { this.events?.abort(); this.request?.abort(); clearTimeout(this.timer); this.initialized = false; }
+  disconnectedCallback() { this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
+  schedule() { cancelAnimationFrame(this.frame); this.frame = requestAnimationFrame(() => this.render()); }
+
   async load() {
     this.request?.abort(); this.request = new AbortController();
-    this.$('.result-area').setAttribute('aria-busy', 'true');
+    this.stage.setAttribute('aria-busy', 'true');
+    this.showView('loading');
     try {
       this.data = await loadCatalog(this.getAttribute('catalog-url') || defaultCatalog, this.request.signal);
       if (!this.isConnected) return;
       if (!Array.isArray(this.data.families)) throw new Error('Invalid catalog');
-      this.index = createIndex(this.data); this.render();
+      this.index = createIndex(this.data);
+      this.total = this.data.families.reduce((sum, f) => sum + f.checkpoints.length, 0);
+      this.$('.home').innerHTML = ['image', 'video'].map(kind => `<div class="group"><p class="group-title">${kind === 'image' ? 'Image' : 'Video'}</p><div class="pills">${this.data.families.filter(f => f.kind === kind).map(f => this.pill(f)).join('')}</div></div>`).join('');
+      this.render();
     } catch (error) {
       if (error.name === 'AbortError') return;
-      this.$('#result-heading').textContent = 'The catalog couldn’t load';
-      this.results.innerHTML = '<div class="empty"><h3>Let’s try that again.</h3><p>Check your connection and reload the model catalog.</p><button class="soft-button" data-retry>Retry</button></div>';
-    } finally { this.$('.result-area').setAttribute('aria-busy', 'false'); }
+      this.$('.home').innerHTML = '<div class="empty"><h3>The models didn’t load.</h3><p>Check your connection and try again.</p><button type="button" class="soft" data-retry>Try Again</button></div>';
+      this.showView('home');
+    } finally { this.stage.setAttribute('aria-busy', 'false'); }
   }
+
+  fieldKey(event) {
+    if (event.key === 'ArrowDown') { event.preventDefault(); this.actions()[0]?.focus(); }
+    else if (event.key === 'Escape' && (this.input.value || this.family)) { event.preventDefault(); this.reset(); }
+    else if (event.key === 'Backspace' && !this.input.value && this.family && this.input.selectionStart === 0) { this.setFamily(''); }
+    else if (event.key === 'Enter') { event.preventDefault(); this.actions()[0]?.click(); }
+  }
+  stageKey(event) {
+    if (!['ArrowDown', 'ArrowUp', 'Escape'].includes(event.key)) return;
+    const actions = this.actions(), current = actions.indexOf(this.shadowRoot.activeElement);
+    if (current < 0) return;
+    event.preventDefault();
+    if (event.key === 'Escape' || (event.key === 'ArrowUp' && current === 0)) this.input.focus();
+    else actions[Math.min(actions.length - 1, Math.max(0, current + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
+  }
+  actions() { return [...this.stage.querySelectorAll('.view:not([hidden]) :is(.pill,.row,.open,.more:not([hidden]))')]; }
+
   click(event) {
-    const button = event.target.closest('button,a'); if (!button) return;
-    if (button.matches('.clear')) { this.input.value = ''; this.family = ''; this.limit = 8; this.render(); this.input.focus(); }
-    if (button.dataset.kind) { this.kind = button.dataset.kind; this.family = ''; this.limit = 8; this.shadowRoot.querySelectorAll('[data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b === button))); this.render(); }
-    if (button.dataset.query) { this.input.value = button.dataset.query; this.family = ''; this.limit = 8; this.render(); this.input.focus(); }
-    if (button.dataset.family) { this.family = button.dataset.family; this.input.value = ''; this.limit = 8; this.render(); this.$('[data-back]')?.focus(); }
-    if (button.hasAttribute('data-back')) { this.family = ''; this.input.value = ''; this.limit = 8; this.render(); this.input.focus(); }
-    if (button.hasAttribute('data-more')) { this.limit += 12; this.render(); this.results.querySelector(`[data-position="${this.limit - 12}"]`)?.focus(); }
-    if (button.hasAttribute('data-browse')) { this.browseAll = !this.browseAll; this.render(); this.$('[data-browse]')?.focus(); }
-    if (button.hasAttribute('data-retry')) this.load();
-    if (button.dataset.adult) {
-      const entry = this.index.find(e => e.key === button.dataset.adult);
-      if (!entry) return;
-      this.$('.dialog-name').textContent = entry.name;
-      this.$('.continue').href = entry.checkpoint.url;
-      this.$('dialog').showModal(); this.$('.cancel').focus();
+    const target = event.target.closest('button,a'); if (!target) return;
+    if (target.matches('.clear')) { this.reset(); this.input.focus(); }
+    else if (target.matches('.token-x')) { this.setFamily(''); this.input.focus(); }
+    else if (target.dataset.family) { this.input.value = ''; this.setFamily(target.dataset.family); this.input.focus({ preventScroll: true }); }
+    else if (target.matches('.more')) { const from = this.limit; this.limit += PAGE; this.render(); this.list.children[from]?.querySelector('.row')?.focus(); }
+    else if (target.matches('.row[aria-expanded]')) this.toggleNote(target);
+    else if (target.hasAttribute('data-retry')) this.load();
+  }
+  reset() { this.input.value = ''; this.limit = PAGE; this.setFamily(''); }
+  setFamily(id) {
+    this.family = id; this.limit = PAGE;
+    const token = this.$('.token'), family = this.data?.families.find(f => f.id === id);
+    token.hidden = !family;
+    if (family) {
+      this.$('.token-name').textContent = family.label;
+      if (!still()) token.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: EASE });
     }
-    if (button.matches('.continue')) this.$('dialog').close();
+    this.input.placeholder = family ? `Search ${family.label}` : 'DreamShaper, Pony, Wan 2.2…';
+    this.render();
   }
-  familyCard(entry) {
-    const f = entry.family;
-    return `<button class="family-card result-action" data-family="${esc(f.id)}"><span class="family-icon">${icon(f.kind)}</span><span class="family-copy"><strong>${esc(f.label)}</strong><span>${f.kind === 'video' ? 'Video' : 'Image'} family <span class="separator">·</span> Built-in support</span></span>${icon('arrow')}</button>`;
+  toggleNote(row) {
+    const open = row.getAttribute('aria-expanded') !== 'true';
+    row.setAttribute('aria-expanded', String(open));
+    row.parentElement.classList.toggle('is-open', open);
   }
-  checkpointRow(entry, position) {
-    const c = entry.checkpoint;
-    let url; try { url = new URL(c.url); } catch { url = null; }
-    const valid = url?.protocol === 'https:' && url.hostname === 'civitai.com' && /^\/models\/\d+$/.test(url.pathname);
-    const link = !valid ? '' : c.nsfw ? `<button class="visit" data-adult="${esc(entry.key)}" aria-label="Open NSFW Civitai page for ${esc(c.name)}">Civitai ${icon('external')}</button>` : `<a class="visit" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${esc(c.name)} on Civitai in a new tab">Civitai ${icon('external')}</a>`;
-    return `<details class="checkpoint"><summary class="result-action" data-position="${position}"><span class="row-icon">${icon('image')}</span><span class="row-copy"><strong>${esc(c.name)}</strong><span>${esc(c.baseModel || entry.family.label)} <span class="separator">·</span> by ${esc(c.creator || 'unknown creator')}${entry.fuzzy ? ' <span class="fuzzy">· Similar match</span>' : ''}</span></span><span class="nsfw ${c.nsfw ? 'yes' : ''}">NSFW: ${c.nsfw ? 'Yes' : 'No'}</span><span class="chevron">${icon('arrow')}</span></summary><div class="checkpoint-detail"><div><span class="detail-label">CATALOG MATCH</span><p>Listed under ${esc(entry.family.label)}. This checkpoint hasn’t been individually verified.</p></div>${link}</div></details>`;
+
+  pill(family, active = false) {
+    return `<button type="button" class="pill${active ? ' is-active' : ''}" data-family="${esc(family.id)}">${esc(family.label)}</button>`;
   }
+  row(entry) {
+    const c = entry.checkpoint, href = civitaiUrl(c.url);
+    const li = document.createElement('li');
+    li.dataset.key = entry.key;
+    const meta = `${esc(c.creator || 'Unknown creator')}<span class="fam"><span class="dot">·</span>${esc(entry.family.label)}</span>`;
+    const body = `<span class="row-text"><span class="name">${esc(c.name)}</span><span class="meta">${meta}</span></span>${c.nsfw ? '<span class="tag">NSFW</span>' : ''}`;
+    if (!href) li.innerHTML = `<div class="row is-static">${body}</div>`;
+    else if (!c.nsfw) li.innerHTML = `<a class="row" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${body}<span class="go" aria-label="Opens Civitai">${icon('out')}</span></a>`;
+    else li.innerHTML = `<button type="button" class="row" aria-expanded="false">${body}<span class="go">${icon('chevron')}</span></button><div class="note"><div><p>Heads up, this page on Civitai shows NSFW images.</p><a class="open" href="${esc(href)}" target="_blank" rel="noopener noreferrer">Open Civitai ${icon('out')}</a></div></div>`;
+    return li;
+  }
+
+  showView(name) {
+    const views = { home: this.$('.home'), found: this.$('.found'), loading: this.$('.loading') };
+    for (const [key, view] of Object.entries(views)) {
+      const visible = key === name;
+      if (visible && view.hidden && !still()) view.animate([{ opacity: 0, filter: 'blur(4px)', transform: 'translateY(6px)' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 420, easing: EASE });
+      view.hidden = !visible;
+    }
+  }
+
   render() {
     if (!this.index) return;
-    const query = this.input.value.trim(), includeNsfw = this.$('#adult').checked;
-    const { results, hidden } = search(this.index, query, { includeNsfw, kind: this.kind, family: this.family });
-    this.$('.clear').hidden = !query && !this.family;
-    this.$('.shortcut').hidden = !!query || !!this.family;
+    const query = this.input.value.trim();
+    const from = this.stage.getBoundingClientRect().height;
+    this.$('.field').classList.toggle('has-value', !!query || !!this.family);
     const home = !query && !this.family;
-    this.$('.examples').hidden = !home;
-    this.$('.count').textContent = home ? `${results.filter(e => e.type === 'family').length} families` : `${results.length} matches`;
-    this.$('#result-heading').textContent = home ? this.kind === 'all' ? 'A good place to start' : `Supported ${this.kind} families` : this.family ? this.data.families.find(f => f.id === this.family).label : results.length ? 'Here’s what we found' : 'No match in this catalog';
+    let announcement;
     if (home) {
-      const favorites = ['krea2', 'flux2_dev', 'sdxl', 'qwen_image_21', 'zimage', 'wan22_14b'];
-      const families = results.filter(e => e.type === 'family');
-      const shown = this.browseAll || this.kind !== 'all' ? families : favorites.map(id => families.find(e => e.family.id === id)).filter(Boolean);
-      this.results.innerHTML = `<div class="family-grid">${shown.map(e => this.familyCard(e)).join('')}</div>${this.kind === 'all' ? `<button class="browse" data-browse>${this.browseAll ? 'Show the essentials' : `Explore all ${this.data.families.length} families`}${icon('arrow')}</button>` : ''}`;
+      this.showView('home');
+      announcement = `${this.data.families.length} model families.`;
     } else {
-      const families = results.filter(e => e.type === 'family');
+      const results = search(this.index, query, { family: this.family });
+      const families = this.family ? [] : results.filter(e => e.type === 'family');
       const checkpoints = results.filter(e => e.type === 'checkpoint');
-      const groups = new Map();
-      for (const entry of checkpoints.slice(0, this.limit)) {
-        if (!groups.has(entry.family.id)) groups.set(entry.family.id, []);
-        groups.get(entry.family.id).push(entry);
+      const familyKey = families.map(e => e.key).join();
+      const matches = this.$('.matches');
+      if (matches.dataset.key !== familyKey) {
+        matches.dataset.key = familyKey;
+        matches.innerHTML = `<p class="group-title">Families</p><div class="pills">${families.slice(0, 8).map(e => this.pill(e.family)).join('')}</div>`;
+        if (familyKey && !still()) matches.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: EASE });
       }
-      const shown = [...groups.values()].flat();
-      let content = this.family ? '<button class="back" data-back>← All model families</button>' : '';
-      if (families.length && !this.family) content += `<div class="group-label">SUPPORTED FAMILIES</div><div class="family-grid">${families.slice(0, 4).map(e => this.familyCard(e)).join('')}</div>${families.length > 4 ? `<button class="soft-button" data-family-reveal>Show ${families.length - 4} more families</button>` : ''}`;
-      if (checkpoints.length) {
-        let previous = '';
-        shown.forEach((e, i) => { if (e.family.id !== previous) { content += `<div class="group-label">${esc(e.family.label)} <span>CHECKPOINTS</span></div>`; previous = e.family.id; } content += this.checkpointRow(e, checkpoints.indexOf(e)); });
-        if (checkpoints.length > shown.length) content += `<button class="more soft-button" data-more>Show more <span>${shown.length} of ${checkpoints.length}</span>${icon('arrow')}</button>`;
-      } else content += `<div class="empty">${icon('search')}<h3>${this.family ? 'The family is supported.' : families.length ? 'Your model family is here.' : 'Still worth a look.'}</h3><p>${this.family || families.length ? 'No visible checkpoint entries here yet. You can still use models in this family with HEISS UI.' : 'Try a shorter name, a creator, or the base model family. This catalog is a starting point, so an unlisted model may still work.'}</p>${!this.family && !families.length ? '<button class="soft-button" data-back>Browse supported families</button>' : ''}</div>`;
-      if (hidden) content += `<p class="hidden-note">${hidden} NSFW ${hidden === 1 ? 'entry is' : 'entries are'} hidden. Use “Include NSFW” to show them.</p>`;
-      this.results.innerHTML = content;
-      this.$('[data-family-reveal]')?.addEventListener('click', event => { event.currentTarget.outerHTML = `<div class="family-grid">${families.slice(4).map(e => this.familyCard(e)).join('')}</div>`; });
+      matches.hidden = !families.length;
+      this.$('.list-head').hidden = !checkpoints.length;
+      this.$('.list-title').textContent = this.family ? 'Checkpoints' : 'Best matches';
+      this.$('.count').textContent = checkpoints.length.toLocaleString('en-US');
+      this.patch(checkpoints.slice(0, this.limit));
+      this.list.hidden = !checkpoints.length;
+      this.list.classList.toggle('in-family', !!this.family);
+      const more = this.$('.more');
+      more.hidden = checkpoints.length <= this.limit;
+      more.textContent = `Show more`;
+      const empty = this.$('.empty');
+      empty.hidden = !!checkpoints.length;
+      if (!checkpoints.length) {
+        const label = this.family ? this.data.families.find(f => f.id === this.family)?.label : '';
+        empty.innerHTML = this.family && !query
+          ? `<h3>${esc(label)} is built in.</h3><p>No popular checkpoints listed yet, but any ${esc(label)} model runs.</p>`
+          : families.length
+            ? `<h3>That family is built in.</h3><p>Pick it above to see its popular checkpoints.</p>`
+            : `<h3>Nothing for “${esc(query)}”.</h3><p>Try its family, like SDXL or Flux. If the family is here, HEISS UI runs it.</p>`;
+      }
+      this.showView('found');
+      announcement = checkpoints.length ? `${checkpoints.length} checkpoints.` : 'No checkpoints found.';
     }
-    this.$('#announcement').textContent = home ? `${this.data.families.length} supported model families. Browse a family or search a checkpoint.` : `${results.length} matches${hidden ? `, ${hidden} NSFW entries hidden` : ''}.`;
+    this.$('[role=status]').textContent = announcement;
+    this.resize(from);
+  }
+
+  // Keyed update: rows that stay slide to their new place, new rows fade in, so typing never flashes.
+  patch(entries) {
+    const motion = !still();
+    const before = new Map();
+    for (const li of this.list.children) before.set(li.dataset.key, { li, top: motion ? li.getBoundingClientRect().top : 0 });
+    const next = entries.map(entry => before.get(entry.key)?.li || this.row(entry));
+    this.list.replaceChildren(...next);
+    if (!motion) return;
+    let fresh = 0;
+    for (const li of next) {
+      const old = before.get(li.dataset.key);
+      if (old) {
+        const dy = old.top - li.getBoundingClientRect().top;
+        if (Math.abs(dy) > 1) li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 420, easing: EASE });
+      } else if (fresh < 14) {
+        li.animate([{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, delay: fresh++ * 24, easing: EASE, fill: 'backwards' });
+      }
+    }
+  }
+  resize(from) {
+    if (still()) return;
+    this.heightAnimation?.cancel();
+    const to = this.stage.getBoundingClientRect().height;
+    if (Math.abs(to - from) < 2) return;
+    this.heightAnimation = this.stage.animate([{ height: `${from}px`, overflow: 'clip' }, { height: `${to}px`, overflow: 'clip' }], { duration: 440, easing: EASE });
   }
 }
 if (!customElements.get('heiss-model-search')) customElements.define('heiss-model-search', HeissModelSearch);
