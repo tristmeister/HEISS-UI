@@ -26,14 +26,14 @@ function civitaiUrl(value) {
 }
 
 export class HeissModelSearch extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.family = ''; this.limit = BATCH; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.limit = BATCH; }
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
     this.shadowRoot.innerHTML = `<style>.ms{visibility:hidden}.ms.is-ready{visibility:visible}</style><link rel="stylesheet" href="${stylesheet}"><section class="ms" aria-labelledby="ms-title">
       <header class="intro"><p class="label">Models</p><h2 id="ms-title">Your model already works.</h2><p class="lead">28 model families run out of the box. Search for yours, or find a popular checkpoint from Civitai.</p></header>
-      <div class="field">${icon('search')}<span class="token" hidden><span class="token-name"></span><button type="button" class="token-x" aria-label="Remove family filter">${icon('close')}</button></span><input id="ms-query" type="search" placeholder="DreamShaper, Pony, Wan 2.2…" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div>
-      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="matches"></div><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"><li class="sentinel" aria-hidden="true" hidden></li></ul><div class="empty" hidden></div><p class="fine">Families are tested. Single checkpoints aren’t, so the odd one may need an extra file.</p></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
+      <div class="field">${icon('search')}<input id="ms-query" type="search" placeholder="Search built-in models" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div>
+      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"><li class="sentinel" aria-hidden="true" hidden></li></ul><div class="empty" hidden></div><p class="fine">Families are tested. Single checkpoints aren’t, so the odd one may need an extra file.</p></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
       <p class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>`;
     const $ = selector => this.shadowRoot.querySelector(selector);
@@ -68,7 +68,6 @@ export class HeissModelSearch extends HTMLElement {
       if (!Array.isArray(this.data.families)) throw new Error('Invalid catalog');
       this.index = createIndex(this.data);
       this.total = this.data.families.reduce((sum, f) => sum + f.checkpoints.length, 0);
-      this.$('.home').innerHTML = ['image', 'video'].map(kind => `<div class="group"><p class="group-title">${kind === 'image' ? 'Image' : 'Video'}</p><div class="pills">${this.data.families.filter(f => f.kind === kind).map(f => this.pill(f)).join('')}</div></div>`).join('');
       this.render();
     } catch (error) {
       if (error.name === 'AbortError') return;
@@ -79,8 +78,7 @@ export class HeissModelSearch extends HTMLElement {
 
   fieldKey(event) {
     if (event.key === 'ArrowDown') { event.preventDefault(); this.actions()[0]?.focus(); }
-    else if (event.key === 'Escape' && (this.input.value || this.family)) { event.preventDefault(); this.reset(); }
-    else if (event.key === 'Backspace' && !this.input.value && this.family && this.input.selectionStart === 0) { this.setFamily(''); }
+    else if (event.key === 'Escape' && this.input.value) { event.preventDefault(); this.reset(); }
     else if (event.key === 'Enter') { event.preventDefault(); this.actions()[0]?.click(); }
   }
   stageKey(event) {
@@ -91,37 +89,21 @@ export class HeissModelSearch extends HTMLElement {
     if (event.key === 'Escape' || (event.key === 'ArrowUp' && current === 0)) this.input.focus();
     else actions[Math.min(actions.length - 1, Math.max(0, current + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
   }
-  actions() { return [...this.stage.querySelectorAll('.view:not([hidden]) :is(.pill,.row,.open)')]; }
+  actions() { return [...this.stage.querySelectorAll('.view:not([hidden]) :is(.row,.open)')]; }
 
   click(event) {
     const target = event.target.closest('button,a'); if (!target) return;
     if (target.matches('.clear')) { this.reset(); this.input.focus(); }
-    else if (target.matches('.token-x')) { this.setFamily(''); this.input.focus(); }
-    else if (target.dataset.family) { this.input.value = ''; this.setFamily(target.dataset.family); this.input.focus({ preventScroll: true }); }
     else if (target.matches('.row[aria-expanded]')) this.toggleNote(target);
     else if (target.hasAttribute('data-retry')) this.load();
   }
-  reset() { this.input.value = ''; this.limit = BATCH; this.setFamily(''); }
-  setFamily(id) {
-    this.family = id; this.limit = BATCH;
-    const token = this.$('.token'), family = this.data?.families.find(f => f.id === id);
-    token.hidden = !family;
-    if (family) {
-      this.$('.token-name').textContent = family.label;
-      if (!still()) token.animate([{ opacity: 0, transform: 'scale(.85)' }, { opacity: 1, transform: 'none' }], { duration: 320, easing: EASE });
-    }
-    this.input.placeholder = family ? `Search ${family.label}` : 'DreamShaper, Pony, Wan 2.2…';
-    this.render();
-  }
+  reset() { this.input.value = ''; this.limit = BATCH; this.render(); }
   toggleNote(row) {
     const open = row.getAttribute('aria-expanded') !== 'true';
     row.setAttribute('aria-expanded', String(open));
     row.parentElement.classList.toggle('is-open', open);
   }
 
-  pill(family, active = false) {
-    return `<button type="button" class="pill${active ? ' is-active' : ''}" data-family="${esc(family.id)}">${esc(family.label)}</button>`;
-  }
   row(entry) {
     const c = entry.checkpoint, href = civitaiUrl(c.url);
     const li = document.createElement('li');
@@ -147,42 +129,30 @@ export class HeissModelSearch extends HTMLElement {
     if (!this.index) return;
     const query = this.input.value.trim();
     const from = this.stage.getBoundingClientRect().height;
-    this.$('.field').classList.toggle('has-value', !!query || !!this.family);
-    const home = !query && !this.family;
+    this.$('.field').classList.toggle('has-value', !!query);
+    const home = !query;
     let announcement;
     if (home) {
       this.showView('home');
       announcement = `${this.data.families.length} model families.`;
     } else {
-      const results = search(this.index, query, { family: this.family });
-      const families = this.family ? [] : results.filter(e => e.type === 'family');
+      const results = search(this.index, query);
+      const families = results.filter(e => e.type === 'family');
       const checkpoints = results.filter(e => e.type === 'checkpoint');
-      const familyKey = families.map(e => e.key).join();
-      const matches = this.$('.matches');
-      if (matches.dataset.key !== familyKey) {
-        matches.dataset.key = familyKey;
-        matches.innerHTML = `<p class="group-title">Families</p><div class="pills">${families.slice(0, 8).map(e => this.pill(e.family)).join('')}</div>`;
-        if (familyKey && !still()) matches.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: EASE });
-      }
-      matches.hidden = !families.length;
       this.$('.list-head').hidden = !checkpoints.length;
-      this.$('.list-title').textContent = this.family ? 'Checkpoints' : 'Best matches';
+      this.$('.list-title').textContent = 'Best matches';
       this.$('.count').textContent = checkpoints.length.toLocaleString('en-US');
-      const sig = `${query}|${this.family}`;
+      const sig = query;
       if (sig !== this.sig) { this.sig = sig; this.limit = BATCH; this.list.scrollTop = 0; }
       this.checkpoints = checkpoints;
       this.patch(checkpoints.slice(0, this.limit));
       this.list.hidden = !checkpoints.length;
-      this.list.classList.toggle('in-family', !!this.family);
       const empty = this.$('.empty');
       empty.hidden = !!checkpoints.length;
       if (!checkpoints.length) {
-        const label = this.family ? this.data.families.find(f => f.id === this.family)?.label : '';
-        empty.innerHTML = this.family && !query
-          ? `<h3>${esc(label)} is built in.</h3><p>No popular checkpoints listed yet, but any ${esc(label)} model runs.</p>`
-          : families.length
-            ? `<h3>That family is built in.</h3><p>Pick it above to see its popular checkpoints.</p>`
-            : `<h3>Nothing for “${esc(query)}”.</h3><p>Try its family, like SDXL or Flux. If the family is here, HEISS UI runs it.</p>`;
+        empty.innerHTML = families.length
+          ? `<h3>${esc(families[0].family.label)} is built in.</h3><p>No popular checkpoints listed yet, but its models run.</p>`
+          : `<h3>Nothing for “${esc(query)}”.</h3><p>Try its family, like SDXL or Flux. If the family is built in, HEISS UI runs it.</p>`;
       }
       this.showView('found');
       announcement = checkpoints.length ? `${checkpoints.length} checkpoints.` : 'No checkpoints found.';

@@ -618,7 +618,6 @@ code {
 
 .models-search {
   max-width: calc(var(--content) + var(--gutter) * 2);
-  min-height: 560px;
   margin: 0 auto;
   padding: clamp(96px, 12vw, 140px) var(--gutter) 0;
   scroll-margin-top: calc(100px - clamp(96px, 12vw, 140px));
