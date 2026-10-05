@@ -5,12 +5,14 @@ const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;'
 const icons = {
   search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/>',
   close: '<path d="m7 7 10 10M17 7 7 17"/>',
+  check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+  image: '<rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><circle cx="9" cy="10" r="1.3"/><path d="m4 17 5-4.5 3.5 3 2.5-2L20 17"/>',
   out: '<path d="M8 16 16 8m-7 0h7v7"/>',
   chevron: '<path d="m7 10 5 5 5-5"/>',
 };
 const icon = name => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${icons[name]}</svg>`;
 const EASE = 'cubic-bezier(.16,1,.3,1)';
-const PAGE = 20;
+const BATCH = 30;
 const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let sharedCatalog;
@@ -24,14 +26,14 @@ function civitaiUrl(value) {
 }
 
 export class HeissModelSearch extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.family = ''; this.limit = PAGE; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.family = ''; this.limit = BATCH; }
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
     this.shadowRoot.innerHTML = `<style>.ms{visibility:hidden}.ms.is-ready{visibility:visible}</style><link rel="stylesheet" href="${stylesheet}"><section class="ms" aria-labelledby="ms-title">
-      <header class="intro"><p class="label">Models</p><h2 id="ms-title">Got a model in mind?</h2><p class="lead">Every family here runs in HEISS UI. Search the most popular checkpoints on Civitai to find yours.</p></header>
+      <header class="intro"><p class="label">Models</p><h2 id="ms-title">Your model already works.</h2><p class="lead">28 model families run out of the box. Search for yours, or find a popular checkpoint from Civitai.</p></header>
       <div class="field">${icon('search')}<span class="token" hidden><span class="token-name"></span><button type="button" class="token-x" aria-label="Remove family filter">${icon('close')}</button></span><input id="ms-query" type="search" placeholder="DreamShaper, Pony, Wan 2.2…" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div>
-      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="matches"></div><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"></ul><button type="button" class="more" hidden>Show more</button><div class="empty" hidden></div></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
+      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="matches"></div><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"><li class="sentinel" aria-hidden="true" hidden></li></ul><div class="empty" hidden></div><p class="fine">Families are tested. Single checkpoints aren’t, so the odd one may need an extra file.</p></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
       <p class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>`;
     const $ = selector => this.shadowRoot.querySelector(selector);
@@ -40,7 +42,7 @@ export class HeissModelSearch extends HTMLElement {
     if (style.sheet) show(); else { style.addEventListener('load', show, { once: true }); style.addEventListener('error', show, { once: true }); }
     this.input = $('#ms-query'); this.stage = $('.stage'); this.list = $('.list');
     this.events = new AbortController(); const options = { signal: this.events.signal };
-    this.input.addEventListener('input', event => { if (event.isComposing) return; this.limit = PAGE; this.schedule(); }, options);
+    this.input.addEventListener('input', event => { if (event.isComposing) return; this.limit = BATCH; this.schedule(); }, options);
     this.input.addEventListener('keydown', event => this.fieldKey(event), options);
     this.shadowRoot.addEventListener('click', event => this.click(event), options);
     this.stage.addEventListener('keydown', event => this.stageKey(event), options);
@@ -48,9 +50,12 @@ export class HeissModelSearch extends HTMLElement {
       const origin = event.composedPath()[0];
       if (!event.defaultPrevented && event.key === '/' && !event.metaKey && !event.ctrlKey && !event.altKey && !origin.matches?.('input,textarea,select,[contenteditable="true"]')) { event.preventDefault(); this.input.focus(); }
     }, options);
+    this.sentinel = this.list.querySelector('.sentinel');
+    this.observer = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) this.loadMore(); }, { root: this.list, rootMargin: '0px 0px 320px 0px' });
+    this.observer.observe(this.sentinel);
     this.load();
   }
-  disconnectedCallback() { this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
+  disconnectedCallback() { this.observer?.disconnect(); this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
   schedule() { cancelAnimationFrame(this.frame); this.frame = requestAnimationFrame(() => this.render()); }
 
   async load() {
@@ -86,20 +91,19 @@ export class HeissModelSearch extends HTMLElement {
     if (event.key === 'Escape' || (event.key === 'ArrowUp' && current === 0)) this.input.focus();
     else actions[Math.min(actions.length - 1, Math.max(0, current + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
   }
-  actions() { return [...this.stage.querySelectorAll('.view:not([hidden]) :is(.pill,.row,.open,.more:not([hidden]))')]; }
+  actions() { return [...this.stage.querySelectorAll('.view:not([hidden]) :is(.pill,.row,.open)')]; }
 
   click(event) {
     const target = event.target.closest('button,a'); if (!target) return;
     if (target.matches('.clear')) { this.reset(); this.input.focus(); }
     else if (target.matches('.token-x')) { this.setFamily(''); this.input.focus(); }
     else if (target.dataset.family) { this.input.value = ''; this.setFamily(target.dataset.family); this.input.focus({ preventScroll: true }); }
-    else if (target.matches('.more')) { const from = this.limit; this.limit += PAGE; this.render(); this.list.children[from]?.querySelector('.row')?.focus(); }
     else if (target.matches('.row[aria-expanded]')) this.toggleNote(target);
     else if (target.hasAttribute('data-retry')) this.load();
   }
-  reset() { this.input.value = ''; this.limit = PAGE; this.setFamily(''); }
+  reset() { this.input.value = ''; this.limit = BATCH; this.setFamily(''); }
   setFamily(id) {
-    this.family = id; this.limit = PAGE;
+    this.family = id; this.limit = BATCH;
     const token = this.$('.token'), family = this.data?.families.find(f => f.id === id);
     token.hidden = !family;
     if (family) {
@@ -123,7 +127,7 @@ export class HeissModelSearch extends HTMLElement {
     const li = document.createElement('li');
     li.dataset.key = entry.key;
     const meta = `${esc(c.creator || 'Unknown creator')}<span class="fam"><span class="dot">·</span>${esc(entry.family.label)}</span>`;
-    const body = `<span class="row-text"><span class="name">${esc(c.name)}</span><span class="meta">${meta}</span></span>${c.nsfw ? '<span class="tag">NSFW</span>' : ''}`;
+    const body = `<span class="row-text"><span class="name">${esc(c.name)}</span><span class="meta">${meta}</span></span><span class="tags">${entry.family.references ? `<span class="tag refs" role="img" aria-label="Takes reference images" title="Takes reference images">${icon('image')}</span>` : ''}${c.nsfw ? '<span class="tag">NSFW</span>' : ''}<span class="tag works">${icon('check')}Works</span></span>`;
     if (!href) li.innerHTML = `<div class="row is-static">${body}</div>`;
     else if (!c.nsfw) li.innerHTML = `<a class="row" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${body}<span class="go" aria-label="Opens Civitai">${icon('out')}</span></a>`;
     else li.innerHTML = `<button type="button" class="row" aria-expanded="false">${body}<span class="go">${icon('chevron')}</span></button><div class="note"><div><p>Heads up, this page on Civitai shows NSFW images.</p><a class="open" href="${esc(href)}" target="_blank" rel="noopener noreferrer">Open Civitai ${icon('out')}</a></div></div>`;
@@ -164,12 +168,12 @@ export class HeissModelSearch extends HTMLElement {
       this.$('.list-head').hidden = !checkpoints.length;
       this.$('.list-title').textContent = this.family ? 'Checkpoints' : 'Best matches';
       this.$('.count').textContent = checkpoints.length.toLocaleString('en-US');
+      const sig = `${query}|${this.family}`;
+      if (sig !== this.sig) { this.sig = sig; this.limit = BATCH; this.list.scrollTop = 0; }
+      this.checkpoints = checkpoints;
       this.patch(checkpoints.slice(0, this.limit));
       this.list.hidden = !checkpoints.length;
       this.list.classList.toggle('in-family', !!this.family);
-      const more = this.$('.more');
-      more.hidden = checkpoints.length <= this.limit;
-      more.textContent = `Show more`;
       const empty = this.$('.empty');
       empty.hidden = !!checkpoints.length;
       if (!checkpoints.length) {
@@ -187,24 +191,40 @@ export class HeissModelSearch extends HTMLElement {
     this.resize(from);
   }
 
+  // Smart loading: the next batch is appended when the end scrolls near, so nothing already shown is rebuilt.
+  loadMore() {
+    if (!this.checkpoints || this.limit >= this.checkpoints.length) return;
+    this.limit += BATCH;
+    this.patch(this.checkpoints.slice(0, this.limit));
+  }
   // Keyed update: rows that stay slide to their new place, new rows fade in, so typing never flashes.
   patch(entries) {
     const motion = !still();
-    const before = new Map();
-    for (const li of this.list.children) before.set(li.dataset.key, { li, top: motion ? li.getBoundingClientRect().top : 0 });
-    const next = entries.map(entry => before.get(entry.key)?.li || this.row(entry));
-    this.list.replaceChildren(...next);
-    if (!motion) return;
-    let fresh = 0;
-    for (const li of next) {
-      const old = before.get(li.dataset.key);
-      if (old) {
-        const dy = old.top - li.getBoundingClientRect().top;
-        if (Math.abs(dy) > 1) li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 420, easing: EASE });
-      } else if (fresh < 14) {
-        li.animate([{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, delay: fresh++ * 24, easing: EASE, fill: 'backwards' });
+    const kids = [...this.list.children].filter(li => li !== this.sentinel);
+    const append = kids.length <= entries.length && kids.every((li, i) => li.dataset.key === entries[i].key);
+    if (append) {
+      const rows = entries.slice(kids.length).map(entry => this.row(entry));
+      this.sentinel.before(...rows);
+      if (motion) rows.slice(0, 8).forEach((li, i) => li.animate([{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }], { duration: 320, delay: i * 20, easing: EASE, fill: 'backwards' }));
+    } else {
+      const before = new Map();
+      kids.forEach((li, i) => before.set(li.dataset.key, { li, top: motion && i < 14 ? li.getBoundingClientRect().top : null }));
+      const next = entries.map(entry => before.get(entry.key)?.li || this.row(entry));
+      this.list.replaceChildren(...next, this.sentinel);
+      if (motion) {
+        let fresh = 0;
+        next.slice(0, 14).forEach(li => {
+          const old = before.get(li.dataset.key);
+          if (old) {
+            if (old.top === null) return;
+            const dy = old.top - li.getBoundingClientRect().top;
+            if (Math.abs(dy) > 1) li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], { duration: 420, easing: EASE });
+          } else li.animate([{ opacity: 0, transform: 'translateY(8px)', filter: 'blur(3px)' }, { opacity: 1, transform: 'none', filter: 'none' }], { duration: 380, delay: fresh++ * 24, easing: EASE, fill: 'backwards' });
+        });
       }
     }
+    this.sentinel.hidden = entries.length >= this.checkpoints.length;
+    this.list.append(this.sentinel);
   }
   resize(from) {
     if (still()) return;

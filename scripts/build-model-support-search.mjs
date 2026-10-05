@@ -330,6 +330,7 @@ const catalogFamilies = Object.entries(runtimeFamilies).map(([id, family]) => ({
   label: family.label,
   kind: family.kind,
   aliases: familyAliases[id] || [],
+  ...(family.references ? { references: family.references } : {}),
   checkpoints: checkpointGroups.get(id) || [],
 }));
 

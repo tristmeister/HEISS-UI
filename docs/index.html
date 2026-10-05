@@ -37,6 +37,7 @@
       })();
     </script>
     <script src="./main.js" defer></script>
+    <script type="module" src="./model-search/section.js"></script>
     <script src="./fx.js" defer></script>
     <script type="application/ld+json">
       {
@@ -284,36 +285,8 @@
         </div>
       </section>
 
-      <section class="fb" id="feedback" aria-labelledby="fb-title">
-        <div class="fb-card" data-reveal>
-          <div class="fb-copy">
-            <p class="label">Feedback board</p>
-            <h2 id="fb-title">Have an idea? Found a bug?</h2>
-            <p class="fb-lead">Post it on the board, upvote what matters to you and see what’s being worked on. No account needed.</p>
-            <div class="fb-actions">
-              <a class="fb-btn is-primary" href="./board/?new=idea">Share an idea</a>
-              <a class="fb-btn" href="./board/?new=bug">Report a bug</a>
-            </div>
-          </div>
-
-          <a class="fb-peek" href="./board/" aria-label="Open the feedback board">
-            <span class="fb-cols" aria-hidden="true">
-              <span style="--tone: var(--fb-bug)"><i></i>Bugs <b data-fb-count="bug"></b></span>
-              <span style="--tone: var(--ember)"><i></i>Ideas <b data-fb-count="idea"></b></span>
-              <span style="--tone: var(--fb-question)"><i></i>Questions <b data-fb-count="question"></b></span>
-            </span>
-            <span class="fb-now">
-              <span class="fb-now-label"><i aria-hidden="true"></i>Being worked on</span>
-              <span class="fb-rows" data-fb-progress>
-                <span class="fb-row is-skel"></span>
-                <span class="fb-row is-skel"></span>
-                <span class="fb-row is-skel"></span>
-              </span>
-            </span>
-            <span class="fb-open">Open the board <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></span>
-          </a>
-          <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-        </div>
+      <section class="models-search" id="models" aria-label="Model search">
+        <heiss-model-search></heiss-model-search>
       </section>
 
       <section class="features" id="features" aria-labelledby="features-title">
@@ -1153,6 +1126,38 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
             <summary>Why “HEISS”?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
             <div class="answer"><p><em>Heiß</em> is German for hot. Hence the steaming cup.</p></div>
           </details>
+        </div>
+      </section>
+
+      <section class="fb" id="feedback" aria-labelledby="fb-title">
+        <div class="fb-card" data-reveal>
+          <div class="fb-copy">
+            <p class="label">Feedback board</p>
+            <h2 id="fb-title">Have an idea? Found a bug?</h2>
+            <p class="fb-lead">Post it on the board, upvote what matters to you and see what’s being worked on. No account needed.</p>
+            <div class="fb-actions">
+              <a class="fb-btn is-primary" href="./board/?new=idea">Share an idea</a>
+              <a class="fb-btn" href="./board/?new=bug">Report a bug</a>
+            </div>
+          </div>
+
+          <a class="fb-peek" href="./board/" aria-label="Open the feedback board">
+            <span class="fb-cols" aria-hidden="true">
+              <span style="--tone: var(--fb-bug)"><i></i>Bugs <b data-fb-count="bug"></b></span>
+              <span style="--tone: var(--ember)"><i></i>Ideas <b data-fb-count="idea"></b></span>
+              <span style="--tone: var(--fb-question)"><i></i>Questions <b data-fb-count="question"></b></span>
+            </span>
+            <span class="fb-now">
+              <span class="fb-now-label"><i aria-hidden="true"></i>Being worked on</span>
+              <span class="fb-rows" data-fb-progress>
+                <span class="fb-row is-skel"></span>
+                <span class="fb-row is-skel"></span>
+                <span class="fb-row is-skel"></span>
+              </span>
+            </span>
+            <span class="fb-open">Open the board <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></span>
+          </a>
+          <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
         </div>
       </section>
     </main>
