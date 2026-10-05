@@ -1,4 +1,4 @@
-import { createIndex, search } from './search.js';
+import { createIndex, normalize, search } from './search.js';
 const stylesheet = new URL('./section.css', import.meta.url).href;
 const defaultCatalog = new URL('../models/model-support-search.json', import.meta.url).href;
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -32,7 +32,7 @@ export class HeissModelSearch extends HTMLElement {
     this.initialized = true;
     this.shadowRoot.innerHTML = `<style>.ms{visibility:hidden}.ms.is-ready{visibility:visible}</style><link rel="stylesheet" href="${stylesheet}"><section class="ms" aria-labelledby="ms-title">
       <header class="intro"><p class="label">Models</p><h2 id="ms-title">Your model already works.</h2><p class="lead">28 model families run out of the box. Search for yours, or find a popular checkpoint from Civitai.</p></header>
-      <div class="field">${icon('search')}<input id="ms-query" type="search" placeholder="Search built-in models" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div>
+      <div class="search-wrap"><div class="mq" aria-hidden="true"></div><div class="field">${icon('search')}<input id="ms-query" type="search" placeholder="Search built-in models" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div></div>
       <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"><li class="sentinel" aria-hidden="true" hidden></li></ul><div class="empty" hidden></div><p class="fine">Families are tested. Single checkpoints aren’t, so the odd one may need an extra file.</p></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
       <p class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>`;
@@ -53,9 +53,11 @@ export class HeissModelSearch extends HTMLElement {
     this.sentinel = this.list.querySelector('.sentinel');
     this.observer = new IntersectionObserver(entries => { if (entries.some(e => e.isIntersecting)) this.loadMore(); }, { root: this.list, rootMargin: '0px 0px 320px 0px' });
     this.observer.observe(this.sentinel);
+    this.visibility = new IntersectionObserver(([entry]) => { this.onScreen = entry.isIntersecting; this.$('.mq').classList.toggle('is-paused', !entry.isIntersecting); });
+    this.visibility.observe(this);
     this.load();
   }
-  disconnectedCallback() { this.observer?.disconnect(); this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
+  disconnectedCallback() { this.observer?.disconnect(); this.visibility?.disconnect(); clearInterval(this.heat); this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
   schedule() { cancelAnimationFrame(this.frame); this.frame = requestAnimationFrame(() => this.render()); }
 
   async load() {
@@ -67,6 +69,7 @@ export class HeissModelSearch extends HTMLElement {
       if (!this.isConnected) return;
       if (!Array.isArray(this.data.families)) throw new Error('Invalid catalog');
       this.index = createIndex(this.data);
+      this.buildMarquee();
       this.total = this.data.families.reduce((sum, f) => sum + f.checkpoints.length, 0);
       this.render();
     } catch (error) {
@@ -130,6 +133,7 @@ export class HeissModelSearch extends HTMLElement {
     const query = this.input.value.trim();
     const from = this.stage.getBoundingClientRect().height;
     this.$('.field').classList.toggle('has-value', !!query);
+    this.glow(query);
     const home = !query;
     let announcement;
     if (home) {
@@ -161,6 +165,43 @@ export class HeissModelSearch extends HTMLElement {
     this.resize(from);
   }
 
+  // Background drift: family names and short popular checkpoints, four rows in alternating directions.
+  buildMarquee() {
+    let seed = 11;
+    const random = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const shuffle = list => { for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(random() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; } return list; };
+    const families = shuffle(this.data.families.map(f => ({ text: f.label, family: true })));
+    const checkpoints = shuffle(this.data.families.flatMap(f => f.checkpoints.slice(0, 10))
+      .filter(c => !c.nsfw && c.name.length >= 3 && c.name.length <= 18 && /^[\p{L}\p{N} .+'-]+$/u.test(c.name))
+      .map(c => ({ text: c.name })));
+    const rows = [[], [], [], []];
+    const pool = [];
+    for (let i = 0; pool.length < 96 && (families.length || checkpoints.length); i++) pool.push(i % 3 === 0 && families.length ? families.pop() : checkpoints.pop() || families.pop());
+    pool.forEach((tag, i) => rows[i % 4].push(tag));
+    const tag = t => `<span class="mq-tag${t.family ? ' is-family' : ''}" data-n="${esc(normalize(t.text).replace(/ /g, ''))}">${esc(t.text)}</span>`;
+    const mq = this.$('.mq');
+    mq.innerHTML = rows.map((items, r) => {
+      const set = `<span class="mq-set">${items.map(tag).join('')}</span>`;
+      return `<div class="mq-row" style="--dur:${[150, 190, 170, 210][r]}s;--dir:${r % 2 ? 'reverse' : 'normal'}"><div class="mq-track">${set}${set}</div></div>`;
+    }).join('');
+    this.tags = [...mq.querySelectorAll('.mq-tag')];
+    requestAnimationFrame(() => mq.classList.add('is-on'));
+    if (still()) return;
+    // Now and then one tag warms up, the way the cup steams.
+    clearInterval(this.heat);
+    this.heat = setInterval(() => {
+      if (!this.onScreen || document.hidden || this.input.value) return;
+      const hot = this.tags[Math.floor(Math.random() * this.tags.length)];
+      hot.classList.add('is-hot');
+      setTimeout(() => hot.classList.remove('is-hot'), 2600);
+    }, 1100);
+  }
+  glow(query) {
+    if (!this.tags) return;
+    const q = normalize(query).replace(/ /g, '');
+    this.$('.mq').classList.toggle('is-searching', !!q);
+    for (const t of this.tags) t.classList.toggle('is-match', q.length > 1 && t.dataset.n.includes(q));
+  }
   // Smart loading: the next batch is appended when the end scrolls near, so nothing already shown is rebuilt.
   loadMore() {
     if (!this.checkpoints || this.limit >= this.checkpoints.length) return;
