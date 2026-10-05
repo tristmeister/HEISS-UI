@@ -21,8 +21,9 @@ function loadCatalog(url, signal) {
   if (url === defaultCatalog) return sharedCatalog ||= get().catch(error => { sharedCatalog = undefined; throw error; });
   return get({ signal });
 }
-function civitaiUrl(value) {
-  try { const url = new URL(value); return url.protocol === 'https:' && url.hostname === 'civitai.com' && /^\/models\/\d+$/.test(url.pathname) ? url.href : ''; } catch { return ''; }
+// The catalog stores only Civitai's numeric ids; the link is rebuilt here.
+function civitaiUrl({ id, versionId }) {
+  return Number.isSafeInteger(id) && id > 0 ? `https://civitai.com/models/${id}${Number.isSafeInteger(versionId) && versionId > 0 ? `?modelVersionId=${versionId}` : ''}` : '';
 }
 
 export class HeissModelSearch extends HTMLElement {
@@ -33,7 +34,7 @@ export class HeissModelSearch extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>.ms{visibility:hidden}.ms.is-ready{visibility:visible}</style><link rel="stylesheet" href="${stylesheet}"><section class="ms" aria-labelledby="ms-title">
       <header class="intro"><p class="label">Models</p><h2 id="ms-title">Your model already works.</h2><p class="lead">28 model families run out of the box. Search for yours, or find a popular checkpoint from Civitai.</p></header>
       <div class="search-wrap"><div class="mq" aria-hidden="true"></div><div class="frame"><div class="field">${icon('search')}<input id="ms-query" type="search" placeholder="Search built-in models" autocomplete="off" spellcheck="false" aria-label="Search models" aria-controls="ms-results"><button type="button" class="clear" aria-label="Clear search" tabindex="-1">${icon('close')}</button><kbd aria-hidden="true">/</kbd></div><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div></div>
-      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"><li class="sentinel" aria-hidden="true" hidden></li></ul><div class="empty" hidden></div><p class="fine">Families are tested. Single checkpoints aren’t, so the odd one may need an extra file.</p></div><div class="view loading">${'<span></span>'.repeat(4)}</div></div>
+      <div class="stage" id="ms-results" aria-busy="true"><div class="view home"></div><div class="view found" hidden><div class="list-head"><span class="list-title"></span><span class="count"></span></div><ul class="list" role="list"><li class="sentinel" aria-hidden="true" hidden></li></ul><div class="empty" hidden></div><p class="fine">Families are tested. Single checkpoints aren’t, so the odd one may need an extra file.</p></div><div class="view loading" hidden>${'<span></span>'.repeat(4)}</div></div>
       <p class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>`;
     const $ = selector => this.shadowRoot.querySelector(selector);
@@ -57,15 +58,19 @@ export class HeissModelSearch extends HTMLElement {
     this.observer.observe(this.sentinel);
     this.visibility = new IntersectionObserver(([entry]) => { this.onScreen = entry.isIntersecting; this.$('.mq').classList.toggle('is-paused', !entry.isIntersecting); });
     this.visibility.observe(this);
-    this.load();
+    // The catalog loads only when the section comes near the screen (or the field gets focus), so the hero pays nothing.
+    this.nearby = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) this.wake(); }, { rootMargin: '900px 0px' });
+    this.nearby.observe(this);
+    this.input.addEventListener('focus', () => this.wake(), options);
   }
-  disconnectedCallback() { this.observer?.disconnect(); this.visibility?.disconnect(); clearInterval(this.heat); this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
+  wake() { if (this.started) return; this.started = true; this.nearby?.disconnect(); this.load(); }
+  disconnectedCallback() { this.started = false; this.nearby?.disconnect(); this.observer?.disconnect(); this.visibility?.disconnect(); clearInterval(this.heat); this.events?.abort(); this.request?.abort(); cancelAnimationFrame(this.frame); this.initialized = false; }
   schedule() { cancelAnimationFrame(this.frame); this.frame = requestAnimationFrame(() => this.render()); }
 
   async load() {
     this.request?.abort(); this.request = new AbortController();
     this.stage.setAttribute('aria-busy', 'true');
-    this.showView('loading');
+    if (this.input.value.trim()) this.showView('loading');
     try {
       this.data = await loadCatalog(this.getAttribute('catalog-url') || defaultCatalog, this.request.signal);
       if (!this.isConnected) return;
@@ -110,7 +115,7 @@ export class HeissModelSearch extends HTMLElement {
   }
 
   row(entry) {
-    const c = entry.checkpoint, href = civitaiUrl(c.url);
+    const c = entry.checkpoint, href = civitaiUrl(c);
     const li = document.createElement('li');
     li.dataset.key = entry.key;
     const meta = `${esc(c.creator || 'Unknown creator')}<span class="fam"><span class="dot">·</span>${esc(entry.family.label)}</span>`;
@@ -140,7 +145,7 @@ export class HeissModelSearch extends HTMLElement {
   }
 
   render() {
-    if (!this.index) return;
+    if (!this.index) { if (this.input.value.trim()) this.showView('loading'); return; }
     const query = this.input.value.trim();
     const from = this.stage.getBoundingClientRect().height;
     this.$('.field').classList.toggle('has-value', !!query);

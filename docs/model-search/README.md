@@ -21,7 +21,7 @@ The component uses Shadow DOM to scope its styles. It inherits HEISS tokens `--s
 
 ## Behavior
 
-- Index built once on load. No search API, tracking, AI requests, or dependencies.
+- Index built once, after the catalog loads. No search API, tracking, AI requests, or dependencies.
 - Unicode/accent normalization, punctuation/underscore tolerance, joined names, family aliases, creator/title/version terms, token prefixes, one-edit typos and adjacent transpositions. Exact names and aliases rank first.
 - The empty state is just the field. Results appear as you type; a family name lists that family's checkpoints.
 - Results are one grouped list that scrolls inline and loads 30 more as you near the end. Rows link straight to Civitai. NSFW checkpoints carry a small tag; clicking one opens a short heads-up under the row with the link.
@@ -35,4 +35,4 @@ This is family support plus catalog discovery, not a claim that every checkpoint
 
 ## Motion and performance
 
-Rows are reused between keystrokes, so typing animates differences instead of re-rendering the list. Searching runs once per animation frame; index normalization happens once. The first visible checkpoint batch is capped to avoid rendering hundreds of rows. Shared default catalog requests are cached across component instances; custom catalog fetches abort on disconnect. The catalog snapshot is around 257 KB before compression.
+Rows are reused between keystrokes, so typing animates differences instead of re-rendering the list. Searching runs once per animation frame; index normalization happens once. The first visible checkpoint batch is capped to avoid rendering hundreds of rows. Shared default catalog requests are cached across component instances; custom catalog fetches abort on disconnect. The catalog (about 166 KB, 40 KB gzipped) loads only when the section nears the screen or the field gets focus. Links are rebuilt from Civitai ids.

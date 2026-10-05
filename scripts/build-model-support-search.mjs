@@ -315,12 +315,25 @@ for (const bucket of source.families) {
   }
 }
 
+// The website loads this file, so leave out what it can rebuild or never searches: the Civitai
+// link (rebuilt from id and versionId), a title or base model that repeats the name or family,
+// bare version numbers, nsfw: false and empty tags.
+function slim(checkpoint, familyLabel) {
+  const out = { ...checkpoint };
+  delete out.url;
+  if (out.searchName === out.name) delete out.searchName;
+  if (!out.baseModel || out.baseModel === familyLabel) delete out.baseModel;
+  if (!out.versionName || /^v?\d+(?:\.\d+)*$/i.test(out.versionName)) delete out.versionName;
+  if (!out.nsfw) delete out.nsfw;
+  if (!out.tags?.length) delete out.tags;
+  return out;
+}
+
 const checkpointGroups = new Map();
 for (const item of merged.values()) {
   const { familyId, ...publicItem } = item;
   const list = checkpointGroups.get(familyId) || [];
-  const checkpoint = { ...publicItem, tags: [...item.tags].sort() };
-  if (!checkpoint.tags.length) delete checkpoint.tags;
+  const checkpoint = slim({ ...publicItem, tags: [...item.tags].sort() }, runtimeFamilies[familyId]?.label);
   list.push(checkpoint);
   checkpointGroups.set(familyId, list);
 }
@@ -335,11 +348,10 @@ const catalogFamilies = Object.entries(runtimeFamilies).map(([id, family]) => ({
 }));
 
 const output = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   source: {
     name: "Civitai public API",
     fileGeneratedAt: source.generatedAt,
-    method: source.method,
     note: "Popularity discovery only; entries are not individually tested or guaranteed.",
   },
   families: catalogFamilies,
@@ -354,7 +366,6 @@ console.log(JSON.stringify({
   sourceRows: rowsSeen,
   familyCheckpointEntries: checkpoints.length,
   distinctCivitaiIds: new Set(checkpoints.map((item) => item.id)).size,
-  linkedEntries: checkpoints.filter((item) => item.url === `https://civitai.com/models/${item.id}?modelVersionId=${item.versionId}`).length,
   nsfwYes: checkpoints.filter((item) => item.nsfw).length,
   nsfwNo: checkpoints.filter((item) => !item.nsfw).length,
   titleChanges: namesChanged,
