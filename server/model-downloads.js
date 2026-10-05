@@ -24,7 +24,8 @@ import { hfFetch as fetch } from "./hf-access.js";
  * put where ComfyUI reads it.
  */
 
-const allowedFolders = new Set(["text_encoders", "vae", "diffusion_models", "checkpoints", "loras", "clip_vision"]);
+// Imported workflows also name upscalers, ControlNets and adapters (workflow-models.js); still only .safetensors/.gguf.
+const allowedFolders = new Set(["text_encoders", "vae", "diffusion_models", "checkpoints", "loras", "clip_vision", "upscale_models", "controlnet", "ipadapter", "model_patches", "latent_upscale_models", "style_models"]);
 const allowedHosts = new Set(["huggingface.co"]);
 
 let queue = [];

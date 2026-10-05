@@ -17,35 +17,39 @@
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------- Mosaic skeletons
-   Loading tiles resolve like the generation preview: a quiet pixel mosaic
-   instead of a shimmer sweep. */
+/* ---------------------------------------------------- Loading tiles
+   Soft, quiet placeholders: a faint surface with one slow band of light
+   passing over it. Each tile's delay (set inline) staggers the band, so it
+   ripples across the grid instead of every tile blinking at once. */
 
 .skeleton-media {
   position: relative;
   overflow: hidden;
   border-radius: var(--r-media);
-  background: rgb(255 255 255 / .025);
-  animation: none;
+  background: linear-gradient(180deg, #181818, #131313 75%);
+  box-shadow: none;
+  animation: skeleton-breathe 3.6s ease-in-out infinite;
+  animation-delay: inherit;
 }
-.skeleton-media::before,
 .skeleton-media::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: conic-gradient(rgb(255 255 255 / .05) 25%, transparent 0 50%, rgb(255 255 255 / .05) 0 75%, transparent 0);
-  background-size: 24px 24px;
-  animation: mosaic-flicker 2.4s steps(3, jump-none) infinite;
+  background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / .06) 45%, rgb(255 255 255 / .09) 50%, rgb(255 255 255 / .06) 55%, transparent 80%);
+  transform: translateX(-100%);
+  animation: skeleton-sweep 2.8s cubic-bezier(.4, 0, .2, 1) infinite;
+  animation-delay: inherit;
 }
-.skeleton-media::after {
-  background-size: 40px 40px;
-  background-position: 12px 12px;
-  animation-duration: 3.2s;
-  animation-delay: -1.1s;
+/* No outline on a placeholder: the soft surface is enough. */
+.tile.skeleton-tile { outline-color: transparent; background: transparent; }
+@keyframes skeleton-sweep {
+  0% { transform: translateX(-100%); }
+  60%, 100% { transform: translateX(100%); }
 }
-@keyframes mosaic-flicker {
-  0%, 100% { opacity: .15; }
-  50% { opacity: 1; }
+@keyframes skeleton-breathe {
+  /* Brightness, not opacity: the page's dot grid must not show through. */
+  0%, 100% { filter: brightness(.85); }
+  50% { filter: brightness(1.08); }
 }
 
 /* Text and control skeletons stay flat, squared to the same family. */
@@ -56,8 +60,9 @@
 .comfy-status-dot span { width: 8px; height: 8px; border-radius: 1px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton-media::before,
-  .skeleton-media::after { animation: none; opacity: .6; }
+  .skeleton-media,
+  .skeleton-media::after { animation: none; }
+  .skeleton-media::after { display: none; }
 }
 
 /* ---------------------------------------------------------- Beta tag
@@ -92,4 +97,39 @@
 
 @media (forced-colors: active) {
   .beta-tag { outline: 1px solid CanvasText; outline-offset: -1px; }
+}
+
+/* ------------------------------------------------- LoRA mismatch note
+   Sits just above the prompt bar, centred: a question, not an alarm. */
+.lora-mismatch {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  translate: -50% 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 6px 6px 6px 12px;
+  border-radius: var(--r-pill);
+  background: var(--surface-float);
+  -webkit-backdrop-filter: var(--surface-float-blur);
+  backdrop-filter: var(--surface-float-blur);
+  box-shadow: var(--shadow-float-sm), inset 0 0 0 1px rgb(255 190 120 / .18);
+  color: hsl(var(--foreground) / .92);
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+.lora-mismatch > svg { flex: none; color: var(--ember); }
+.lora-mismatch > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lora-mismatch b { font-weight: 600; }
+.lora-mismatch-action { flex: none; height: 26px; padding: 0 10px; border: 0; border-radius: var(--r-pill); background: var(--control-fill); color: hsl(var(--foreground)); font: inherit; font-weight: 550; cursor: pointer; }
+.lora-mismatch-action:hover { background: var(--control-hover); }
+.lora-mismatch-action.is-quiet { background: none; color: hsl(var(--foreground) / .7); }
+.lora-mismatch-action.is-quiet:hover { color: hsl(var(--foreground)); background: var(--control-hover); }
+.lora-mismatch-close { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 50%; background: none; color: hsl(var(--foreground) / .6); cursor: pointer; }
+.lora-mismatch-close:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+@media (max-width: 640px) {
+  .lora-mismatch { white-space: normal; border-radius: 16px; }
 }

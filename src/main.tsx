@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { showToastTone as showToast, toast } from "./app/toast";
 import "./styles.css";
@@ -19,6 +19,9 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
+import { loraFit, useLoraInfo } from './app/useLoraInfo';
+import type { LoraMismatch } from './app/LoraMismatchChip';
+import { loadWorkflowSettingValues, saveWorkflowSettingValues, type WorkflowSettingValues } from './app/WorkflowSettings';
 import { useViewerControls } from './app/useViewerControls';
 import { useGalleryBundles } from './app/useGalleryBundles';
 import { useGalleryStore } from './app/useGalleryStore';
@@ -119,6 +122,8 @@ function App() {
   const [count, setCount] = useState(Number(initialDraft.count || prefs.defaultImageCount));
   const [frames, setFrames] = useState(Number(initialDraft.frames || prefs.defaultVideoFrames));
   const [fps, setFps] = useState(Number(initialDraft.fps || prefs.defaultFps));
+  // Imported workflows' "More settings", per workflow, remembered on this device.
+  const [workflowSettingValues, setWorkflowSettingValues] = useState<WorkflowSettingValues>(() => loadWorkflowSettingValues());
   const [sampler, setSampler] = useState(String(initialDraft.sampler || "euler_ancestral"));
   const [scheduler, setScheduler] = useState(String(initialDraft.scheduler || "beta"));
   const [loras, setLoras] = useState<LoraSelection[]>(() => normalizeLoras(initialDraft.loras));
@@ -1074,6 +1079,23 @@ function App() {
   }, [mode, models, workflowPreferences]);
 
   const currentProfile = useMemo(() => models?.profiles.find((profile) => profile.id === model) || null, [model, models]);
+  const currentWorkflowSettings = currentProfile?.settings?.length ? workflowSettingValues[currentProfile.id] || {} : undefined;
+  const setWorkflowSetting = useCallback((key: string, value: string | number | boolean) => {
+    if (!currentProfile) return;
+    setWorkflowSettingValues((current) => {
+      const next = { ...current, [currentProfile.id]: { ...(current[currentProfile.id] || {}), [key]: value } };
+      saveWorkflowSettingValues(next);
+      return next;
+    });
+  }, [currentProfile]);
+  const resetWorkflowSettings = useCallback(() => {
+    if (!currentProfile) return;
+    setWorkflowSettingValues((current) => {
+      const { [currentProfile.id]: _gone, ...rest } = current;
+      saveWorkflowSettingValues(rest);
+      return rest;
+    });
+  }, [currentProfile]);
   const toggleModelFavoriteRef = useRef<(id: string) => void>(() => undefined);
   const modelMenu = useMemo(() => ({
     favorites: workflowPreferences.favorites || [],
@@ -1203,6 +1225,19 @@ function App() {
     : modelSetupMissing ? "This model needs files first"
     : !currentProfile ? (models ? "Choose a model" : "Loading models…") : undefined;
   const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
+  // Active LoRAs whose files clearly say another model family (lora-info.js): a quiet note above the prompt bar.
+  const loraOptionNames = useMemo(() => ((currentProfile?.options?.loras || models?.loras || []) as unknown[]).map((option) => typeof option === "string" ? option : String((option as { name?: string })?.name || "")).filter(Boolean), [currentProfile, models]);
+  const loraInfos = useLoraInfo(loraActiveCount ? loraOptionNames : []);
+  const [dismissedLoraWarnings, setDismissedLoraWarnings] = useState<string[]>([]);
+  const loraMismatch = useMemo<LoraMismatch | null>(() => {
+    if (!loraActiveCount || !currentProfile) return null;
+    const wrong = loras.filter((item) => item.enabled && item.name && loraFit(loraInfos[item.name], currentProfile) === "other").map((item) => item.name);
+    if (!wrong.length) return null;
+    const key = `${currentProfile.id}|${[...wrong].sort().join("|")}`;
+    if (dismissedLoraWarnings.includes(key)) return null;
+    return { key, names: wrong, madeFor: [...new Set(wrong.map((name) => loraInfos[name]?.base).filter(Boolean))] as string[], model: currentProfile.familyName || currentProfile.displayName || currentProfile.label };
+  }, [loraActiveCount, currentProfile, loras, loraInfos, dismissedLoraWarnings]);
+  const dismissLoraMismatch = useCallback((key: string) => setDismissedLoraWarnings((current) => [...current, key]), []);
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
     if (!hasMoreGallery) return;
@@ -1329,15 +1364,15 @@ function App() {
       const workflow = JSON.parse(text);
       // Same path as the gallery import: preview first, so the prompt and other
       // controls get auto-mapped and the file name becomes the workflow name.
-      const { preview } = await apiJson<{ preview: { detected: Record<string, unknown> } }>("/api/workflows/import/preview", {
+      const { preview } = await apiJson<{ preview: { detected: Record<string, unknown>; graph?: Record<string, unknown> } }>("/api/workflows/import/preview", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ workflow, filename: file.name })
+        body: JSON.stringify({ source: "file", workflow, filename: file.name })
       });
       await apiJson("/api/workflows/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ workflow, filename: file.name, metadata: preview.detected })
+        body: JSON.stringify({ graph: preview.graph, filename: file.name, metadata: preview.detected })
       });
       refreshModels(false);
       refreshWorkflows();
@@ -1350,6 +1385,7 @@ function App() {
 
 
   const generationActions = useGenerationActions({
+    workflowSettings: currentWorkflowSettings,
     active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, inpaint: activeInpaintMask ? { mask: activeInpaintMask.dataUrl, strength: inpaintStrength, feather: inpaintFeather } : null, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
     openModelSetup: () => setWorkflowGalleryOpen(true),
     retryComfyStatus,
@@ -1462,7 +1498,7 @@ function App() {
     toggleFavorite: (name: string) => { toggleLoraFavorite(name); bumpLoraLibrary(); },
     recordRecents: (names: string[]) => { recordLoraRecents(names); bumpLoraLibrary(); }
   };
-  const sidebarView = { inpaintActive: Boolean(activeInpaintMask), inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather, canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab, recommended };
+  const sidebarView = { workflowSettings: currentWorkflowSettings || {}, setWorkflowSetting, resetWorkflowSettings, inpaintActive: Boolean(activeInpaintMask), inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather, canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab, recommended };
   const sidebarControls = <StableSidebarControls view={sidebarView} />;
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;
@@ -1477,7 +1513,7 @@ function App() {
     mask: activeInpaintMask?.dataUrl || null,
     onChange: (dataUrl: string | null) => setInpaintMask(dataUrl ? { assetId: referenceAsset.id, dataUrl } : null)
   } : null;
-  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceStrength, referenceInpaint };
+  const view = { ...baseView, loraMismatch, dismissLoraMismatch, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceStrength, referenceInpaint };
   return (
     <>
       <StudioView view={view} />

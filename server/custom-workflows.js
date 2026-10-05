@@ -5,6 +5,8 @@ import { dataDir } from './gallery-store.js';
 import { root } from './comfy.js';
 import { workflowIds } from './workflow-registry.js';
 import { writeJsonFile } from './json-store.js';
+import { convertVisualWorkflow } from './workflow-convert.js';
+import { understandWorkflow } from './workflow-understand.js';
 
 export const bundledWorkflowsDir = path.join(root, "workflows");
 export const userWorkflowsDir = path.join(dataDir, "workflows");
@@ -93,44 +95,32 @@ export function graphFromJson(raw, info = {}) {
   return copy;
 }
 
-function schemaInputNames(info, classType) {
-  const schema = info?.[classType]?.input || {};
-  return [...Object.keys(schema.required || {}), ...Object.keys(schema.optional || {})]
-    .filter((name) => !["unique_id", "control_after_generate"].includes(name));
+function visualWorkflowToApi(raw, info = {}) {
+  return convertVisualWorkflow(raw, info).graph;
 }
 
-function visualWorkflowToApi(raw, info = {}) {
-  const links = new Map((raw.links || []).map((link) => [String(link[0]), [String(link[1]), Number(link[2] || 0)]]));
-  const graph = {};
-  // These nodes exist only for canvas organization and are not part of the API prompt.
-  const uiOnly = new Set(["Note", "Reroute", "PrimitiveNode", "NoteNode"]);
-  for (const node of raw.nodes) {
-    const id = String(node.id);
-    const classType = node.type || node.class_type;
-    if (!classType) throw new Error(`Visual workflow node ${id} is missing a type.`);
-    if (uiOnly.has(classType)) continue;
-    const inputs = {};
-    for (const input of node.inputs || []) {
-      if (input?.link != null && links.has(String(input.link))) inputs[input.name] = links.get(String(input.link));
-    }
-    const names = schemaInputNames(info, classType);
-    const linked = new Set(Object.keys(inputs));
-    const widgetNames = names.filter((name) => !linked.has(name));
-    const namedWidgets = node.widgets_values_named && typeof node.widgets_values_named === "object" ? node.widgets_values_named : null;
-    if (namedWidgets) {
-      for (const name of widgetNames) {
-        if (Object.prototype.hasOwnProperty.call(namedWidgets, name)) inputs[name] = namedWidgets[name];
-      }
-    } else {
-      const widgets = Array.isArray(node.widgets_values) ? node.widgets_values : [];
-      if (widgets.length > widgetNames.length) throw new Error(`Node ${id} (${classType}) has more widget values than ComfyUI expects. Export the workflow again, or reconnect ComfyUI, then import it.`);
-      widgets.forEach((value, index) => { inputs[widgetNames[index]] = value; });
-    }
-    // The canvas title ("Positive", "Refiner") is how people know a node; keep it for the import review.
-    const meta = node._meta || (node.title ? { title: String(node.title) } : null);
-    graph[id] = { class_type: classType, inputs, ...(meta ? { _meta: meta } : {}) };
-  }
-  return graph;
+/** A control's mappings as a list: one prompt can be written to several boxes (base and refiner). */
+export function mappingList(mapping) {
+  return [].concat(mapping || []).filter((item) => item?.node && item?.input);
+}
+
+/** The editable settings an import exposes ("More settings"), checked and trimmed. */
+function settingsConfig(meta = {}) {
+  const raw = Array.isArray(meta.settings) ? meta.settings : [];
+  return raw.filter((item) => item?.node && item?.input).slice(0, 64).map((item) => ({
+    key: String(item.key || `${item.node}.${item.input}`),
+    node: String(item.node),
+    input: String(item.input),
+    label: String(item.label || item.input).slice(0, 80),
+    group: String(item.group || "").slice(0, 80),
+    type: ["INT", "FLOAT", "BOOLEAN", "COMBO", "STRING"].includes(item.type) ? item.type : "STRING",
+    ...(item.multiline ? { multiline: true } : {}),
+    default: item.default ?? null,
+    ...(Array.isArray(item.options) ? { options: item.options.slice(0, 200).map(String) } : {}),
+    ...(Number.isFinite(item.min) ? { min: item.min } : {}),
+    ...(Number.isFinite(item.max) ? { max: item.max } : {}),
+    ...(Number.isFinite(item.step) ? { step: item.step } : {})
+  }));
 }
 
 export function detectWorkflowFormat(raw) {
@@ -149,8 +139,8 @@ export function metadataFromJson(raw, file) {
   const mediaInputs = mediaInputsConfig(meta, controls);
   const promptComposition = promptCompositionConfig(meta);
   const graphDefault = (key) => {
-    const mapping = controls[key];
-    return mapping?.node && mapping?.input ? graph?.[mapping.node]?.inputs?.[mapping.input] : undefined;
+    const [mapping] = mappingList(controls[key]);
+    return mapping ? graph?.[mapping.node]?.inputs?.[mapping.input] : undefined;
   };
   const classes = [...new Set(Object.values(graph || {}).map((node) => node?.class_type).filter(Boolean))];
   return {
@@ -165,6 +155,12 @@ export function metadataFromJson(raw, file) {
     loraStack,
     mediaInputs,
     promptComposition,
+    settings: settingsConfig(meta),
+    source: meta.source || null,
+    // Decided at setup: local files standing in for missing ones, and LoRAs run without.
+    fileSwaps: (Array.isArray(meta.fileSwaps) ? meta.fileSwaps : []).filter((item) => item?.node && item?.input && typeof item.file === "string").map((item) => ({ node: String(item.node), input: String(item.input), file: item.file, wanted: String(item.wanted || ""), reason: String(item.reason || "") })),
+    skippedLoras: (Array.isArray(meta.skippedLoras) ? meta.skippedLoras : []).map(String),
+    loraEntriesOff: (Array.isArray(meta.loraEntriesOff) ? meta.loraEntriesOff : []).filter((item) => item?.node && item?.key).map((item) => ({ node: String(item.node), key: String(item.key), lora: String(item.lora || "") })),
     requiredNodes: Array.isArray(meta.requiredNodes) && meta.requiredNodes.length ? meta.requiredNodes : classes,
     defaults: {
       model: graphDefault("model") || "",
@@ -188,6 +184,8 @@ export function metadataFromJson(raw, file) {
     aspectPolicy: meta.aspectPolicy === "reference" ? "reference" : "manual",
     capabilities: {
       negativePrompt: Boolean(controls.negative),
+      // No sampler or scheduler wired to the studio: hide those pickers rather than show ones that do nothing.
+      ...(controls.sampler || controls.scheduler ? {} : { sampler: false }),
       variations: Boolean(controls.count),
       frames: Boolean(controls.frames),
       fps: Boolean(controls.fps),
@@ -427,60 +425,42 @@ function nodeInputsForClass(classType = "") {
   return [];
 }
 
-export function detectWorkflowMetadata(raw, fallbackName = "", _info = {}) {
+/**
+ * The import's settings, found in the graph (workflow-understand.js). What the
+ * file declares in its heissUi block wins over what was found. `extras`:
+ * { titles, variants } from the canvas copy and earlier runs.
+ */
+export function detectWorkflowMetadata(raw, fallbackName = "", info = {}, extras = {}) {
   const existing = workflowMeta(raw);
-  const graph = graphFromJson(raw);
-  const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", title: String(node?._meta?.title || ""), inputs: node?.inputs || {} }));
-  const textNodes = nodes.filter((node) => /TextEncode/i.test(node.classType) && ("text" in node.inputs || "prompt" in node.inputs));
-  const latentNode = nodes.find((node) => /Latent/i.test(node.classType) && ("width" in node.inputs || "height" in node.inputs));
-  const samplerNode = nodes.find((node) => /Sampler/i.test(node.classType));
-  const videoNode = nodes.find((node) => /Video/i.test(node.classType) && ("length" in node.inputs || "fps" in node.inputs));
-  const imageLoader = nodes.find((node) => node.classType === "LoadImage" && "image" in node.inputs);
-  const controls = {
-    ...(existing.controls || {})
-  };
-  // Connections the workflow didn't declare itself: found by node type and order, worth a second look.
-  const guessed = [];
-  const set = (key, node, input) => {
-    if (!controls[key] && node && input && input in node.inputs) {
-      controls[key] = { node: node.id, input };
-      guessed.push(key);
-    }
-  };
-  set("prompt", textNodes[0], "text" in (textNodes[0]?.inputs || {}) ? "text" : "prompt");
-  set("negative", textNodes[1], "text" in (textNodes[1]?.inputs || {}) ? "text" : "prompt");
-  set("width", latentNode || videoNode, "width");
-  set("height", latentNode || videoNode, "height");
-  set("count", latentNode, "batch_size");
-  set("seed", samplerNode, "seed");
-  set("steps", samplerNode, "steps");
-  set("cfg", samplerNode, "cfg");
-  set("sampler", samplerNode, "sampler_name");
-  set("scheduler", samplerNode, "scheduler");
-  set("denoise", samplerNode, "denoise");
-  set("frames", videoNode, "length");
-  set("fps", videoNode, "fps");
-  set("startImage", imageLoader, "image");
-  const hasVideo = nodes.some((node) => /Video|VHS|Wan/i.test(node.classType));
+  const graph = graphFromJson(raw, info);
+  const found = understandWorkflow(graph, { info, titles: extras.titles || {}, variants: extras.variants || [] });
+  const controls = { ...found.controls, ...(existing.controls || {}) };
+  const declared = new Set(Object.keys(existing.controls || {}));
+  const nodes = Object.entries(graph || {}).map(([id, node]) => ({ id, classType: node?.class_type || "", title: String(node?._meta?.title || extras.titles?.[id] || ""), inputs: node?.inputs || {} }));
   const id = safeId(existing.id || fallbackName || "imported-workflow");
+  const mediaInputs = Array.isArray(existing.mediaInputs) ? existing.mediaInputs : found.mediaInputs.map(({ role: _role, ...item }) => item);
   return {
     id,
     name: existing.name || fallbackName || id,
     description: existing.description || "Imported ComfyUI workflow",
-    kind: existing.kind === "video" || hasVideo ? "video" : "image",
+    kind: existing.kind || found.kind,
     family: existing.family || "custom",
     controls,
-    guessed,
-    loraStack: existing.loraStack || null,
+    // Found in the graph rather than declared in the file.
+    guessed: Object.keys(found.controls).filter((key) => !declared.has(key)),
+    confidence: found.confidence,
+    question: declared.has("prompt") ? null : found.question,
+    loraStack: existing.loraStack || found.loraStack || null,
+    settings: Array.isArray(existing.settings) ? existing.settings : found.settings,
     defaults: existing.defaults || {},
     capabilities: {
-      ...(existing.capabilities || {}),
-      ...(controls.startImage ? { startImage: true, imageToImage: true } : {})
+      ...found.capabilities,
+      ...(existing.capabilities || {})
     },
-    mediaInputs: Array.isArray(existing.mediaInputs) ? existing.mediaInputs : controls.startImage ? [{ id: "reference", kind: "image", label: "Reference image", required: false, min: 0, max: 1, control: controls.startImage }] : [],
+    mediaInputs,
     promptComposition: existing.promptComposition || null,
     aspectRatios: existing.aspectRatios || existing.aspects || [],
-    aspectPolicy: existing.aspectPolicy === "reference" ? "reference" : "manual",
+    aspectPolicy: existing.aspectPolicy || found.aspectPolicy,
     nodes: nodes.map((node) => ({
       id: node.id,
       classType: node.classType,

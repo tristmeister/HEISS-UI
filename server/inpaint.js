@@ -12,7 +12,7 @@ import { loadSharp } from "./sharp-loader.js";
  */
 
 // The nodes every inpaint graph needs on top of the family's own; all are ComfyUI core.
-export const inpaintNodes = ["SetLatentNoiseMask", "DifferentialDiffusion", "LoadImageMask", "ImageScale", "ImageCompositeMasked", "RepeatImageBatch", "RepeatLatentBatch", "SplitSigmasDenoise"];
+export const inpaintNodes = ["SetLatentNoiseMask", "LoadImageMask", "ImageScale", "ImageCompositeMasked", "RepeatImageBatch", "RepeatLatentBatch", "SplitSigmasDenoise"];
 
 const maxMaskBytes = 16 * 1024 * 1024;
 // Below this a painted pixel is a stray brush edge, not part of the mask.
@@ -78,7 +78,8 @@ export function inpaintGeometry({ imageWidth, imageHeight, bounds, targetPixels 
 /** How far the seam fades, from the 0–1 "edge softness" setting, for a box this size. */
 export function featherSigma(softness, box) {
   const side = Math.min(box.width, box.height);
-  return Math.max(0.6, Math.min(1, Math.max(0, Number(softness) || 0)) * side * 0.04);
+  // Narrow on purpose: an edit model shifts things a little, and a wide blend shows that as ghosting.
+  return Math.max(0.6, Math.min(1, Math.max(0, Number(softness) || 0)) * side * 0.02);
 }
 
 export function maskBufferFromDataUrl(dataUrl) {
@@ -121,13 +122,16 @@ export async function inpaintFiles(sharp, sourceBuffer, maskBuffer, { targetPixe
     .png()
     .toBuffer();
   const boxMask = await rawGray(gray(mask, imageWidth, imageHeight).extract(region));
-  // Sampling: grown a little and soft, so differential diffusion eases the change in at the edge.
+  // Sampling: hard and grown a little past the paint. A soft sampling mask (differential
+  // diffusion) gives its edge only the last step or two, which few-step and edit models
+  // leave half-denoised: grey grain and a ghost of the original. Softness belongs to the stitch.
   const workMask = await rawGray(gray(boxMask, box.width, box.height).resize(work.width, work.height, { fit: "fill" }));
-  const softened = await rawGray(gray(workMask, work.width, work.height).blur(Math.max(1, Math.min(work.width, work.height) * 0.012)));
-  const samplingMask = await pngGray(gray(softened, work.width, work.height).linear(2.2, 0));
+  const grown = await rawGray(gray(workMask, work.width, work.height).blur(Math.max(1, Math.min(work.width, work.height) * 0.012)));
+  const samplingMask = await pngGray(gray(grown, work.width, work.height).threshold(12));
   // Stitching: at the box's own size, feathered by the edge-softness setting.
-  const compositeMask = await pngGray(gray(boxMask, box.width, box.height).blur(featherSigma(feather, box)));
-  return { box, work, crop, samplingMask, compositeMask };
+  // The solid core grows a little past the paint, so the soft band sits on repainted pixels (the sampling mask is grown too).
+  const compositeMask = await pngGray(gray(await rawGray(gray(boxMask, box.width, box.height).blur(featherSigma(feather, box))), box.width, box.height).linear(1.6, 0));
+  return { box, work, crop, samplingMask, compositeMask, image: { width: imageWidth, height: imageHeight } };
 }
 
 /**
@@ -159,6 +163,9 @@ export async function prepareInpaint(req, body) {
     composite: composite.comfyName,
     box: files.box,
     work: files.work,
+    // The whole picture's size and where it came from, so the live preview can draw on top of it.
+    image: files.image,
+    referenceId: String(reference.assetId),
     strength: body.inpaint.strength,
     feather: body.inpaint.feather
   };

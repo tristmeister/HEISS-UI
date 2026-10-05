@@ -162,6 +162,8 @@ export function useGenerationActions(view: any) {
         ...(inpaint ? { inpaint } : {}),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
+        // An imported workflow's "More settings" the person changed; the rest keep the workflow's values.
+        ...(view.workflowSettings && Object.keys(view.workflowSettings).length ? { workflowSettings: view.workflowSettings } : {}),
         privateVault: Boolean(hiddenSpace)
       };
       const queuedJobs: string[] = [];
@@ -180,12 +182,13 @@ export function useGenerationActions(view: any) {
         galleryUpsert(optimisticItems);
         if (prefs.zenMode) setZenSelectedId(optimisticItems[0].id);
         await nextPaint();
-        const { jobId, items, hidden: wentHidden } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number }>("/api/generate", {
+        const { jobId, items, hidden: wentHidden, notice } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number; notice?: string }>("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: !retry && canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
+        if (notice) showToast(notice, "error");
         firstItemOf.set(jobId, items?.[0] || optimisticItems[0]);
         if (wentHidden && !toHidden) {
           // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.

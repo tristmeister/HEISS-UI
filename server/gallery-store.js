@@ -855,8 +855,9 @@ export function makePendingItems(id, body) {
     prompt: body.prompt || "",
     negative: body.negative || "",
     createdAt,
-    width: Number(body.width || 0),
-    height: Number(body.height || 0),
+    // An inpaint result is the whole original picture, whatever size the crop sampled at.
+    width: Number(body.inpaint?.image?.width || body.width || 0),
+    height: Number(body.inpaint?.image?.height || body.height || 0),
     model: body.model || "",
     referenceImage: body.startImageId || "",
     referenceImageName: body.startImageName || "",
@@ -958,7 +959,12 @@ export function generationSettings(body) {
     settings.count = Number(body.count || 1);
     if (body.startImage || body.startImageId) settings.denoise = Number(body.denoise || 0);
     // Where the painted part sat in the reference; the mask itself is never kept.
-    if (body.inpaint?.box) settings.inpaint = { box: body.inpaint.box, strength: body.inpaint.strength, feather: body.inpaint.feather };
+    if (body.inpaint?.box) {
+      settings.inpaint = { box: body.inpaint.box, strength: body.inpaint.strength, feather: body.inpaint.feather };
+      if (body.inpaint.image?.width) settings.inpaint.image = { width: body.inpaint.image.width, height: body.inpaint.image.height };
+      // The reference's id lets the live preview draw over the original; a Hidden one stays out of the record.
+      if (body.inpaint.referenceId && !body.privateVault && !String(body.inpaint.referenceId).startsWith("vault:")) settings.inpaint.referenceId = body.inpaint.referenceId;
+    }
   }
   if (body.kind === "video") {
     settings.frames = Number(body.frames || 0);
@@ -984,8 +990,9 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
     durationMs,
     // How long ComfyUI itself took, without waiting in its queue.
     ...(job.timing ? { timing: job.timing } : {}),
-    width: Number(body.width || 0),
-    height: Number(body.height || 0),
+    // An inpaint result is the whole original picture, whatever size the crop sampled at.
+    width: Number(body.inpaint?.image?.width || body.width || 0),
+    height: Number(body.inpaint?.image?.height || body.height || 0),
     model: body.model || "",
     referenceImage: body.startImageId || "",
     referenceImageName: body.startImageName || "",

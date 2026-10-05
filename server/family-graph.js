@@ -226,16 +226,22 @@ export function familyGraph(body) {
   let denoise = 1;
   const inpaint = family.kind === "image" ? body.inpaint || null : null;
   const startImage = body.startImageComfy && !inpaint && !editLatent && !editSize && !family.references ? [add("LoadImage", { image: body.startImageComfy }), 0] : null;
-  if (inpaint) {
-    // Inpainting: the crop's own latent, repainted only where the mask says.
-    // An edit model starts from the latent of its first reference (the crop).
-    const base = editLatent || firstReference || [add("VAEEncode", { pixels: [add("LoadImage", { image: inpaint.crop }), 0], vae }), 0];
+  if (inpaint && (editLatent || editSize)) {
+    // Inpainting with an edit model (Qwen-Image 2.1, Flux.2): an ordinary edit of
+    // the crop, which it sees whole and unchanged, then only the painted part is
+    // stitched back. Edit models keep what they weren't asked to change; handing
+    // them noise inside a mask instead made them invent or copy (see stitchInpaint).
+    latent = editLatent
+      ? (count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent)
+      : [add(family.latent, { width: latentWidth, height: latentHeight, batch_size: count }), 0];
+  } else if (inpaint) {
+    // Inpainting with an image-to-image model: the crop's own latent, repainted only
+    // where the hard, slightly grown mask says. Its edge softness belongs to the stitch.
+    const base = [add("VAEEncode", { pixels: [add("LoadImage", { image: inpaint.crop }), 0], vae }), 0];
     const mask = [add("LoadImageMask", { image: inpaint.mask, channel: "red" }), 0];
     const masked = [add("SetLatentNoiseMask", { samples: base, mask }), 0];
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: masked, amount: count }), 0] : masked;
     denoise = Number(inpaint.strength ?? 1);
-    // A soft mask becomes a soft change: strongest where it was painted, easing out at the edge.
-    model = [add("DifferentialDiffusion", { model }), 0];
   } else if (editLatent) {
     latent = count > 1 ? [add("RepeatLatentBatch", { samples: editLatent, amount: count }), 0] : editLatent;
   } else if (family.imageToVideo) {

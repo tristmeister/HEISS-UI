@@ -97,7 +97,7 @@ My workflow JSON follows after this message.`;
 /** The prompt with one workflow and how HEISS UI read it, ready to paste into an agent. */
 export function agentPromptFor(item: { filename?: string; raw: unknown; preview: WorkflowImportPreview; metadata: WorkflowImportPreview["detected"] }) {
   const { controls, guessed = [] } = item.metadata;
-  const read = Object.entries(controls || {}).map(([key, mapping]) => `- ${key} → node ${mapping.node}.${mapping.input}${guessed.includes(key) ? " (guessed, check it)" : ""}`);
+  const read = Object.entries(controls || {}).map(([key, value]) => `- ${key} → ${[].concat(value as never).map((mapping: { node: string; input: string }) => `node ${mapping.node}.${mapping.input}`).join(" and ")}${guessed.includes(key) ? " (found by HEISS, check it)" : ""}`);
   const problems = [...(item.preview.validation.issues || []), ...(item.preview.validation.warnings || [])].map((issue) => `- ${issue}`);
   return `${promptHead}
 
@@ -105,5 +105,5 @@ How HEISS UI read it on import${item.filename ? ` (${item.filename})` : ""}:
 ${read.length ? read.join("\n") : "- Nothing connected yet."}
 ${problems.length ? `\nWhat HEISS UI reported:\n${problems.join("\n")}\n` : ""}
 The workflow JSON:
-${JSON.stringify(item.raw, null, 2)}`;
+${JSON.stringify(item.raw || item.preview.graph, null, 2)}`;
 }
