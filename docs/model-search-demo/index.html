@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Find your model · HEISS UI</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <style>
+    body { background:#0a0a0a; }
+    .demo-shell { max-width:1120px; margin:auto; padding:32px clamp(20px,5vw,64px) 72px; }
+    .demo-brand { display:inline-flex; align-items:center; gap:10px; color:#f5f5f5; text-decoration:none; font:700 24px/1 var(--pixel); min-height:44px; }
+    .demo-brand svg { width:24px; height:24px; }
+    .demo-section { margin-top:clamp(64px,10vh,120px); }
+    .demo-foot { margin-top:48px; display:flex; justify-content:space-between; gap:20px; color:#858585; font-size:12px; }
+    .demo-foot a { color:#aaa; text-underline-offset:4px; }
+    @media(max-width:600px) { .demo-shell { padding-top:20px; } .demo-section { margin-top:48px; } .demo-foot { flex-direction:column; gap:8px; } }
+  </style>
+  <script type="module" src="../model-search/section.js"></script>
+</head>
+<body>
+  <main class="demo-shell">
+    <a class="demo-brand" href="../" aria-label="HEISS UI home"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h12v3a6 6 0 0 1-12 0v-3Z" fill="currentColor"/><path d="M17 12h2a2 2 0 0 1 0 4h-2M9 3c-3 3 3 3 0 6m5-5c-3 3 3 3 0 6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>HEISS UI</a>
+    <noscript><p style="margin-top:32px">Enable JavaScript to search, or <a href="../models/">browse the model guides</a>.</p></noscript>
+    <div class="demo-section"><heiss-model-search></heiss-model-search></div>
+    <footer class="demo-foot"><span>Runs on your computer. Feels right at home.</span><a href="../models/">Explore the model guides ↗</a></footer>
+  </main>
+</body>
+</html>
