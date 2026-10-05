@@ -45,6 +45,8 @@ export class HeissModelSearch extends HTMLElement {
     this.input.addEventListener('input', event => { if (event.isComposing) return; this.limit = BATCH; this.schedule(); }, options);
     this.input.addEventListener('keydown', event => this.fieldKey(event), options);
     this.shadowRoot.addEventListener('click', event => this.click(event), options);
+    // Keep focus in the field while the clear button is pressed, so the frame doesn't flicker.
+    this.$('.clear').addEventListener('pointerdown', event => event.preventDefault(), options);
     this.stage.addEventListener('keydown', event => this.stageKey(event), options);
     document.addEventListener('keydown', event => {
       const origin = event.composedPath()[0];
@@ -92,11 +94,11 @@ export class HeissModelSearch extends HTMLElement {
     if (event.key === 'Escape' || (event.key === 'ArrowUp' && current === 0)) this.input.focus();
     else actions[Math.min(actions.length - 1, Math.max(0, current + (event.key === 'ArrowDown' ? 1 : -1)))]?.focus();
   }
-  actions() { return [...this.stage.querySelectorAll('.view:not([hidden]) :is(.row,.open)')]; }
+  actions() { return [...this.stage.querySelectorAll('.view:not([hidden], .is-leaving) :is(.row,.open)')]; }
 
   click(event) {
     const target = event.target.closest('button,a'); if (!target) return;
-    if (target.matches('.clear')) { this.reset(); this.input.focus(); }
+    if (target.matches('.clear')) { this.reset(); this.input.focus({ preventScroll: true }); }
     else if (target.matches('.row[aria-expanded]')) this.toggleNote(target);
     else if (target.hasAttribute('data-retry')) this.load();
   }
@@ -121,9 +123,18 @@ export class HeissModelSearch extends HTMLElement {
 
   showView(name) {
     const views = { home: this.$('.home'), found: this.$('.found'), loading: this.$('.loading') };
+    if (this.leaving) { const { view, animation } = this.leaving; animation.onfinish = null; animation.cancel(); view.classList.remove('is-leaving'); view.hidden = true; this.leaving = null; }
     for (const [key, view] of Object.entries(views)) {
       const visible = key === name;
       if (visible && view.hidden && !still()) view.animate([{ opacity: 0, filter: 'blur(4px)', transform: 'translateY(6px)' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 420, easing: EASE });
+      // The view that leaves fades out in place while the stage shrinks around it, so nothing blinks.
+      if (!visible && !view.hidden && !still() && this.index) {
+        view.classList.add('is-leaving');
+        const animation = view.animate([{ opacity: 1 }, { opacity: 0, transform: 'translateY(-4px)' }], { duration: 260, easing: 'ease-out' });
+        animation.onfinish = () => { view.hidden = true; view.classList.remove('is-leaving'); this.leaving = null; };
+        this.leaving = { view, animation };
+        continue;
+      }
       view.hidden = !visible;
     }
   }

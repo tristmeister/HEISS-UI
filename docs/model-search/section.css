@@ -151,6 +151,7 @@ kbd {
   display: grid; place-items: center; flex: none;
   width: 26px; height: 26px; margin-left: -44px; margin-right: 6px;
   background: rgb(255 255 255 / 0.04);
+  pointer-events: none;
   border-radius: 7px; box-shadow: inset 0 0 0 1px var(--ms-line-strong);
   color: var(--ms-text-3); font: 500 13px/1 var(--mono, monospace);
   transition: opacity 200ms var(--ms-ease-ui);
@@ -158,7 +159,8 @@ kbd {
 .has-value kbd, .field:focus-within kbd { opacity: 0; }
 
 /* Results */
-.stage { margin-top: 52px; }
+.stage { position: relative; margin-top: 52px; }
+.view.is-leaving { position: absolute; inset: 0 0 auto; pointer-events: none; }
 .list-head {
   margin: 0 4px 12px;
   color: var(--ms-text-3); font-size: 13px; font-weight: 550; letter-spacing: -0.005em;
