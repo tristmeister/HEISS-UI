@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, Circle
 import { cn, aspectIconStyle } from './format';
 import { familyLabel, setupNote } from './components';
 import { downloadUrl } from './GalleryTile';
-import { canUpscaleItem } from './useUpscale';
+import { autoUpscaleTiers, canUpscaleItem } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { ReferenceSlots } from './ReferenceMediaPicker';
 import { haptic, HapticTarget } from './phoneControls';
@@ -16,7 +16,7 @@ import { useHistoryDismiss } from './useHistoryDismiss';
 import { progressLine, progressReading, RunLeft } from './GenerationProgress';
 import { RestartEtaText } from './ComfyRestart';
 import { estimatePhrase } from './useGenerationEstimate';
-import type { AspectPreset, GalleryItem, Profile } from './types';
+import type { AspectPreset, AutoUpscale, GalleryItem, Profile } from './types';
 import type { ShowToast } from './toast';
 import { PromptHistorySheet } from './PromptHistory';
 import { PhoneSearchBar } from './GallerySearch';
@@ -493,7 +493,8 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
     prompt, setPrompt, promptLimit, clampText, negative, setNegative, negativeLimit, currentProfile, hiddenSpace,
     aspectOptions, aspectPickerValue, aspectLocked, defaultAspectSize, mode, count, countMeta, setCount, steps, stepsMeta, setSteps,
     referenceInputs, referenceStrength, referenceInpaint, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
-    generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls, generationEstimate
+    generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls, generationEstimate,
+    prefs, chooseAutoUpscale
   } = view;
   const [sheet, setSheet] = React.useState<'' | 'workflow' | 'aspect' | 'advanced'>('');
   const [showNegative, setShowNegative] = React.useState(Boolean(negative));
@@ -504,6 +505,9 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const maxCount = Math.max(1, Math.min(4, Number(countMeta?.max || 4)));
   const { min: stepMin, max: stepMax, recommended: stepDefault } = practicalStepRange(currentProfile, stepsMeta, steps);
   const aspect = (aspectOptions as AspectPreset[] || []).find((option) => option.value === aspectPickerValue);
+  // Smart upscale, as in the desktop size menu: images only, and only while it is on in Settings.
+  const smartUpscale = mode === 'image' && prefs?.smartUpscale !== false && typeof chooseAutoUpscale === 'function';
+  const autoUpscale: AutoUpscale = prefs?.autoUpscale || 'none';
   // A long run says so before it starts; a quick one needs no warning.
   const estimate = generationEstimate?.ms && generationEstimate.ms >= 45_000 ? `Takes ${estimatePhrase(generationEstimate)}.` : '';
   const reason = restarting ? <>ComfyUI is restarting. <RestartEtaText fallback="Back in a few seconds." /></> : comfyOffline ? 'ComfyUI is offline.' : !prompt.trim() ? '' : generateDisabled ? generateDisabledReason : estimate;
@@ -605,6 +609,18 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
           </button>
         ) : null}
       </div>
+
+      {smartUpscale ? (
+        <div className="phone-control">
+          <span className="phone-control-label" id="phone-upscale-label">Smart upscale</span>
+          <div className="phone-seg" role="radiogroup" aria-labelledby="phone-upscale-label">
+            {autoUpscaleTiers.map((tier) => (
+              <button key={tier.value} type="button" role="radio" aria-checked={autoUpscale === tier.value} className={cn(autoUpscale === tier.value && 'active')} onClick={() => chooseAutoUpscale(tier.value)}>{tier.label}</button>
+            ))}
+          </div>
+          <p className="phone-control-note">Upscales each new image with SeedVR2 when it’s done, rebuilding fine detail. Takes a little longer; the original is kept.</p>
+        </div>
+      ) : null}
 
       {variations && maxCount > 1 ? (
         <div className="phone-control">

@@ -96,3 +96,12 @@
 @media (prefers-reduced-motion: reduce) {
   .aspect-upscale-tabs > i { transition: none; }
 }
+
+/* Phone studio: the same three tiers as a segmented row in the create sheet. */
+.phone-control-note {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}
