@@ -113,7 +113,10 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
   const visible = useMemo(() => {
     if (!enabled) return groups;
     const now = Date.now();
-    const runs = groups.runs.filter((run) => settled.has(run.id) && !runIsActive(run, now));
+    // A quiet run seen for the first time (opening the app, Hidden, the next
+    // page) is stacked in this very render, as check() is about to decide, so
+    // it never shows loose for a frame and then jumps into its stack.
+    const runs = groups.runs.filter((run) => !runIsActive(run, now) && (settled.has(run.id) || (!seen.current.has(run.id) && !held.current.has(run.id))));
     if (runs.length === groups.runs.length) return groups;
     const keep = new Set(runs);
     const runOf = new Map(groups.runOf);

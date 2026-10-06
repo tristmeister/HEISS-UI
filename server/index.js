@@ -1,5 +1,8 @@
 // First: keeps a copy of data/ before a new version's stores load and migrate it.
 import { dropSnapshots } from "./data-snapshot.js";
+// Next, so a crash anywhere below, even while starting, is written down (data/logs).
+import "./crash-log-install.js";
+import { addProbe, logDir } from "./crash-log.js";
 import express from "express";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -28,7 +31,7 @@ import { cancelDownload, discardDownload, downloadState, replaceDownload, startD
 import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
-import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
+import { buildStats, forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { clearPromptHistory, forgetPrompts, listPrompts, promptHistoryEnabled, promptKey, recordPrompt, setPromptHistoryEnabled, setPromptPinned } from './prompt-history.js';
 import { addLibraryFolder, fillVideoSizes, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
 import { forgetItemVideoPreviews, forgetPrivateVideoPreviews, getComfyVideoPoster, getComfyVideoPreview, getFileVideoPoster, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
@@ -74,6 +77,9 @@ import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoic
 import { compressJson, serveApp } from './http-assets.js';
 import { describeGitError, updateCheckout } from './git-update.js';
 import { diagnostics, diagnosticsText } from './diagnostics.js';
+
+// Thumbnails building and waiting, in every heartbeat and crash line.
+addProbe("thumbs", () => buildStats());
 
 const app = express();
 // Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
@@ -629,6 +635,18 @@ app.get("/api/diagnostics", async (_req, res) => {
 
 // When this server process started, so the app can tell a restart (e.g. after an update) happened.
 const serverStartedAt = Date.now();
+
+// The latest lines of today's log (crash-log.js), for the crash kit and bug reports. This computer only.
+app.get("/api/logs", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const lines = Math.max(1, Math.min(500, Number(req.query.lines || 100)));
+  try {
+    const text = fs.readFileSync(path.join(logDir, `heiss-${new Date().toISOString().slice(0, 10)}.log`), "utf8");
+    res.type("text/plain").send(text.trimEnd().split("\n").slice(-lines).join("\n"));
+  } catch {
+    res.type("text/plain").send("");
+  }
+});
 
 app.get("/api/health", async (req, res) => {
   try {

@@ -672,3 +672,37 @@
   .run-burst:hover .run-burst-edge.is-1 { transform: translateY(1px); }
   .run-burst:hover .run-burst-edge.is-2 { transform: translateY(2px); }
 }
+
+/* ------------------------------------------------------------ Loading in */
+
+/* A stack's images arrive the way every tile's image does: blurred and a
+   touch large, shimmering until decoded, then easing sharp. The cover flow's
+   glow and side faces come in after its front image. */
+.run-stack-cover > img,
+.run-flow-face > img,
+.run-flow-ambient > img,
+.run-stack-skim-frame > img {
+  transform-origin: center;
+  transition:
+    filter 560ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 380ms ease,
+    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.run-stack-cover > img.media-loading,
+.run-flow-face > img.media-loading,
+.run-stack-skim-frame > img.media-loading {
+  animation: mediaShimmer 1.6s var(--ease-soft) infinite;
+  filter: blur(22px) saturate(1.25);
+  opacity: 0;
+  transform: scale(1.035);
+}
+.run-flow-ambient > img.media-loading { opacity: 0; }
+.run-flow-ambient { animation: run-glow-in 700ms ease both; }
+@keyframes run-glow-in { from { opacity: 0; } to { opacity: 1; } }
+/* Same surface as a tile while the image is on its way. */
+.run-stack-cover, .run-flow { background-color: hsl(var(--card)); }
+@media (prefers-reduced-motion: reduce) {
+  .run-stack-cover > img, .run-flow-face > img, .run-flow-ambient > img { transition: opacity 180ms ease; }
+  .run-stack-cover > img.media-loading, .run-flow-face > img.media-loading { filter: none; transform: none; animation: none; }
+  .run-flow-ambient { animation: none; }
+}

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronsDownUp, Ungroup } from 'lucide-react';
 import { cn } from './format';
@@ -10,10 +10,22 @@ import { BURST_EDGE, FLOW_FACE_HEIGHT, FLOW_FACE_WIDTH, SHELF_FOOT, SHELF_HEAD }
 import type { GalleryItem } from './types';
 
 /** A still of an output for the cards behind a stack: the thumbnail, or a video's poster. */
-export function Still({ item }: { item: GalleryItem }) {
+export function Still({ item, onLoad }: { item: GalleryItem; onLoad?: () => void }) {
   const preview = item.type === "video" && item.url ? videoPreviewUrl(item.url) : "";
   const src = item.type === "video" ? (preview ? `${preview}${preview.includes("?") ? "&" : "?"}poster=1` : "") : item.thumbnailUrl || item.url;
-  return <SafeImg src={src} loading="lazy" decoding="async" draggable={false} onDragStart={(event) => event.preventDefault()} />;
+  // Unblurs in like a gallery tile's image (media-loading in the styles), instead of popping in.
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <SafeImg
+      src={src}
+      className={loaded ? undefined : "media-loading"}
+      loading="lazy"
+      decoding="async"
+      draggable={false}
+      onLoad={() => { requestAnimationFrame(() => setLoaded(true)); onLoad?.(); }}
+      onDragStart={(event) => event.preventDefault()}
+    />
+  );
 }
 
 const timeFormat = () => new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" });
@@ -164,8 +176,17 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
   // Two faces to a side at most: more are lost in the fade and cost frames.
   const reach = Math.min(2, Math.floor((count - 1) / 2));
   const extraRight = count > 1 && (count - 1) % 2 === 1 && reach < 2 ? 1 : 0;
+  // The front image loads first, like any tile; the faces beside it and the
+  // glow follow once it's in, so a card costs one image at first, not six.
+  const [frontReady, setFrontReady] = useState(false);
+  useEffect(() => {
+    if (frontReady) return;
+    const timer = window.setTimeout(() => setFrontReady(true), 1500);
+    return () => window.clearTimeout(timer);
+  }, [frontReady]);
   const leaves: Array<{ item: GalleryItem; offset: number }> = [];
   for (let offset = -reach; offset <= reach + extraRight; offset += 1) {
+    if (offset && !frontReady) continue;
     leaves.push({ item: done[(((center + offset) % count) + count) % count], offset });
   }
   return (
@@ -178,7 +199,7 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
       transition={{ type: "spring", stiffness: 420, damping: 30 }}
     >
       <button type="button" className="run-stack run-flow" aria-label={`${title}. ${runKind(run)}. Open the run`} onClick={onOpen}>
-        <span className="run-flow-ambient" aria-hidden="true"><Still item={run.cover} /></span>
+        {frontReady ? <span className="run-flow-ambient" aria-hidden="true"><Still item={run.cover} /></span> : null}
         <span className="run-flow-stage" style={{ "--face-w": `${faceW}px`, "--face-h": `${faceH}px` } as React.CSSProperties}>
           {leaves.map(({ item, offset }) => {
             const side = Math.sign(offset);
@@ -194,7 +215,7 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
                   "--away": away,
                 } as React.CSSProperties}
               >
-                {item.id === run.cover.id && !away ? <Media item={item} muted /> : <Still item={item} />}
+                {item.id === run.cover.id && !away && item.type === "video" ? <Media item={item} muted /> : <Still item={item} onLoad={away ? undefined : () => setFrontReady(true)} />}
               </span>
             );
           })}

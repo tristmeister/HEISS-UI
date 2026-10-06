@@ -13,6 +13,26 @@ const longestEdge = 768;
 const quality = 72;
 const pending = new Map();
 
+/**
+ * How many thumbnails are built at once. A screen of the gallery can ask for
+ * a hundred at the same moment (stacks ask for several each), and every build
+ * decodes the full image, often fetched from ComfyUI first: all at once that
+ * is a memory spike here and a flood of /view requests there. Cached
+ * thumbnails don't wait; only building does.
+ */
+export const BUILD_SLOTS = 4;
+let building = 0;
+const waiting = [];
+export function buildStats() { return { building, waiting: waiting.length }; }
+async function inSlot(work) {
+  if (building >= BUILD_SLOTS) await new Promise((resolve) => waiting.push(resolve));
+  building += 1;
+  try { return await work(); } finally {
+    building -= 1;
+    waiting.shift()?.();
+  }
+}
+
 /*
  * The cache is capped (2 GB unless HEISS_THUMBNAIL_CACHE_MB says otherwise).
  * When it grows past that, the thumbnails used longest ago go first, down to
@@ -203,21 +223,27 @@ async function build(filename, subfolder, type) {
   if (local) {
     const file = cachePath(key, local.sourceHash);
     if (fs.existsSync(file)) return { file, etag: `\"${local.sourceHash}\"` };
-    let source;
-    try { source = fs.readFileSync(local.file); } catch { source = null; }
-    if (source) return writeThumbnail(key, local.sourceHash, source);
+    const made = await inSlot(async () => {
+      if (fs.existsSync(file)) return { file, etag: `\"${local.sourceHash}\"` };
+      let source;
+      try { source = fs.readFileSync(local.file); } catch { source = null; }
+      return source ? writeThumbnail(key, local.sourceHash, source) : null;
+    });
+    if (made) return made;
   }
   // Not on this computer (a remote ComfyUI, or an input/temp file). ComfyUI
   // installations do not consistently provide a useful ETag, and a reused
   // filename could otherwise receive an unrelated old preview, so hash the bytes.
-  const source = await sourceBytes(filename, subfolder, type);
-  // ComfyUI is down and the file is not on this computer: an earlier thumbnail still beats nothing.
-  if (source === undefined) return cachedThumbnail(key);
-  if (!source) return null;
-  const sourceHash = crypto.createHash("sha256").update(source).digest("hex");
-  const file = cachePath(key, sourceHash);
-  if (fs.existsSync(file)) return { file, etag: `\"${sourceHash}\"` };
-  return writeThumbnail(key, sourceHash, source);
+  return inSlot(async () => {
+    const source = await sourceBytes(filename, subfolder, type);
+    // ComfyUI is down and the file is not on this computer: an earlier thumbnail still beats nothing.
+    if (source === undefined) return cachedThumbnail(key);
+    if (!source) return null;
+    const sourceHash = crypto.createHash("sha256").update(source).digest("hex");
+    const file = cachePath(key, sourceHash);
+    if (fs.existsSync(file)) return { file, etag: `\"${sourceHash}\"` };
+    return writeThumbnail(key, sourceHash, source);
+  });
 }
 
 async function writeThumbnail(key, sourceHash, source) {
@@ -285,7 +311,7 @@ async function findOrBuildFile(file) {
     const sourceHash = crypto.createHash("sha256").update(`local:${stat.size}:${stat.mtimeMs}`).digest("hex");
     const cached = cachePath(key, sourceHash);
     if (fs.existsSync(cached)) return { file: cached, etag: `"${sourceHash}"` };
-    return writeThumbnail(key, sourceHash, fs.readFileSync(resolved));
+    return inSlot(() => writeThumbnail(key, sourceHash, fs.readFileSync(resolved)));
   })().finally(() => pending.delete(key));
   pending.set(key, promise);
   return promise;
