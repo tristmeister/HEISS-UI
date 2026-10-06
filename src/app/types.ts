@@ -40,6 +40,8 @@ export type ReferenceInpaint = { slot: string; mask: string | null; onChange: (d
 export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
 export type UpscaleQuality = "fast" | "balanced" | "high";
+/** Smart upscale in the size menu: every new image upscales to this once it finishes. */
+export type AutoUpscale = "none" | "2k" | "4k";
 export type UpscaleState = {
   status: "running" | "done" | "error" | "canceled";
   jobId?: string;
@@ -270,6 +272,7 @@ export type Preferences = {
   runCooldownMinutes: number;
   smartUpscale: boolean;
   upscaleQuality: UpscaleQuality;
+  autoUpscale: AutoUpscale;
   upscaleFaceDetail: boolean;
   /** Minutes untouched before Hidden locks itself; 0 leaves it to the session. */
   hiddenAutoLockMinutes: number;

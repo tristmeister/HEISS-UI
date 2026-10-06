@@ -20,6 +20,7 @@ export const defaultPrefs: Preferences = {
   runCooldownMinutes: 1,
   smartUpscale: true,
   upscaleQuality: "balanced",
+  autoUpscale: "none",
   upscaleFaceDetail: false,
   hiddenAutoLockMinutes: 15,
   modelFolderHints: true,

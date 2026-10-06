@@ -4,7 +4,7 @@ import { ChevronDown, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
-import type { AspectPreset, Output, Profile } from './types';
+import type { AspectPreset, AutoUpscale, Output, Profile } from './types';
 import { aspectIconStyle, cn, titleFromPrompt } from './format';
 import { wheelPixels } from './wheel';
 import { formatDownload, modelFits, useHardware } from './hardware';
@@ -308,7 +308,48 @@ export function NumberPicker({
   );
 }
 
-export function AspectPicker({ value, options, onChange, currentSize, defaultSize, density = "full" }: { value: string; options: AspectPreset[]; onChange: (value: string) => void; currentSize: string; defaultSize: string; density?: ControlDensity }) {
+const upscaleTabs: { value: AutoUpscale; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "2k", label: "2K" },
+  { value: "4k", label: "4K" }
+];
+
+/** Smart upscale's tabs, on top of the size menu: what every new image becomes once it finishes. */
+function SmartUpscaleTabs({ value, onChange }: { value: AutoUpscale; onChange: (value: AutoUpscale) => void }) {
+  const index = Math.max(0, upscaleTabs.findIndex((tab) => tab.value === value));
+  return (
+    <div className="aspect-upscale">
+      <div className="aspect-upscale-head">
+        <span id="aspect-upscale-label">Smart upscale</span>
+        <InfoTip side="top" content="Upscales every new image with SeedVR2 as it finishes, rebuilding fine detail instead of stretching pixels. Takes a little longer; the original is kept." />
+      </div>
+      <div className="aspect-upscale-tabs" role="radiogroup" aria-labelledby="aspect-upscale-label" style={{ "--tab-index": index } as React.CSSProperties} onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const next = upscaleTabs[(index + (event.key === "ArrowRight" ? 1 : -1) + upscaleTabs.length) % upscaleTabs.length];
+        onChange(next.value);
+        requestAnimationFrame(() => event.currentTarget.querySelector<HTMLButtonElement>(`[data-tier="${next.value}"]`)?.focus());
+      }}>
+        <i aria-hidden="true" />
+        {upscaleTabs.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            role="radio"
+            data-tier={tab.value}
+            aria-checked={tab.value === value}
+            tabIndex={tab.value === value ? 0 : -1}
+            className={cn(tab.value === value && "is-active")}
+            onClick={() => onChange(tab.value)}
+          >{tab.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AspectPicker({ value, options, onChange, currentSize, defaultSize, density = "full", upscale = "none", onUpscaleChange }: { value: string; options: AspectPreset[]; onChange: (value: string) => void; currentSize: string; defaultSize: string; density?: ControlDensity; upscale?: AutoUpscale; onUpscaleChange?: (value: AutoUpscale) => void }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((item) => item.value === value);
@@ -316,6 +357,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   const close = useCallback(() => setOpen(false), []);
   useDismiss(pickerRef, open, close);
   const label = selected ? selected.label : isDefault ? "Default" : "Free";
+  const upscaleLabel = onUpscaleChange && upscale !== "none" ? upscale.toUpperCase() : "";
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -327,13 +369,16 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   }, [open]);
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
+      <Tip content={`${density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
           {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
-          {density === "full" ? <span>{label}</span> : null}
+          {density === "full" ? <span>{label}{upscaleLabel ? <b className="aspect-upscale-badge">{upscaleLabel}</b> : null}</span> : null}
+          {density !== "full" && upscaleLabel ? <b className="aspect-upscale-dot" aria-hidden="true" /> : null}
           {density === "mini" ? null : <ChevronDown size={14} className={cn(open && "flip")} />}
         </button></Tip>
       {open ? (
-        <div className="aspect-menu" data-open-surface role="listbox" aria-label="Aspect ratio" onKeyDown={(event) => {
+        <div className="aspect-menu" data-open-surface>
+        {onUpscaleChange ? <SmartUpscaleTabs value={upscale} onChange={onUpscaleChange} /> : null}
+        <div className="aspect-list" role="listbox" aria-label="Aspect ratio" onKeyDown={(event) => {
           // Up and down move between options; the menu opens with focus on the chosen one.
           if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
           event.preventDefault();
@@ -341,7 +386,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
           const index = items.indexOf(document.activeElement as HTMLButtonElement);
           items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
         }} ref={(node) => { if (node && !node.contains(document.activeElement)) (node.querySelector<HTMLButtonElement>("button.aspect-option.active") || node.querySelector<HTMLButtonElement>("button.aspect-option"))?.focus({ preventScroll: true }); }}>
-          <Tip content="Use the model’s default size"><button
+          <button
               type="button"
               className={cn("aspect-option", value === "default" && "active")}
               role="option"
@@ -354,7 +399,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
               <span className="aspect-shape default" />
               <span>Default</span>
               <em>{defaultSize}</em>
-            </button></Tip>
+            </button>
           {options.map((option) => (
             <button
                 key={option.value}
@@ -373,6 +418,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
               </button>
           ))}
           {value === "free" ? <div className="aspect-option active is-readonly"><span className="aspect-shape custom" /><span>Free</span><em>{currentSize}</em></div> : null}
+        </div>
         </div>
       ) : null}
     </div>

@@ -84,6 +84,20 @@ function fileLine(file: UpscaleInstallFile) {
   }
 }
 
+/** Setup opened from a Smart upscale tab speaks about new images at that size, not about one image. */
+const autoCopyFor = (stage: UpscaleSetupStage, size: string, fallback: string): { title: string; description: string } | null => {
+  switch (stage) {
+    case "checking": return { title: `Smart upscale to ${size}`, description: "Checking ComfyUI…" };
+    case "nodes": return { title: `Smart upscale to ${size}`, description: `New images upscale to ${size} as they finish, on the SeedVR2 nodes. Add them to ComfyUI first.` };
+    case "models": return { title: `Smart upscale to ${size}`, description: `New images upscale to ${size} as they finish. That needs the SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
+    case "downloading": return { title: `Getting ${size} ready`, description: "Smart upscale turns on when this finishes. The download continues if you close this." };
+    case "ready": return fallback
+      ? { title: `Smart upscale to ${size} is on`, description: "It uses a SeedVR2 weight you already have. Its own model is one download away." }
+      : { title: `Smart upscale to ${size} is on`, description: `New images upscale to ${size} as they finish. The original is kept, one click away.` };
+    default: return null;
+  }
+};
+
 const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean, fallback: string): { title: string; description: string } => {
   switch (stage) {
     case "checking": return { title: "Setting up smart upscale", description: "Checking ComfyUI…" };
@@ -125,7 +139,8 @@ export function UpscaleSetupDialog({
   const admin = useThisComputer();
   const progress = install?.totalBytes ? (install.receivedBytes || 0) / install.totalBytes : 0;
   const fallback = status?.substituting ? status.fallbackFile || "another installed SeedVR2 weight" : "";
-  const { title, description } = copyFor(stage, quality, Boolean(pending), fallback);
+  const autoSize = setup.auto ? setup.auto.toUpperCase() : "";
+  const { title, description } = (autoSize && autoCopyFor(stage, autoSize, fallback)) || copyFor(stage, quality, Boolean(pending), fallback);
   const close = setup.closeSetup;
   const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Continue in background" : "Not now"}</button>;
   const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} /> Check again</button>;
@@ -188,7 +203,7 @@ export function UpscaleSetupDialog({
       </div>
     ) : (
       <>
-        <div className="upscale-efforts" role="radiogroup" aria-label="Upscale effort">
+        {autoSize ? null : <div className="upscale-efforts" role="radiogroup" aria-label="Upscale effort">
           {upscaleEfforts.map((effort) => (
             <button
               key={effort.value}
@@ -203,7 +218,7 @@ export function UpscaleSetupDialog({
               <small>{formatBytes(effort.downloadBytes)}</small>
             </button>
           ))}
-        </div>
+        </div>}
         <ul className="upscale-files">
           {missingModels.map((model) => (
             <li key={model.file}>
@@ -220,7 +235,7 @@ export function UpscaleSetupDialog({
           <code title={status.modelDir}>{status.modelDir}</code>
           {freeBytes !== null ? <span>{formatBytes(freeBytes)} free</span> : null}
         </div>
-        {tooBig ? <p className="upscale-fine is-warn">Free up {formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)} on that drive, or pick a lighter effort.</p> : null}
+        {tooBig ? <p className="upscale-fine is-warn">Free up {formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)} on that drive{autoSize === "4K" ? ", or use 2K" : autoSize ? "" : ", or pick a lighter effort"}.</p> : null}
         {setup.startError ? <p className="upscale-fine is-warn">{setup.startError}</p> : null}
       </>
     );
@@ -290,7 +305,7 @@ export function UpscaleSetupDialog({
     ) : null;
     footer = pending ? null : fallback && admin ? (
       <>
-        <button className="btn is-ghost" onClick={close}>Keep the fallback</button>
+        <button className="btn is-ghost" onClick={close}>{autoSize ? "Use it for now" : "Keep the fallback"}</button>
         <button className="btn is-primary" onClick={setup.downloadOwnModel}>Download {upscaleQualityLabel(quality)} · {formatBytes(status?.downloadBytes)}</button>
       </>
     ) : <button className="btn is-primary" onClick={close}>Done</button>;

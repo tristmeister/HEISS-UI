@@ -5,7 +5,7 @@ import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ReferenceSlots, type ReferenceStrength } from './ReferenceMediaPicker';
-import type { AspectPreset, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from './types';
+import type { AspectPreset, AutoUpscale, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from './types';
 import { estimatePhrase, formatAbout, type GenerationEstimate } from './useGenerationEstimate';
 
 /* ---------------------------------------------------------------------------
@@ -215,6 +215,9 @@ export type ComposerBarProps = {
   aspectValue: string;
   defaultAspectSize: string;
   applyAspect: (value: string) => void;
+  /** Smart upscale's tabs on top of the size menu; left out where it doesn't apply (video). */
+  autoUpscale?: AutoUpscale;
+  onAutoUpscaleChange?: (value: AutoUpscale) => void;
   customSize: boolean;
   aspectLocked?: boolean;
   width: number;
@@ -264,7 +267,7 @@ export type ComposerBarProps = {
 export function ComposerBar(props: ComposerBarProps) {
   const {
     models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
-    aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
+    aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect, autoUpscale = "none", onAutoUpscaleChange,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
     hiddenSpace, onOpenLoras,
@@ -296,6 +299,8 @@ export function ComposerBar(props: ComposerBarProps) {
       currentSize={aspectValue}
       defaultSize={defaultAspectSize}
       density={density}
+      upscale={autoUpscale}
+      onUpscaleChange={onAutoUpscaleChange}
     />
   );
 
