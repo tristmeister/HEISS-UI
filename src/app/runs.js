@@ -11,8 +11,10 @@
 // An evening that runs into the small hours stays one evening; a morning and
 // an evening on the same day are two.
 //
-// Runs: every output is scored against the last few members of the runs open
-// in its moment, and joins the best one that scores at least RUN_THRESHOLD.
+// Runs: every output is scored against the last few members of the runs still
+// open, and joins the best one that scores at least RUN_THRESHOLD. A run stays
+// open until RUN_GAP passes without a new member: coming back to a prompt the
+// next day starts a new run, even with the very same words.
 // Comparing with recent members rather than the first means a prompt that is
 // tweaked a little at a time (another film, another setting) stays one run,
 // however far it ends up from where it started. The score is mostly the
@@ -23,6 +25,8 @@
 
 /** A pause longer than this between two outputs starts a new moment. */
 export const MOMENT_GAP_MS = 3 * 60 * 60 * 1000;
+/** A run with nothing new for longer than this is closed; the same prompt later starts another. */
+export const RUN_GAP_MS = 6 * 60 * 60 * 1000;
 /** Two outputs this similar or more belong to one run. */
 export const RUN_THRESHOLD = 0.55;
 /** A run stacks once it has this many finished outputs. */
@@ -121,8 +125,6 @@ export function runScore(a, b, weightOf = () => 1) {
   let score = a.prompt === b.prompt ? 0.9 : promptSimilarity(a.words, b.words, weightOf);
   if (a.item.model && b.item.model) score += a.item.model === b.item.model ? 0.06 : -0.12;
   if (a.loras.length || b.loras.length) score += 0.04 * (overlap(a.loras, b.loras) - 0.5);
-  // Coming back to an idea after a long break is likelier a new attempt.
-  if (Math.abs(a.time - b.time) > 90 * 60 * 1000) score -= 0.08;
   return score;
 }
 
@@ -173,11 +175,12 @@ export function momentTitle(start, end, now = Date.now()) {
 
 /**
  * Groups a newest-first gallery. Returns its moments (each with its items,
- * still newest first) and the runs found inside them, with a lookup from an
- * output to its run. Only runs with MIN_STACK finished outputs are returned;
+ * still newest first) and its runs, with a lookup from an output to its run. Only runs with MIN_STACK finished outputs are returned;
  * smaller ones are just images.
  */
 export function groupGallery(items, { now = Date.now(), runs: findRuns = true } = {}) {
+  const runOf = new Map();
+  const runList = [];
   const moments = [];
   let current = null;
   let previousTime = 0;
@@ -194,8 +197,6 @@ export function groupGallery(items, { now = Date.now(), runs: findRuns = true } 
     previousTime = time;
   }
 
-  const runOf = new Map();
-  const runList = [];
   const { weightOf } = findRuns ? wordWeights(items) : { weightOf: () => 1 };
   const prepared = new Map();
   const prepare = (item) => {
@@ -211,58 +212,67 @@ export function groupGallery(items, { now = Date.now(), runs: findRuns = true } 
     const oldest = moment.items.at(-1);
     const id = `moment:${oldest?.id || moment.start}`;
     const { title, part } = momentTitle(moment.start, moment.end, now);
-    if (!findRuns) return { id, title, part, start: moment.start, end: moment.end, items: moment.items };
-    const open = [];
-    const made = [];
-    for (let index = moment.items.length - 1; index >= 0; index -= 1) {
-      const item = moment.items[index];
-      if (item.status !== "done" && item.status !== "pending") continue;
-      const entry = prepare(item);
-      let best = null;
-      let bestScore = RUN_THRESHOLD;
-      for (const run of open) {
-        for (const member of run.recent) {
-          const score = runScore(entry, member, weightOf);
-          if (score >= bestScore) { best = run; bestScore = score; }
-        }
-      }
-      if (!best) {
-        best = { members: [], recent: [] };
-        made.push(best);
-        open.unshift(best);
-        if (open.length > OPEN_RUNS) open.pop();
-      } else {
-        // The run just used moves to the front, so the busiest ideas stay open.
-        open.splice(open.indexOf(best), 1);
-        open.unshift(best);
-      }
-      best.members.push(item);
-      best.recent.push(entry);
-      if (best.recent.length > RECENT_MEMBERS) best.recent.shift();
-    }
-    for (const run of made) {
-      const done = run.members.filter((item) => item.status === "done");
-      if (done.length < MIN_STACK) continue;
-      const newestFirst = run.members.slice().reverse();
-      const prompts = new Set(newestFirst.map((item) => String(item.prompt || "").trim().toLowerCase()));
-      const record = {
-        id: `run:${run.members[0].id}`,
-        momentId: id,
-        items: newestFirst,
-        count: done.length,
-        live: newestFirst.some((item) => item.status === "pending"),
-        cover: newestFirst.find((item) => item.status === "done"),
-        variations: prompts.size,
-        model: newestFirst.find((item) => item.model)?.model || "",
-        type: newestFirst[0].type || "image",
-        start: timeOf(run.members[0]),
-        end: timeOf(run.members.at(-1)),
-      };
-      runList.push(record);
-      for (const item of newestFirst) runOf.set(item.id, record);
-    }
     return { id, title, part, start: moment.start, end: moment.end, items: moment.items };
   });
+  if (!findRuns) return { moments: result, runs: runList, runOf };
+
+  // Oldest first, across the whole gallery: a run isn't cut by a moment, only
+  // by RUN_GAP without anything new.
+  const momentOf = new Map();
+  result.forEach((moment) => { for (const item of moment.items) momentOf.set(item.id, moment.id); });
+  const open = [];
+  const made = [];
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index];
+    if (item.status !== "done" && item.status !== "pending") continue;
+    const entry = prepare(item);
+    for (let position = open.length - 1; position >= 0; position -= 1) {
+      if (entry.time - open[position].last > RUN_GAP_MS) open.splice(position, 1);
+    }
+    let best = null;
+    let bestScore = RUN_THRESHOLD;
+    for (const run of open) {
+      for (const member of run.recent) {
+        const score = runScore(entry, member, weightOf);
+        if (score >= bestScore) { best = run; bestScore = score; }
+      }
+    }
+    if (!best) {
+      best = { members: [], recent: [], last: entry.time };
+      made.push(best);
+      open.unshift(best);
+      if (open.length > OPEN_RUNS) open.pop();
+    } else {
+      // The run just used moves to the front, so the busiest ideas stay open.
+      open.splice(open.indexOf(best), 1);
+      open.unshift(best);
+    }
+    best.members.push(item);
+    best.recent.push(entry);
+    best.last = Math.max(best.last, entry.time);
+    if (best.recent.length > RECENT_MEMBERS) best.recent.shift();
+  }
+  for (const run of made) {
+    const done = run.members.filter((item) => item.status === "done");
+    if (done.length < MIN_STACK) continue;
+    const newestFirst = run.members.slice().reverse();
+    const prompts = new Set(newestFirst.map((item) => String(item.prompt || "").trim().toLowerCase()));
+    const record = {
+      id: `run:${run.members[0].id}`,
+      momentId: momentOf.get(newestFirst[0].id) || "",
+      items: newestFirst,
+      count: done.length,
+      live: newestFirst.some((item) => item.status === "pending"),
+      cover: newestFirst.find((item) => item.status === "done"),
+      variations: prompts.size,
+      model: newestFirst.find((item) => item.model)?.model || "",
+      type: newestFirst[0].type || "image",
+      start: timeOf(run.members[0]),
+      end: run.last,
+    };
+    runList.push(record);
+    for (const item of newestFirst) runOf.set(item.id, record);
+  }
   return { moments: result, runs: runList, runOf };
 }
 

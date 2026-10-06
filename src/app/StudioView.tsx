@@ -479,6 +479,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               moments={features.moments && prefs.showMoments !== false}
               stackRuns={stackRuns}
               openRuns={openRuns}
+              settleVersion={view.settleVersion}
               stackStyle={prefs.runStackStyle === "flow" ? "flow" : "burst"}
               setRunOpen={setRunOpen}
               onUnstack={unstackRun}

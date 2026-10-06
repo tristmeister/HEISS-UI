@@ -108,3 +108,21 @@ test("moments are named the way you'd say them", () => {
   const older = momentTitle(at(1, 9), at(1, 10), at(20, 12));
   assert.equal(older.part, "Morning");
 });
+
+test("the same prompt more than six hours later starts a new run, within six hours it doesn't", () => {
+  const at = (minutesAgo) => item(minutesAgo, "a red lighthouse on a cliff at dusk");
+  const apart = newestFirst([at(10), at(11), at(12), at(7 * 60), at(7 * 60 + 1), at(7 * 60 + 2)]);
+  assert.equal(groupGallery(apart, { now: NOW }).runs.length, 2);
+  // Five hours apart crosses a moment (three hours) but not a run.
+  const close = newestFirst([at(10), at(11), at(12), at(5 * 60), at(5 * 60 + 1), at(5 * 60 + 2)]);
+  const { runs, moments } = groupGallery(close, { now: NOW });
+  assert.equal(moments.length, 2);
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].items.length, 6);
+});
+
+test("a run is quiet from its newest output", () => {
+  const items = newestFirst([item(30, "a blue vase"), item(20, "a blue vase"), item(9, "a blue vase")]);
+  const [run] = groupGallery(items, { now: NOW }).runs;
+  assert.equal(run.end, NOW - 9 * MINUTE);
+});

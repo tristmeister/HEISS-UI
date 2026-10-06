@@ -28,12 +28,14 @@ export type Run = {
   model: string;
   type: string;
   start: number;
+  /** When its newest output was made: the run is quiet from then on. */
   end: number;
 };
 
 export type GalleryGroups = { moments: Moment[]; runs: Run[]; runOf: Map<string, Run> };
 
 export const MOMENT_GAP_MS: number;
+export const RUN_GAP_MS: number;
 export const RUN_THRESHOLD: number;
 export const MIN_STACK: number;
 

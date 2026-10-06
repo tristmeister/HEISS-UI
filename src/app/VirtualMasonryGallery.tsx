@@ -31,6 +31,8 @@ type VirtualMasonryGalleryProps = {
   /** A folded run as a photo with edges under it, or a cover flow in one card. */
   stackStyle?: RunStackStyle;
   setRunOpen?: (runId: string, open: boolean) => void;
+  /** Changes whenever runs settle into stacks or come loose, out of sight: the view is kept still across it. */
+  settleVersion?: unknown;
   /** Takes an open run apart for good: its tiles go back to being separate. */
   onUnstack?: (run: Run) => void;
   /** On a phone a stack opens as a sheet instead of in place. */
@@ -90,6 +92,7 @@ export function VirtualMasonryGallery({
   onStackPress,
   openItem,
   openRuns = emptySet,
+  settleVersion,
   onUnstack,
   stackStyle = "burst",
   scrollRef,
@@ -268,6 +271,49 @@ export function VirtualMasonryGallery({
       if (frame) window.cancelAnimationFrame(frame);
     };
   }, [containerRef, layout.total, scrollElement, scrollRef]);
+
+  // Runs folding or coming loose out of sight, and open runs refolding as
+  // they're scrolled past, change heights above the screen. Whatever is on
+  // screen stays where it is: the first tile showing before the change is
+  // found again after it, and the gallery scrolls by however far it moved.
+  // (Near the top that's left alone, so new results still come into view.)
+  const keepView = useRef(false);
+  const lastSettle = useRef(settleVersion);
+  if (lastSettle.current !== settleVersion) { lastSettle.current = settleVersion; keepView.current = true; }
+  const shown = useRef(layout);
+  React.useLayoutEffect(() => {
+    const previous = shown.current;
+    shown.current = layout;
+    if (!keepView.current) return;
+    keepView.current = false;
+    const element = scrollElement;
+    const container = containerRef.current;
+    if (!element || !container || previous === layout) return;
+    const offset = container.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+    const top = element.scrollTop - offset;
+    if (top < 200) return;
+    const now = new Map(layout.entries.map((entry) => [entry.key, entry.y]));
+    const anchor = previous.entries
+      .filter((entry) => (entry.kind === "tile" || entry.kind === "stack") && entry.y >= top && now.has(entry.key))
+      .sort((a, b) => a.y - b.y)[0];
+    if (!anchor) return;
+    const moved = (now.get(anchor.key) ?? anchor.y) - anchor.y;
+    if (Math.abs(moved) > 0.5) element.scrollTop += moved;
+  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // An open run scrolled well out of view folds back up by itself, so the
+  // gallery doesn't fill with shelves left open and forgotten.
+  useEffect(() => {
+    if (!setRunOpen || folding) return;
+    const recent = flight.current && performance.now() - flight.current.at < 2000;
+    for (const entry of layout.entries) {
+      if (entry.kind !== "shelf" || !openRuns.has(entry.run.id)) continue;
+      if (recent && flight.current?.runId === entry.run.id) continue;
+      if (entry.y + entry.h >= range.start && entry.y <= range.end) continue;
+      keepView.current = true;
+      setRunOpen(entry.run.id, false);
+    }
+  }, [range]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visible = useMemo(
     () => layout.entries.filter((entry) => entry.y + entry.h >= range.start && entry.y <= range.end),
