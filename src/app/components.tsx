@@ -364,9 +364,12 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
       <Tip content={`${density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
-          {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
-          {density === "full" ? <span>{label}{upscaleLabel ? <b className="aspect-upscale-badge">{upscaleLabel}</b> : null}</span> : null}
-          {density !== "full" && upscaleLabel ? <b className="aspect-upscale-dot" aria-hidden="true" /> : null}
+          {/* The tag sits on the icon's corner, so turning Smart upscale on never changes the button's width. */}
+          <span className="aspect-shape-slot">
+            {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
+            {upscaleLabel ? <b className="aspect-upscale-badge" aria-hidden="true">{upscaleLabel}</b> : null}
+          </span>
+          {density === "full" ? <span>{label}</span> : null}
           {density === "mini" ? null : <ChevronDown size={14} className={cn(open && "flip")} />}
         </button></Tip>
       {open ? (

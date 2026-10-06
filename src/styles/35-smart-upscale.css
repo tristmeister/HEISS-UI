@@ -67,26 +67,26 @@
 .aspect-upscale-tabs button.is-active:not([data-tier="none"]) { color: var(--ember); }
 .aspect-upscale-tabs button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
-/* On the closed trigger: "16:9 4K", or a dot where the label is hidden. */
-.aspect-upscale-badge {
-  margin-left: 6px;
-  padding: 1px 5px;
-  border-radius: 6px;
-  background: var(--ember-soft);
-  color: var(--ember);
-  font: 600 10px/1.4 var(--font-mono);
-  vertical-align: 1px;
+/* On the closed trigger: a tag pinned to the ratio icon's corner. It is out
+   of the flow, so switching tiers never resizes the button or the bar. */
+.aspect-shape-slot {
+  position: relative;
+  justify-self: center;
+  display: grid;
+  place-items: center;
 }
-.aspect-trigger { position: relative; }
-.aspect-upscale-dot {
+.aspect-upscale-badge {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
+  right: -9px;
+  bottom: -6px;
+  padding: 0 3px;
+  border-radius: 4px;
   background: var(--ember);
-  box-shadow: var(--ember-glow);
+  color: #1a0d03;
+  font: 700 8.5px/1.35 var(--font-mono);
+  letter-spacing: .02em;
+  box-shadow: 0 0 0 1.5px var(--well), var(--ember-glow);
+  pointer-events: none;
 }
 
 @media (max-width: 760px) {
