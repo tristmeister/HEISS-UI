@@ -56,6 +56,15 @@ export function redisStore({ url, token, prefix = "board:", fetchImpl = globalTh
   return {
     kind: "redis",
 
+    async getIntegrationValue(key) {
+      const [value] = await pipeline([["GET", k(key)]]);
+      return value;
+    },
+
+    async setIntegrationValue(key, value) {
+      await pipeline([["SET", k(key), value]]);
+    },
+
     async list(voter) {
       const [cards, votes, comments, voted] = await pipeline([
         ["HGETALL", k("cards")],
@@ -162,10 +171,19 @@ export function memoryStore() {
   const comments = new Map();
   const voters = new Map();
   const rates = new Map();
+  const integration = new Map();
   const copy = (value) => (value == null ? value : structuredClone(value));
 
   return {
     kind: "memory",
+
+    async getIntegrationValue(key) {
+      return integration.get(key) || null;
+    },
+
+    async setIntegrationValue(key, value) {
+      integration.set(key, value);
+    },
 
     async list(voter) {
       const counts = Object.fromEntries([...comments].map(([id, list]) => [id, list.length]));

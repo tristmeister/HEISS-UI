@@ -6,6 +6,7 @@ import { outputFileCandidates } from "./gallery-store.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
 import { forgetItemThumbnails } from "./thumbnails.js";
+import { forgetItemVideoPreviews } from './video-previews.js';
 
 /**
  * "Delete all finished images" moves them to a trash instead of deleting
@@ -162,7 +163,10 @@ export function restoreTrash(batchId = "", baseDir = comfyOutputDir) {
 }
 
 async function removeBatch(batch) {
-  for (const item of batch.batch?.items || []) await forgetItemThumbnails(item).catch(() => 0);
+  for (const item of batch.batch?.items || []) {
+    await forgetItemThumbnails(item).catch(() => 0);
+    await forgetItemVideoPreviews(item).catch(() => 0);
+  }
   fs.rmSync(batch.dir, { recursive: true, force: true });
 }
 

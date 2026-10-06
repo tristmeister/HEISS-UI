@@ -1,4 +1,5 @@
 import React from 'react';
+import { GridAutoplayButton } from './GridAutoplayButton';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useDragControls, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, CircleStop, Dices, Download, Eye, EyeOff, History, ImagePlus, Info, LockKeyhole, MoreHorizontal, RefreshCw, Search, Share, SlidersHorizontal, Square, Star, Trash2, Wand2, X } from 'lucide-react';
@@ -132,8 +133,10 @@ const shareBlobs = new Map<string, Promise<Blob>>();
 /** Web Share with files needs a secure page; over plain http on the LAN it is not there. */
 export const canShareFiles = typeof navigator !== 'undefined' && typeof window !== 'undefined' && window.isSecureContext && 'share' in navigator;
 
-export function prefetchShare(item: GalleryItem | null) {
+export function prefetchShare(item: GalleryItem | null, includeVideo = false) {
   if (!item?.url || !canShareFiles) return;
+  // Opening a video must not also fetch a second full copy into a share Blob.
+  if (item.type === 'video' && !includeVideo) return;
   const url = downloadUrl(item);
   if (!shareBlobs.has(url)) shareBlobs.set(url, fetch(url).then((response) => response.ok ? response.blob() : Promise.reject(new Error('fetch failed'))));
 }
@@ -149,7 +152,7 @@ export async function shareItem(item: GalleryItem, showToast: ShowToast) {
   const url = downloadUrl(item);
   if (canShareFiles) {
     try {
-      prefetchShare(item);
+      prefetchShare(item, true);
       const blob = await shareBlobs.get(url)!;
       const file = new File([blob], fileNameFor(item, blob.type), { type: blob.type || 'image/png' });
       if (!navigator.canShare || navigator.canShare({ files: [file] })) {
@@ -176,7 +179,7 @@ export async function shareItems(items: GalleryItem[], showToast: ShowToast) {
   if (ready.length === 1) return shareItem(ready[0], showToast);
   if (canShareFiles) {
     try {
-      ready.forEach(prefetchShare);
+      ready.forEach((item) => prefetchShare(item, true));
       const files = await Promise.all(ready.map(async (item) => {
         const blob = await shareBlobs.get(downloadUrl(item))!;
         return new File([blob], fileNameFor(item, blob.type), { type: blob.type || 'image/png' });
@@ -381,6 +384,9 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         </div>
         {!hiddenLocked ? (
           <button type="button" className={cn('phone-icon', searchActive(gallerySearch) && 'is-on')} aria-label="Search" aria-expanded={searchOpen || searchActive(gallerySearch)} onClick={() => { if (searchOpen || searchActive(gallerySearch)) { setGallerySearch(emptySearch); setSearchOpen(false); } else setSearchOpen(true); }}><Search size={21} /></button>
+        ) : null}
+        {!hiddenLocked && gallery.some((item) => item.type === 'video') ? (
+          <GridAutoplayButton phone />
         ) : null}
         {!hiddenSpace ? (
           <button type="button" className={cn('phone-icon', hidden.enabled && hidden.unlocked && 'has-dot')} aria-label={hidden.enabled && hidden.unlocked ? 'Open Hidden, unlocked' : 'Open Hidden'} onClick={toggleHiddenSpace}><LockKeyhole size={20} /></button>
@@ -733,4 +739,3 @@ function MoreSheet({ view, open, onClose, statusText }: { view: Record<string, a
     </Sheet>
   );
 }
-

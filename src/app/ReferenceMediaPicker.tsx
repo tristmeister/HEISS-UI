@@ -57,7 +57,7 @@ function moveGridFocus(event: React.KeyboardEvent<HTMLButtonElement>, index: num
  * The reference library as a popover that rises out of the composer: recent
  * generations and uploads in a grid, an upload button, drop and paste.
  */
-function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped, onClose, onSelect, onRemoveSelected, confirmDelete, onError, upload }: {
+function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped, onClose, onSelect, onDeleted, confirmDelete, onError, upload }: {
   input: MediaInput;
   anchor: HTMLElement | null;
   popRef: React.RefObject<HTMLDivElement | null>;
@@ -66,7 +66,8 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
   selected: ReferenceAsset | null;
   onClose: () => void;
   onSelect: (asset: ReferenceAsset) => void;
-  onRemoveSelected: () => void;
+  /** An upload was deleted for good: whichever slots hold it let it go. */
+  onDeleted: (asset: ReferenceAsset) => void;
   confirmDelete?: (asset: ReferenceAsset) => Promise<boolean>;
   onError?: (message: string) => void;
   upload: { busy: boolean; progress: number; start: (file: File | undefined) => Promise<ReferenceAsset | null> };
@@ -166,7 +167,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       if (confirmDelete && !await confirmDelete(asset)) return;
       await deleteReferenceAsset(asset.id);
       setPages((current) => ({ ...current, upload: { ...current.upload, items: current.upload.items.filter((item) => item.id !== asset.id) } }));
-      if (selected?.id === asset.id) onRemoveSelected();
+      onDeleted(asset);
     } catch (error) {
       onError?.(error instanceof Error ? error.message : "Couldn’t delete the upload");
     }
@@ -431,7 +432,7 @@ export function ReferenceSlots({ inputs, strength = null, inpaint = null, select
   inpaint?: ReferenceInpaint | null;
   selected: SelectedReferenceAsset[];
   onSelect: (slot: string, asset: ReferenceAsset) => void;
-  onRemove: (slot: string) => void;
+  onRemove: (slots: string | string[]) => void;
   confirmDelete?: (asset: ReferenceAsset) => Promise<boolean>;
   onError?: (message: string) => void;
 }) {
@@ -636,7 +637,10 @@ export function ReferenceSlots({ inputs, strength = null, inpaint = null, select
             dropped={dropped}
             onClose={close}
             onSelect={(asset) => onSelect(openInput.id, asset)}
-            onRemoveSelected={() => onRemove(openInput.id)}
+            onDeleted={(asset) => {
+              const holding = selected.filter((item) => item.asset.id === asset.id).map((item) => item.slot);
+              if (holding.length) onRemove(holding);
+            }}
             confirmDelete={confirmDelete}
             onError={onError}
             upload={{ busy: Boolean(uploadSlot), progress, start: (file) => upload(file, openInput.id) }}

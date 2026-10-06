@@ -252,7 +252,7 @@ export type ComposerBarProps = {
   onDismissLoraMismatch?: (key: string) => void;
   referenceAssets?: SelectedReferenceAsset[];
   onReferenceSelect: (slot: string, asset: ReferenceAsset) => void;
-  onReferenceRemove: (slot: string) => void;
+  onReferenceRemove: (slots: string | string[]) => void;
   onReferenceDeleteRequest: (asset: ReferenceAsset) => Promise<boolean>;
   onReferenceError: (message: string) => void;
   /** A fixed seed makes every run the same picture, so it is always on show. */

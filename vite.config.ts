@@ -40,6 +40,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // Shared import helpers must not pull the lazy player into the entry chunk.
+          if (id.includes('vite/preload-helper') || id.includes('commonjsHelpers')) return 'vendor';
+          if (/node_modules\/(@videojs\/|react-compiler-runtime\/)/.test(id)) return "video-player";
           if (/node_modules\/(img-fx|three)\//.test(id)) return "generation-fx";
           if (id.includes("node_modules")) return "vendor";
         }

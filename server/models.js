@@ -2,6 +2,7 @@ import { missingNodes, nodeRange, optionsFor, textRange } from './comfy.js';
 import { loadCustomWorkflows, workflowOptionIssues } from './custom-workflows.js';
 import { modelTypeChoices } from './model-families.js';
 import { familyProfiles } from './family-profiles.js';
+import { inpaintingEnabled } from './features.js';
 
 export function modelBasename(name = "") {
   return String(name).split(/[\\/]/).pop() || name;
@@ -253,7 +254,7 @@ export function mockModelResult() {
       workflow: "builtin-flux-schnell",
       family: "flux",
       defaults: { width: 1024, height: 1024, steps: 4, cfg: 1, sampler: "euler", scheduler: "simple", denoise: 0.65, inpaintStrength: 0.8 },
-      capabilities: { lora: true, startImage: true, startImageRequired: false, denoise: true, inpaint: true }
+      capabilities: { lora: true, startImage: true, startImageRequired: false, denoise: true, inpaint: inpaintingEnabled }
     }),
     buildProfile({
       id: "mock-sdxl-turbo",

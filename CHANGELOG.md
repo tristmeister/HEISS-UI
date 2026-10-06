@@ -40,13 +40,56 @@ version opens with a `> ` summary line, which the update pill shows.
   main model can be stood in for by one of the same family you have.
 
 ### Changed
-- Reference images in the prompt bar are bigger, and their menu no longer
-  flickers when the pointer passes over or slips off its edge.
-- On a phone, a reference's menu opens toward the screen instead of off its
-  left edge.
 - Visual workflows are converted with subgraphs, bypassed and muted nodes,
   Primitive nodes and KJNodes Set/Get resolved, and with ComfyUI's own page
   when Playwright is installed.
+
+## [0.16.0] - 2026-10-04
+
+> Video in the gallery, and steadier thumbnails and references
+
+### Added
+- **Videos play in the gallery.** Tiles show a still straight away and play a
+  silent preview (720 px, up to 24 at once, 6 on a phone); the button by
+  search pauses them. Opening a video plays it in a full player with seeking,
+  sound and full screen; left and right step to the next item, and on a phone
+  you swipe between them or down to close. Hidden videos preview too, kept in
+  memory only, never on disk.
+- **Videos from other folders take their real shape.** Their size is read from
+  the file, for ones already in the gallery too, instead of a square tile and
+  ?×? in the details.
+- **Oversized start and reference images are resized** to what the model
+  works at before they're sent. The originals stay as they are.
+
+### Changed
+- Download activity can take you back to the model or workflow that needs the
+  file, and can be paused, resumed and canceled from its pill.
+- Reference images in the prompt bar are bigger, and their menu no longer
+  flickers when the pointer passes over or slips off its edge. On a phone it
+  opens toward the screen instead of off its left edge.
+- Calmer loading tiles, a clearer detail view and steadier tooltips.
+- **Starting from a source checkout rebuilds the app when it changed**, so
+  after a `git pull` the browser gets the new page, not the last build.
+
+### Fixed
+- **References come off when you remove them.** With an edit model and more
+  than one reference, taking the first one off left the next picture in both
+  slots, and its × did nothing until you picked another model. The others now
+  move up instead, and a later reference's ×, which was hidden behind its
+  neighbour, works too. Deleting an upload takes it out of every slot.
+- **A new image never shows an older picture.** After deleting the newest
+  image, ComfyUI gives the next one the same file name, and its tile showed
+  the deleted picture until a reload.
+- **Thumbnails come from ComfyUI's own file.** If the output folder set here
+  isn't ComfyUI's, a same-named file there no longer becomes the thumbnail.
+- **Notifications go away on their own again.** After you'd closed one with
+  its × or Undo, every later one stayed until closed by hand, and a deleted
+  image wasn't really deleted until then.
+- **A new generation lands top left at once.** With the pointer over the
+  gallery it used to land on the far right, then jump left.
+- **The Windows download unzips cleanly in 7-Zip and PeaZip.** It held one
+  link file that recent 7-Zip refuses as unsafe, reported as a fatal error
+  although nothing was missing.
 
 ## [0.15.0] - 2026-09-30
 
@@ -1018,7 +1061,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.16.0...HEAD
+[0.16.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.12.0...v0.13.0

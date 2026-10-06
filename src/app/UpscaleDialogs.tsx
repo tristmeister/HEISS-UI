@@ -9,6 +9,7 @@ import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
 import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
 import { SafeImg } from './SafeImg';
+import { mediaUrl } from './mediaUrl';
 import type { ShowToast } from './toast';
 
 // Until the server reports the pack, the same entry as server/node-packs.js.
@@ -291,7 +292,7 @@ export function UpscaleSetupDialog({
   } else if (stage === "ready") {
     body = pending ? (
       <div className="upscale-pending">
-        <SafeImg src={pending.thumbnailUrl || pending.url} draggable={false} />
+        <SafeImg src={mediaUrl(pending.thumbnailUrl || pending.url, pending)} draggable={false} />
         <div>
           <strong>Upscaling with {upscaleQualityLabel(quality)}</strong>
           <span>It appears on the tile when it’s done.</span>

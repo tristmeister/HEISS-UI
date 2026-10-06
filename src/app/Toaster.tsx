@@ -130,8 +130,14 @@ export function Toaster({ offset = 0 }: { offset?: number }) {
   }, []);
 
   // A stack of one has nothing to fan out, and heights of toasts that left are dead weight.
+  // A toast that leaves takes its focused Undo or × with it without a blur event,
+  // and one that slides away under a still pointer sends no pointerleave, so
+  // both are checked again here. Otherwise every later toast stayed paused for good.
   useEffect(() => {
     if (!toasts.length) { setPinned(false); setHovered(false); }
+    const list = listRef.current;
+    if (!list?.contains(document.activeElement)) setFocused(false);
+    if (!list?.matches(':hover')) setHovered(false);
     setHeights((current) => {
       const live = Object.fromEntries(Object.entries(current).filter(([id]) => toasts.some((toast) => toast.id === id)));
       return Object.keys(live).length === Object.keys(current).length ? current : live;

@@ -3,6 +3,7 @@ import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
 import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
+import { inpaintingEnabled } from './features.js';
 import { inpaintNodes } from './inpaint.js';
 import { ggufEncoderNames, ggufModelNames, isGguf } from './gguf.js';
 import { missingPackPart } from './node-install.js';
@@ -76,6 +77,7 @@ const referenceLatentNodes = ["ImageScaleToTotalPixels", "VAEEncode", "Reference
  */
 const ownGraphs = new Set(["ideogram4", "mage", "h3", "sana", "pair"]);
 function canInpaint(family, info, references) {
+  if (!inpaintingEnabled) return false;
   if (family.kind !== "image" || ownGraphs.has(family.sampling) || family.ownLoaders) return false;
   if (!references && !family.img2img) return false;
   return inpaintNodes.every((node) => hasNode(info, node));

@@ -2,6 +2,7 @@ import { missingNodes, nodeRange, optionsFor } from './comfy.js';
 import { inferModels } from './models.js';
 import { workflowFor, workflowIds } from './workflow-registry.js';
 import { getCustomWorkflow } from './custom-workflows.js';
+import { inpaintingEnabled } from './features.js';
 
 export function clampNumber(value, fallback, min, max) {
   const number = Number(value);
@@ -66,7 +67,7 @@ function sanitizeLoras(input = {}, info = {}, profile = null, kind = "image", ma
  */
 function sanitizeInpaint(input, profile, referenceAssets) {
   const mask = String(input.inpaint?.mask || "");
-  if (!mask || !profile.capabilities.inpaint || !referenceAssets.length) return null;
+  if (!inpaintingEnabled || !mask || !profile.capabilities.inpaint || !referenceAssets.length) return null;
   if (!mask.startsWith("data:image/png;base64,")) throw new Error("The painted mask didn’t come through. Paint it again.");
   const fallback = profile.defaults.inpaintStrength ?? 1;
   const strength = Number(input.inpaint.strength);

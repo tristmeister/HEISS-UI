@@ -30,7 +30,9 @@ import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, fi
 import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
 import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { clearPromptHistory, forgetPrompts, listPrompts, promptHistoryEnabled, promptKey, recordPrompt, setPromptHistoryEnabled, setPromptPinned } from './prompt-history.js';
-import { addLibraryFolder, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
+import { addLibraryFolder, fillVideoSizes, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
+import { forgetItemVideoPreviews, forgetPrivateVideoPreviews, getComfyVideoPoster, getComfyVideoPreview, getFileVideoPoster, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
+import { sendMediaBuffer } from './media-response.js';
 import { civitaiPrefs, saveCivitaiPrefs } from './civitai.js';
 import { emptyTrash, restoreTrash, scheduleTrashPurge, trashGalleryItems, trashSummary } from './gallery-trash.js';
 import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.js';
@@ -344,7 +346,7 @@ app.post("/api/privacy/setup", async (req, res) => {
     // Creating the password does not need ComfyUI; hiding images later does, to
     // remove its copies, and says so then.
     // A Hidden left without its key ring can never be opened again; keep it aside rather than build on it.
-    if (!isPrivacyEnabled() && vaultConfigured()) retireVault();
+    if (!isPrivacyEnabled() && vaultConfigured()) { retireVault(); forgetPrivateVideoPreviews(); }
     const key = await setupPrivacy(req.body?.password || "");
     setUnlockCookie(res, key, sessionSeconds(req), req);
     res.json({ ok: true, ...(await privacyPayload(req, key)), enabled: true, unlocked: true });
@@ -439,6 +441,7 @@ app.post("/api/privacy/erase", (req, res) => {
   }
   eraseVault();
   erasePrivacy();
+  forgetPrivateVideoPreviews();
   forgetHiddenRunKeys();
   // Copies taken before an update may still hold Hidden's older records.
   try { dropSnapshots(); } catch { /* held open (Windows); they go within 14 days anyway */ }
@@ -510,7 +513,10 @@ app.post("/api/hidden/hide", async (req, res) => {
     // A prompt that now only belongs to Hidden leaves the prompt history too.
     const stillShown = new Set(filterVisibleGallery(gallery).map((item) => promptKey(item.prompt)));
     forgetPrompts((result.movedFrom || []).map((item) => item.prompt || ""), stillShown);
-    for (const item of result.movedFrom || []) await forgetItemThumbnails(item).catch(() => 0);
+    for (const item of result.movedFrom || []) {
+      await forgetItemThumbnails(item).catch(() => 0);
+      await forgetItemVideoPreviews(item).catch(() => 0);
+    }
     await forgetComfyRun({ promptIds: result.promptIds, inputNames: result.inputNames });
     res.json({ ok: true, moved: result.moved.length, ids: (result.movedFrom || []).map((item) => item.id), hiddenIds: result.moved.map((item) => item.id), failed: result.failed, leftBehind: result.leftBehind, revision: galleryRevisionValue() });
   } catch (error) {
@@ -523,7 +529,9 @@ app.post("/api/hidden/unhide", async (req, res) => {
   const key = requireHiddenKey(req, res);
   if (!key) return;
   try {
-    const restored = await unhideItems(key, (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String));
+    const ids = (Array.isArray(req.body?.ids) ? req.body.ids : []).map(String);
+    const restored = await unhideItems(key, ids);
+    for (const id of ids) forgetPrivateVideoPreviews(id);
     addGalleryItems(restored);
     res.json({ ok: true, restored: restored.length, revision: galleryRevisionValue() });
   } catch (error) {
@@ -1229,7 +1237,21 @@ app.get("/api/vault/media/:id", (req, res) => {
   const name = encodeURIComponent(hiddenDownloadName(asset, variant));
   res.setHeader("Content-Disposition", `${req.query.download === "1" ? "attachment" : "inline"}; filename*=UTF-8''${name}`);
   // Shared without its settings: the prompt and workflow inside the file stay in Hidden.
-  res.send(req.query.clean === "1" ? stripMetadata(asset.buffer).buffer : asset.buffer);
+  const bytes = req.query.clean === "1" ? stripMetadata(asset.buffer).buffer : asset.buffer;
+  if (asset.mime?.startsWith('video/')) sendMediaBuffer(req, res, bytes, asset.mime);
+  else res.send(bytes);
+});
+
+app.get('/api/vault/video-preview/:id', async (req, res) => {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  const asset = readVaultAsset(req, req.params.id, 'original');
+  if (!asset || asset.item.type !== 'video') { res.status(404).end(); return; }
+  try {
+    const preview = await getPrivateVideoPreview(asset.buffer, req.params.id);
+    if (req.query.poster === '1') await sendVideoPoster(req, res, preview);
+    else sendMediaBuffer(req, res, preview);
+  }
+  catch { if (!res.headersSent) res.status(503).end(); }
 });
 
 app.get("/api/vault/thumbnail/:id", async (req, res) => {
@@ -1427,6 +1449,17 @@ app.get("/api/library/file", (req, res) => {
   if (!file) { res.status(404).json({ ok: false, error: "That image is gone." }); return; }
   const disposition = req.query.download === "1" ? "attachment" : "inline";
   res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate", "Content-Disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(path.basename(file))}` } });
+});
+
+app.get('/api/library/video-preview', async (req, res) => {
+  const file = libraryFile(req.query.folder, req.query.path);
+  if (!file || !/\.(mp4|webm|mov|mkv)$/i.test(file)) { res.status(404).end(); return; }
+  try {
+    const identity = `library:${String(req.query.folder)}:${String(req.query.path)}`;
+    if (req.query.poster === '1') await sendVideoPoster(req, res, await getFileVideoPoster(file, identity));
+    else sendVideoPreview(req, res, await getFileVideoPreview(file, identity));
+  }
+  catch { if (!res.headersSent) res.status(503).end(); }
 });
 
 app.get("/api/library/thumb", async (req, res) => {
@@ -2118,6 +2151,7 @@ app.delete("/api/gallery/:id", (req, res) => {
       return;
     }
     vault = deleteVaultItems(key, [id]);
+    forgetPrivateVideoPreviews(id);
   }
   const before = gallery.length;
   const removed = gallery.filter((item) => item.id === id || item.url === id);
@@ -2207,6 +2241,21 @@ app.post("/api/shutdown", (req, res) => {
   if (!requireAdmin(req, res)) return;
   res.json({ ok: true });
   setTimeout(() => process.exit(0), 250);
+});
+
+app.get('/comfy/video-preview', async (req, res) => {
+  const filename = String(req.query.filename || '');
+  const subfolder = String(req.query.subfolder || '');
+  const type = String(req.query.type || 'output');
+  if (!['output', 'input', 'temp'].includes(type) || !/\.(mp4|webm|mov|mkv)$/i.test(filename) || filename !== path.basename(filename) || /[\\/]/.test(filename) || inDotFolder(subfolder)) {
+    res.status(404).end(); return;
+  }
+  try {
+    // The still comes from the original, ahead of any preview still being encoded.
+    if (req.query.poster === '1') await sendVideoPoster(req, res, await getComfyVideoPoster(filename, subfolder, type));
+    else sendVideoPreview(req, res, await getComfyVideoPreview(filename, subfolder, type));
+  }
+  catch { if (!res.headersSent) res.status(503).end(); }
 });
 
 app.get("/comfy/thumb", async (req, res) => {
@@ -2339,7 +2388,9 @@ if (fs.existsSync(dist)) serveApp(app, dist);
 setTimeout(() => recoverGalleryFromHistory().catch(() => null)
   // A library scan skips the output folder, so it has to be known before one runs.
   .then(() => (libraryFolders().length ? autoDetectOutputDir() : null))
-  .then(() => rescanLibraryFolders()).catch(() => null), 1200);
+  .then(() => rescanLibraryFolders())
+  // Videos imported before their size was read get it now.
+  .then(() => fillVideoSizes()).catch(() => null), 1200);
 scheduleTrashPurge();
 warmReleaseCheck(root, dataDir);
 try { removeForeignLaunchers(root); } catch { /* a launcher in use or read-only: harmless */ }

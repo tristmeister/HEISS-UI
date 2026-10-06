@@ -2,15 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
 import type { AutoUpscale, GalleryItem, Preferences, UpscaleInstall, UpscaleQuality, UpscaleStatus } from './types';
 import type { ShowToast } from './toast';
+import { mediaUrl } from './mediaUrl';
 
 /** The gallery keeps the original as the record; only the view swaps. */
 export function upscaleDisplayUrl(item: GalleryItem) {
-  return item.upscaleActive && item.upscale?.url ? item.upscale.url : item.url;
+  return item.upscaleActive && item.upscale?.url ? mediaUrl(item.upscale.url, item, `upscale:${item.upscale.jobId || ''}`) : item.url;
 }
 
 export function upscaleDisplayThumbnail(item: GalleryItem) {
   if (!item.upscaleActive || !item.upscale?.url) return item.thumbnailUrl;
-  return item.upscale.thumbnailUrl || item.upscale.url;
+  return mediaUrl(item.upscale.thumbnailUrl || item.upscale.url, item, `upscale:${item.upscale.jobId || ''}`);
 }
 
 export function canUpscaleItem(item: GalleryItem) {

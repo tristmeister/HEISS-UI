@@ -46,20 +46,48 @@ test("a local output's cached thumbnail is served without fetching the original"
   const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: "#f00" } }).png().toBuffer();
   fs.writeFileSync(path.join(outputDir, "thumb.png"), png);
   const originalFetch = globalThis.fetch;
-  let fetches = 0;
-  globalThis.fetch = async () => { fetches += 1; throw new Error("offline"); };
+  let downloads = 0;
+  let sizeChecks = 0;
+  // ComfyUI answers a one-byte range with the file's full size, the way aiohttp does.
+  globalThis.fetch = async (_url, options = {}) => {
+    if (options.headers?.Range !== "bytes=0-0") { downloads += 1; throw new Error("offline"); }
+    sizeChecks += 1;
+    const size = fs.statSync(path.join(outputDir, "thumb.png")).size;
+    return new Response(new Uint8Array(1), { status: 206, headers: { "content-range": `bytes 0-0/${size}` } });
+  };
   try {
     const first = await getThumbnail("thumb.png", "", "output");
     const second = await getThumbnail("thumb.png", "", "output");
     assert.ok(fs.existsSync(first.file));
     assert.equal(second.etag, first.etag);
-    assert.equal(fetches, 0);
+    assert.equal(downloads, 0);
+    assert.equal(sizeChecks, 1, "one size check per version of the file");
     // Overwriting the output under the same name gives a new thumbnail.
     await new Promise((resolve) => setTimeout(resolve, 20));
     fs.writeFileSync(path.join(outputDir, "thumb.png"), await sharp({ create: { width: 32, height: 32, channels: 3, background: "#00f" } }).png().toBuffer());
     const third = await getThumbnail("thumb.png", "", "output");
     assert.notEqual(third.etag, first.etag);
     assert.equal(fs.existsSync(first.file), false, "the stale thumbnail is removed");
+    assert.equal(downloads, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("a same-named file that isn't ComfyUI's output is never made into its thumbnail", async (t) => {
+  const sharp = await loadSharp();
+  if (!sharp) return t.skip("sharp is not installed");
+  // The folder HEISS UI reads holds a red picture; ComfyUI's own file of that name is blue and bigger.
+  fs.writeFileSync(path.join(outputDir, "other.png"), await sharp({ create: { width: 16, height: 16, channels: 3, background: "#f00" } }).png().toBuffer());
+  const blue = await sharp({ create: { width: 48, height: 48, channels: 3, background: "#00f" } }).png().toBuffer();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, options = {}) => options.headers?.Range === "bytes=0-0"
+    ? new Response(new Uint8Array(1), { status: 206, headers: { "content-range": `bytes 0-0/${blue.length}` } })
+    : new Response(blue, { status: 200 });
+  try {
+    const thumbnail = await getThumbnail("other.png", "", "output");
+    const { data } = await sharp(thumbnail.file).raw().toBuffer({ resolveWithObject: true });
+    assert.ok(data[2] > 200 && data[0] < 50, "the thumbnail is of ComfyUI's blue file, not the local red one");
   } finally {
     globalThis.fetch = originalFetch;
   }

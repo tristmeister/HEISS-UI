@@ -3,6 +3,7 @@ import { AnimatedNumber } from './AnimatedNumber';
 import { formatLeft, progressLine, progressReading, useRunClock } from './GenerationProgress';
 import { cn, titleFromPrompt } from './format';
 import { SafeImg } from './SafeImg';
+import { mediaUrl } from './mediaUrl';
 import type { Activity } from './Activities';
 import type { GalleryItem } from './types';
 import { useCellGap } from './cells';
@@ -160,7 +161,7 @@ function ResultFan({ items }: { items: GalleryItem[] }) {
     <span className={cn('activity-fan', `has-${items.length}`)} aria-hidden="true">
       {items.map((item, index) => (
         <span key={item.id} className="activity-frame is-done" style={{ '--fan': index } as React.CSSProperties}>
-          <SafeImg src={item.thumbnailUrl || item.url} draggable={false} fallback={<HeatCells />} />
+          <SafeImg src={mediaUrl(item.thumbnailUrl || item.url, item)} draggable={false} fallback={<HeatCells />} />
         </span>
       ))}
     </span>
