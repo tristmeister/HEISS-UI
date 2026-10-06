@@ -697,7 +697,7 @@ function App() {
 
   const { confirmAction, confirmationDialog } = useConfirmation(prefs.confirmActions);
 
-  const { upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, toggleUpscale, cancelUpscale, chooseAutoUpscale, queueAutoUpscale } = useUpscale({
+  const { upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, toggleUpscale, cancelUpscale, chooseAutoUpscale } = useUpscale({
     gallery,
     prefs,
     showToast,
@@ -1353,7 +1353,6 @@ function App() {
   const generationActions = useGenerationActions({
     active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, inpaint: activeInpaintMask ? { mask: activeInpaintMask.dataUrl, strength: inpaintStrength, feather: inpaintFeather } : null, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
     openModelSetup: () => setWorkflowGalleryOpen(true),
-    onImageJobQueued: queueAutoUpscale,
     retryComfyStatus,
     refreshModels
   });

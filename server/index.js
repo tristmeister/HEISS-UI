@@ -60,8 +60,8 @@ import { comfyRestartEstimate, generationEstimate, recordComfyRestart } from './
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
-import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
-import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
+import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscaleQualities, upscaleStatus } from './upscale.js';
+import { findUpscaleTarget, startUpscale, toggleUpscaleView, upscaleFinishedRun } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
 import { describeGitError, updateCheckout } from './git-update.js';
@@ -1508,6 +1508,11 @@ app.post("/api/generate", async (req, res) => {
     return;
   }
   body.privateVault = hidden || fromHidden;
+  // Smart upscale: the run's images upscale at this effort once it is done (smartUpscaleRun).
+  const autoUpscale = req.body?.autoUpscale;
+  body.autoUpscale = body.kind === "image" && upscaleQualities.includes(autoUpscale?.quality)
+    ? { quality: autoUpscale.quality, faceDetail: Boolean(autoUpscale.faceDetail) }
+    : null;
   // Recent prompts are the gallery's: nothing made for Hidden is ever written there.
   if (!body.privateVault) try { recordPrompt(body.prompt); } catch { /* a run matters more than its history */ }
   // An older page (or a draft restored from before the reference library) can
@@ -1587,7 +1592,7 @@ app.post("/api/generate", async (req, res) => {
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
-    setTimeout(() => runJob(id, body), 0);
+    setTimeout(() => runJob(id, body).then(() => smartUpscaleRun(id, body, requestKey)).catch(() => null), 0);
   }
 });
 
@@ -1705,24 +1710,20 @@ app.post("/api/upscale", async (req, res) => {
     res.status(502).json({ ok: false, reason: "source", error: "ComfyUI didn’t accept the original image. Make sure ComfyUI is running and can write to its input folder." });
     return;
   }
-  const jobId = crypto.randomUUID();
-  const body = {
-    galleryItemId: item.id,
-    imageName,
-    quality,
-    faceDetail,
-    width: Number(item.width || 0),
-    height: Number(item.height || 0),
-    prompt: item.prompt || "",
-    ...faceDetailSource(item, String(item.model || "").startsWith("custom:") ? getCustomWorkflow(item.model) : null)
-  };
-  const plan = upscalePlan(body);
-  jobs.set(jobId, { status: "queued", kind: "upscale", galleryItemId: item.id, startedAt: Date.now(), outputs: [] });
+  const customWorkflow = String(item.model || "").startsWith("custom:") ? getCustomWorkflow(item.model) : null;
+  const { jobId, plan } = startUpscale({ item, imageName, quality, faceDetail, info, customWorkflow, hiddenKey: hiddenItem ? hiddenKey : null });
   res.json({ ok: true, jobId, plan, revision: galleryRevisionValue() });
-  setTimeout(() => hiddenItem
-    ? runUpscaleJob(jobId, body, info, hiddenTarget(item.id, hiddenKey, [imageName]))
-    : runUpscaleJob(jobId, body, info), 0);
 });
+
+/** Smart upscale, once a run that asked for it is done: its images upscale here, with no page needed. */
+async function smartUpscaleRun(id, body, hiddenKey) {
+  const job = jobs.get(id);
+  if (!body.autoUpscale || job?.status !== "done" || !job.outputs?.length) return;
+  const { info } = await loadComfyContext().catch(() => ({ info: null }));
+  if (!info) return;
+  const customWorkflow = String(body.model || "").startsWith("custom:") ? getCustomWorkflow(body.model) : null;
+  await upscaleFinishedRun(job.outputs, { ...body.autoUpscale, info, customWorkflow, hiddenKey: body.privateVault ? hiddenKey : null });
+}
 
 // Stops an image's running upscale. runUpscaleJob sees the canceled job and resets the tile.
 app.post("/api/upscale/cancel", async (req, res) => {

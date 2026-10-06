@@ -6,6 +6,7 @@ import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
 import { retryRequest, type RetryOptions, type RetryRequest } from './retry';
 import { downloadActions } from './useModelDownloads';
+import { autoUpscaleQuality } from './useUpscale';
 import type { GalleryItem, Job } from './types';
 
 type GalleryPayload = { items?: GalleryItem[]; outputs?: GalleryItem[] };
@@ -20,7 +21,7 @@ export function useGenerationActions(view: any) {
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
     model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
-    referenceAssets, inpaint, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus, refreshModels, onImageJobQueued
+    referenceAssets, inpaint, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus, refreshModels
   } = view;
   const galleryUpsert = upsertGalleryItems || ((items: GalleryItem[]) => setGallery((current: GalleryItem[]) => dedupeGalleryItems([...items, ...current])));
   const galleryRemove = removeGalleryItems || ((keys: string[]) => setGallery((current: GalleryItem[]) => current.filter((item: GalleryItem) => !keys.includes(item.id) && !keys.includes(item.url) && (!item.jobId || !keys.includes(item.jobId)))));
@@ -162,7 +163,11 @@ export function useGenerationActions(view: any) {
         ...(inpaint ? { inpaint } : {}),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
-        privateVault: Boolean(hiddenSpace)
+        privateVault: Boolean(hiddenSpace),
+        // Smart upscale: the server upscales each image once the run is done.
+        autoUpscale: mode === "image" && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
+          ? { quality: autoUpscaleQuality(prefs.autoUpscale), faceDetail: Boolean(prefs.upscaleFaceDetail) }
+          : null
       };
       const queuedJobs: string[] = [];
       // One tile per job, so a failure can open straight onto its report.
@@ -186,8 +191,6 @@ export function useGenerationActions(view: any) {
           body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: !retry && canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
-        // Smart upscale picks these up as they finish.
-        if (runMode === "image") onImageJobQueued?.(jobId);
         firstItemOf.set(jobId, items?.[0] || optimisticItems[0]);
         if (wentHidden && !toHidden) {
           // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.

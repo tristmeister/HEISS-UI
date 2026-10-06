@@ -369,26 +369,6 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     openSetup(item);
   }, [markBusy, openSetup, prefs.upscaleQuality, refreshStatus, runUpscale, status?.ready]);
 
-  /* Smart upscale: runs queued while a tab was on upscale each image as it
-     finishes, at that tab's effort. Only this device's own runs, so two open
-     windows never upscale the same image twice. A download still landing
-     holds them back until it is checked. */
-  const autoJobs = useRef<Map<string, UpscaleQuality>>(new Map());
-  const autoStarted = useRef<Set<string>>(new Set());
-  const queueAutoUpscale = useCallback((jobId: string) => {
-    const quality = prefs.smartUpscale !== false ? autoUpscaleQuality(prefs.autoUpscale) : null;
-    if (quality && jobId) autoJobs.current.set(jobId, quality);
-  }, [prefs.autoUpscale, prefs.smartUpscale]);
-  useEffect(() => {
-    if (!autoJobs.current.size || inFlight) return;
-    for (const item of gallery) {
-      const quality = item.jobId ? autoJobs.current.get(item.jobId) : undefined;
-      if (!quality || autoStarted.current.has(item.id) || !canUpscaleItem(item) || item.upscale?.status) continue;
-      autoStarted.current.add(item.id);
-      runUpscale(item, quality);
-    }
-  }, [gallery, inFlight, runUpscale]);
-
   /** A Smart upscale tab: on at once when its effort can run, otherwise through setup for that effort. */
   const chooseAutoUpscale = useCallback(async (tier: AutoUpscale) => {
     const before = prefs.autoUpscale || "none";
@@ -465,7 +445,6 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       recheck: () => refreshStatus(setupQuality, { fresh: true })
     },
     chooseAutoUpscale,
-    queueAutoUpscale,
     refreshUpscaleStatus: refreshStatus,
     cancelUpscaleInstall: cancelInstall,
     openUpscaleSetup: openSetup,
