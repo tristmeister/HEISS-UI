@@ -1,0 +1,674 @@
+/* ---------------------------------------------------------------------------
+   Moments and runs (runs.js, galleryLayout.ts, RunStack.tsx)
+
+   Moments are headings in the grid, set like a photo library's: the name you'd
+   say, then when and how much in a quieter voice. A run folds into a stack:
+   a photo like any other with two hairline edges under it, or a cover flow
+   inside one card. Opened, it becomes a shelf: rows in the order they were
+   made, under a line naming the run.
+--------------------------------------------------------------------------- */
+
+:root {
+  --run-spring: cubic-bezier(.2, .9, .25, 1.12);
+  --run-ink-soft: rgb(255 255 255 / .5);
+}
+
+/* ---------------------------------------------------------------- Moments */
+
+.virtual-gallery-moment {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 4px 13px;
+  line-height: normal;
+  pointer-events: none;
+  will-change: transform;
+}
+.moment-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.moment-heading h2 {
+  margin: 0;
+  color: #f5f5f5;
+  font-size: 21px;
+  font-weight: 650;
+  letter-spacing: -.024em;
+  white-space: nowrap;
+}
+.moment-meta {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--run-ink-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.moment-meta i,
+.run-card-text small i {
+  margin: 0 6px;
+  font-style: normal;
+  opacity: .55;
+}
+@media (max-width: 620px) {
+  .virtual-gallery-moment { padding: 0 2px 10px; }
+  .moment-heading { flex-direction: column; align-items: flex-start; gap: 1px; }
+  .moment-heading h2 { font-size: 19px; }
+  .moment-meta { font-size: 11.5px; }
+}
+
+/* ------------------------------------------------------------------ Stack */
+
+.virtual-gallery-cell.is-stack { z-index: 1; }
+.run-stack-wrap { position: relative; }
+.run-stack {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: #fff;
+  line-height: normal;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.run-stack-cover {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: #1b1b1b;
+}
+.run-stack-cover {
+  box-shadow: 0 1px 2px rgb(0 0 0 / .35), 0 14px 28px -16px rgb(0 0 0 / .9);
+  transition: transform 420ms var(--run-spring), box-shadow 300ms var(--ease-out);
+}
+.run-stack-cover > img,
+.run-stack-cover > .video-preview,
+.run-stack-cover > .media-fallback,
+.run-stack-skim-frame,
+.run-stack-skim-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.run-stack-cover > img { transition: filter 560ms cubic-bezier(.16, 1, .3, 1), opacity 380ms ease; }
+.run-stack-cover > img.media-loading { filter: blur(22px) saturate(1.25); opacity: 0; }
+.run-stack-skim-frame { position: absolute; inset: 0; }
+.run-stack-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgb(0 0 0 / .74), rgb(0 0 0 / .32) 36%, transparent 64%),
+    radial-gradient(120% 60% at 100% 0%, rgb(0 0 0 / .28), transparent 50%);
+  pointer-events: none;
+}
+.run-stack-count {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--r-pill);
+  background: rgb(0 0 0 / .4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5);
+  backdrop-filter: blur(14px) saturate(1.5);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.01em;
+}
+.run-stack-text {
+  position: absolute;
+  left: 13px;
+  right: 13px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: transform 320ms var(--ease-out);
+}
+.run-stack-text small {
+  color: rgb(255 255 255 / .7);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: .085em;
+  text-transform: uppercase;
+}
+.run-stack-text strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -.012em;
+  line-height: 1.22;
+  text-wrap: balance;
+  text-shadow: 0 1px 12px rgb(0 0 0 / .35);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.run-stack-wrap.is-compact .run-stack-text { left: 10px; right: 10px; bottom: 19px; }
+.run-stack-wrap.is-compact .run-stack-text strong { font-size: 13px; }
+.run-stack-wrap.is-compact .run-stack-text small { font-size: 9.5px; }
+
+/* Skimming: a strip of ticks under the title, one per output. Only the strip
+   skims (the bottom fifth of the card); the rest of the card stays put. It shows when the card is pointed at
+   and wakes up fully under the pointer. */
+.run-stack-skim {
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  /* The bottom fifth of the card skims; the ticks sit along its foot. */
+  height: max(20%, 30px);
+  padding: 0 4px 9px;
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out);
+}
+.run-stack-skim i {
+  flex: 1;
+  height: 2px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / .3);
+  transition: background 120ms, height 160ms var(--ease-out);
+}
+.run-stack-skim i.is-at { background: #fff; }
+.run-stack-skim.is-on i { height: 3px; }
+.run-stack:hover .run-stack-skim { opacity: .8; }
+.run-stack-skim.is-on { opacity: 1; }
+
+.run-stack:active .run-stack-cover { transform: scale(.985); transition-duration: 140ms; }
+.run-stack:focus-visible .run-stack-cover { box-shadow: var(--focus-ring); }
+@media (prefers-reduced-motion: reduce) {
+  .run-stack-cover, .run-stack-text { transition: none; }
+}
+
+/* --------------------------------------------------------------- The switch */
+
+/* Beside search, or beside the video previews' pause when the gallery has videos. */
+.app-shell .zen-control-button.stack-runs-button { left: calc(var(--deck-gap) + 2 * var(--deck-h) + 16px); }
+.app-shell:has(.grid-autoplay-button) .zen-control-button.stack-runs-button { left: calc(var(--deck-gap) + 3 * var(--deck-h) + 24px); }
+.stack-runs-button.is-on { color: #fff; background: rgb(44 44 44 / .94); }
+.stack-runs-button:disabled, .phone-icon:disabled { opacity: .4; cursor: default; }
+@media (max-width: 760px) {
+  .app-shell .zen-control-button.stack-runs-button { left: calc(max(8px, env(safe-area-inset-left)) + 2 * var(--deck-h) + 16px); }
+  .app-shell:has(.grid-autoplay-button) .zen-control-button.stack-runs-button { left: calc(max(8px, env(safe-area-inset-left)) + 3 * var(--deck-h) + 24px); }
+}
+
+/* ------------------------------------------------------------------- Zen */
+
+/* In the strip a run is a thumbnail with two edges showing over it. */
+.zen-gallery-strip:has(.is-run) { padding-top: 10px; }
+.zen-gallery-strip button.is-run {
+  position: relative;
+  overflow: visible;
+  box-shadow: 0 -3px 0 -1px rgb(110 110 110), 0 -6px 0 -3px rgb(70 70 70);
+}
+.zen-gallery-strip button.is-run > :not(.zen-run-count) { border-radius: inherit; overflow: hidden; }
+.zen-gallery-strip button.is-run img { border-radius: calc(var(--radius) - 3px); }
+.zen-run-count {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / .62);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+/* Zen showing a run: a small fan of it, what it is, and the way in. */
+.run-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 48px;
+  padding: 48px 24px 170px;
+  line-height: normal;
+}
+.run-card-fan {
+  position: relative;
+  height: min(46vh, 440px);
+  aspect-ratio: var(--card-ratio, 1);
+  max-width: min(56vw, 520px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.run-card-leaf {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  background: #151515;
+  box-shadow: 0 34px 80px -24px rgb(0 0 0 / .85), 0 0 0 1px rgb(255 255 255 / .06);
+  transform-origin: 50% 115%;
+}
+.run-card-leaf img,
+.run-card-leaf .video-preview { display: block; width: 100%; height: 100%; object-fit: cover; }
+.run-card-leaf:not(.is-front) img { filter: brightness(.55) saturate(.9); }
+.run-card-fan:focus-visible { outline: none; }
+.run-card-fan:focus-visible .is-front { box-shadow: var(--focus-ring); }
+.run-card-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  max-width: 560px;
+  text-align: center;
+}
+.run-card-text small {
+  color: var(--run-ink-soft);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.run-card-text strong {
+  color: #fff;
+  font-size: 23px;
+  font-weight: 640;
+  letter-spacing: -.022em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.run-card-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  margin-top: 10px;
+  padding: 0 17px 0 14px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--action);
+  color: var(--action-ink);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 620;
+  cursor: pointer;
+  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+}
+.run-card-open:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgb(0 0 0 / .4); }
+.run-card-open:active { transform: scale(.97); }
+.run-card-open:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* ----------------------------------------------------------- Phone: sheet */
+
+.run-sheet .phone-sheet-body { padding: 0 0 6px; overflow: hidden; }
+.cover-flow {
+  --cw: min(62vw, 300px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: normal;
+}
+.cover-flow-track {
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 14px calc(50% - var(--cw) / 2 + var(--cw) * .16) 48px;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.cover-flow-track::-webkit-scrollbar { display: none; }
+.cover-flow-card {
+  position: relative;
+  flex: 0 0 var(--cw);
+  margin: 0 calc(var(--cw) * -.16);
+  padding: 0;
+  border: 0;
+  background: none;
+  scroll-snap-align: center;
+  transform: perspective(900px) rotateY(calc(var(--turn, 0) * -50deg)) translateZ(calc(var(--away, 0) * -60px)) scale(calc(1 - var(--away, 0) * .1));
+  -webkit-tap-highlight-color: transparent;
+}
+.cover-flow-face {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: var(--card-ratio, 1);
+  max-height: 48dvh;
+  border-radius: 16px;
+  background: #1c1c1c;
+  box-shadow: 0 24px 50px -18px rgb(0 0 0 / .85), inset 0 0 0 1px rgb(255 255 255 / .06);
+  filter: brightness(calc(1 - var(--away, 0) * .4));
+  -webkit-box-reflect: below 3px linear-gradient(transparent 72%, rgb(255 255 255 / .16));
+}
+.cover-flow-face img,
+.cover-flow-face .video-preview { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cover-flow-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 24px;
+  text-align: center;
+}
+.cover-flow-caption small {
+  color: var(--run-ink-soft);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.cover-flow-caption strong {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 640;
+  letter-spacing: -.02em;
+  text-wrap: balance;
+}
+.cover-flow-caption p {
+  display: -webkit-box;
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: rgb(255 255 255 / .6);
+  font-size: 13px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+.cover-flow-show {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 50px;
+  margin: 14px 16px 2px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--action);
+  color: var(--action-ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 620;
+}
+.cover-flow-show:active { transform: scale(.98); }
+
+/* ------------------------------------------------------------------ Shelf */
+
+/* An open run: a line naming it with the fold right beside the name, rows of
+   its outputs in the order they were made, and a thin lit ledge just under
+   them. No box, and no wider than its rows. */
+.run-shelf {
+  position: absolute;
+  z-index: 0;
+  line-height: normal;
+  pointer-events: none;
+  will-change: transform;
+}
+.run-shelf-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 0 0 4px 2px;
+}
+.run-shelf-head strong,
+.run-shelf-head small {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.run-shelf-head strong {
+  flex: 0 1 auto;
+  color: #f5f5f5;
+  font-size: 15px;
+  font-weight: 640;
+  letter-spacing: -.014em;
+}
+.run-shelf-head small {
+  flex: 0 100 auto;
+  color: var(--run-ink-soft);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.run-shelf-head small i { margin: 0 6px; font-style: normal; opacity: .55; }
+.run-shelf.is-live .run-shelf-head small { color: var(--ember); }
+.run-shelf-head strong { max-width: min(46ch, 60%); }
+/* Fold and Unstack: one small capsule right after what the run is, each
+   action named, so neither has to be guessed from an icon. */
+.run-shelf-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  margin-left: 4px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / .07);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .06);
+  pointer-events: auto;
+}
+.run-shelf-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px 0 9px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: rgb(255 255 255 / .78);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms var(--ease-out), color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.run-shelf-action + .run-shelf-action,
+.run-shelf-actions > * + * { position: relative; }
+.run-shelf-actions > * + *::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 7px;
+  bottom: 7px;
+  width: 1px;
+  background: rgb(255 255 255 / .12);
+}
+.run-shelf-action:hover { background: rgb(255 255 255 / .1); color: #fff; }
+.run-shelf-action:active { transform: scale(.96); }
+.run-shelf-action:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.run-shelf-actions:hover > * + *::before { opacity: 0; }
+/* The ledge: one thin lit line a few pixels under the last row, as wide as the rows. */
+.run-shelf-ledge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+.run-shelf-ledge::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 5px;
+  height: 1px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, rgb(255 255 255 / .04), rgb(255 255 255 / .22) 18%, rgb(255 255 255 / .22) 82%, rgb(255 255 255 / .04));
+}
+@media (max-width: 620px) {
+  .run-shelf-head small { display: none; }
+}
+
+/* -------------------------------------------------------- Stack: cover flow */
+
+/* A run as a cover flow inside one card: its cover glowing behind, blurred
+   right down, the front face nearly filling the card, the faces beside it
+   turned gently away and fading out at the card's edges. */
+.run-flow {
+  overflow: hidden;
+  background: #111;
+  /* Whatever happens inside a card is painted inside it and nowhere else. */
+  contain: layout paint;
+  transition: transform 300ms var(--ease-out);
+}
+.run-flow-ambient {
+  position: absolute;
+  inset: -12%;
+  filter: blur(26px) saturate(1.5) brightness(.5);
+}
+.run-flow-ambient img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.run-flow-stage {
+  position: absolute;
+  inset: 0;
+  perspective: 900px;
+  /* The faces fade out toward the card's sides instead of hitting its edge. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 13%, #000 87%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 13%, #000 87%, transparent);
+}
+.run-flow-face {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--face-w);
+  height: var(--face-h);
+  overflow: hidden;
+  border-radius: 9px;
+  background: #1a1a1a;
+  box-shadow: 0 8px 22px -8px rgb(0 0 0 / .7);
+  transition: transform 520ms var(--run-spring);
+  backface-visibility: hidden;
+}
+/* Turned-away faces darken a little with distance: an overlay rather than a
+   filter, so it stays cheap. The face's own hairline edge sits on it too. */
+.run-flow-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgb(0 0 0 / calc(var(--away, 0) * .22));
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14);
+  transition: background 400ms var(--ease-out);
+}
+.run-flow-face > img,
+.run-flow-face > .video-preview,
+.run-flow-face > .media-fallback { display: block; width: 100%; height: 100%; object-fit: cover; }
+.run-flow-face > img.media-loading { opacity: 0; }
+.run-flow-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+/* At rest a card is just its flow and its number; what the run is shows on
+   hover, over a shade that rises with it, like any tile's caption. */
+.run-flow-shade::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / .78), rgb(0 0 0 / .35) 30%, transparent 52%);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+}
+.run-flow .run-stack-text {
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
+}
+@media (hover: hover) {
+  .run-flow:is(:hover, :focus-visible) .run-flow-shade::after,
+  .run-flow:is(:hover, :focus-visible) .run-stack-text { opacity: 1; transform: none; }
+}
+/* Touch has no hover; a tap opens the run's sheet, which names it. */
+.run-flow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 22;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+  pointer-events: none;
+  transition: box-shadow 300ms var(--ease-out);
+}
+@media (hover: hover) { .run-flow:hover::after { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .22); } }
+.run-flow .run-stack-count,
+.run-flow .run-stack-text,
+.run-flow .run-stack-skim { z-index: 21; }
+.run-flow:active { transform: scale(.985); transition-duration: 140ms; }
+.run-flow:focus-visible::after { box-shadow: var(--focus-ring); }
+@media (prefers-reduced-motion: reduce) {
+  .run-flow-face { transition: none; }
+}
+
+/* ------------------------------------------------------------ Stack: burst */
+
+/* A run as Photos shows a burst: a photo like any other in the wall, its
+   count in the corner and two hairline edges under it. Nothing else until
+   it is pointed at. */
+.run-burst-cover {
+  box-shadow: 0 1px 2px rgb(0 0 0 / .3);
+}
+.run-burst-edge {
+  position: absolute;
+  height: 14px;
+  border-radius: 0 0 var(--radius) var(--radius);
+  transition: transform 320ms var(--run-spring);
+}
+.run-burst-edge.is-1 { left: 6px; right: 6px; bottom: 3px; background: #4a4a4a; }
+.run-burst-edge.is-2 { left: 13px; right: 13px; bottom: 0; background: #2e2e2e; }
+.run-burst .run-stack-skim-frame {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 140ms ease;
+}
+.run-burst .run-stack-skim-frame.is-shown { opacity: 1; }
+.run-burst-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgb(0 0 0 / .72), rgb(0 0 0 / .3) 34%, transparent 58%);
+  opacity: 0;
+  transition: opacity 240ms var(--ease-out);
+  pointer-events: none;
+}
+.run-burst .run-stack-text {
+  opacity: 0;
+  transform: translateY(3px);
+  transition: opacity 240ms var(--ease-out), transform 240ms var(--ease-out);
+}
+@media (hover: hover) {
+  .run-burst:is(:hover, :focus-visible) .run-burst-shade,
+  .run-burst:is(:hover, :focus-visible) .run-stack-text { opacity: 1; transform: none; }
+  .run-burst:hover .run-burst-edge.is-1 { transform: translateY(1px); }
+  .run-burst:hover .run-burst-edge.is-2 { transform: translateY(2px); }
+}

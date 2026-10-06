@@ -8,7 +8,7 @@ import { SafeImg } from './SafeImg';
 import { mediaUrl } from './mediaUrl';
 
 export function generationIdentity(item: GalleryItem) {
-  return !item.bundle && item.jobId && Number.isInteger(item.index)
+  return !item.run && item.jobId && Number.isInteger(item.index)
     ? `${item.privateVault ? 'vault' : 'gallery'}:${item.jobId}:${item.index}`
     : item.id;
 }

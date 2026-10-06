@@ -96,7 +96,7 @@
   padding: 12px 14px 12px 18px;
 }
 .set-row + .set-row { box-shadow: inset 0 1px 0 var(--surface-border); }
-.set-row-text { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.set-row-text { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 3px; }
 .set-row-text strong { font-size: 13.5px; font-weight: 550; color: hsl(var(--foreground)); }
 .set-row-text > span { font-size: 12.5px; line-height: 1.5; color: hsl(var(--muted-foreground)); overflow-wrap: anywhere; }
 .set-row-control { flex: none; display: flex; align-items: center; gap: 8px; }
@@ -117,6 +117,44 @@
 .set-folder-status .set-status { font-size: 13px; font-weight: 550; color: hsl(var(--foreground)); }
 .set-folder-status.is-draft .set-status { color: hsl(var(--muted-foreground)); }
 .set-path-input { font: 500 12px/1 var(--font-mono); text-overflow: ellipsis; }
+/* The status sits beside the row's name; the path field carries its own Open and Copy. */
+.set-folder-title { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.set-folder-title .set-status { font-size: 12.5px; font-weight: 550; color: hsl(var(--muted-foreground)); }
+.set-folder-form { align-items: center; }
+/* The field is the well: the path and its two tools sit side by side in it,
+   so the text ends before the icons instead of running under them. */
+.set-folder-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: var(--control-h);
+  padding-right: 5px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--well);
+}
+.set-folder-field:focus-within { border-color: rgb(255 255 255 / .16); }
+.set-folder-field .modal-input { flex: 1; min-width: 0; height: 100%; border: 0; background: transparent; }
+.set-folder-field .modal-input:focus-visible { border: 0; outline: none; }
+.set-folder-tools { flex: none; display: flex; gap: 2px; }
+.set-folder-tool {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.set-folder-tool:hover { background: var(--control-hover); color: hsl(var(--foreground)); }
+.set-folder-tool:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* A long path on one line, cut at its start so the folder names that matter stay visible. */
+.set-path.is-oneline { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; direction: rtl; text-align: left; }
 .set-folder-picks { display: grid; gap: 4px; }
 .set-folder-pick {
   position: relative;
@@ -195,6 +233,10 @@
   background: var(--well);
 }
 .segmented button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   min-height: calc(var(--control-h) - 6px);
   padding: 0 14px;
   border: 0;
@@ -209,6 +251,8 @@
 }
 .segmented button:hover { color: hsl(var(--foreground)); }
 .segmented button.active { background: var(--selected); color: #fff; }
+.segmented button svg { flex: none; opacity: .75; transition: opacity var(--dur-fast); }
+.segmented button.active svg { opacity: 1; }
 .segmented button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ----------------------------------------------------------------- Phone */

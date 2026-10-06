@@ -28,7 +28,7 @@ body {
 }
 
 .stage-gallery,
-.bundle-sheet {
+.cover-flow-track {
   -webkit-overflow-scrolling: touch;
 }
 
@@ -130,7 +130,7 @@ body {
 
   button:hover,
   .tile:hover,
-  .bundle-stack:hover {
+  .run-stack:hover {
     transform: none;
   }
 }

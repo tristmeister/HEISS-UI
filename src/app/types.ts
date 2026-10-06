@@ -1,3 +1,4 @@
+import type { Run } from './runs';
 export type Mode = "image" | "video";
 /** `steps` marks a sampler's count; other nodes report a `phase` ("Encoding image") instead. */
 export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean; /** When the run should be done, on the server's clock; only there when it can be said honestly. */ endsAt?: number; /** When ComfyUI started running it (not queued), on the server's clock. */ runStartedAt?: number; /** ComfyUI is out of reach for now; the server keeps trying for about a minute. */ reconnecting?: boolean };
@@ -72,20 +73,7 @@ export type GenerationFailure = {
   /** What a retry after running out of memory may change. */
   retry?: { smaller?: boolean; tiledDecode?: boolean };
 };
-export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle; /** Starred. */ favorite?: boolean; /** Added from another folder and shown where it is (server/library.js). */ library?: { folder: string; path: string } };
-export type GalleryBundle = {
-  id: string;
-  domain: "gallery" | "vault";
-  reason: "prompt" | "batch";
-  reasonLabel: string;
-  count: number;
-  startedAt: string;
-  endedAt: string;
-  coverId: string;
-  items: GalleryItem[];
-};
-export type BundlePending = { runs: number; items: number; itemIds?: string[] };
-export type BundleStatus = { bundles: unknown[]; pending: BundlePending; mode: string; cooldownMinutes: number };
+export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; /** A stacked run standing in for its outputs (zen's strip). */ run?: Run; /** Starred. */ favorite?: boolean; /** Added from another folder and shown where it is (server/library.js). */ library?: { folder: string; path: string } };
 export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[] };
 export type TouchGesture = { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; moved: boolean } | { mode: "pan"; id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | { mode: "pinch"; distance: number; zoom: number; panX: number; panY: number; centerX: number; centerY: number; moved: boolean };
 export type SelectOption = { label: string; value: string };
@@ -318,9 +306,12 @@ export type Preferences = {
   /** Wide images take two gallery columns, from three columns up. */
   spanWideImages: boolean;
   showFailedItems: boolean;
-  groupRuns: boolean;
-  runGroupingMode: "smart" | "job";
-  runCooldownMinutes: number;
+  /** Headings for each stretch of time in the gallery ("This evening"). */
+  showMoments: boolean;
+  /** Runs of one idea fold into stacks (runs.js). */
+  stackRuns: boolean;
+  /** A folded run: a photo with edges under it, or a cover flow inside one card. */
+  runStackStyle: "burst" | "flow";
   smartUpscale: boolean;
   upscaleQuality: UpscaleQuality;
   autoUpscale: AutoUpscale;

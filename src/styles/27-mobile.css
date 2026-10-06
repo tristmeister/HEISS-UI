@@ -267,7 +267,6 @@
   top: max(12px, env(safe-area-inset-top));
   left: max(12px, env(safe-area-inset-left));
 }
-.zen-run-badge { top: max(18px, calc(env(safe-area-inset-top) + 8px)); }
 .studio-dock { right: max(var(--deck-gap), env(safe-area-inset-right)); }
 :is(.app-shell, .zen-shell) .zen-control-button { left: max(var(--deck-gap), env(safe-area-inset-left)); }
 .stage-gallery {
@@ -279,8 +278,7 @@
     padding-left: max(6px, env(safe-area-inset-left));
     padding-right: max(6px, env(safe-area-inset-right));
   }
-  /* The strip sits under the Hidden bar here; give the run badge and strip room. */
-  .zen-shell:has(.zen-gallery-wrap) .zen-run-badge { top: calc(env(safe-area-inset-top) + 120px); }
+  /* The strip sits under the Hidden bar here; give it room. */
   .is-hidden-space .zen-gallery-wrap { top: calc(max(10px, env(safe-area-inset-top)) + 54px); }
 }
 
@@ -291,13 +289,13 @@
    not already positioned, so absolutely placed ones stay where they are. */
 @media (pointer: coarse) {
   :where(.model-menu-clear, .lora-chip-remove, .mf-notice-close, .lora-remove, .upscale-notice-close,
-    .bundle-cell-download, .bundle-cover-set, .lora-head-action, .lora-text-action, .lora-chip-action,
-    .ref-menu-remove, .reference-tile-delete, .model-star, .bundle-head-button, .readout-copy, .island-close,
+    .run-shelf-action, .lora-head-action, .lora-text-action, .lora-chip-action,
+    .ref-menu-remove, .reference-tile-delete, .model-star, .readout-copy, .island-close,
     .wf-search button, .wf-filters button, .model-setup .btn, .tile-action, .switch,
     .zen-controls .number-picker-btn) { position: relative; }
   :is(.model-menu-clear, .lora-chip-remove, .mf-notice-close, .lora-remove, .upscale-notice-close,
-    .bundle-cell-download, .bundle-cover-set, .lora-head-action, .lora-text-action, .lora-chip-action,
-    .ref-menu-remove, .reference-tile-delete, .model-star, .bundle-head-button, .readout-copy, .island-close,
+    .run-shelf-action, .lora-head-action, .lora-text-action, .lora-chip-action,
+    .ref-menu-remove, .reference-tile-delete, .model-star, .readout-copy, .island-close,
     .wf-search button, .wf-filters button, .model-setup .btn, .tile-action, .switch,
     .zen-controls .number-picker-btn)::after {
     content: "";
@@ -325,11 +323,11 @@
 /* ------------------------------------------------------ Touch: performance */
 
 /* Dozens of live blur layers (one per tile control) make scrolling stutter on
-   phones. Tile, bundle and LoRA-card controls go solid; floating surfaces keep
+   phones. Tile, stack and LoRA-card controls go solid; floating surfaces keep
    a lighter blur. (-webkit- first: the minifier keeps only the last of a pair.) */
 @media (pointer: coarse) {
   :is(.tile-upscale, .tile-hover-actions .tile-icon, .tile-hover-actions .tile-delete, .tile-action, .tile-more,
-    .bundle-count, .bundle-cell-download, .bundle-cover-set, .lora-card) {
+    .run-stack-count, .lora-card) {
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
     background-color: rgb(14 14 14 / .82);

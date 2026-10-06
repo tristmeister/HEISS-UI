@@ -15,9 +15,9 @@ export const defaultPrefs: Preferences = {
   followLatest: true,
   spanWideImages: false,
   showFailedItems: true,
-  groupRuns: true,
-  runGroupingMode: "smart",
-  runCooldownMinutes: 1,
+  showMoments: true,
+  stackRuns: false,
+  runStackStyle: "burst",
   smartUpscale: true,
   upscaleQuality: "balanced",
   autoUpscale: "none",
@@ -28,13 +28,10 @@ export const defaultPrefs: Preferences = {
   hiddenShareWithoutSettings: true
 };
 
-/**
- * Features that are built but kept out of sight for now. Off hides every way
- * in; what a feature already made (like existing stacks) still shows.
- */
+/** Built but kept out of sight for now. */
 export const features = {
-  /** Stacking finished runs in the gallery: the "Group runs" chip and Library › Runs. */
-  runGrouping: false
+  /** Time headings in the gallery ("This evening"). */
+  moments: false
 } as const;
 
 export const galleryInitialBatch = 72;

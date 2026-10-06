@@ -7,7 +7,7 @@ import type { ConfirmAction } from './useConfirmation';
 import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, CircleArrowUp, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
 import { cn } from './format';
-import { BetaTag, NumberPicker, Skeleton, StudioSelect } from './components';
+import { BetaTag, NumberPicker, Skeleton, StudioSelect, Tip } from './components';
 import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
@@ -58,6 +58,27 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
         </button>
       ))}
     </div>
+  );
+}
+
+/** The two looks of a stacked run, drawn small: a photo with two edges under it, and a cover flow. */
+function RunStyleGlyph({ kind }: { kind: 'burst' | 'flow' }) {
+  return (
+    <svg width="18" height="14" viewBox="0 0 18 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {kind === 'burst' ? (
+        <>
+          <rect x="3" y="1" width="12" height="9" rx="2" />
+          <path d="M4.5 11.6h9" opacity=".7" />
+          <path d="M6 13.2h6" opacity=".45" />
+        </>
+      ) : (
+        <>
+          <rect x="5.5" y="1.5" width="7" height="11" rx="1.6" />
+          <path d="M3.6 3.4 1 4.4v5.2l2.6 1" opacity=".6" />
+          <path d="M14.4 3.4 17 4.4v5.2l-2.6 1" opacity=".6" />
+        </>
+      )}
+    </svg>
   );
 }
 
@@ -498,23 +519,33 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
   const draftBlocked = dirty && (!draftReport || draftReport.state === 'missing' || draftReport.state === 'not-folder');
   const hasSaved = Boolean(report?.path && report.state !== 'missing');
 
+  // Searching is for when the folder isn't the one ComfyUI uses; once it is, it's noise.
+  const needsSearch = !dirty && report && report.state !== 'match';
   return (
-    <Row label="Output folder" description={galleryNote} stacked>
-      <div className={cn('set-folder-status', dirty && 'is-draft')} aria-live="polite">
-        <Status tone={shown.tone}>{dirty ? `New path: ${shown.label.toLowerCase()}` : shown.label}</Status>
-        {shown.detail ? <span>{shown.detail}</span> : null}
-      </div>
-      <form className="set-inline-form" onSubmit={(event) => { event.preventDefault(); if (dirty && !draftBlocked) save(draft); }}>
-        <input
-          className="modal-input set-path-input"
-          aria-label="Output folder"
-          value={draft}
-          placeholder={canBrowse ? 'Paste a path, or browse' : 'Paste the full folder path'}
-          spellCheck={false}
-          autoComplete="off"
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => { if (event.key === 'Escape' && dirty) { event.stopPropagation(); setDraft(report?.path || savedDir); } }}
-        />
+    <Row
+      label={<span className="set-folder-title">Output folder<Status tone={shown.tone}>{dirty ? `New path: ${shown.label.toLowerCase()}` : shown.label}</Status></span>}
+      description={<span aria-live="polite">{shown.detail || galleryNote}</span>}
+      stacked
+    >
+      <form className="set-inline-form set-folder-form" onSubmit={(event) => { event.preventDefault(); if (dirty && !draftBlocked) save(draft); }}>
+        <div className="set-folder-field">
+          <input
+            className="modal-input set-path-input"
+            aria-label="Output folder"
+            value={draft}
+            placeholder={canBrowse ? 'Paste a path, or browse' : 'Paste the full folder path'}
+            spellCheck={false}
+            autoComplete="off"
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => { if (event.key === 'Escape' && dirty) { event.stopPropagation(); setDraft(report?.path || savedDir); } }}
+          />
+          {!dirty && hasSaved ? (
+            <span className="set-folder-tools">
+              <Tip content="Open in the file manager"><button type="button" className="set-folder-tool" aria-label="Open the output folder" onClick={onOpen}><FolderOpen size={14} /></button></Tip>
+              <Tip content={pathCopy.copied ? 'Copied' : 'Copy path'}><button type="button" className="set-folder-tool" aria-label="Copy the path" onClick={() => pathCopy.copyWith(() => onCopy(report?.path || savedDir))}><CopyIcon copied={Boolean(pathCopy.copied)} /></button></Tip>
+            </span>
+          ) : null}
+        </div>
         {dirty
           ? <button className="btn is-primary" type="submit" disabled={draftBlocked || busy === 'save'}>Save</button>
           : canBrowse ? <button className="btn" type="button" onClick={browse} disabled={Boolean(busy)}><FolderSearch size={14} /> {busy === 'browse' ? 'Waiting…' : 'Browse…'}</button> : null}
@@ -533,11 +564,11 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
           ))}
         </div>
       ) : null}
-      <div className="set-actions">
-        <button className="btn is-ghost" onClick={detect} disabled={Boolean(busy)}><ScanSearch size={14} /> {busy === 'detect' ? 'Searching…' : 'Find automatically'}</button>
-        <button className="btn is-ghost" onClick={onOpen} disabled={!hasSaved}><FolderOpen size={14} /> Open</button>
-        <button className="btn is-ghost" onClick={() => pathCopy.copyWith(() => onCopy(report?.path || savedDir))} disabled={!hasSaved}><CopyIcon copied={Boolean(pathCopy.copied)} /> {pathCopy.copied ? 'Copied' : 'Copy path'}</button>
-      </div>
+      {needsSearch ? (
+        <div className="set-actions">
+          <button className="btn is-ghost" onClick={detect} disabled={Boolean(busy)}><ScanSearch size={14} /> {busy === 'detect' ? 'Searching…' : 'Find automatically'}</button>
+        </div>
+      ) : null}
     </Row>
   );
 }
@@ -781,7 +812,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
         {section === 'library' ? (
           <>
-            {thisComputer ? <Group title="Folders" note="Where ComfyUI saves your images.">
+            {thisComputer ? <Group title="Folders">
               <OutputFolderRow
                 savedDir={paths.outputDir || ''}
                 galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
@@ -790,33 +821,41 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 onCopy={(dir) => copyToClipboard(dir)}
                 showToast={showToast}
               />
-              <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path">{paths.workflowsDir}</code> : <Skeleton className="skeleton-text path" />}>
+              <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path is-oneline" title={paths.workflowsDir}><bdi>{paths.workflowsDir}</bdi></code> : <Skeleton className="skeleton-text path" />}>
                 <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
               </Row>
             </Group> : null}
-            {features.runGrouping ? <Group title="Runs" note="Hidden images only group with each other.">
-              <SwitchRow label="Group generation runs" description="Stacks images from the same run into one tile you can open." checked={prefs.groupRuns !== false} onChange={(next) => setPrefs({ groupRuns: next })} />
-              {prefs.groupRuns !== false ? (
-                <>
-                  <Row label="Group by" description={prefs.runGroupingMode === 'job' ? 'Only images from the same job.' : 'The same prompt repeated, or one batch.'}>
-                    <Segmented label="Group by" value={prefs.runGroupingMode === 'job' ? 'job' : 'smart'} onChange={(next) => setPrefs({ runGroupingMode: next })} options={[{ value: 'smart', label: 'Smart' }, { value: 'job', label: 'Batches' }]} />
-                  </Row>
-                  <Row label="Close a run after" description="Minutes without a new image before a run is stacked. Later images start a new run.">
-                    <NumberPicker label="Minutes" value={Number(prefs.runCooldownMinutes ?? 5)} onChange={(next) => setPrefs({ runCooldownMinutes: next })} min={1} max={240} />
-                  </Row>
-                </>
-              ) : null}
-            </Group> : null}
             <Group title="Gallery">
               <SwitchRow label="Follow the latest output" description="Shows each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
-              <SwitchRow label="Wide images take two columns" description="Landscape images span two gallery columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
-              <SwitchRow label="Show failed items" description="Shows interrupted and failed generations in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
-              <Row label="Clear failed items" description="Removes failed and interrupted cards.">
-                <button className="btn" onClick={clearFailedItems}>Clear</button>
-              </Row>
-              <SwitchRow label="Share without settings" description="Leaves the prompt, seed and workflow out of downloaded and shared files. The files in the gallery keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
+              {features.moments ? <SwitchRow label="Group by time" description="Headings like “This evening” split the gallery into the stretches you spent making things." checked={prefs.showMoments !== false} onChange={(next) => setPrefs({ showMoments: next })} /> : null}
+              <SwitchRow label="Wide images take two columns" description="Landscape images span two columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
+              <SwitchRow label="Show failed items" description="Interrupted and failed generations stay in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
+            </Group>
+            <Group title="Runs" note="A run is the takes and variations of one idea, found by prompt, model and time.">
+              <SwitchRow label="Stack runs" description="Each run folds into one tile you can open. The stack button over the gallery does the same." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
+              {prefs.stackRuns ? (
+                <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
+                  <Segmented
+                    label="Stacks look like"
+                    value={prefs.runStackStyle === 'flow' ? 'flow' : 'burst'}
+                    onChange={(next) => setPrefs({ runStackStyle: next })}
+                    options={[
+                      { value: 'burst', label: <><RunStyleGlyph kind="burst" /> Photo</> },
+                      { value: 'flow', label: <><RunStyleGlyph kind="flow" /> Cover flow</> },
+                    ]}
+                  />
+                </Row>
+              ) : null}
+            </Group>
+            <Group title="Sharing">
+              <SwitchRow label="Share without settings" description="Leaves the prompt, seed and workflow out of downloaded and shared files. The gallery’s own files keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
               <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
+              </Row>
+            </Group>
+            <Group title="Clean up">
+              <Row label="Clear failed items" description="Removes failed and interrupted cards.">
+                <button className="btn" onClick={clearFailedItems}>Clear</button>
               </Row>
               {thisComputer ? <TrashRow confirmAction={confirmAction} showToast={showToast} Row={Row} /> : null}
             </Group>

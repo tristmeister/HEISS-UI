@@ -20,6 +20,7 @@ import type { AspectPreset, GalleryItem, Profile } from './types';
 import type { ShowToast } from './toast';
 import { PromptHistorySheet } from './PromptHistory';
 import { PhoneSearchBar } from './GallerySearch';
+import { StackRunsButton } from './StackRunsButton';
 import { canStar, emptySearch, searchActive, type GallerySearch } from './favorites';
 import { usePromptHistory } from './recentPrompts';
 
@@ -387,6 +388,9 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         ) : null}
         {!hiddenLocked && gallery.some((item) => item.type === 'video') ? (
           <GridAutoplayButton phone />
+        ) : null}
+        {!hiddenLocked && !selecting ? (
+          <StackRunsButton phone on={Boolean(view.prefs.stackRuns)} disabled={searchActive(gallerySearch)} onToggle={() => { haptic('tap'); view.setPrefs({ stackRuns: !view.prefs.stackRuns }); }} />
         ) : null}
         {!hiddenSpace ? (
           <button type="button" className={cn('phone-icon', hidden.enabled && hidden.unlocked && 'has-dot')} aria-label={hidden.enabled && hidden.unlocked ? 'Open Hidden, unlocked' : 'Open Hidden'} onClick={toggleHiddenSpace}><LockKeyhole size={20} /></button>

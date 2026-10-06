@@ -24,9 +24,11 @@ import { loraFit, useLoraInfo } from './app/useLoraInfo';
 import type { LoraMismatch } from './app/LoraMismatchChip';
 import { loadWorkflowSettingValues, saveWorkflowSettingValues, type WorkflowSettingValues } from './app/WorkflowSettings';
 import { useViewerControls } from './app/useViewerControls';
-import { useGalleryBundles } from './app/useGalleryBundles';
+import { collapseRuns, useGalleryGroups } from './app/useGalleryGroups';
+import { useUnstackedRuns } from './app/useUnstackedRuns';
+import { runTitle, type Run } from './app/runs';
 import { useGalleryStore } from './app/useGalleryStore';
-import { emptySearch, useFavorites, type GallerySearch } from './app/favorites';
+import { emptySearch, searchActive, useFavorites, type GallerySearch } from './app/favorites';
 import { upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/useUpscale';
 import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
@@ -193,14 +195,43 @@ function App() {
   } = useGalleryStore({ mode, showFailedItems: prefs.showFailedItems, space: hidden.space, onLocked: hidden.refresh, search: gallerySearch });
   const toggleFavorite = useFavorites({ patchGalleryItems, removeGalleryItems, setActive, search: gallerySearch, showToast });
 
-  const { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle } = useGalleryBundles({
-    prefs,
-    galleryRevision,
-    domain: hiddenSpace ? "vault" : "gallery",
-    enabled: !hiddenSpace || hidden.unlocked,
-    reloadGallery: loadGallery,
-    showToast
-  });
+  // Moments and runs: a way of looking at the gallery, worked out from what is
+  // loaded (runs.js). Runs stack only when asked, and never in search results.
+  const stackRuns = Boolean(prefs.stackRuns) && !searchActive(gallerySearch);
+  const foundGroups = useGalleryGroups(visibleGallery, { runs: stackRuns });
+  const { groups: galleryGroups, unstack } = useUnstackedRuns(foundGroups);
+  // Which runs are laid out open; a run that is generating opens by itself.
+  const [openRuns, setOpenRuns] = useState<Set<string>>(() => new Set());
+  const foldedLive = useRef<Set<string>>(new Set());
+  const setRunOpen = useCallback((runId: string, open: boolean) => {
+    if (!open) foldedLive.current.add(runId);
+    setOpenRuns((current) => {
+      if (current.has(runId) === open) return current;
+      const next = new Set(current);
+      if (open) next.add(runId); else next.delete(runId);
+      return next;
+    });
+  }, []);
+  // Taking a run apart for good: its tiles stay separate, with a way back.
+  const unstackRun = useCallback((run: Run) => {
+    unstack(run, true);
+    setOpenRuns((current) => {
+      if (!current.has(run.id)) return current;
+      const next = new Set(current);
+      next.delete(run.id);
+      return next;
+    });
+    showToast("Run unstacked", "default", { description: runTitle(run), action: { label: "Undo", onClick: () => { unstack(run, false); setOpenRuns((current) => new Set([...current, run.id])); } } });
+  }, [unstack]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const live = galleryGroups.runs.filter((run) => run.live && !openRuns.has(run.id) && !foldedLive.current.has(run.id));
+    if (live.length) setOpenRuns((current) => new Set([...current, ...live.map((run) => run.id)]));
+  }, [galleryGroups]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Zen steps over a stacked run as one thing, and shows it as a run.
+  const zenGallery = useMemo(() => {
+    const shown = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
+    return stackRuns ? collapseRuns(shown, galleryGroups, openRuns) : shown;
+  }, [visibleGallery, stackRuns, galleryGroups, openRuns]);
 
   // Chrome on Windows can hand playing videos to a hardware layer that frosted
   // glass can't blur, so the glass over the video gallery shows it through.
@@ -658,7 +689,7 @@ function App() {
 
   useEffect(() => {
     if (!prefs.zenMode || active || settings) return;
-    const zenItems = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
+    const zenItems = zenGallery;
     const currentIndex = Math.max(0, zenItems.findIndex((item) => item.id === zenSelectedId));
     function onKeyDown(event: KeyboardEvent) {
       if (document.querySelector(OPEN_DIALOG)) return;
@@ -674,7 +705,7 @@ function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [prefs.zenMode, active, settings, gallery, mode, zenSelectedId]);
+  }, [prefs.zenMode, active, settings, gallery, mode, zenSelectedId, zenGallery]);
 
   useEffect(() => {
     const latest = visibleGallery.find((item) => item.status === "done");
@@ -1217,7 +1248,6 @@ function App() {
     onStopHints: () => setPrefs({ modelFolderHints: false })
   });
   const doneGallery = useMemo(() => visibleGallery.filter((item) => item.status === "done" || item.status === "error"), [visibleGallery]);
-  const zenGallery = useMemo(() => visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error"), [visibleGallery]);
   const zenItem = zenGallery.find((item) => item.id === zenSelectedId) || zenGallery[0] || null;
   const zenDisplayItem = zenItem;
   const missingReferenceInput = referenceInputs.find((input) => (input.required || (input.min || 0) > 0) && !composerReferenceAssets.some((item) => item.slot === input.id));
@@ -1511,7 +1541,7 @@ function App() {
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;
 
-  const baseView = { gallerySearch, setGallerySearch, toggleFavorite, seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restartHeiss, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, chooseAutoUpscale, upscaleDisplayUrl, modelFolders, generationEstimate, openLoras: () => { setSidebarTab('loras'); setZenControls(true); }, varyItem, fillPrompt, surprise: () => fillPrompt(surprisePrompt(prompt, mode)), starterPrompts, onStarterStarted: rememberStarter, selectStarterModel, generateKey: generateShortcut(prefs.enterToGenerate), failureFixes: generationActions.failureFixes };
+  const baseView = { gallerySearch, setGallerySearch, toggleFavorite, seed, setSeed, galleryGroups, stackRuns, openRuns, setRunOpen, unstackRun, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restartHeiss, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, chooseAutoUpscale, upscaleDisplayUrl, modelFolders, generationEstimate, openLoras: () => { setSidebarTab('loras'); setZenControls(true); }, varyItem, fillPrompt, surprise: () => fillPrompt(surprisePrompt(prompt, mode)), starterPrompts, onStarterStarted: rememberStarter, selectStarterModel, generateKey: generateShortcut(prefs.enterToGenerate), failureFixes: generationActions.failureFixes };
 
   // How much a start image may change: denoise, shown next to the image in the composer.
   const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;

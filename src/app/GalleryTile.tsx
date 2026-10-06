@@ -41,8 +41,6 @@ type GalleryTileProps = {
   cancelJob: (jobId?: string) => void;
   copyPromptAndToast: (item: GalleryItem) => void;
   deleteItem: (item: GalleryItem) => void;
-  gathering?: boolean;
-  gatherIndex?: number;
   smartUpscale?: boolean;
   upscaleBusy?: boolean;
   onUpscale?: (item: GalleryItem) => void;
@@ -107,7 +105,7 @@ const tileEnterTransition = {
   mass: 0.86,
 };
 
-function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, onCancelUpscale = () => {}, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
+function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, height, item, onUpscale, onCancelUpscale = () => {}, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
   const mountedRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
   const isEntering = !mountedRef.current && (Date.now() - Date.parse(item.createdAt || "")) < 2000;
@@ -149,8 +147,8 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   return (
     <motion.div
       data-tile-id={item.id}
-      className={cn("tile-motion-wrap", gathering && "is-gathering")}
-      style={{ width, height, "--gather-delay": `${Math.min(gatherIndex, 6) * 14}ms` } as React.CSSProperties}
+      className="tile-motion-wrap"
+      style={{ width, height }}
       initial={prefersReducedMotion || !isEntering ? false : { opacity: 0, y: -18, scale: 0.965 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -220,7 +218,6 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
 
 export const GalleryTile = React.memo(GalleryTileComponent, (previous, next) => {
   if (previous.item !== next.item) return false;
-  if (previous.gathering !== next.gathering) return false;
   if (previous.smartUpscale !== next.smartUpscale) return false;
   if (previous.upscaleBusy !== next.upscaleBusy) return false;
   if (previous.upscaleNotice !== next.upscaleNotice) return false;

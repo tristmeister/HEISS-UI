@@ -1,6 +1,6 @@
 import React from 'react';
 import { GridAutoplayButton } from './GridAutoplayButton';
-import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit, settingsText } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
@@ -11,6 +11,11 @@ import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
 import { GenerationProgress } from './GenerationProgress';
 import { ComposerBar } from './ComposerBar';
 import { VirtualMasonryGallery } from './VirtualMasonryGallery';
+import { features } from './constants';
+import { RunCard, runKind } from './RunStack';
+import { RunSheet } from './RunSheet';
+import { StackRunsButton } from './StackRunsButton';
+import { runTitle, type Run } from './runs';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
 import { canUpscaleItem } from './useUpscale';
@@ -79,9 +84,9 @@ const ZenStrip = memoLatest(function ZenStrip({ items, activeId, stripRef, onPoi
       onPointerCancel={onPointerUp}
     >
       {items.map((item) => (
-        <Tip key={item.id} content={item.bundle ? `${item.bundle.reasonLabel} · ${item.bundle.count} outputs` : titleFromPrompt(item.prompt || item.filename || "")}><button data-zen-id={item.id} className={cn(item.id === activeId && "active", item.bundle && "is-run")} onClick={(event) => { event.stopPropagation(); onSelect(item.id); }} onDragStart={(event) => event.preventDefault()}>
+        <Tip key={item.id} content={item.run ? `${runTitle(item.run)} · ${runKind(item.run)}` : titleFromPrompt(item.prompt || item.filename || "")}><button data-zen-id={item.id} className={cn(item.id === activeId && "active", item.run && "is-run")} onClick={(event) => { event.stopPropagation(); onSelect(item.id); }} onDragStart={(event) => event.preventDefault()}>
           <Media item={item} muted />
-          {item.bundle ? <span className="zen-run-count" aria-hidden="true"><Layers size={9} />{item.bundle.count}</span> : null}
+          {item.run ? <span className="zen-run-count" aria-hidden="true">{item.run.count}</span> : null}
         </button></Tip>
       ))}
     </div>
@@ -110,7 +115,7 @@ function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retryi
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, galleryGroups, stackRuns, openRuns, setRunOpen, unstackRun, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
   // Smart upscale works on images, and only while it is on in Settings.
   const smartUpscaleTabs = mode === "image" && prefs.smartUpscale !== false;
   const strayModelCount = modelFolders?.strayCount || 0;
@@ -313,9 +318,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     resumeHiddenSetup.current = false;
     if (!hidden.enabled) hidden.setSetupOpen(true);
   }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Expansion is a view concern: a run stays grouped once created, it just
-  // opens and closes in place.
-  const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
+  // A run opened from somewhere other than its stack (zen, a phone's sheet) is scrolled to once laid out.
+  const [focusRun, setFocusRun] = React.useState("");
+  const [runSheet, setRunSheet] = React.useState<Run | null>(null);
+  const showRunInGallery = React.useCallback((run: Run) => {
+    setRunSheet(null);
+    if (prefs.zenMode) setZenMode(false);
+    setRunOpen(run.id, true);
+    setFocusRun(run.id);
+  }, [prefs.zenMode, setRunOpen, setZenMode]);
   // Long-running work floats at the top as activities, in this order; the toasts start under them.
   const upscaleActivity = useUpscaleDownloadActivity(upscaleSetup, upscaleInstall);
   // A text encoder or VAE landing rescans models, so every panel catches up at once.
@@ -390,13 +401,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     observer.observe(gallery);
     return () => observer.disconnect();
   }, [prefs.zenMode]);
-  const toggleBundle = React.useCallback((bundleId: string) => {
-    setExpandedBundles((current) => {
-      const next = new Set(current);
-      if (next.has(bundleId)) next.delete(bundleId); else next.add(bundleId);
-      return next;
-    });
-  }, []);
   // One compact dock, bottom right, in both layouts. Transient actions (tidy up,
   // cancel queue) rise above it as small chips, so the dock never changes size.
   const dockChip = { initial: { opacity: 0, y: 8, scale: 0.94 }, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 0, y: 6, scale: 0.96 }, transition: { type: "spring" as const, duration: 0.34, bounce: 0 } };
@@ -404,17 +408,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     <div className="studio-dock">
       <div className="dock-transients">
         <AnimatePresence initial={false}>
-          {!prefs.zenMode && pendingBundles.runs > 0 ? (
-            <motion.div key="tidy" {...dockChip}>
-              <Tip content={`Group ${pendingBundles.items} outputs from ${pendingBundles.runs} finished run${pendingBundles.runs === 1 ? "" : "s"} into stacks`} side="left">
-                <button type="button" className="dock-chip gallery-tidy" onClick={compactGallery} disabled={compactBusy}>
-                  <BrushCleaning size={14} />
-                  <span>{compactBusy ? "Grouping" : "Group runs"}</span>
-                  <i className="dock-count"><AnimatedNumber value={pendingBundles.runs} /></i>
-                </button>
-              </Tip>
-            </motion.div>
-          ) : null}
           {phoneDevice && prefs.fullStudioOnPhone ? (
             // Chose the full studio on a phone: the way back stays in plain sight.
             <motion.div key="simple" {...dockChip}>
@@ -482,12 +475,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {hiddenLocked || galleryCrossing ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery virtual-gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
             <StableGallery
               cancelJob={cancelJob}
-              expandedBundles={expandedBundles}
-              gatheringIds={gatheringIds}
-              settlingBundles={settlingBundles}
-              setBundleCover={setBundleCover}
-              toggleBundle={toggleBundle}
-              ungroupBundle={ungroupBundle}
+              groups={galleryGroups}
+              moments={features.moments && prefs.showMoments !== false}
+              stackRuns={stackRuns}
+              openRuns={openRuns}
+              stackStyle={prefs.runStackStyle === "flow" ? "flow" : "burst"}
+              setRunOpen={setRunOpen}
+              onUnstack={unstackRun}
+              onStackPress={phone ? setRunSheet : undefined}
+              focusRun={focusRun}
+              onFocused={() => setFocusRun("")}
               columns={galleryColumnCount}
               spanWide={Boolean(prefs.spanWideImages) && !phone}
               copyPromptAndToast={(item) => copyToClipboard(item.prompt || item.filename || "", "Prompt copied")}
@@ -547,6 +544,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     <TileLongPressContext.Provider value={phoneTiles}>
     <FavoriteContext.Provider value={toggleFavorite}>
     <div className={cn(phone ? "phone-shell" : prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && canUseNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
+      {phone ? <RunSheet run={runSheet} onClose={() => setRunSheet(null)} openItem={openItem} onShowInGallery={showRunInGallery} /> : null}
       {phone ? (
         <PhoneShell
           view={view}
@@ -566,7 +564,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       ) : prefs.zenMode ? (
         <>
           <div className="zen-stage">
-            {hiddenLocked ? null : zenDisplayItem ? (
+            {hiddenLocked ? null : zenDisplayItem?.run ? (
+              <RunCard key={zenDisplayItem.run.id} run={zenDisplayItem.run} onOpen={() => showRunInGallery(zenDisplayItem.run)} />
+            ) : zenDisplayItem ? (
               <button
                 aria-label={zenDisplayItem.status === "pending" ? "Generating" : "Open in the viewer"}
                 className={cn("zen-output", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging", zenDisplayItem.status === "pending" && "is-pending")}
@@ -609,13 +609,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div className="zen-fade" />
             <div className="bottom-fade" />
           </div>
-          {zenDisplayItem?.bundle ? (
-            <div className="zen-run-badge">
-              <Layers size={12} />
-              <span>{zenDisplayItem.bundle.reasonLabel}</span>
-              <i>{zenDisplayItem.bundle.count}</i>
-            </div>
-          ) : null}
           {zenGallery.length > 1 ? (
             <div className="zen-arrows">
               <Tip content="Previous output"><button aria-label="Previous output" onClick={() => moveZen(-1)}><ChevronLeft size={22} /></button></Tip>
@@ -625,7 +618,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
-          {zenItem ? (
+          {zenItem && !zenItem.run ? (
             <div className={cn("zen-zoom-dock", zenControls && "with-side")}>
               <Tip content="Zoom out (-)"><button className="icon-button" aria-label="Zoom out" onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
               <Tip content="Reset zoom (0)"><button className="text-button viewer-zoom" aria-label={`Reset zoom, now ${Math.round(viewerZoom * 100)}%`} onClick={resetViewer}>{viewerZoom !== 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
@@ -752,6 +745,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {hiddenLocked ? null : <GallerySearchButton search={gallerySearch} open={searchOpen} setOpen={setSearchOpen} />}
           {/* Only a grid with videos in it has previews to pause. */}
           {hiddenLocked || !renderedGallery.some((item: GalleryItem) => item.type === 'video') ? null : <GridAutoplayButton />}
+          {hiddenLocked ? null : <StackRunsButton on={Boolean(prefs.stackRuns)} disabled={searchOn} onToggle={() => setPrefs({ stackRuns: !prefs.stackRuns })} />}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
           <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}

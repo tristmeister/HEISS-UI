@@ -162,7 +162,6 @@ export function deleteReferenceAsset(assetId: string) {
   return apiJson<{ ok?: boolean }>(`/api/reference-assets/${encodeURIComponent(assetId)}`, { method: "DELETE" });
 }
 
-const prefsMigrationKey = "heiss-ui-prefs-migrated";
 const prefsKey = "heiss-ui-prefs";
 const draftKey = "heiss-ui-draft";
 const legacyPrefsKey = "j-ai-studio-prefs";
@@ -188,12 +187,13 @@ export function loadPrefs(): Preferences {
     const saved = migratedGet(prefsKey, legacyPrefsKey);
     if (!saved) return { ...defaultPrefs };
     const parsed = JSON.parse(saved);
-    // The run cooldown shipped at 5 minutes and was lowered to 1 the same day;
-    // nobody chose the old value on purpose, so carry installs over once.
-    if (!localStorage.getItem(prefsMigrationKey)) {
-      localStorage.setItem(prefsMigrationKey, "run-cooldown-1");
-      if (parsed.runCooldownMinutes === 5) delete parsed.runCooldownMinutes;
-    }
+    // Run grouping's first version kept its own settings; grouping is a view now.
+    delete parsed.groupRuns;
+    delete parsed.runGroupingMode;
+    delete parsed.runCooldownMinutes;
+    // Its trays and card decks went before release.
+    delete parsed.runOpenStyle;
+    if (parsed.runStackStyle === "deck") delete parsed.runStackStyle;
     // Carry an explicit Original choice from the earlier size control into the switch.
     if (parsed.autoResizeInputs === undefined && parsed.referenceMaxEdge === 0) parsed.autoResizeInputs = false;
     delete parsed.referenceMaxEdge;
