@@ -702,6 +702,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               referenceInputs={referenceInputs}
               referenceStrength={referenceStrength}
               referenceInpaint={referenceInpaint}
+              loraMismatch={view.loraMismatch}
+              onDismissLoraMismatch={view.dismissLoraMismatch}
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
@@ -811,6 +813,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               referenceInputs={referenceInputs}
               referenceStrength={referenceStrength}
               referenceInpaint={referenceInpaint}
+              loraMismatch={view.loraMismatch}
+              onDismissLoraMismatch={view.dismissLoraMismatch}
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}

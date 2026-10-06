@@ -62,7 +62,8 @@ test("only a PNG data URL is read as a mask", () => {
 test("img2img inpainting samples the crop with a noise mask at the inpaint strength and stitches it back", () => {
   const graph = familyGraph({ family: "zimage", variant: "turbo", source: "unet", model: "z_image_turbo.safetensors", encoders: ["qwen_3_4b.safetensors"], vae: "ae.safetensors", prompt: "a red jacket", steps: 8, cfg: 1, seed: 1, width: inpaint.work.width, height: inpaint.work.height, count: 2, startImageComfy: "crop.png", inpaint: { ...inpaint, strength: 0.8 } });
   assertWired(graph);
-  assert.equal(byType(graph, "DifferentialDiffusion").length, 1);
+  // A hard sampling mask, no differential diffusion: few-step models leave a soft edge half-done.
+  assert.equal(byType(graph, "DifferentialDiffusion").length, 0);
   assert.equal(byType(graph, "SetLatentNoiseMask").length, 1);
   assert.equal(byType(graph, "KSampler")[0].inputs.denoise, 0.8);
   assert.equal(byType(graph, "EmptySD3LatentImage").length, 0);
@@ -76,28 +77,23 @@ test("img2img inpainting samples the crop with a noise mask at the inpaint stren
   assert.equal(byType(graph, "LoadImage").map((item) => item.inputs.image).sort().join(","), "crop.png,original.png");
 });
 
-test("Flux.2 Klein inpaints from its first reference's latent and trims the schedule for partial strength", () => {
+test("Flux.2 Klein inpaints as an ordinary edit of the crop, then stitches only the painted part", () => {
   const body = { family: "flux2_klein_4b", variant: "distilled", source: "unet", model: "flux-2-klein-4b.safetensors", encoders: ["qwen_3_4b.safetensors"], vae: "flux2-vae.safetensors", prompt: "make it red", steps: 4, cfg: 1, seed: 1, width: 912, height: 1136, referenceImages: ["crop.png", "style.png"] };
-  const full = familyGraph({ ...body, inpaint });
-  assertWired(full);
-  const [noiseMask] = byType(full, "SetLatentNoiseMask");
-  assert.equal(full[noiseMask.inputs.samples[0]].class_type, "VAEEncode", "the crop's encoded reference is the starting latent");
-  assert.equal(byType(full, "ReferenceLatent").length, 4, "both references still guide both conditionings");
-  assert.equal(byType(full, "EmptyFlux2LatentImage").length, 0);
-  assert.equal(byType(full, "SplitSigmasDenoise").length, 0);
-
-  const partial = familyGraph({ ...body, inpaint: { ...inpaint, strength: 0.6 } });
-  assertWired(partial);
-  const [split] = byType(partial, "SplitSigmasDenoise");
-  assert.equal(split.inputs.denoise, 0.6);
-  assert.deepEqual(byType(partial, "SamplerCustomAdvanced")[0].inputs.sigmas[1], 1, "the low end of the split schedule");
+  const graph = familyGraph({ ...body, inpaint });
+  assertWired(graph);
+  // Edit models see the whole crop and edit it; noise inside a mask made them invent or copy.
+  assert.equal(byType(graph, "SetLatentNoiseMask").length, 0);
+  assert.equal(byType(graph, "EmptyFlux2LatentImage").length, 1);
+  assert.equal(byType(graph, "ReferenceLatent").length, 4, "both references still guide both conditionings");
+  assert.equal(byType(graph, "ImageCompositeMasked").length, 1, "only the painted part goes back onto the original");
 });
 
-test("Qwen-Image 2.1 masks the latent its encoder made from the crop", () => {
+test("Qwen-Image 2.1 inpaints as an ordinary edit of the crop, then stitches only the painted part", () => {
   const graph = familyGraph({ family: "qwen_image_21", variant: "standard", source: "unet", model: "qwen_image_2.1.safetensors", encoders: ["qwen3vl_8b.safetensors"], vae: "qwen_image_21_vae.safetensors", prompt: "make it red", negative: "", steps: 25, cfg: 1, seed: 1, width: 912, height: 1136, referenceImages: ["crop.png"], inpaint });
   assertWired(graph);
-  const [noiseMask] = byType(graph, "SetLatentNoiseMask");
-  assert.equal(graph[noiseMask.inputs.samples[0]].class_type, "TextEncodeQwenImage21");
+  assert.equal(byType(graph, "SetLatentNoiseMask").length, 0);
+  const [encoder] = byType(graph, "TextEncodeQwenImage21");
+  assert.equal(graph[encoder.inputs["images.image_1"][0]].inputs.image, "crop.png", "the crop itself is the reference");
   assert.equal(byType(graph, "ImageCompositeMasked").length, 1);
 });
 
@@ -106,7 +102,7 @@ test("without a mask nothing changes", () => {
   for (const node of ["DifferentialDiffusion", "SetLatentNoiseMask", "ImageCompositeMasked"]) assert.equal(byType(graph, node).length, 0, node);
 });
 
-test("the files: an exact crop, a softened sampling mask and a feathered stitch mask", async () => {
+test("the files: an exact crop, a hard grown sampling mask and a feathered stitch mask", async () => {
   const sharp = (await import("sharp")).default;
   const width = 1600;
   const height = 1200;
@@ -138,7 +134,8 @@ test("the files: an exact crop, a softened sampling mask and a feathered stitch 
   const sampling = await sharp(files.samplingMask).extractChannel(0).raw().toBuffer({ resolveWithObject: true });
   const scale = files.work.width / 512;
   assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(256 * scale)], 255);
-  assert.ok(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(150 * scale)] > 0, "grown a little past the painted edge");
+  assert.equal(sampling.data[Math.round(256 * scale) * files.work.width + Math.round(150 * scale)], 255, "grown a little past the painted edge, at full strength");
+  assert.ok(sampling.data.every((value) => value === 0 || value === 255), "hard: on or off, no half-way edge");
 
   const empty = await sharp(Buffer.alloc(400 * 300), { raw: { width: 400, height: 300, channels: 1 } }).png().toBuffer();
   assert.equal(await inpaintFiles(sharp, source, empty, { targetPixels: 1024 * 1024, feather: 0.4 }), null);

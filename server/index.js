@@ -37,7 +37,7 @@ import { jobs, queueClearsAt, runJob, runMockJob, setTerminalJob } from './jobs.
 import { cancelPrompt, cancelPrompts } from './comfy-queue.js';
 import { loraInfos } from './lora-info.js';
 import { hfEndpoint, hfTokenStatus, saveHfToken } from './hf-access.js';
-import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir } from './custom-workflows.js';
+import { deleteImportedWorkflow, getCustomWorkflow, saveImportedWorkflow, userWorkflowsDir, validateGraph } from './custom-workflows.js';
 import { applyBundles, createBundles, DEFAULT_COOLDOWN_MINUTES, dissolveBundle, listBundles, pendingSummary, setBundleCover } from './gallery-bundles.js';
 import { galleryStats } from './stats.js';
 import { describeHardware } from './hardware.js';
@@ -60,6 +60,12 @@ import { comfyRestartEstimate, generationEstimate, recordComfyRestart } from './
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
+import { prepareImport } from './workflow-import.js';
+import { recentFromHistory, savedWorkflowList } from './workflow-sources.js';
+import { convertWithComfyPage, resetComfyPage } from './comfy-page-convert.js';
+import { startWorkflowSetup, undoWorkflowSetup, workflowSetupState } from './workflow-setup.js';
+import { installHistory } from './install-safety.js';
+import { listDownload } from './workflow-models.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscaleQualities, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, startUpscale, toggleUpscaleView, upscaleFinishedRun } from './upscale-jobs.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
@@ -723,7 +729,8 @@ function watchComfyRestart() {
     for (;;) {
       const up = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(1500) }).then((response) => response.ok, () => false);
       const step = noteComfyRestart(up);
-      if (!step || step.phase === "failed") return;
+      if (!step) return { ok: up, failedPacks: [] };
+      if (step.phase === "failed") return { ok: false, failedPacks: [] };
       if (step.phase === "back") {
         const after = await currentPacks();
         const log = await comfy("/internal/logs/raw", { signal: AbortSignal.timeout(4000) }).then(logTextFromRaw, () => "");
@@ -735,11 +742,12 @@ function watchComfyRestart() {
           failedPacks: changes.failedPacks.map(packLabel)
         });
         refreshComfyContextSoon();
-        return;
+        resetComfyPage().catch(() => {});
+        return { ok: true, failedPacks: changes.failedPacks, newPacks: changes.newPacks };
       }
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-  })().catch((error) => console.warn(`[HEISS] Lost track of the ComfyUI restart: ${error.message}`)).finally(() => { restartWatch = null; });
+  })().catch((error) => { console.warn(`[HEISS] Lost track of the ComfyUI restart: ${error.message}`); return { ok: false, failedPacks: [] }; }).finally(() => { restartWatch = null; });
   return restartWatch;
 }
 
@@ -777,7 +785,8 @@ app.get("/api/models/downloads", (_req, res) => {
 // accepted, so the server never downloads from a URL a request supplies.
 app.post("/api/models/downloads", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const spec = catalogDownload(req.body?.id);
+  // "list:<file>": a file an imported workflow names, from ComfyUI-Manager's model list, resolved here again.
+  const spec = String(req.body?.id || "").startsWith("list:") ? await listDownload(req.body.id) : catalogDownload(req.body?.id);
   if (!spec) {
     res.status(400).json({ ok: false, error: "Unknown file." });
     return;
@@ -824,9 +833,10 @@ app.post("/api/settings/hf-token", (req, res) => {
 });
 
 // "Download again" for a catalog file a run found damaged: the broken copy goes first.
-app.post("/api/models/downloads/replace", (req, res) => {
+app.post("/api/models/downloads/replace", async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const spec = catalogDownload(req.body?.id);
+  // "list:<file>": a file an imported workflow names, from ComfyUI-Manager's model list, resolved here again.
+  const spec = String(req.body?.id || "").startsWith("list:") ? await listDownload(req.body.id) : catalogDownload(req.body?.id);
   if (!spec) {
     res.status(400).json({ ok: false, error: "Unknown file." });
     return;
@@ -919,12 +929,38 @@ app.put("/api/workflows/preferences", (req, res) => {
   }
 });
 
+/** What the import picker offers besides a file: recent runs from ComfyUI's history and the workflows saved in ComfyUI. */
+app.get("/api/workflows/sources", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const [history, saved] = await Promise.all([
+    comfy("/history?max_items=64", { timeout: 15_000 }).catch(() => null),
+    comfy("/userdata?dir=workflows&recurse=true&split=false&full_info=true", { timeout: 15_000 }).catch(() => null)
+  ]);
+  res.json({ ok: true, comfy: Boolean(history || saved), recent: history ? recentFromHistory(history) : [], saved: saved ? savedWorkflowList(saved) : [] });
+});
+
+/** A saved workflow's file from ComfyUI's user folder; the path stays inside "workflows/". */
+async function savedWorkflowFile(relative = "") {
+  const clean = String(relative).replace(/\\/g, "/");
+  if (!clean || clean.split("/").some((part) => part === ".." || part.startsWith(".")) || !/\.json$/i.test(clean)) throw new Error("That isn’t a saved workflow.");
+  const body = await comfy(`/userdata/${encodeURIComponent(`workflows/${clean}`)}`, { timeout: 15_000 });
+  return body instanceof ArrayBuffer ? Buffer.from(body).toString("utf8") : body;
+}
+
+const importFetchers = {
+  history: () => comfy("/history?max_items=200", { timeout: 20_000 }),
+  saved: savedWorkflowFile
+};
+// ComfyUI's own page converts canvas workflows when Playwright is around; HEISS_COMFY_PAGE=0 turns it off.
+const pageConvert = process.env.HEISS_COMFY_PAGE === "0" ? null : convertWithComfyPage;
+
 app.post("/api/workflows/import/preview", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
-    const raw = req.body?.workflow || req.body;
+    const body = req.body || {};
+    const request = body.source || body.media ? body : { source: "file", workflow: body.workflow || body, filename: body.filename || "" };
     const { info } = await loadComfyContext().catch(() => ({ info: {} }));
-    res.json({ ok: true, preview: previewWorkflowImport(raw, req.body?.filename || "", info) });
+    res.json({ ok: true, preview: await prepareImport(request, { info, fetchers: importFetchers, pageConvert }) });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
@@ -933,19 +969,81 @@ app.post("/api/workflows/import/preview", async (req, res) => {
 app.post("/api/workflows/import", async (req, res) => {
   if (!requireAdmin(req, res)) return;
   try {
-    const raw = req.body?.workflow || req.body;
     const { info } = await loadComfyContext().catch(() => ({ info: {} }));
-    // The review's own notes (the node list, what was guessed) aren't part of the workflow.
-    const { nodes: _nodes, guessed: _guessed, ...metadata } = req.body?.metadata || {};
-    const normalized = (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) || raw?.prompt
-      ? { graph: previewWorkflowImport(raw, req.body?.filename || "", info).graph, heissUi: metadata }
-      : raw;
+    // The review's own notes (the node list, what was guessed, the question) aren't part of the workflow.
+    const { nodes: _nodes, guessed: _guessed, question: _question, confidence: _confidence, ...metadata } = req.body?.metadata || {};
+    let normalized;
+    if (req.body?.graph && typeof req.body.graph === "object") {
+      // A graph from the preview (history, an image, a converted file).
+      normalized = { graph: req.body.graph, heissUi: metadata };
+    } else {
+      const raw = req.body?.workflow || req.body;
+      normalized = (Array.isArray(raw?.nodes) && Array.isArray(raw?.links)) || raw?.prompt
+        ? { graph: (await prepareImport({ source: "file", workflow: raw, filename: req.body?.filename || "" }, { info, pageConvert })).graph, heissUi: metadata }
+        : raw;
+    }
+    validateGraph(normalized.graph || normalized);
     const workflow = saveImportedWorkflow(normalized, metadata);
     const { graph, ...summary } = workflow;
     res.json({ ok: true, workflow: summary });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
   }
+});
+
+/** What ComfyUI has loaded now: pack folders and node types, for the install health check. */
+async function comfyLoadState() {
+  const info = await comfy("/object_info", { timeout: 60_000 });
+  return { loaded: loadedPacks(info), nodeTypes: Object.keys(info || {}) };
+}
+
+const setupDeps = {
+  comfyState: comfyLoadState,
+  restartComfy: restartComfyNow,
+  // The restart watcher reports once ComfyUI is back (or clearly isn't).
+  waitForRestart: async () => (await (restartWatch || watchComfyRestart())) || { ok: false, failedPacks: [] }
+};
+
+/**
+ * Installs the node packs an import needs. Registry packs need no approval;
+ * a pack from outside the registry is installed only when the person said yes
+ * to it (`approved`).
+ */
+app.post("/api/workflows/setup", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    const approved = new Set((req.body?.approved || []).map(String));
+    const packs = (Array.isArray(req.body?.packs) ? req.body.packs : [])
+      .filter((pack) => pack?.key && pack?.name && (pack.registry || approved.has(String(pack.key))))
+      .slice(0, 24)
+      .map((pack) => ({
+        key: String(pack.key), name: String(pack.name).slice(0, 120), managerId: String(pack.managerId || ""),
+        version: String(pack.version || ""), repository: String(pack.repository || ""), folder: String(pack.folder || ""),
+        commit: /^[0-9a-f]{40}$/i.test(String(pack.commit || "")) ? String(pack.commit) : "", registry: Boolean(pack.registry)
+      }));
+    res.json({ ok: true, setup: startWorkflowSetup({ packs, workflowName: String(req.body?.workflowName || "").slice(0, 120) }, setupDeps) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/workflows/setup", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ ok: true, setup: workflowSetupState() });
+});
+
+app.post("/api/workflows/setup/undo", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  try {
+    res.json({ ok: true, undone: await undoWorkflowSetup(String(req.body?.snapshotId || ""), setupDeps) });
+  } catch (error) {
+    res.status(400).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/installs", (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ ok: true, installs: installHistory() });
 });
 
 function bundleOptions(source = {}) {
@@ -1543,6 +1641,12 @@ app.post("/api/generate", async (req, res) => {
     }
   }
   // An empty painted mask falls back to a normal run, so apply normal sizing too.
+  if (body.inpaint?.box) {
+    const { box, image, work } = body.inpaint;
+    console.log(`[HEISS] Inpaint: repainting ${box.width}×${box.height} at ${box.x},${box.y} of ${image?.width}×${image?.height}, sampled at ${work.width}×${work.height}, strength ${body.inpaint.strength}`);
+  }
+  // Said back to the page: a mask was sent but nothing in it was painted, so this runs as a plain edit.
+  const inpaintSkipped = Boolean(!isMockJob && req.body?.inpaint?.mask && !body.inpaint);
   if (!isMockJob && req.body?.inpaint && !body.inpaint && body.referenceAssets?.length) {
     try {
       const [first, ...others] = body.referenceAssets;
@@ -1588,7 +1692,7 @@ app.post("/api/generate", async (req, res) => {
   markWorkflowUsed(body.profileId || body.model || body.workflow || "");
   setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
   jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
-  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue() });
+  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue(), ...(inpaintSkipped ? { notice: "Nothing painted showed up in the mask, so this ran as a normal edit of the whole picture." } : {}) });
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
@@ -1955,16 +2059,16 @@ app.get("/api/comfy/manager", async (_req, res) => {
   res.json({ ok: true, ...(await managerInfo()) });
 });
 
-// ComfyUI is started outside HEISS UI, so only ComfyUI-Manager can restart it in place.
-app.post("/api/comfy/restart", async (req, res) => {
-  if (!requireAdmin(req, res)) return;
+/**
+ * Restarts ComfyUI through ComfyUI-Manager and starts following it. ComfyUI is
+ * started outside HEISS UI, so only Manager can restart it in place.
+ * Resolves to { ok } or { ok: false, status, error }.
+ */
+async function restartComfyNow() {
   // A dropped connection below means "already going down" only if ComfyUI was
   // up to begin with; otherwise "restarting" would show for minutes over nothing.
   const up = await fetch(`${comfyUrl}/system_stats`, { signal: AbortSignal.timeout(4000) }).then((response) => response.ok, () => false);
-  if (!up) {
-    res.status(503).json({ ok: false, error: "ComfyUI isn’t running. Start it and the studio connects." });
-    return;
-  }
+  if (!up) return { ok: false, status: 503, error: "ComfyUI isn’t running. Start it and the studio connects." };
   // What ComfyUI has loaded now, so the restart can tell what it brought in.
   const packs = await currentPacks(6000);
   const begin = () => {
@@ -1983,21 +2087,23 @@ app.post("/api/comfy/restart", async (req, res) => {
     } catch {
       // ComfyUI dropping the connection mid-answer means it is already going down.
       begin();
-      res.json({ ok: true });
-      return;
+      return { ok: true };
     }
     if (response.ok) {
       begin();
-      res.json({ ok: true });
-      return;
+      return { ok: true };
     }
-    if (response.status === 403) {
-      res.status(403).json({ ok: false, error: "ComfyUI-Manager’s security level blocks the restart. Set security_level = normal in Manager’s config.ini, or restart ComfyUI yourself." });
-      return;
-    }
+    if (response.status === 403) return { ok: false, status: 403, error: "ComfyUI-Manager’s security level blocks the restart. Set security_level = normal in Manager’s config.ini, or restart ComfyUI yourself." };
     if (response.status !== 404 && response.status !== 405) sawManager = true;
   }
-  res.status(501).json({ ok: false, error: sawManager ? "ComfyUI-Manager couldn’t restart ComfyUI." : "Restarting needs ComfyUI-Manager, which newer ComfyUI versions turn off. Start ComfyUI with --enable-manager." });
+  return { ok: false, status: 501, error: sawManager ? "ComfyUI-Manager couldn’t restart ComfyUI." : "Restarting needs ComfyUI-Manager, which newer ComfyUI versions turn off. Start ComfyUI with --enable-manager." };
+}
+
+app.post("/api/comfy/restart", async (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const result = await restartComfyNow();
+  if (result.ok) res.json({ ok: true });
+  else res.status(result.status || 500).json({ ok: false, error: result.error });
 });
 
 app.delete("/api/gallery/:id", (req, res) => {

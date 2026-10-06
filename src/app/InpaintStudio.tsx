@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Brush, Eraser, Hand, Redo2, Undo2, X } from "lucide-react";
+import { Brush, BrushCleaning, Eraser, Hand, Redo2, Undo2, X } from "lucide-react";
 import { cn } from "./format";
 import { Tip } from "./components";
 import { SafeImg } from "./SafeImg";
@@ -599,10 +599,15 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
           ) : null}
         </AnimatePresence>
         <span className="inpaint-divider" aria-hidden="true" />
-        <Tip content={<>Done <kbd>Esc</kbd></>}>
-          <button type="button" className="inpaint-tool" aria-label="Done painting" onClick={onClose}><X size={16} /></button>
+        <Tip content={<>Clear the painting <kbd>Del</kbd></>}>
+          <button type="button" className="inpaint-tool" aria-label="Clear the painting" disabled={!history.painted} onClick={clear}><BrushCleaning size={16} /></button>
         </Tip>
       </div>
+
+      {/* Done sits apart, top right, so clearing and closing are never one slip apart. */}
+      <Tip content={<>Done <kbd>Esc</kbd></>}>
+        <button type="button" className="inpaint-close" aria-label="Done painting" onClick={onClose}><X size={16} /></button>
+      </Tip>
 
       <SizeSlider index={sizeIndex} onChange={setSizeIndex} onPreview={setPreviewing} />
     </motion.div>,
