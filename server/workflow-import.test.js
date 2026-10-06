@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -15,7 +16,8 @@ const { prepareImport } = await import("./workflow-import.js");
 const { applyWorkflowSettings, bypassLoraNode } = await import("./graphs.js");
 const { installHealth, packageRestorePlan, parseFreeze } = await import("./install-safety.js");
 
-const here = path.dirname(new URL(import.meta.url).pathname);
+// fileURLToPath decodes the URL, so a folder name with a space (HEISS AI) still resolves.
+const here = path.dirname(fileURLToPath(import.meta.url));
 const info = JSON.parse(fs.readFileSync(path.join(here, "fixtures/object_info-comfyui-0.34.1.json"), "utf8"));
 const corpusDir = path.join(here, "fixtures/workflows");
 const expected = JSON.parse(fs.readFileSync(path.join(corpusDir, "expected.json"), "utf8"));
