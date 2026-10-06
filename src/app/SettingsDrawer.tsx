@@ -24,3 +24,24 @@ export function SettingsDrawer({ id, title, description, defaultOpen = false, ch
     </div>
   );
 }
+
+/**
+ * A quiet text toggle that folds away whole groups: the rarely needed ones at
+ * the bottom of a page. Collapsed, it costs one thin line.
+ */
+export function SettingsFold({ title, description, children }: React.PropsWithChildren<{ title: React.ReactNode; description?: React.ReactNode }>) {
+  const [open, setOpen] = React.useState(false);
+  const id = React.useId();
+  return (
+    <div className={cn('set-fold', open && 'is-open')}>
+      <button type="button" className="set-fold-toggle" aria-expanded={open} aria-controls={id} onClick={() => setOpen((value) => !value)}>
+        <ChevronDown size={14} className="set-drawer-chevron" aria-hidden="true" />
+        <strong>{title}</strong>
+        {description ? <span>{description}</span> : null}
+      </button>
+      <div className="set-drawer-body" id={id} inert={!open}>
+        <div className="set-drawer-inner set-fold-inner">{children}</div>
+      </div>
+    </div>
+  );
+}

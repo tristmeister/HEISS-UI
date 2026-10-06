@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Boxes, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, CircleArrowUp, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Sparkles, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { features, githubUrl } from './constants';
 import { cn } from './format';
 import { BetaTag, NumberPicker, Skeleton, StudioSelect, Tip } from './components';
@@ -17,7 +17,7 @@ import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
-import { SettingsDrawer } from './SettingsDrawer';
+import { SettingsDrawer, SettingsFold } from './SettingsDrawer';
 import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
 import { boardUrl, openFeedback } from './feedback';
@@ -27,15 +27,13 @@ import { TrashRow } from './TrashRow';
 import type { ShowToast } from './toast';
 
 export const SETTINGS_SECTIONS = [
-  { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, restarts and reset.' },
+  { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, safety and reset.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and starting values.' },
-  { id: 'upscale', label: 'Upscale', icon: CircleArrowUp, description: 'Makes a larger, sharper copy of a finished image with SeedVR2.' },
+  { id: 'features', label: 'Features', icon: Sparkles, description: 'Extras that build on your models.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where images are saved and what the gallery shows.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
-  { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
-  { id: 'connection', label: 'Connection', icon: Plug, description: 'Where ComfyUI runs, and opening the studio on other devices.' },
-  { id: 'feedback', label: 'Feedback', icon: MessageSquarePlus, description: 'Report a bug, share an idea or ask a question.' },
-  { id: 'about', label: 'About', icon: Info, description: 'Version, stats, updates and credits.' }
+  { id: 'connection', label: 'ComfyUI', icon: Plug, description: 'Where it runs, its models and restarts, and opening the studio on other devices.' },
+  { id: 'about', label: 'About', icon: Info, description: 'Version, stats, updates, feedback and credits.' }
 ] as const;
 export type SettingsSection = typeof SETTINGS_SECTIONS[number]['id'];
 
@@ -189,10 +187,15 @@ function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad
 /** Every shortcut, folded away until asked for: the list is long and rarely needed here. */
 function ShortcutsDrawer() {
   return (
-    <SettingsDrawer id="set-shortcuts" title="Keyboard shortcuts" description={<>{shortcuts.length} shortcuts. Press <kbd className="set-kbd">?</kbd> anywhere to see them.</>}>
-      {shortcuts.map(([keys, what]) => (
-        <Row key={keys} label={<kbd className="set-kbd">{keys}</kbd>} description={what} />
-      ))}
+    <SettingsDrawer id="set-shortcuts" title="Keyboard shortcuts" description={<>{shortcuts.length} · <kbd className="set-kbd">?</kbd> shows them anywhere</>}>
+      <dl className="set-keys">
+        {shortcuts.map(([keys, what]) => (
+          <React.Fragment key={keys}>
+            <dt><kbd className="set-kbd">{keys}</kbd></dt>
+            <dd>{what}</dd>
+          </React.Fragment>
+        ))}
+      </dl>
     </SettingsDrawer>
   );
 }
@@ -409,9 +412,6 @@ function HelpGroup({ copyToClipboard }: { copyToClipboard: (text: string) => Pro
   };
   return (
     <Group title="Help">
-      <Row label="Report a bug" description="Sends it to the feedback board, with your setup if you want. You see everything before it goes.">
-        <button className="btn" onClick={() => openFeedback({ kind: 'bug', from: 'settings' })}><Bug size={13} /> Report</button>
-      </Row>
       <Row label="Troubleshooting" description="Common errors and how to fix them.">
         <a className="btn is-ghost" href={troubleshootingUrl()} target="_blank" rel="noreferrer"><LifeBuoy size={13} /> Open</a>
       </Row>
@@ -696,7 +696,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
   return (
     <Modal open={open} onOpenChange={(next) => { if (!next) onClose(); }} size="sheet" className="settings-modal" bodyClassName="set-layout" title="Settings">
       <nav className="set-nav" aria-label="Settings sections">
-        {SETTINGS_SECTIONS.filter((item) => thisComputer || item.id !== 'models').map((item) => {
+        {SETTINGS_SECTIONS.map((item) => {
           const Icon = item.icon;
           return (
             <button key={item.id} type="button" className={cn('set-nav-item', section === item.id && 'active')} aria-current={section === item.id ? 'page' : undefined} aria-controls="settings-panel" data-section={item.id} onClick={() => onSectionChange(item.id)}>
@@ -729,7 +729,6 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             <Group title="Safety">
               <SwitchRow label="Confirm before removing things" description="Asks before deleting or stopping something. Permanent deletes always ask." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
-            {thisComputer ? <RestartGroup confirmAction={confirmAction} onComfyBack={() => { refreshModels(false); refreshWorkflows(); }} restartHeiss={restartHeiss} heissRestarting={Boolean(restarting)} updateStatus={updateStatus} /> : null}
             <Group title="Reset" tone="danger">
               {thisComputer ? (
                 <>
@@ -775,9 +774,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
           </>
         ) : null}
 
-        {section === 'upscale' ? (
+        {section === 'features' ? (
           <>
-            <Group>
+            <Group title="Smart upscale">
               <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. Upscales are saved as a copy." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
             </Group>
             {upscaleOn ? (
@@ -853,6 +852,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
             </Group>
+            <SettingsFold title="Clean up and imports" description="Failed items, trash, earlier images, Civitai">
             <Group title="Clean up">
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>
@@ -861,6 +861,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </Group>
             {atComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
             <CivitaiGroup Group={Group} Row={Row} Switch={Switch} showToast={showToast} canChange={thisComputer} />
+            </SettingsFold>
           </>
         ) : null}
 
@@ -881,10 +882,13 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <Row label="Open ComfyUI" description="Opens ComfyUI’s own interface in a new tab.">
                 <button className="btn" onClick={() => window.open(health?.comfyUrl || 'http://127.0.0.1:8188', '_blank')}><ExternalLink size={14} /> Open</button>
               </Row>
-              <Row label="Restart ComfyUI" description="Loads new custom nodes and files, and frees memory.">
-                <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. It takes a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
-              </Row>
+              {!thisComputer ? (
+                <Row label="Restart ComfyUI" description="Loads new custom nodes and files, and frees memory.">
+                  <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. It takes a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
+                </Row>
+              ) : null}
             </Group>
+            {thisComputer ? <RestartGroup confirmAction={confirmAction} onComfyBack={() => { refreshModels(false); refreshWorkflows(); }} restartHeiss={restartHeiss} heissRestarting={Boolean(restarting)} updateStatus={updateStatus} /> : null}
             <OtherDevicesGroup
               canChange={thisComputer}
               confirmAction={confirmAction}
@@ -897,11 +901,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               Status={Status}
               Switch={Switch}
             />
-          </>
-        ) : null}
-
-        {section === 'models' ? (
-          <>
+            {thisComputer ? <>
             <Group title="Models">
               <Row label="Image models"><span className="set-value">{models ? models.imageModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
               <Row label="Video models"><span className="set-value">{models ? models.videoModels.length : <Skeleton className="skeleton-text tiny" />}</span></Row>
@@ -933,37 +933,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 })}
               </Group>
             ) : null}
-          </>
-        ) : null}
-
-        {section === 'feedback' ? (
-          <>
-            <section className="feedback-hero">
-              <strong>Found a bug? Have an idea?</strong>
-              <p>Send it to the feedback board. It’s public: others can upvote it, and you can follow along as it gets worked on.</p>
-              <div className="feedback-tiles">
-                <button type="button" className="feedback-tile is-bug" onClick={() => openFeedback({ kind: 'bug', from: 'settings' })}>
-                  <span className="feedback-tile-icon"><Bug size={15} /></span>
-                  <strong>Report a bug</strong>
-                  <span>Something doesn’t work the way it should.</span>
-                </button>
-                <button type="button" className="feedback-tile is-idea" onClick={() => openFeedback({ kind: 'idea', from: 'settings' })}>
-                  <span className="feedback-tile-icon"><Lightbulb size={15} /></span>
-                  <strong>Share an idea</strong>
-                  <span>Something it could do, or do better.</span>
-                </button>
-                <button type="button" className="feedback-tile is-question" onClick={() => openFeedback({ kind: 'question', from: 'settings' })}>
-                  <span className="feedback-tile-icon"><HelpCircle size={15} /></span>
-                  <strong>Ask a question</strong>
-                  <span>Not sure how something works?</span>
-                </button>
-              </div>
-            </section>
-            <Group title="Board" note="Nothing is sent on its own. A post carries what you write, plus the setup lines (versions, system, GPU) if you leave them on. No prompts, images or file names.">
-              <Row label="Open the feedback board" description="See what’s planned and in progress, and upvote what you’d like next.">
-                <a className="btn is-ghost" href={boardUrl} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Open</a>
-              </Row>
-            </Group>
+            </> : null}
           </>
         ) : null}
 
@@ -1038,6 +1008,29 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 />
               ) : null}
             </Group> : null}
+
+            <section className="feedback-hero">
+              <strong>Found a bug? Have an idea?</strong>
+              <p>Send it to the feedback board. It’s public: others can upvote it, and you can follow along as it gets worked on.</p>
+              <div className="feedback-tiles">
+                <button type="button" className="feedback-tile is-bug" onClick={() => openFeedback({ kind: 'bug', from: 'settings' })}>
+                  <span className="feedback-tile-icon"><Bug size={15} /></span>
+                  <strong>Report a bug</strong>
+                  <span>Something doesn’t work the way it should.</span>
+                </button>
+                <button type="button" className="feedback-tile is-idea" onClick={() => openFeedback({ kind: 'idea', from: 'settings' })}>
+                  <span className="feedback-tile-icon"><Lightbulb size={15} /></span>
+                  <strong>Share an idea</strong>
+                  <span>Something it could do, or do better.</span>
+                </button>
+                <button type="button" className="feedback-tile is-question" onClick={() => openFeedback({ kind: 'question', from: 'settings' })}>
+                  <span className="feedback-tile-icon"><HelpCircle size={15} /></span>
+                  <strong>Ask a question</strong>
+                  <span>Not sure how something works?</span>
+                </button>
+              </div>
+              <p className="set-note">Nothing is sent on its own. A post carries what you write, plus the setup lines (versions, system, GPU) if you leave them on. No prompts, images or file names.</p>
+            </section>
 
             <HelpGroup copyToClipboard={copyToClipboard} />
 
