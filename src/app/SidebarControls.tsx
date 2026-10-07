@@ -12,6 +12,7 @@ import type { WorkflowSummary } from './types';
 import { SafeImg } from './SafeImg';
 import { referenceName } from './ReferenceMediaPicker';
 import { PhoneSelect, PhoneSlider } from './phoneControls';
+import { WorkflowSettingsPanel } from './WorkflowSettings';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
   const comfyRestarting = useComfyRestarting();
@@ -321,6 +322,9 @@ export function SidebarControls({ view }: { view: any }) {
               </div>
             ) : null}
             {backToRecommended}
+            {currentProfile?.settings?.length ? (
+              <WorkflowSettingsPanel settings={currentProfile.settings} values={view.workflowSettings || {}} onChange={view.setWorkflowSetting} onReset={view.resetWorkflowSettings} />
+            ) : null}
           </>
         ) : null}
 
