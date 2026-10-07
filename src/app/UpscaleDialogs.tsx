@@ -89,12 +89,12 @@ function fileLine(file: UpscaleInstallFile) {
 const autoCopyFor = (stage: UpscaleSetupStage, size: string, fallback: string): { title: string; description: string } | null => {
   switch (stage) {
     case "checking": return { title: `Smart upscale to ${size}`, description: "Checking ComfyUI…" };
-    case "nodes": return { title: `Smart upscale to ${size}`, description: `New images upscale to ${size} as they finish, on the SeedVR2 nodes. Add them to ComfyUI first.` };
-    case "models": return { title: `Smart upscale to ${size}`, description: `New images upscale to ${size} as they finish. That needs the SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
+    case "nodes": return { title: `Smart upscale to ${size}`, description: `New images come out at ${size}, upscaled on the SeedVR2 nodes as part of each run. Add them to ComfyUI first.` };
+    case "models": return { title: `Smart upscale to ${size}`, description: `New images come out at ${size}, upscaled as part of each run. That needs the SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
     case "downloading": return { title: `Getting ${size} ready`, description: "Smart upscale turns on when this finishes. The download continues if you close this." };
     case "ready": return fallback
       ? { title: `Smart upscale to ${size} is on`, description: "It uses a SeedVR2 weight you already have. Its own model is one download away." }
-      : { title: `Smart upscale to ${size} is on`, description: `New images upscale to ${size} as they finish. The original is kept, one click away.` };
+      : { title: `Smart upscale to ${size} is on`, description: `New images come out at ${size}: each one upscales as part of its run, before the next one starts.` };
     default: return null;
   }
 };

@@ -18,7 +18,7 @@ import { StackRunsButton } from './StackRunsButton';
 import { runTitle, type Run } from './runs';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
-import { canUpscaleItem } from './useUpscale';
+import { canUpscaleItem, upscaledWithRun } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { ModelFoldersDialog } from './ModelFoldersDialog';
 import { UpscaleNoticePopover } from './UpscaleNotice';
@@ -877,7 +877,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   onClick={clickViewer}
                   onDoubleClick={(event) => { event.stopPropagation(); zoomViewer(viewerZoom > 1 ? 1 : 2.5); }}
                 >
-                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} fixes={view.failureFixes} showToast={showToast} onNodesInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
+                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} fixes={view.failureFixes} showToast={showToast} onNodesInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : compareOpen && active.upscale?.url && !upscaledWithRun(active) ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
                   <GenerationMedia item={active} fit="contain">
                   {active.status === "pending" ? <GenerationProgress item={active} formatElapsed={formatElapsed} /> : null}
                   </GenerationMedia>
@@ -985,7 +985,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                     </Tip>
                     </span>
                   ) : null}
-                  {active.upscale?.url ? (
+                  {active.upscale?.url && !upscaledWithRun(active) ? (
                     <Tip content={compareOpen ? "Hide the comparison" : "Compare with the original"}>
                       <button
                         className={cn("icon-button", compareOpen && "active")}
@@ -1002,7 +1002,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       ? <Tip content="Move to gallery"><button className="icon-button" aria-label="Move to gallery" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
                       : <Tip content="Move to Hidden"><button className="icon-button" aria-label="Move to Hidden" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
                   ) : null}
-                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download"}><a className="icon-button" aria-label={active.upscaleActive ? "Download the upscale" : "Download"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
+                  {active.url ? <Tip content={active.upscaleActive && !upscaledWithRun(active) ? "Download the upscale" : "Download"}><a className="icon-button" aria-label={active.upscaleActive && !upscaledWithRun(active) ? "Download the upscale" : "Download"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
                   <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label={active.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />
                   <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>

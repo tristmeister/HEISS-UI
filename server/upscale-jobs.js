@@ -3,8 +3,7 @@ import { comfy, comfyUrl, normalizeComfyError } from "./comfy.js";
 import { cancelPrompt, promptTracker } from "./comfy-queue.js";
 import { gallery, outputsFrom, updateGalleryJob } from "./gallery-store.js";
 import { jobs, setTerminalJob } from "./jobs.js";
-import { faceDetailSource, normalizeQuality, upscaleGraph, upscalePlan, upscaleStatus } from "./upscale.js";
-import { stageUpscaleSource } from "./reference-assets.js";
+import { faceDetailSource, upscaleGraph, upscalePlan } from "./upscale.js";
 import { forgetComfyRun } from "./hidden-traces.js";
 import { releaseHiddenRun, rememberHiddenRun } from "./hidden-runs.js";
 import { attachVaultUpscale, patchVaultItem, setRuntimeUpscale } from "./vault.js";
@@ -193,8 +192,9 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
 }
 
 /**
- * Queues one image's upscale, already staged in ComfyUI as `imageName`; the
- * route behind the upscale arrow and Smart upscale after a run both start here.
+ * Queues one image's upscale, already staged in ComfyUI as `imageName`: the
+ * upscale arrow on a finished image. Smart upscale as part of a run is
+ * run-upscale.js.
  */
 export function startUpscale({ item, imageName, quality, faceDetail = false, info, customWorkflow = null, hiddenKey = null }) {
   const jobId = crypto.randomUUID();
@@ -214,39 +214,6 @@ export function startUpscale({ item, imageName, quality, faceDetail = false, inf
     ? runUpscaleJob(jobId, body, info, hiddenTarget(item.id, hiddenKey, [imageName]))
     : runUpscaleJob(jobId, body, info), 0);
   return { jobId, plan };
-}
-
-/**
- * Smart upscale: a run asked for its images at 2K or 4K, so each one upscales
- * the moment the run finishes, here on the server, whether or not any page is
- * still open. An image whose upscale cannot start says why on its tile.
- */
-export async function upscaleFinishedRun(items, { quality, faceDetail = false, info, customWorkflow = null, hiddenKey = null }) {
-  const normalized = normalizeQuality(quality);
-  const status = upscaleStatus(info, normalized);
-  const fail = (item, error) => {
-    if (hiddenKey) {
-      try { patchVaultItem(hiddenKey, item.id, { upscale: { status: "error", quality: normalized, error } }); } catch { /* the item may be gone */ }
-    }
-    else patchUpscale(item.id, { status: "error", progress: null, quality: normalized, error });
-  };
-  const images = items.filter((item) => item?.type === "image" && item.id);
-  if (!status.ready) {
-    const error = status.nodesInstalled ? "Smart upscale’s SeedVR2 model isn’t installed yet." : "Smart upscale needs the SeedVR2 nodes in ComfyUI.";
-    images.forEach((item) => fail(item, error));
-    return;
-  }
-  // The face pass is a nicety: without its nodes the upscale still runs.
-  const withFaces = Boolean(faceDetail && status.faceDetail?.nodesInstalled);
-  for (const item of images) {
-    try {
-      const imageName = await stageUpscaleSource(item, hiddenKey);
-      if (!imageName) throw new Error("ComfyUI didn’t accept the image.");
-      startUpscale({ item, imageName, quality: normalized, faceDetail: withFaces, info, customWorkflow, hiddenKey });
-    } catch (error) {
-      fail(item, `Couldn’t start Smart upscale: ${normalizeComfyError(error.message)}`);
-    }
-  }
 }
 
 export function toggleUpscaleView(itemId, active) {

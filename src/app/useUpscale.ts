@@ -14,9 +14,17 @@ export function upscaleDisplayThumbnail(item: GalleryItem) {
   return mediaUrl(item.upscale.thumbnailUrl || item.upscale.url, item, `upscale:${item.upscale.jobId || ''}`);
 }
 
+/**
+ * Upscaled as part of its run (Smart upscale's 2K / 4K): one picture, so it
+ * offers no original to flip back to, no comparison and no upscale arrow.
+ */
+export function upscaledWithRun(item: GalleryItem) {
+  return Boolean(item.upscale?.withRun && item.upscale.url);
+}
+
 export function canUpscaleItem(item: GalleryItem) {
   // Images added from another folder stay where they are, so there is nothing to upscale into.
-  return item.status === "done" && item.type === "image" && !item.vaultLocked && !item.library && Boolean(item.url);
+  return item.status === "done" && item.type === "image" && !item.vaultLocked && !item.library && Boolean(item.url) && !upscaledWithRun(item);
 }
 
 /** Decimal units, like the Finder and every model setup panel, so one file never shows two sizes. */

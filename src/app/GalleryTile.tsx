@@ -9,7 +9,7 @@ import { ElapsedTime } from './ElapsedTime';
 import { GenerationProgress } from './GenerationProgress';
 import { FailureTile } from './GenerationFailure';
 import type { GalleryItem } from './types';
-import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
+import { canUpscaleItem, upscaleDisplayUrl, upscaledWithRun } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { useHiddenActions } from './hiddenContext';
@@ -187,7 +187,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
         {selecting && selectable ? <span className={cn("tile-check", isSelected && "is-on")} aria-hidden="true">{isSelected ? <Check size={16} strokeWidth={3} /> : null}</span> : null}
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} onCancelUpscale={onCancelUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
-        {item.status === "pending" ? <Tip content="Stop generation"><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}
+        {item.status === "pending" ? <Tip content={item.progress?.upscaling ? "Stop the upscale · the picture stays" : "Stop generation"}><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}
         {item.status !== "pending" ? (
           <>
             <button type="button" className="tile-more" aria-label="More actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal size={16} /></button>
@@ -197,7 +197,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
                   ? <Tip content="Move to gallery" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Move to gallery" onClick={() => act(() => hiddenActions!.unhide([item]))}><Eye size={14} /><span className="tile-menu-label">Move to gallery</span></button></Tip>
                   : <Tip content="Hide" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Hide" onClick={() => act(() => hiddenActions!.hide([item]))}><EyeOff size={14} /><span className="tile-menu-label">Hide</span></button></Tip>
               ) : null}
-              {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
+              {item.url ? <Tip content={item.upscaleActive && !upscaledWithRun(item) ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
               {item.status === "done" ? <Tip content="Copy prompt" side="left"><button type="button" className="tile-icon" aria-label="Copy prompt" onClick={() => act(() => copyPromptAndToast(item))}><Copy size={14} /><span className="tile-menu-label">Copy prompt</span></button></Tip> : null}
               <Tip content={item.privateVault ? "Delete from Hidden" : item.library ? "Remove from gallery" : "Delete from gallery"} side="left"><button type="button" className="tile-delete" aria-label={item.privateVault ? "Delete from Hidden" : item.library ? "Remove from gallery" : "Delete from gallery"} onClick={() => act(() => deleteItem(item))}><Trash2 size={14} /><span className="tile-menu-label">{item.library ? "Remove" : "Delete"}</span></button></Tip>
             </span>

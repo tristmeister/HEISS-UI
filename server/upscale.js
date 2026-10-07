@@ -700,6 +700,43 @@ export function upscaleGraph(body, info = {}) {
   return { graph, plan };
 }
 
+/** A link inside the upscale's own graph, renamed into the run's graph; its LoadImage becomes `source`. */
+function relink(value, prefix, source) {
+  if (Array.isArray(value) && value.length === 2 && typeof value[0] === "string" && Number.isInteger(value[1])) {
+    return value[0] === "1" ? source : [`${prefix}${value[0]}`, value[1]];
+  }
+  return value;
+}
+
+/**
+ * Smart upscale inside a run's own graph: SeedVR2 takes the decoded picture
+ * straight from each save node, so it upscales the moment the picture exists,
+ * in the same ComfyUI prompt, before any run queued behind it can start. The
+ * save node stays where it is (ComfyUI runs output nodes first), so a stopped
+ * or failed upscale still leaves the picture at its generated size on disk.
+ * Returns the new graph and which save each upscale belongs to, or null when
+ * the graph saves no image.
+ */
+export function embedUpscale(graph, body, info = {}, { phase = "" } = {}) {
+  const saves = Object.entries(graph || {}).filter(([, node]) => node?.class_type === "SaveImage" && Array.isArray(node.inputs?.images));
+  if (!saves.length) return null;
+  const next = { ...graph };
+  const pairs = [];
+  let plan = null;
+  saves.forEach(([saveId, save], index) => {
+    const prefix = `heiss_up${index}_`;
+    const built = upscaleGraph({ ...body, imageName: "" }, info);
+    plan = built.plan;
+    for (const [id, node] of Object.entries(built.graph)) {
+      if (id === "1") continue;
+      const inputs = Object.fromEntries(Object.entries(node.inputs || {}).map(([key, value]) => [key, relink(value, prefix, save.inputs.images)]));
+      next[`${prefix}${id}`] = { ...node, inputs, _meta: { title: "Smart upscale", heissUpscale: true, ...(phase ? { heissPhase: phase } : {}) } };
+    }
+    pairs.push({ base: saveId, upscale: `${prefix}9` });
+  });
+  return { graph: next, pairs, plan };
+}
+
 export async function uploadUpscaleSource({ buffer, mime = "image/png", name = "upscale-source.png" }) {
   const hash = crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 32);
   const extension = mime === "image/jpeg" ? "jpg" : mime === "image/webp" ? "webp" : "png";

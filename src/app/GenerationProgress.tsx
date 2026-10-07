@@ -84,7 +84,9 @@ export function GenerationProgress({ item, formatElapsed }: { item: GalleryItem;
   const clock = useRunClock(item.progress);
   // With an estimate the bar follows the whole run, setup and decoding too, instead of steps alone.
   const timed = clock.ratio !== null;
-  const ratio = timed ? clock.ratio : reading.kind === 'steps' ? reading.ratio : 0;
+  // Smart upscale, once the picture is saved: its own count is the rest of the run, so it fills the bar.
+  const upscaling = Boolean(item.progress?.upscaling) && reading.kind === 'phase' && reading.percent !== null;
+  const ratio = timed ? clock.ratio : reading.kind === 'steps' ? reading.ratio : upscaling && reading.kind === 'phase' ? (reading.percent ?? 0) / 100 : 0;
   return (
     <div className={cn('generation-progress', item.progress?.reconnecting && 'is-reconnecting')} style={{ '--progress-ratio': ratio } as React.CSSProperties}>
       <div className="generate-overlay" title={item.progress?.reconnecting ? 'ComfyUI stopped responding. The image appears when it’s back.' : undefined}>
@@ -113,7 +115,7 @@ export function GenerationProgress({ item, formatElapsed }: { item: GalleryItem;
         <span className="generate-elapsed">{clock.leftMs !== null ? formatLeft(clock.leftMs) : <ElapsedTime startedAt={item.createdAt} format={formatElapsed} />}</span>
       </div>
       {/* Only steps (or a timed run) fill the bar; a phase's own count would fill and reset it. */}
-      <div className={cn('generate-bar', timed ? 'is-timed' : reading.kind !== 'steps' && 'is-indeterminate')}>
+      <div className={cn('generate-bar', timed ? 'is-timed' : reading.kind !== 'steps' && !upscaling && 'is-indeterminate')}>
         <div className="generate-bar-fill" />
       </div>
     </div>

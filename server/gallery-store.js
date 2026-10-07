@@ -818,7 +818,9 @@ export function recordsFromComfyHistory(history) {
     }).slice(0, 8);
     const rawCreatedAt = Number(item?.prompt?.[3]?.create_time || Date.now());
     const createdAtMs = rawCreatedAt > 0 && rawCreatedAt < 1e12 ? rawCreatedAt * 1000 : rawCreatedAt;
-    for (const output of outputsFrom(item)) {
+    // Smart upscale's copy belongs to its picture; recovered on its own it would be a second tile.
+    const own = Object.fromEntries(Object.entries(item?.outputs || {}).filter(([id]) => !graph[id]?._meta?.heissUpscale));
+    for (const output of outputsFrom({ outputs: own })) {
       const record = {
         ...output,
         id: output.url,

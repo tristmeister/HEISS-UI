@@ -5,7 +5,7 @@ import Busboy from "busboy";
 import { comfy, comfyOutputDir, comfyInputDir } from "./comfy.js";
 import { dataDir, filterVisibleGallery, gallery, galleryKey, outputFileCandidates } from "./gallery-store.js";
 import { encryptionKeyFromRequest } from "./privacy.js";
-import { readVaultAsset, readVaultAssetWithKey, vaultGalleryItemsForRequest } from "./vault.js";
+import { readVaultAsset, vaultGalleryItemsForRequest } from "./vault.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
 import { loadSharp } from "./sharp-loader.js";
@@ -347,26 +347,6 @@ export async function uploadBufferToComfy({ buffer, mime, name }, { unique = fal
   form.append("overwrite", "false");
   const uploaded = await comfy("/upload/image", { method: "POST", body: form });
   return { comfyName: uploaded.name || filename, name: safeName(name), mime };
-}
-
-/**
- * The image a Smart upscale starts from, handed to ComfyUI without a request
- * behind it: a gallery image, or a Hidden one read with the run's own key.
- * Returns the name ComfyUI knows it by.
- */
-export async function stageUpscaleSource(item, key = null) {
-  const hidden = String(item.url || "").startsWith("/api/vault/");
-  let bytes;
-  if (hidden) {
-    const vault = readVaultAssetWithKey(key, item.id);
-    if (!vault || vault.item?.type !== "image") throw new Error("This Hidden image is locked or gone.");
-    bytes = { buffer: vault.buffer, mime: vault.item.mime || mimeFromName(vault.item.outputName), name: vault.item.outputName || "private-reference.png" };
-  } else {
-    bytes = await publicGalleryBuffer(item);
-  }
-  const prepared = await prepareInputImage(bytes, { pixels: 0, step: 1 });
-  const uploaded = await uploadBufferToComfy(prepared, { unique: hidden || Boolean(prepared.resized && comfyInputDir()) });
-  return uploaded.comfyName || "";
 }
 
 export async function stageReferenceAssets(req, references = [], { unique = false, generation = null } = {}) {

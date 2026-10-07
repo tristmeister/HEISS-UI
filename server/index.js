@@ -72,7 +72,8 @@ import { startWorkflowSetup, undoWorkflowSetup, workflowSetupState } from './wor
 import { installHistory } from './install-safety.js';
 import { listDownload } from './workflow-models.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscaleQualities, upscaleStatus } from './upscale.js';
-import { findUpscaleTarget, startUpscale, toggleUpscaleView, upscaleFinishedRun } from './upscale-jobs.js';
+import { findUpscaleTarget, startUpscale, toggleUpscaleView } from './upscale-jobs.js';
+import { planRunUpscale } from './run-upscale.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
 import { describeGitError, updateCheckout } from './git-update.js';
@@ -1676,7 +1677,7 @@ app.post("/api/generate", async (req, res) => {
     return;
   }
   body.privateVault = hidden || fromHidden;
-  // Smart upscale: the run's images upscale at this effort once it is done (smartUpscaleRun).
+  // Smart upscale: the run's images upscale at this effort as part of the run itself (smartUpscalePrepare).
   const autoUpscale = req.body?.autoUpscale;
   body.autoUpscale = body.kind === "image" && upscaleQualities.includes(autoUpscale?.quality)
     ? { quality: autoUpscale.quality, faceDetail: Boolean(autoUpscale.faceDetail) }
@@ -1766,7 +1767,7 @@ app.post("/api/generate", async (req, res) => {
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
-    setTimeout(() => runJob(id, body).then(() => smartUpscaleRun(id, body, requestKey)).catch(() => null), 0);
+    setTimeout(() => runJob(id, body, { prepare: body.autoUpscale ? (graph) => smartUpscalePrepare(graph, body) : null }).catch(() => null), 0);
   }
 });
 
@@ -1889,14 +1890,16 @@ app.post("/api/upscale", async (req, res) => {
   res.json({ ok: true, jobId, plan, revision: galleryRevisionValue() });
 });
 
-/** Smart upscale, once a run that asked for it is done: its images upscale here, with no page needed. */
-async function smartUpscaleRun(id, body, hiddenKey) {
-  const job = jobs.get(id);
-  if (!body.autoUpscale || job?.status !== "done" || !job.outputs?.length) return;
+/**
+ * Smart upscale (2K / 4K in the size menu) goes into the run's own graph, so
+ * a run and its upscale are one ComfyUI job (run-upscale.js). When ComfyUI's
+ * node list is out of reach the run still goes ahead, without the upscale.
+ */
+async function smartUpscalePrepare(graph, body) {
   const { info } = await loadComfyContext().catch(() => ({ info: null }));
-  if (!info) return;
+  if (!info) return { skipped: "Smart upscale couldn’t check ComfyUI’s nodes", quality: body.autoUpscale?.quality };
   const customWorkflow = String(body.model || "").startsWith("custom:") ? getCustomWorkflow(body.model) : null;
-  await upscaleFinishedRun(job.outputs, { ...body.autoUpscale, info, customWorkflow, hiddenKey: body.privateVault ? hiddenKey : null });
+  return planRunUpscale(graph, body, info, customWorkflow);
 }
 
 // Stops an image's running upscale. runUpscaleJob sees the canceled job and resets the tile.
@@ -1960,7 +1963,8 @@ app.post("/api/jobs/:id/cancel", async (req, res) => {
     return;
   }
   jobs.set(req.params.id, { ...job, status: "canceling" });
-  updateGalleryJob(req.params.id, { status: "canceled" });
+  // Its pictures are saved and only Smart upscale is left: they stay, and runJob delivers them.
+  if (!job.keepsPicture) updateGalleryJob(req.params.id, { status: "canceled" });
   // Without a prompt id yet, runJob takes it back out of ComfyUI as soon as /prompt answers.
   if (job.promptId) await cancelPrompt(job.promptId).catch(() => null);
   res.json({ ok: true });
@@ -1968,7 +1972,7 @@ app.post("/api/jobs/:id/cancel", async (req, res) => {
 
 app.post("/api/queue/cancel", async (_req, res) => {
   const promptIds = cancelOwnJobs();
-  setGallery(gallery.map((item) => (item.status === "pending" ? { ...item, status: "canceled" } : item)));
+  setGallery(gallery.map((item) => (item.status === "pending" && !jobs.get(item.jobId)?.keepsPicture ? { ...item, status: "canceled" } : item)));
   saveGallery();
   // Only HEISS's own prompts: ComfyUI's queue also holds runs from its own UI and other apps.
   await cancelPrompts(promptIds);
@@ -2065,6 +2069,11 @@ function freeComfyMemory() {
 
 // Model folders ComfyUI is not reading, and adding them to its extra_model_paths.yaml.
 // HEISS can only look at (and change) the machine it runs on, so a remote ComfyUI gets none of this.
+      // Only upscaling now: its pictures stay, and runJob delivers them once ComfyUI lets go.
+      if (job.keepsPicture) {
+        jobs.set(id, { ...job, status: "canceling" });
+        continue;
+      }
 const comfyIsLocal = () => {
   try { return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(new URL(comfyUrl).hostname); } catch { return false; }
 };

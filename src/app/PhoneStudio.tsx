@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, Circle
 import { cn, aspectIconStyle } from './format';
 import { familyLabel, setupNote } from './components';
 import { downloadUrl } from './GalleryTile';
-import { autoUpscaleTiers, canUpscaleItem } from './useUpscale';
+import { autoUpscaleTiers, canUpscaleItem, upscaledWithRun } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { ReferenceSlots } from './ReferenceMediaPicker';
 import { haptic, HapticTarget } from './phoneControls';
@@ -280,7 +280,7 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, co
           <span>{item.upscale?.status === 'running' ? 'Stop' : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale'}</span>
         </button>
       ) : null}
-      {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
+      {item.upscale?.url && !upscaledWithRun(item) ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
       {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Reuse</span></button> : null}
       {canStar(item) ? (
         <button type="button" className={cn(item.favorite && 'is-starred')} aria-pressed={Boolean(item.favorite)} onClick={() => { haptic('tap'); actions.star(item); }}>
