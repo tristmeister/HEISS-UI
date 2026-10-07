@@ -42,9 +42,6 @@ import { usePromptHistory } from './recentPrompts';
 
 /* ------------------------------------------------------------------ Sheet */
 
-// TEMP flicker test: ?flicker=dim leaves the backdrop clear.
-const flickerTest = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('flicker') : null;
-
 /**
  * A bottom sheet: grab handle, swipe down (or Back, or Escape, or a tap on the
  * dimmed page) to close, focus kept inside while open.
@@ -83,13 +80,16 @@ export function Sheet({ open, onClose, title, children, footer, full = false, cl
         <React.Fragment key="sheet">
           <motion.button
             type="button"
-            className={cn('phone-sheet-backdrop', flickerTest === 'dim' && 'is-flicker-test')}
+            className="phone-sheet-backdrop"
             aria-label="Close"
             tabIndex={-1}
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            // The colour fades, not opacity: Safari runs framer's opacity fades as
+            // hardware animations and shows the wrong end state for a frame when
+            // one finishes, so the whole page behind would flash.
+            initial={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
+            animate={{ backgroundColor: 'rgba(0, 0, 0, 0.55)' }}
+            exit={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
             transition={{ duration: 0.2 }}
           />
           <motion.div
