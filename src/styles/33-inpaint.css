@@ -277,7 +277,7 @@
 
 /* Settings › Features › Inpainting (src/app/InpaintDemo.tsx): the studio in
    miniature, in place instead of floating, with the same glass and tools. */
-.inpaint-demo-wrap { display: grid; gap: 8px; padding: 12px 12px 4px; }
+.inpaint-demo-wrap { display: grid; gap: 8px; padding: 12px; }
 .inpaint-demo {
   position: relative;
   aspect-ratio: 16 / 9;

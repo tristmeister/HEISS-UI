@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Puzzle, Boxes, CircleArrowUp, Brush, GalleryVerticalEnd, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Puzzle, Boxes, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { discordUrl, features, githubUrl } from './constants';
 import { DiscordIcon } from './DiscordIcon';
 import { cn } from './format';
@@ -18,7 +18,7 @@ import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
-import { FeatureDrawer, SettingsDrawer } from './SettingsDrawer';
+import { SettingsDrawer } from './SettingsDrawer';
 import { replayInpaintIntro } from './ReferenceMediaPicker';
 import { InpaintDemo } from './InpaintDemo';
 import { CivitaiRow, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
@@ -32,7 +32,7 @@ import type { ShowToast } from './toast';
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, safety and reset.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and starting values.' },
-  { id: 'features', label: 'Features', icon: Puzzle, description: 'Each feature in its own card: switch it on, set it up, see how it works.' },
+  { id: 'features', label: 'Features', icon: Puzzle, description: 'Upscaling, inpainting and run stacks.' },
   { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where images are saved and what the gallery shows.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
@@ -302,16 +302,6 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
     );
   }
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
-}
-
-/** Smart upscale's state in a word or two, for its card. */
-function upscaleSummary(status: UpscaleStatus | null, install: UpscaleInstall): { tone: 'ok' | 'warn' | 'bad'; label: string } {
-  if (install?.status === 'running') return { tone: 'warn', label: 'Downloading' };
-  if (!status) return { tone: 'warn', label: 'Unavailable' };
-  if (!status.nodesInstalled || status.needsDownload) return { tone: 'warn', label: 'Needs setup' };
-  if (install?.status === 'error' && !status.ready) return { tone: 'bad', label: 'Download stopped' };
-  if (status.substituting) return { tone: 'warn', label: 'Download needed' };
-  return { tone: 'ok', label: 'Ready' };
 }
 
 const profileName = (profile: Profile) => profile.displayName || profile.label;
@@ -692,8 +682,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
 
   const upscaleOn = prefs.smartUpscale !== false;
-  const upscaleState = upscaleSummary(upscaleStatus, upscaleInstall);
-  // Inpainting ships behind a release switch; while it's off the card stays away.
+  // Inpainting ships behind a release switch; while it's off its group stays away.
   const inpaintReleased = Boolean((models as Models | null)?.features?.inpainting);
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
@@ -806,84 +795,70 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
         ) : null}
 
         {section === 'features' ? (
-          <div className="set-features">
-            <FeatureDrawer
-              id="feature-upscale"
-              icon={CircleArrowUp}
-              title="Smart upscale"
-              summary={upscaleOn ? 'The arrow on a finished image makes a larger, sharper copy.' : 'Off. Makes a larger, sharper copy of a finished image with SeedVR2.'}
-              status={upscaleOn ? <Status tone={upscaleState.tone}>{upscaleState.label}</Status> : null}
-              enabled={upscaleOn}
-              onEnabledChange={(next) => setPrefs({ smartUpscale: next })}
-            >
-              <Row label="Effort" description={effort.detail} disabled={!upscaleOn}>
-                <Segmented label="Upscale effort" value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label, scale }) => ({ value, label: `${label} ${scale}` }))} />
-              </Row>
-              <SwitchRow
-                label="Face detail pass"
-                tag={<BetaTag />}
-                description={faceDetailReady
-                  ? 'Redraws small faces before the upscale. Close-ups are left as they are.'
-                  : 'Redraws small faces before the upscale. Needs the Impact Pack and Impact Subpack nodes.'}
-                checked={Boolean(prefs.upscaleFaceDetail) && faceDetailReady}
-                disabled={!faceDetailReady || !upscaleOn}
-                onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
-              />
-              {upscaleOn && !faceDetailReady && upscaleStatus?.faceDetail?.setup?.length ? upscaleStatus.faceDetail.setup.map((setup: NonNullable<NonNullable<typeof upscaleStatus.faceDetail.setup>>[number]) => (
-                <div className="set-node-install" key={setup.pack.name}>
-                  <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart="Then the face pass can be turned on here." />
-                </div>
-              )) : null}
-              {upscaleOn ? <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} onDownload={() => upscaleSetup.openSetup(null, { download: true })} /> : null}
-            </FeatureDrawer>
+          <>
+            <Group title="Upscale">
+              <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
+              {upscaleOn ? (
+                <>
+                  <Row label="Effort" description={effort.detail}>
+                    <Segmented label="Upscale effort" value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label, scale }) => ({ value, label: `${label} ${scale}` }))} />
+                  </Row>
+                  <SwitchRow
+                    label="Face detail pass"
+                    tag={<BetaTag />}
+                    description={faceDetailReady
+                      ? 'Redraws small faces before the upscale. Close-ups are left as they are.'
+                      : 'Redraws small faces before the upscale. Needs the Impact Pack and Impact Subpack nodes.'}
+                    checked={Boolean(prefs.upscaleFaceDetail) && faceDetailReady}
+                    disabled={!faceDetailReady}
+                    onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
+                  />
+                  {!faceDetailReady && upscaleStatus?.faceDetail?.setup?.length ? upscaleStatus.faceDetail.setup.map((setup: NonNullable<NonNullable<typeof upscaleStatus.faceDetail.setup>>[number]) => (
+                    <div className="set-node-install" key={setup.pack.name}>
+                      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart="Then the face pass can be turned on here." />
+                    </div>
+                  )) : null}
+                  <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} onDownload={() => upscaleSetup.openSetup(null, { download: true })} />
+                </>
+              ) : null}
+            </Group>
 
             {inpaintReleased ? (
-              <FeatureDrawer
-                id="feature-inpaint"
-                icon={Brush}
-                title="Inpainting"
-                tag={<BetaTag />}
-                summary={inpaintModels.length ? 'Paint over part of an image and change only that part.' : 'Needs an image model that takes a start image.'}
-                status={<Status tone={inpaintModels.length ? 'ok' : 'warn'}>{inpaintModels.length ? `${inpaintModels.length} model${inpaintModels.length === 1 ? '' : 's'}` : 'No model yet'}</Status>}
-              >
-                <InpaintDemo />
-                <Row label="In the studio" description="Add a start or reference image, open its menu and pick the brush. Paint the part to change, then describe what it becomes." />
+              <Group title="Inpainting">
                 <Row
-                  label="Works with"
+                  label={<>Inpainting<BetaTag /></>}
                   description={inpaintModels.length
-                    ? `${inpaintModels.slice(0, 4).map(profileName).join(', ')}${inpaintModels.length > 4 ? ` and ${inpaintModels.length - 4} more` : ''}.`
-                    : 'Image models that edit or take a start image, such as Flux, SDXL or Qwen Image Edit. Plain text-to-image graphs of their own can’t.'}
-                />
+                    ? `Paint over part of a start or reference image to change only that part. Works with ${inpaintModels.slice(0, 3).map(profileName).join(', ')}${inpaintModels.length > 3 ? ` and ${inpaintModels.length - 3} more` : ''}.`
+                    : 'Paint over part of an image to change only that part. Needs an image model that takes a start image, such as Flux, SDXL or Qwen Image Edit.'}
+                >
+                  <Status tone={inpaintModels.length ? 'ok' : 'warn'}>{inpaintModels.length ? 'Ready' : 'No model yet'}</Status>
+                </Row>
+                <SettingsDrawer id="set-inpaint-demo" title="Try it" description="Paint on a small scene, then generate">
+                  <InpaintDemo />
+                </SettingsDrawer>
                 <Row label="Show the intro again" description="The brush points itself out the next time you add an image.">
                   <button className="btn" onClick={() => { replayInpaintIntro(); showToast('Shows the next time you add an image', 'success'); }}>Show again</button>
                 </Row>
-              </FeatureDrawer>
+              </Group>
             ) : null}
 
-            <FeatureDrawer
-              id="feature-runs"
-              icon={GalleryVerticalEnd}
-              title="Run stacks"
-              summary="Takes and variations of one idea fold into one tile, found by prompt, model and time."
-              enabled={Boolean(prefs.stackRuns)}
-              onEnabledChange={(next) => setPrefs({ stackRuns: next })}
-            >
-              <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'} disabled={!prefs.stackRuns}>
-                <Segmented
-                  label="Stacks look like"
-                  value={prefs.runStackStyle === 'flow' ? 'flow' : 'burst'}
-                  onChange={(next) => setPrefs({ runStackStyle: next })}
-                  options={[
-                    { value: 'burst', label: <><RunStyleGlyph kind="burst" /> Photo</> },
-                    { value: 'flow', label: <><RunStyleGlyph kind="flow" /> Cover flow</> },
-                  ]}
-                />
-              </Row>
-              <Row label="From the gallery" description="The stack button over the gallery switches stacking too, and a stack opens into a shelf of its takes." />
-            </FeatureDrawer>
-
-            <p className="set-feature-more">New features show up here as they land.</p>
-          </div>
+            <Group title="Runs" note="A run is the takes and variations of one idea, found by prompt, model and time. The stack button over the gallery switches this too.">
+              <SwitchRow label="Stack runs" description="Each run folds into one tile that opens into a shelf of its takes." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
+              {prefs.stackRuns ? (
+                <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
+                  <Segmented
+                    label="Stacks look like"
+                    value={prefs.runStackStyle === 'flow' ? 'flow' : 'burst'}
+                    onChange={(next) => setPrefs({ runStackStyle: next })}
+                    options={[
+                      { value: 'burst', label: <><RunStyleGlyph kind="burst" /> Photo</> },
+                      { value: 'flow', label: <><RunStyleGlyph kind="flow" /> Cover flow</> },
+                    ]}
+                  />
+                </Row>
+              ) : null}
+            </Group>
+          </>
         ) : null}
 
         {section === 'library' ? (
