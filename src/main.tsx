@@ -1189,6 +1189,13 @@ function App() {
     setHeight(snapDimension(referenceForAspect.height * scale, heightMeta));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectLocked, referenceForAspect?.id, model, prefs.autoResizeInputs]);
+  /* A reference that dictates the framing, or a painted mask, takes the size
+     tabs (and Smart upscale with them) off the composer: the reference's own
+     size is what gets made. The saved 2K/4K pick has to go with them, not
+     just hide, so taking the reference off again doesn't bring it back. */
+  useEffect(() => {
+    if ((aspectLocked || activeInpaintMask) && prefs.autoUpscale && prefs.autoUpscale !== "none") setPrefs({ autoUpscale: "none" });
+  }, [aspectLocked, activeInpaintMask, prefs.autoUpscale]);
   const frameMeta = currentProfile?.constraints?.frames || {};
   const countMeta = currentProfile?.constraints?.count || {};
   const stepsMeta = currentProfile?.constraints?.steps || {};

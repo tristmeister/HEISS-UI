@@ -165,7 +165,11 @@ export function useGenerationActions(view: any) {
         startImageName,
         privateVault: Boolean(hiddenSpace),
         // Smart upscale: the upscale is part of the run itself, one job in ComfyUI.
-        autoUpscale: mode === "image" && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
+        // Off whenever the output's size isn't the model's own to pick: a reference
+        // that dictates the framing (aspectPolicy "reference"), or a painted mask,
+        // which keeps the original image's size. The size tabs hide in both cases,
+        // but a persisted 2K/4K choice from before must not sneak an upscale in too.
+        autoUpscale: mode === "image" && !inpaint && !(currentProfile?.aspectPolicy === "reference" && (referenceAssets || []).length) && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
           ? { quality: autoUpscaleQuality(prefs.autoUpscale), faceDetail: Boolean(prefs.upscaleFaceDetail) }
           : null
       };
