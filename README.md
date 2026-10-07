@@ -13,10 +13,10 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/tristmeister/HEISS-UI/releases/latest"><img src="https://img.shields.io/github/v/release/tristmeister/HEISS-UI?style=flat-square&label=download&labelColor=1a1a1a&color=ff7a3d" alt="Download the latest release" /></a>
-  <a href="https://heiss-ui.vercel.app/"><img src="https://img.shields.io/badge/website-heiss--ui-ff7a3d?style=flat-square&labelColor=1a1a1a" alt="Website" /></a>
-  <a href="https://discord.gg/Hf7ysvDeGa"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1a1a1a" alt="Join the Discord" /></a>
-  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-444?style=flat-square&labelColor=1a1a1a" alt="MIT license" /></a>
+  <a href="https://github.com/tristmeister/HEISS-UI/releases/latest"><img src="https://img.shields.io/github/v/release/tristmeister/HEISS-UI?style=for-the-badge&label=download&labelColor=1a1a1a&color=ff7a3d" alt="Download the latest release" /></a>
+  <a href="https://heiss-ui.vercel.app/"><img src="https://img.shields.io/badge/website-heiss--ui-ff7a3d?style=for-the-badge&labelColor=1a1a1a" alt="Website" /></a>
+  <a href="https://discord.gg/Hf7ysvDeGa"><img src="https://img.shields.io/badge/discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1a1a1a" alt="Join the Discord" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-444?style=for-the-badge&labelColor=1a1a1a" alt="MIT license" /></a>
 </p>
 
 <p align="center">
