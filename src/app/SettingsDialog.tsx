@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Puzzle, Boxes, CircleArrowUp, Brush, Layers, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Puzzle, Boxes, CircleArrowUp, Brush, GalleryVerticalEnd, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { discordUrl, features, githubUrl } from './constants';
 import { DiscordIcon } from './DiscordIcon';
 import { cn } from './format';
@@ -18,10 +18,10 @@ import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
-import { FeatureDrawer, SettingsDrawer, SettingsFold } from './SettingsDrawer';
+import { FeatureDrawer, SettingsDrawer } from './SettingsDrawer';
 import { replayInpaintIntro } from './ReferenceMediaPicker';
 import { InpaintDemo } from './InpaintDemo';
-import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
+import { CivitaiRow, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
 import { boardUrl, openFeedback } from './feedback';
 import { HuggingFaceTokenSettings } from './HuggingFaceToken';
@@ -862,7 +862,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
             <FeatureDrawer
               id="feature-runs"
-              icon={Layers}
+              icon={GalleryVerticalEnd}
               title="Run stacks"
               summary="Takes and variations of one idea fold into one tile, found by prompt, model and time."
               enabled={Boolean(prefs.stackRuns)}
@@ -907,22 +907,20 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <SwitchRow label="Wide images take two columns" description="Landscape images span two columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
               <SwitchRow label="Show failed items" description="Interrupted and failed generations stay in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
             </Group>
+            {atComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
             <Group title="Sharing">
               <SwitchRow label="Share without settings" description="Leaves the prompt, seed and workflow out of downloaded and shared files. The gallery’s own files keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
               <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
                 <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
               </Row>
+              <CivitaiRow Row={Row} Switch={Switch} showToast={showToast} canChange={thisComputer} />
             </Group>
-            <SettingsFold title="Clean up and imports" description="Failed items, trash, earlier images, Civitai">
             <Group title="Clean up">
               <Row label="Clear failed items" description="Removes failed and interrupted cards.">
                 <button className="btn" onClick={clearFailedItems}>Clear</button>
               </Row>
               {thisComputer ? <TrashRow confirmAction={confirmAction} showToast={showToast} Row={Row} /> : null}
             </Group>
-            {atComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
-            <CivitaiGroup Group={Group} Row={Row} Switch={Switch} showToast={showToast} canChange={thisComputer} />
-            </SettingsFold>
           </>
         ) : null}
 

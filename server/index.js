@@ -85,6 +85,11 @@ const app = express();
 // Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
 app.use(requestGuard({ lan: () => allowLanActions, extraHosts: tlsHostNames }));
 app.use(express.json({ limit: "25mb" }));
+// A body that is not valid JSON, or too big, gets a plain JSON answer, not Express's HTML page with a stack trace and file paths.
+app.use((error, _req, res, next) => {
+  if (!error || (error.type !== "entity.parse.failed" && error.type !== "entity.too.large")) return next(error);
+  res.status(error.type === "entity.too.large" ? 413 : 400).json({ ok: false, error: error.type === "entity.too.large" ? "That request is too large." : "That request wasn't valid JSON." });
+});
 // Gallery pages and model lists travel compressed to phones and tablets; this computer skips the work.
 app.use(compressJson({ skip: (req) => clientOf(req).thisComputer }));
 const execFileAsync = promisify(execFile);

@@ -101,8 +101,8 @@ export function EarlierImagesGroup({ Group, Row, showToast, confirmAction, outpu
   );
 }
 
-/** Civitai-ready PNGs: off unless switched on, and never for Hidden. */
-export function CivitaiGroup({ Group, Row, Switch, showToast, canChange }: Parts & { canChange: boolean }) {
+/** Civitai-ready PNGs: off unless switched on, and never for Hidden. A row of Library › Sharing. */
+export function CivitaiRow({ Row, Switch, showToast, canChange }: Omit<Parts, 'Group'> & { canChange: boolean }) {
   const [enabled, setEnabled] = React.useState<boolean | null>(null);
   React.useEffect(() => {
     let live = true;
@@ -121,15 +121,13 @@ export function CivitaiGroup({ Group, Row, Switch, showToast, canChange }: Parts
     }
   };
   return (
-    <Group title="Beta" note="Applies to new PNGs in ComfyUI’s output folder on this computer. ComfyUI’s workflow stays in the file.">
-      <Row
-        label={<>Civitai-ready images<BetaTag /></>}
-        description="Saves the prompt, LoRAs, steps, sampler, seed and model in each new image the way AUTOMATIC1111 does, so Civitai fills them in on upload. Not applied to Hidden images."
-        disabled={enabled === null || !canChange}
-      >
-        <Switch label="Civitai-ready images" checked={Boolean(enabled)} onChange={change} disabled={enabled === null || !canChange} />
-      </Row>
-    </Group>
+    <Row
+      label={<>Civitai-ready images<BetaTag /></>}
+      description="Saves the prompt, LoRAs, steps, sampler, seed and model in each new PNG the way AUTOMATIC1111 does, so Civitai fills them in on upload. ComfyUI’s workflow stays in the file; Hidden images are left alone."
+      disabled={enabled === null || !canChange}
+    >
+      <Switch label="Civitai-ready images" checked={Boolean(enabled)} onChange={change} disabled={enabled === null || !canChange} />
+    </Row>
   );
 }
 
