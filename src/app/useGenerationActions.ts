@@ -176,6 +176,7 @@ export function useGenerationActions(view: any) {
         // HEISS Rapid, as the composer decided it (rapid.js): the model, the preference and the seed rule.
         rapid: Boolean(rapid),
         rapidGuidance: Boolean(rapidGuidance),
+        ...((rapid || rapidGuidance) && prefs.rapidSpeed && prefs.rapidSpeed !== "balanced" ? { rapidSpeed: prefs.rapidSpeed } : {}),
         loras,
         referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
         // A painted mask on the first reference: change only that part.

@@ -32,7 +32,7 @@ import type { ShowToast } from './toast';
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, safety and reset.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and starting values.' },
-  { id: 'features', label: 'Features', icon: Puzzle, description: 'Upscaling and inpainting.' },
+  { id: 'features', label: 'Features', icon: Puzzle, description: 'Rapid, upscaling and inpainting.' },
   { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where images are saved and what the gallery shows.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
@@ -897,6 +897,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                     checked={prefs.rapidGuidance !== false}
                     onChange={(next) => setPrefs({ rapidGuidance: next })}
                   />
+                  <Row label="Speed" description={prefs.rapidSpeed === 'faster' ? 'Starts small for longer and cuts guidance sooner: quicker, with a little more risk to small text and fine detail.' : prefs.rapidSpeed === 'careful' ? 'Switches to full size and full guidance earlier: a bit slower, the safest for small text.' : 'The switch points measured for each model.'}>
+                    <Segmented label="Rapid speed" value={prefs.rapidSpeed === 'faster' || prefs.rapidSpeed === 'careful' ? prefs.rapidSpeed : 'balanced'} onChange={(next) => setPrefs({ rapidSpeed: next })} options={[{ value: 'careful', label: 'Careful' }, { value: 'balanced', label: 'Balanced' }, { value: 'faster', label: 'Faster' }]} />
+                  </Row>
                   <Row label="Seeds" description="A seed frames a little differently with Rapid. A seed you fix yourself runs without it, so it gives the picture it always did; “Use settings” on a Rapid picture keeps it on, so the same picture comes back." />
                   {rapidModels.length ? (
                     <Row label="Your models with Rapid" stacked>

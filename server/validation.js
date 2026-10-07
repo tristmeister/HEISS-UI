@@ -88,6 +88,11 @@ function sanitizeInpaint(input, profile, referenceAssets) {
  * docs/rapid.md); `rapidAt` / `rapidSmooth` are for scripts/bench-rapid.mjs.
  */
 const SMOOTH_FROM_STEPS = 12;
+// Rapid's speed choice (Settings › Features): how far it moves each part's switch point from the family's own.
+// Faster: the half-size start runs longer and guidance stops sooner; Careful: the other way.
+const RAPID_SPEED_SHIFT = { careful: 0.1, balanced: 0, faster: -0.1 };
+const speedShift = (input) => RAPID_SPEED_SHIFT[input.rapidSpeed] ?? 0;
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
   if (input.rapid !== true || profile.capabilities?.rapid !== true || profile.kind !== "image") return null;
@@ -100,7 +105,7 @@ export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
   // percent; on a 4-8 step distill it eats most of the gain (measured, docs/rapid.md). The benchmark can force it.
   const steps = Number(input.steps) || Number(profile.defaults?.steps) || 0;
   const smooth = typeof input.rapidSmooth === "boolean" ? input.rapidSmooth : spec.smooth !== false && steps >= SMOOTH_FROM_STEPS;
-  return { at: Number.isFinite(at) && at >= 0.3 && at <= 0.99 ? at : spec.at, smooth };
+  return { at: Number.isFinite(at) && at >= 0.3 && at <= 0.99 ? at : Math.round(clamp(spec.at + speedShift(input), 0.45, 0.95) * 100) / 100, smooth };
 }
 
 /**
@@ -119,7 +124,7 @@ export function sanitizeRapidGuidance(input, profile, cfg, { referenceAssets = [
   const spec = guidanceFor(family, variant);
   if (!spec) return null;
   const until = Number(input.rapidCfgUntil);
-  return { until: Number.isFinite(until) && until >= 0 && until <= 1 ? until : spec.until };
+  return { until: Number.isFinite(until) && until >= 0 && until <= 1 ? until : Math.round(clamp(spec.until - speedShift(input), 0.1, 0.6) * 100) / 100 };
 }
 
 /**

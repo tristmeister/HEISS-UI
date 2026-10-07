@@ -659,6 +659,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               model={model}
               modelProfiles={modelProfiles}
               showInpaint={prefs.inpainting !== false}
+              showRapid={prefs.rapidAll !== false}
               profileBadges={profileBadges}
               chooseModel={pickModel}
               modelMenu={modelMenu}
@@ -776,6 +777,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               model={model}
               modelProfiles={modelProfiles}
               showInpaint={prefs.inpainting !== false}
+              showRapid={prefs.rapidAll !== false}
               profileBadges={profileBadges}
               chooseModel={pickModel}
               modelMenu={modelMenu}

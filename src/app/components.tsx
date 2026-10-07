@@ -2,7 +2,7 @@ import React, { lazy, Suspense, memo, useCallback, useEffect, useRef, useState }
 import { VideoPreview } from './VideoPreview';
 import { mediaUrl } from './mediaUrl';
 import { useDismiss } from './useDismiss';
-import { Brush, ChevronDown, ImagePlus, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
+import { Brush, ChevronDown, ImagePlus, Info, Minus, Plus, Search, Star, X, Zap } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -471,25 +471,27 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * searches.
  */
 /**
- * What a model can do with a picture, as two small plain icons before its
- * family badge: edits from reference images, and inpainting (paint over part
- * of a reference to change only that).
+ * What a model can do, as small plain icons before its family badge: edits
+ * from reference images, inpainting (paint over part of a reference to change
+ * only that), and HEISS Rapid (faster pictures, docs/rapid.md).
  */
-function ModelAbilities({ profile, showInpaint = true, onHover }: { profile: Profile; showInpaint?: boolean; onHover?: (hovering: boolean) => void }) {
+function ModelAbilities({ profile, showInpaint = true, showRapid = true, onHover }: { profile: Profile; showInpaint?: boolean; showRapid?: boolean; onHover?: (hovering: boolean) => void }) {
   // An edit model takes references without a start-image strength; img2img models have one.
   const edits = Boolean(profile.mediaInputs?.length && !profile.capabilities.denoise);
   const inpaints = showInpaint && Boolean(profile.capabilities.inpaint);
-  if (!edits && !inpaints) return null;
+  const rapid = showRapid && Boolean(profile.capabilities.rapid || profile.capabilities.rapidGuidance);
+  if (!edits && !inpaints && !rapid) return null;
   return (
     // While one of these speaks, the row's own name tooltip stays shut.
     <span className="model-abilities" onPointerEnter={() => onHover?.(true)} onPointerLeave={() => onHover?.(false)}>
       {edits ? <Tip content="Edits from reference images" side="top"><span className="model-ability" aria-label="Edits from reference images"><ImagePlus size={13} strokeWidth={1.75} /></span></Tip> : null}
       {inpaints ? <Tip content="Inpainting: paint over part of an image to change only that" side="top"><span className="model-ability" aria-label="Inpainting"><Brush size={13} strokeWidth={1.75} /></span></Tip> : null}
+      {rapid ? <Tip content="Rapid: makes its pictures faster" side="top"><span className="model-ability" aria-label="Rapid"><Zap size={13} strokeWidth={1.75} /></span></Tip> : null}
     </span>
   );
 }
 
-export function ModelPicker({ value, profiles, showInpaint = true, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; showInpaint?: boolean; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
+export function ModelPicker({ value, profiles, showInpaint = true, showRapid = true, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; showInpaint?: boolean; showRapid?: boolean; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const hardware = useHardware();
   const [abilityRow, setAbilityRow] = React.useState("");
   const [open, setOpen] = useState(false);
@@ -636,7 +638,7 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
                                 <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>
                               )}
                             </span>
-                            <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
+                            <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} showRapid={showRapid} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
                         {menu ? (
                           <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>

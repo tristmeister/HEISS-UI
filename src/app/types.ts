@@ -278,6 +278,8 @@ export type Preferences = {
   rapid: boolean;
   /** HEISS Rapid Guidance: CFG only while the noise is high, plain sampling after. */
   rapidGuidance: boolean;
+  /** How hard Rapid pushes: its switch points moved towards safety or speed (validation.js). */
+  rapidSpeed: "careful" | "balanced" | "faster";
   /** Setup notes (SetupTipChip) someone chose "Don't show again" for, by id. */
   hiddenTips: string[];
   /** The brush on reference images, for models that can inpaint. Off hides it everywhere. */

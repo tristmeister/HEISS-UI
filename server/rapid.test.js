@@ -186,3 +186,14 @@ test("validation keeps Rapid Guidance for ready models on runs with CFG above 1"
   assert.equal(rapidCapability(families.minimax_h3, families.minimax_h3.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), false);
   assert.equal(rapidCapability(families.wan22_14b, families.wan22_14b.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), false);
 });
+
+test("the speed choice moves both switch points, within limits", () => {
+  const start = { kind: "image", family: "krea2", variant: "turbo", capabilities: { rapid: true } };
+  const plain = { referenceAssets: [], inpaint: null };
+  assert.equal(sanitizeRapid({ rapid: true, rapidSpeed: "faster" }, start, plain).at, 0.6);
+  assert.equal(sanitizeRapid({ rapid: true, rapidSpeed: "careful" }, start, plain).at, 0.8);
+  assert.equal(sanitizeRapid({ rapid: true, rapidSpeed: "nonsense" }, start, plain).at, 0.7);
+  const guided = { kind: "image", family: "sdxl", variant: "standard", capabilities: { rapidGuidance: true } };
+  assert.equal(sanitizeRapidGuidance({ rapidGuidance: true, rapidSpeed: "faster" }, guided, 7).until, 0.4);
+  assert.equal(sanitizeRapidGuidance({ rapidGuidance: true, rapidSpeed: "careful" }, guided, 7).until, 0.2);
+});

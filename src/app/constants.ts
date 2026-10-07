@@ -22,6 +22,7 @@ export const defaultPrefs: Preferences = {
   rapidAll: true,
   rapid: true,
   rapidGuidance: true,
+  rapidSpeed: "balanced",
   hiddenTips: [],
   inpainting: true,
   upscaleQuality: "balanced",
