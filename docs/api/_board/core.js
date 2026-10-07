@@ -187,10 +187,9 @@ async function readBody(request) {
 /**
  * Handles one request. `store` is from store.js (null when the board isn't
  * set up), `env` holds BOARD_ADMIN_PASSWORD and friends. `onEvent` hears what
- * changed (created, updated, commented, voted, arranged, deleted) and `links`
- * adds places to follow a post elsewhere; neither can fail a request.
+ * changed (created, updated, commented, voted, arranged, deleted) and can't fail a request.
  */
-export async function handle(request, { store, env = {}, now = () => Date.now(), onEvent = null, links = null } = {}) {
+export async function handle(request, { store, env = {}, now = () => Date.now(), onEvent = null } = {}) {
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -239,8 +238,7 @@ export async function handle(request, { store, env = {}, now = () => Date.now(),
       if (cardId) {
         const found = await store.get(cardId, voter);
         if (!found) throw new Problem(404, "That post is gone.");
-        const elsewhere = links ? await Promise.resolve(links(cardId)).catch(() => ({})) : {};
-        return reply(200, { ok: true, admin, ...found, links: elsewhere || {} });
+        return reply(200, { ok: true, admin, ...found });
       }
       const { cards, voted } = await store.list(voter);
       if (url.searchParams.get("view") === "summary") {
@@ -273,7 +271,7 @@ export async function handle(request, { store, env = {}, now = () => Date.now(),
         // Posting from the board counts as the author's upvote; the app has no board cookie.
         let votes = 0;
         if (card.source === "web" && sameOrigin(request)) votes = await store.vote(card.id, needVoter(), true);
-        await emit({ type: "created", card: { ...card, votes, comments: 0 } });
+        await emit({ type: "created", card: { ...card, votes, comments: 0 }, admin });
         return reply(201, { ok: true, card: { ...card, votes, comments: 0 } });
       }
 

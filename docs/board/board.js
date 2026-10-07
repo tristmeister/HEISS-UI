@@ -495,7 +495,6 @@
   let openId = "";
   let comments = [];
   let commentsLoaded = false;
-  let detailLinks = {};
 
   function segmented(label, options, value, onPick, cls = "") {
     const index = Math.max(0, options.findIndex(([key]) => key === value));
@@ -695,17 +694,6 @@
       h("span", { class: "b-when", title: fullDate(card.createdAt), text: ago(card.createdAt) })
     );
 
-    // A post with a Discord thread: follow it there to hear when it moves or gets an answer.
-    const follow = detailLinks.discord
-      ? h(
-          "a",
-          { class: "d-follow", href: detailLinks.discord, target: "_blank", rel: "noopener", title: "Follow the thread on Discord to hear when this moves or gets an answer" },
-          icon("discord"),
-          h("span", {}, h("b", { text: "Follow on Discord" }), h("small", { text: "Get pinged when this moves or gets an answer" })),
-          icon("arrow")
-        )
-      : null;
-
     const setup = card.setup
       ? h("details", { class: "d-setup" }, h("summary", {}, h("span", { text: "Setup" }), icon("chev")), h("pre", { text: card.setup }))
       : null;
@@ -719,7 +707,7 @@
       replyForm(card)
     );
 
-    detailBody.replaceChildren(...[top, head, editing ? null : h("p", { class: "d-body", text: card.body || "" }), setup, meta, editing ? null : follow, state.admin && !editing ? adminPanel(card) : null, thread].filter(Boolean));
+    detailBody.replaceChildren(...[top, head, editing ? null : h("p", { class: "d-body", text: card.body || "" }), setup, meta, state.admin && !editing ? adminPanel(card) : null, thread].filter(Boolean));
   }
 
   async function openDetail(id, { fromHash = false } = {}) {
@@ -730,7 +718,6 @@
     openId = id;
     comments = [];
     commentsLoaded = false;
-    detailLinks = {};
     renderDetail();
     if (!detail.open) detail.showModal();
     if (!fromHash) history.replaceState(null, "", `#p-${id}`);
@@ -739,7 +726,6 @@
       if (openId !== id) return;
       comments = data.comments || [];
       commentsLoaded = true;
-      detailLinks = data.links || {};
       const index = state.cards.findIndex((card) => card.id === id);
       if (index >= 0) state.cards[index] = { ...state.cards[index], ...data.card };
       renderDetail();

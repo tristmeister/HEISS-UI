@@ -728,39 +728,6 @@
 .d-head .b-vote { width: 52px; height: 58px; border-radius: 15px; }
 .d-body { color: var(--text-2); font-size: 15.5px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 .d-body:empty { display: none; }
-/* Follow on Discord: the post's mirrored thread, for pings when it moves or gets an answer. */
-.d-follow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px 10px 12px;
-  border-radius: 16px;
-  background: linear-gradient(100deg, rgb(88 101 242 / 0.16), rgb(88 101 242 / 0.04) 70%);
-  box-shadow: inset 0 0 0 1px rgb(88 101 242 / 0.32);
-  color: var(--text);
-  text-decoration: none;
-  transition: box-shadow 200ms var(--ease), background-color 200ms var(--ease);
-}
-.d-follow:hover { box-shadow: inset 0 0 0 1px rgb(88 101 242 / 0.6); background-color: rgb(88 101 242 / 0.08); }
-.d-follow:active { scale: 0.99; }
-.d-follow > .icon:first-child {
-  flex: none;
-  width: 34px;
-  height: 34px;
-  padding: 8px;
-  border-radius: 11px;
-  background: #5865f2;
-  color: #fff;
-}
-.d-follow span { display: grid; flex: 1; min-width: 0; gap: 1px; }
-.d-follow b { font-size: 14px; font-weight: 600; }
-.d-follow small { color: var(--text-3); font-size: 12.5px; }
-.d-follow > .icon:last-child { flex: none; width: 16px; height: 16px; color: var(--text-3); transition: translate 200ms var(--ease); }
-.d-follow:hover > .icon:last-child { translate: 2px 0; color: var(--text); }
-@media (forced-colors: active) {
-  .d-follow { border: 1px solid LinkText; }
-}
-
 .d-setup {
   border-radius: 16px;
   background: var(--canvas);
