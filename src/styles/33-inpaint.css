@@ -277,7 +277,16 @@
 
 /* Settings › Features › Inpainting (src/app/InpaintDemo.tsx): the studio in
    miniature, in place instead of floating, with the same glass and tools. */
-.inpaint-demo-wrap { display: grid; gap: 8px; padding: 12px; }
+.inpaint-demo-wrap { display: grid; gap: 8px; max-width: 440px; padding: 12px 16px 14px; }
+/* The studio's tools at the demo's smaller scale. */
+.inpaint-demo .inpaint-pill { top: 8px; padding: 3px; }
+.inpaint-demo .inpaint-tool { width: 30px; height: 30px; }
+.inpaint-demo .inpaint-tool svg { width: 14px; height: 14px; }
+.inpaint-demo .inpaint-divider { height: 16px; margin: 0 3px; }
+.inpaint-demo .inpaint-size { left: 8px; width: 34px; height: calc(100% - 64px); padding: 10px 0; translate: 0 calc(-50% + 14px); }
+.inpaint-demo .inpaint-size-thumb { width: 14px; height: 14px; }
+.inpaint-demo .inpaint-hint { bottom: 10px; padding: 5px 12px; font-size: 11.5px; }
+.inpaint-demo-prompt .btn { height: 30px; padding: 0 12px; font-size: 12.5px; }
 .inpaint-demo {
   position: relative;
   aspect-ratio: 16 / 9;
@@ -317,14 +326,11 @@
 .inpaint-demo-compare { pointer-events: auto; border: 0; font: inherit; font-size: 12.5px; font-weight: 550; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
 .inpaint-demo-compare:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 /* The prompt that goes with the painting, and Generate. */
-.inpaint-demo-prompt { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 4px 4px 14px; border-radius: var(--r-pill); background: var(--well); }
+.inpaint-demo-prompt { display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 4px 4px 4px 14px; border-radius: var(--r-pill); background: var(--well); }
 .inpaint-demo-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: hsl(var(--foreground)); }
 .inpaint-demo-text > span { margin-right: 8px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: hsl(var(--muted-foreground)); }
 .inpaint-demo-prompt .btn.is-ready { animation: inpaint-demo-ready 1.6s var(--ease-out) 1; }
 @keyframes inpaint-demo-ready { 0%, 100% { box-shadow: 0 0 0 0 rgb(255 154 82 / 0); } 40% { box-shadow: 0 0 0 6px rgb(255 154 82 / .22); } }
-@media (max-width: 620px) {
-  .inpaint-demo .inpaint-size { height: min(140px, calc(100% - 80px)); }
-}
 @media (prefers-reduced-motion: reduce) {
   .inpaint-demo-working, .inpaint-demo-prompt .btn.is-ready { animation: none; }
 }

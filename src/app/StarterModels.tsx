@@ -32,7 +32,7 @@ export type StarterPick = { family: string; file: string; title: string };
 
 let planCache: StarterPlan | null = null;
 
-function useStarterPlan() {
+export function useStarterPlan() {
   const [plan, setPlan] = React.useState<StarterPlan | null>(planCache);
   const load = React.useCallback(() => {
     apiJson<StarterPlan & { ok: boolean }>('/api/starter-models')

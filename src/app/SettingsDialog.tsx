@@ -19,7 +19,7 @@ import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
 import { SettingsDrawer } from './SettingsDrawer';
-import { replayInpaintIntro } from './ReferenceMediaPicker';
+import { useStarterPlan } from './StarterModels';
 import { InpaintDemo } from './InpaintDemo';
 import { CivitaiRow, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
@@ -305,6 +305,44 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
 }
 
 const profileName = (profile: Profile) => profile.displayName || profile.label;
+
+/** Models as small chips with their family, the first few shown and the rest a tap away. */
+function ModelChips({ profiles, limit = 8 }: { profiles: Profile[]; limit?: number }) {
+  const [all, setAll] = React.useState(false);
+  const unique = profiles.filter((profile, index) => profiles.findIndex((other) => profileName(other) === profileName(profile)) === index);
+  const shown = all ? unique : unique.slice(0, limit);
+  return (
+    <ul className="set-chips" aria-label="Models">
+      {shown.map((profile) => (
+        <li key={profile.id} className="set-chip" title={profileName(profile)}>
+          <span>{profileName(profile)}</span>
+          {profile.familyName ? <small>{profile.familyName}</small> : null}
+        </li>
+      ))}
+      {unique.length > limit ? (
+        <li><button type="button" className="set-chip is-more" onClick={() => setAll((value) => !value)}>{all ? 'Fewer' : `+${unique.length - limit} more`}</button></li>
+      ) : null}
+    </ul>
+  );
+}
+
+/** No model can inpaint yet: the starter models can, and the studio downloads them. */
+function InpaintSuggestions({ onGetModels }: { onGetModels?: () => void }) {
+  const { plan } = useStarterPlan();
+  const families = plan?.families || [];
+  return (
+    <Row label="Models that can inpaint" description={onGetModels ? 'Each downloads in the studio with its text encoder and VAE.' : 'Get one on the computer running HEISS UI.'} stacked>
+      <div className="set-suggest">
+        <ul className="set-chips" aria-label="Suggested models">
+          {families.length ? families.map((family) => (
+            <li key={family.family} className="set-chip is-suggest" title={family.blurb || undefined}><span>{family.title}</span></li>
+          )) : <li><Skeleton className="skeleton-text short" /></li>}
+        </ul>
+        {onGetModels ? <button className="btn is-primary" onClick={onGetModels}><Download size={14} /> Get a model</button> : null}
+      </div>
+    </Row>
+  );
+}
 
 /* ------------------------------------------------------------ Updates */
 
@@ -611,7 +649,7 @@ function formatDay(value: string) {
 
 /* ------------------------------------------------------------ Dialog */
 
-export function SettingsDialog({ view, open, section, onSectionChange, onClose }: { view: Record<string, any>; open: boolean; section: SettingsSection; onSectionChange: (section: SettingsSection) => void; onClose: () => void }) {
+export function SettingsDialog({ view, open, section, onSectionChange, onClose, onGetModels }: { view: Record<string, any>; open: boolean; section: SettingsSection; onSectionChange: (section: SettingsSection) => void; onClose: () => void; onGetModels?: () => void }) {
   const {
     prefs, setPrefs,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
@@ -825,20 +863,19 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
 
             {inpaintReleased ? (
               <Group title="Inpainting">
-                <Row
-                  label={<>Inpainting<BetaTag /></>}
-                  description={inpaintModels.length
-                    ? `Paint over part of a start or reference image to change only that part. Works with ${inpaintModels.slice(0, 3).map(profileName).join(', ')}${inpaintModels.length > 3 ? ` and ${inpaintModels.length - 3} more` : ''}.`
-                    : 'Paint over part of an image to change only that part. Needs an image model that takes a start image, such as Flux, SDXL or Qwen Image Edit.'}
-                >
+                <Row label={<>Inpainting<BetaTag /></>} description="Paint over part of a start or reference image and only that part changes. The brush is in the image’s menu in the prompt bar.">
                   <Status tone={inpaintModels.length ? 'ok' : 'warn'}>{inpaintModels.length ? 'Ready' : 'No model yet'}</Status>
                 </Row>
+                {inpaintModels.length ? (
+                  <Row label={`Your models that can inpaint · ${inpaintModels.length}`} stacked>
+                    <ModelChips profiles={inpaintModels} />
+                  </Row>
+                ) : (
+                  <InpaintSuggestions onGetModels={onGetModels} />
+                )}
                 <SettingsDrawer id="set-inpaint-demo" title="Try it" description="Paint on a small scene, then generate">
                   <InpaintDemo />
                 </SettingsDrawer>
-                <Row label="Show the intro again" description="The brush points itself out the next time you add an image.">
-                  <button className="btn" onClick={() => { replayInpaintIntro(); showToast('Shows the next time you add an image', 'success'); }}>Show again</button>
-                </Row>
               </Group>
             ) : null}
 

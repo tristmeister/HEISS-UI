@@ -300,8 +300,6 @@ const inpaintIntroKey = "heiss-ui-inpaint-introduced";
 const inpaintIntroduced = () => { try { return localStorage.getItem(inpaintIntroKey) === "1"; } catch { return true; } };
 const coarsePointer = () => typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
 const rememberInpaintIntro = () => { try { localStorage.setItem(inpaintIntroKey, "1"); } catch { /* shown again next time, which is fine */ } };
-/** Settings › Features › Inpainting: point the brush out again next time. */
-export const replayInpaintIntro = () => { try { localStorage.removeItem(inpaintIntroKey); } catch { /* nothing stored, so it shows anyway */ } };
 
 /**
  * One reference input as a chip in the composer's top-right corner. Empty, it
