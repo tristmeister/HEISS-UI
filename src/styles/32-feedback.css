@@ -120,28 +120,6 @@
 .feedback-tile.is-idea { --tone: var(--ember); }
 .feedback-tile.is-question { --tone: #86abff; }
 
-/* The Discord, one quiet row under the tiles: for talking it through rather than filing it. */
-.feedback-community {
-  --tone: #8c9eff;
-  display: grid;
-  grid-template-columns: 30px minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 12px;
-  margin-top: 8px;
-  padding: 10px 14px 10px 12px;
-  border-radius: 14px;
-  box-shadow: inset 0 0 0 1px var(--surface-border);
-  color: hsl(var(--foreground));
-  transition: background var(--dur-fast), scale 100ms;
-}
-.feedback-community:hover { background: var(--control-fill); }
-.feedback-community:active { scale: .99; }
-.feedback-community:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.feedback-community-copy { display: grid; gap: 1px; min-width: 0; }
-.feedback-hero .feedback-community strong { font-size: 13.5px; }
-.feedback-community-copy span { color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.45; }
-.feedback-community-arrow { color: hsl(var(--muted-foreground)); transition: translate var(--dur-fast), color var(--dur-fast); }
-.feedback-community:hover .feedback-community-arrow { color: hsl(var(--foreground)); translate: 1px -1px; }
 
 @media (max-width: 720px) {
   .feedback-tiles { grid-template-columns: minmax(0, 1fr); }
@@ -169,7 +147,25 @@
 .set-nav-feedback strong { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
 .set-nav-feedback strong::before { content: ""; width: 6px; height: 6px; background: var(--ember); box-shadow: var(--ember-glow); }
 .set-nav-feedback span { color: hsl(var(--muted-foreground)); font-size: 11.5px; line-height: 1.4; }
-@media (max-width: 720px) { .set-nav-feedback { display: none; } }
+/* The Discord, the same quiet shape just above it. */
+.set-nav-discord {
+  margin-top: auto;
+  display: grid;
+  gap: 2px;
+  padding: 12px;
+  border-radius: var(--r-item);
+  background: rgb(88 101 242 / .12);
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  transition: background var(--dur-fast);
+}
+.set-nav-discord:hover { background: rgb(88 101 242 / .2); }
+.set-nav-discord:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.set-nav-discord strong { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
+.set-nav-discord strong svg { margin-left: -2px; color: #8c9eff; }
+.set-nav-discord span { color: hsl(var(--muted-foreground)); font-size: 11.5px; line-height: 1.4; }
+.set-nav-discord + .set-nav-feedback { margin-top: 6px; }
+@media (max-width: 720px) { .set-nav-feedback, .set-nav-discord { display: none; } }
 
 /* ------------------------------------------------------ Crash screen */
 

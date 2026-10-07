@@ -4,7 +4,7 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { ArrowUpRight, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Puzzle, Boxes, CircleArrowUp, Brush, Layers, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Puzzle, Boxes, CircleArrowUp, Brush, Layers, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
 import { discordUrl, features, githubUrl } from './constants';
 import { DiscordIcon } from './DiscordIcon';
 import { cn } from './format';
@@ -731,6 +731,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
             </button>
           );
         })}
+        <a className="set-nav-discord" href={discordUrl} target="_blank" rel="noreferrer">
+          <strong><DiscordIcon size={13} />Join the Discord</strong>
+          <span>Ideas, bugs and AI talk</span>
+        </a>
         <button type="button" className="set-nav-feedback" onClick={() => openFeedback({ from: 'settings' })}>
           <strong>Idea or bug?</strong>
           <span>Send it to the board</span>
@@ -1090,14 +1094,6 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   <span>Not sure how something works?</span>
                 </button>
               </div>
-              <a className="feedback-community" href={discordUrl} target="_blank" rel="noreferrer">
-                <span className="feedback-tile-icon"><DiscordIcon size={15} /></span>
-                <span className="feedback-community-copy">
-                  <strong>Rather talk it through? Join the Discord</strong>
-                  <span>App ideas, bugs, and anything AI generation. Share what you made.</span>
-                </span>
-                <ArrowUpRight size={14} className="feedback-community-arrow" />
-              </a>
               <p className="set-note">Nothing is sent on its own. A post carries what you write, plus the setup lines (versions, system, GPU) if you leave them on. No prompts, images or file names.</p>
             </section>
 
