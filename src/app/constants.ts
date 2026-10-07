@@ -19,6 +19,7 @@ export const defaultPrefs: Preferences = {
   stackRuns: false,
   runStackStyle: "burst",
   smartUpscale: true,
+  rapid: true,
   inpainting: true,
   upscaleQuality: "balanced",
   autoUpscale: "none",

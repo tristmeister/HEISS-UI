@@ -12,6 +12,7 @@ import type { WorkflowSummary } from './types';
 import { SafeImg } from './SafeImg';
 import { referenceName } from './ReferenceMediaPicker';
 import { PhoneSelect, PhoneSlider } from './phoneControls';
+import { PhoneRapidRow, SidebarRapidRow } from './RapidRow';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
   const comfyRestarting = useComfyRestarting();
@@ -134,6 +135,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
         </label>
         {String(seed || "").trim() ? <button type="button" className="phone-row" onClick={() => setSeed("")}><span>Back to random</span></button> : null}
       </div>
+      <PhoneRapidRow view={view} />
 
       {customSize && !aspectLocked ? (
         <>
@@ -267,6 +269,7 @@ export function SidebarControls({ view }: { view: any }) {
             </div>
             <Field label="Seed"><input inputMode="numeric" value={seed} placeholder="Random" onChange={(event) => setSeed(event.target.value.replace(/[^0-9]/g, ""))} /></Field>
             <p className="sidebar-hint">{String(seed || "").trim() ? "The same picture every time." : "A new picture every time."}</p>
+            <SidebarRapidRow view={view} />
             {customSize && !aspectLocked ? (
               <div className="number-row">
                 <NumberPicker label="Width" value={width} onChange={setWidth} min={widthMeta.min ?? 64} max={widthMeta.max ?? 4096} step={widthMeta.step || (mode === "video" ? 32 : 64)} fill />

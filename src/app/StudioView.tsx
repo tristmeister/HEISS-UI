@@ -288,6 +288,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     if (section) setSettingsSection(section);
     setSettings(true);
   }, [setSettings]);
+  // Opened at a section from elsewhere (the sidebar's Rapid row).
+  React.useEffect(() => {
+    if (typeof settings === "string") setSettingsSection(settings as SettingsSection);
+  }, [settings]);
   useHistoryDismiss(Boolean(settings), () => setSettings(false));
   const [noComfyOpen, setNoComfyOpen] = React.useState(false);
   const [getModelsOpen, setGetModelsOpen] = React.useState(false);

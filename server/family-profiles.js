@@ -443,7 +443,9 @@ export function familyProfiles(info, helpers) {
         startImageRequired: family.startImage === "required",
         denoise: Boolean(family.img2img),
         inpaint: canInpaint(family, info, references),
-        rapid: rapidCapability(family, variant, info, { runner }),
+        // HEISS Rapid: ready to use, or only the HEISS UI Nodes missing (the composer offers the install).
+        rapid: rapidCapability(family, variant, info, { runner }) === "ready",
+        rapidInstall: rapidCapability(family, variant, info, { runner }) === "install",
         frames: family.kind === "video",
         fps: family.kind === "video"
       }

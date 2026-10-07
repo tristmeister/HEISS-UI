@@ -12,6 +12,16 @@ version opens with a `> ` summary line, which the update pill shows.
 ## [Unreleased]
 
 ### Added
+- **Rapid: pictures in about half the time, same VRAM.** On Krea 2, Z-Image,
+  Flux, Flux.2 Klein, Qwen-Image, Chroma and SDXL (Pony, Illustrious), the
+  noisy first steps of a picture run at half size and the rest at full size,
+  so every bit of detail is still drawn full size. On by default, in the
+  sidebar under the seed and in Settings › Features, which also installs the
+  small HEISS UI Nodes pack it runs on. A seed frames a little differently
+  with Rapid, so a seed you fix yourself runs without it; "Use settings" on a
+  Rapid picture keeps it on and brings the same picture back. Based on SPEED
+  (Xiao et al., 2026), with an extra step after the switch that keeps the
+  picture's contrast true to a run without it.
 - **Inpainting.** Hover a reference image and press the brush to paint over the
   part that should change, then say what it becomes. Only the painted part is
   redrawn; the rest of the picture keeps its own pixels. Works with the edit

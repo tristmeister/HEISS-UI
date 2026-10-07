@@ -120,6 +120,16 @@ catalog, so a family that is described correctly needs no UI work.
    `referenceVia: "encoder"` hands them to an encoder that reads images itself
    (Qwen-Image 2.1's `TextEncodeQwenImage21`).
 
+   **Rapid.** An image family whose runs start from noise can take
+   `rapid: { at }`: HEISS Rapid (the HEISS UI Nodes pack) then starts its
+   pictures at half size and grows them at noise level `at` (0..1; SD-family
+   sigmas count as σ/(1+σ)). Don't guess `at`: measure it with
+   `node scripts/bench-rapid.mjs --rapid all --rapid-at 0.6,0.7,0.8,0.9` on
+   the skin, hands and small-text probes, and take the lowest value whose
+   pictures you can't tell from `off` (docs/rapid.md). Few-step distills that
+   gain little get `rapid: false` on their variant. Families with their own
+   graph (`sampling: "h3"`, `"sana"`, …) never get it.
+
 9. **Tests** in `server/model-families.test.js`. Cover detection from a
    header, each variant's defaults, what a missing part or pack reports, and
    the graph's nodes and inputs. The fixtures write tiny fake safetensors

@@ -13,7 +13,7 @@ import { Modal } from './Modal';
 import { HeatMark } from './HeatMark';
 import { MosaicButton } from './MosaicButton';
 import { apiFetch, apiJson } from './api';
-import type { ModelFile, Models, Profile, OutputFolderReport, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
+import type { ModelFile, Models, NodePackInfo, PackAutoInstall, Profile, OutputFolderReport, ShellPlan, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
 import type { ModelFolders } from './useModelFolders';
 import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
@@ -317,6 +317,24 @@ function upscaleSummary(status: UpscaleStatus | null, install: UpscaleInstall) {
 const profileName = (profile: Profile) => profile.displayName || profile.label;
 
 /** Models as small chips with their family, the first few shown and the rest a tap away. */
+type RapidSetupState = { installed: boolean; setup: null | (ShellPlan & { manager: boolean; pack: NodePackInfo; autoInstall: PackAutoInstall }) };
+
+/** The HEISS UI Nodes install for Rapid, asked for only while some model is waiting on it. */
+function RapidSetup({ showToast, onInstalled }: { showToast: ShowToast; onInstalled: () => void }) {
+  const [state, setState] = React.useState<RapidSetupState | null>(null);
+  const load = React.useCallback(() => {
+    apiJson<RapidSetupState>('/api/rapid/status').then(setState).catch(() => setState(null));
+  }, []);
+  React.useEffect(load, [load]);
+  if (!state?.setup) return null;
+  const { setup } = state;
+  return (
+    <div className="set-node-install">
+      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => { load(); onInstalled(); }} afterRestart="Then Rapid is on for every model listed here." />
+    </div>
+  );
+}
+
 function ModelChips({ profiles, limit = 8 }: { profiles: Profile[]; limit?: number }) {
   const [all, setAll] = React.useState(false);
   const unique = profiles.filter((profile, index) => profiles.findIndex((other) => profileName(other) === profileName(profile)) === index);
@@ -734,6 +752,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
   // Inpainting ships behind a release switch; while it's off its group stays away.
   const inpaintReleased = Boolean((models as Models | null)?.features?.inpainting);
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
+  const rapidOn = prefs.rapid !== false;
+  const rapidModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapid);
+  const rapidWaiting = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapidInstall);
   const inpaintOn = prefs.inpainting !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
@@ -846,6 +867,42 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
         {section === 'features' ? (
           <>
+          <Group>
+            <SettingsDrawer
+              id="set-feature-rapid"
+              title="Rapid"
+              description={!rapidOn ? 'Off' : rapidModels.length ? `On · ${rapidModels.length} of your models` : rapidWaiting.length ? 'On · needs the HEISS UI Nodes' : 'On · no model can yet'}
+            >
+              <SwitchRow
+                label="Rapid"
+                description="Starts each picture at half size and finishes it at full size: about twice as fast, with the same detail and memory. The noisy first steps only settle the layout, so they don’t need the full size."
+                checked={rapidOn}
+                onChange={(next) => setPrefs({ rapid: next })}
+              />
+              {rapidOn ? (
+                <>
+                  <Row label="Seeds" description="A seed frames a little differently with Rapid. A seed you fix yourself runs without it, so it gives the picture it always did; “Use settings” on a Rapid picture keeps it on, so the same picture comes back." />
+                  {rapidModels.length ? (
+                    <Row label="Your models with Rapid" stacked>
+                      <ModelChips profiles={rapidModels} />
+                    </Row>
+                  ) : null}
+                  {rapidWaiting.length ? (
+                    <>
+                      <Row label={rapidModels.length ? 'Waiting for the nodes' : 'Your models that can use it'} description="Rapid runs on the HEISS UI Nodes, a small custom node pack for ComfyUI." stacked>
+                        <ModelChips profiles={rapidWaiting} />
+                      </Row>
+                      <RapidSetup showToast={showToast} onInstalled={() => { refreshModels(false); refreshWorkflows(); }} />
+                    </>
+                  ) : null}
+                  {!rapidModels.length && !rapidWaiting.length ? (
+                    <Row label="Models" description="Krea 2, Z-Image, Flux, Flux.2 Klein, Qwen-Image, Chroma and SDXL (Pony, Illustrious) pictures. Few-step SDXL distills and video don’t use it yet." />
+                  ) : null}
+                </>
+              ) : null}
+            </SettingsDrawer>
+          </Group>
+
           <Group>
             <SettingsDrawer id="set-feature-upscale" title="Smart upscale" description={upscaleOn ? `On · ${upscaleState.label}` : 'Off'}>
               <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />

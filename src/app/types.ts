@@ -272,6 +272,8 @@ export type Preferences = {
   /** A folded run: a photo with edges under it, or a cover flow inside one card. */
   runStackStyle: "burst" | "flow";
   smartUpscale: boolean;
+  /** HEISS Rapid: start pictures at half size on the models that support it (docs/rapid.md). */
+  rapid: boolean;
   /** The brush on reference images, for models that can inpaint. Off hides it everywhere. */
   inpainting: boolean;
   upscaleQuality: UpscaleQuality;

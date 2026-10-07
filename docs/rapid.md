@@ -86,10 +86,9 @@ Each family can carry `rapid: { at }`, and a variant can override or disable it 
 
 ### 3. Server
 
-- **`family-profiles.js`:** adds `capabilities.rapid`:
-  - `"ready"` when the node is loaded and the family or variant supports it
-  - `"install"` when only the pack is missing
-  - `false` otherwise
+- **`family-profiles.js`:** adds two capabilities:
+  - `capabilities.rapid`: the node is loaded and the family or variant supports it
+  - `capabilities.rapidInstall`: only the pack is missing
 - **`validation.js` (`sanitizeFamilyBody`):** `rapid` is kept only when:
   - it was asked for
   - the profile is ready
@@ -124,6 +123,20 @@ Each family can carry `rapid: { at }`, and a variant can override or disable it 
 - **Retry:** reruns with the original run's `rapid`.
 - **Details panel:** a "Rapid" row on pictures made with it.
 
+### The smooth switch (found while testing)
+
+After the grow, the paper realigns the noise level upwards (0.70 → 0.82 for a half-size start). Its code, LC Speed Boost and ComfyUI-SPEED then take one long step from there to the schedule's next level.
+
+An exact Gaussian denoiser (`tests/test_rapid.py` in the pack) shows what that costs. The lowest frequencies, i.e. the picture's broad contrast and colour, come out 6–9% weaker than with Rapid off, and this happens at every step count (8 to 400). So it's a systematic loss, not a discretisation error that more steps would fix.
+
+The fix is **`smooth_switch`**: one extra full-size step in the middle of that jump. It brings those frequencies back to within 2–3.5% of a run with Rapid off, for the price of one step.
+
+Other approaches tried:
+- Re-spacing the remaining schedule: loses mid and high detail.
+- Easing back over 2–3 steps: only closes half the gap.
+
+HEISS uses the smooth switch by default. The benchmark's `fast` mode (no smoothing step) shows whether few-step models are better off without it.
+
 ### 5. Benchmark (`scripts/bench-rapid.mjs`)
 
 - Drives HEISS's own `inferModels → sanitizeGenerateBody → imageGraph` against a real ComfyUI.
@@ -134,9 +147,9 @@ Each family can carry `rapid: { at }`, and a variant can override or disable it 
 ## Order of work
 
 1. ✅ Branch, benchmark script, Windows baseline prompt.
-2. The node pack: the node, the Python tests (Gaussian oracle, plan, guards, 4D/5D, MPS), README with credits.
-3. HEISS server: pack entry, catalog values, capability, validation, graph, settings record, timing key, tests (`model-families`, `contract`).
-4. HEISS client: preference, settings card with install, seed rule, sidebar and phone row, retry, details panel.
+2. ✅ The node pack: the node, the Python tests (Gaussian oracle, plan, guards, 4D/5D, MPS), README with credits.
+3. ✅ HEISS server: pack entry, catalog values, capability, validation, graph, settings record, timing key, tests (`rapid`, `contract`).
+4. ✅ HEISS client: preference, settings card with install, seed rule (`src/app/rapid.js`, tested), sidebar and phone row, retry, details panel.
 5. Publish the pack repo, then pin its commit in `node-packs.js`.
 6. Windows: install the pack, run on vs off, compare pictures, set each family's `at`, update MODELS.md and CHANGELOG.
 7. Video (Wan 2.2 pair), Anima and the other flow families, each after measuring.

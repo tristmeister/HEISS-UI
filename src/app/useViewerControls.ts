@@ -2,6 +2,7 @@ import { fallbackAspectPresets } from './constants';
 import { clampText, settingMax } from './format';
 import { touchCenter, touchDistance } from './gallery';
 import { normalizeLoras } from './loras';
+import { rapidSeedFrom } from './rapid.js';
 import type React from 'react';
 import { flushSync } from 'react-dom';
 import { toast } from './toast';
@@ -26,7 +27,7 @@ export function useViewerControls(view: any) {
     active, doneGallery, generate, generateDisabled, height, lastTapRef,
     models, prefs, setActive, setCfg, setClipType, setCount, setCustomSize, setDenoise, setFps,
     setFrames, setHeight, setIsDraggingViewer, setLoras, setMode, setModel, setNegative, setPrompt,
-    setSampler, setScheduler, setSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps,
+    setSampler, setScheduler, setSeed, setRapidSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps,
     setTextEncoder, setTextEncoders, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth,
     setZenSelectedId, showToast, viewerDragEndRef, viewerDragRef, viewerPan,
     viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef
@@ -55,6 +56,7 @@ export function useViewerControls(view: any) {
       setPrompt(before.prompt);
       setNegative(before.negative);
       setSeed(before.seed);
+      setRapidSeed?.(before.rapidSeed || "");
       setWidth(before.width);
       setHeight(before.height);
       setSteps(before.steps);
@@ -88,6 +90,8 @@ export function useViewerControls(view: any) {
     if (itemSettings.denoise) setDenoise(Number(itemSettings.denoise));
     if (itemSettings.seed && itemSettings.seed !== "Random" && !vary) setSeed(String(itemSettings.seed));
     else setSeed("");
+    // A picture made with HEISS Rapid comes back with Rapid on; any other fixed seed runs without it (rapid.js).
+    setRapidSeed?.(rapidSeedFrom(itemSettings, { vary }));
     if (itemSettings.count) setCount(Number(itemSettings.count));
     if (itemSettings.frames) setFrames(Number(itemSettings.frames));
     if (itemSettings.fps) setFps(Number(itemSettings.fps));

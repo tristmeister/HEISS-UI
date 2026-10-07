@@ -93,7 +93,7 @@ function sanitizeInpaint(input, profile, referenceAssets) {
  * docs/rapid.md); `rapidAt` / `rapidSmooth` are for scripts/bench-rapid.mjs.
  */
 export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
-  if (input.rapid !== true || profile.capabilities?.rapid !== "ready" || profile.kind !== "image") return null;
+  if (input.rapid !== true || profile.capabilities?.rapid !== true || profile.kind !== "image") return null;
   if (inpaint || referenceAssets.length || input.startImage || input.startImageId) return null;
   const family = families[profile.family];
   const spec = rapidFor(family, family?.variants.find((item) => item.id === profile.variant));
@@ -280,6 +280,8 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     startImageName: String(input.startImageName || ""),
     referenceAssets,
     autoResizeInputs: input.autoResizeInputs !== false,
+    // Rapid is for built-in models only; an imported workflow samples its own way.
+    rapid: null,
     promptPolicy: workflowInfo.promptComposition ? {
       policy: workflowInfo.promptComposition.policy,
       version: workflowInfo.promptComposition.version
