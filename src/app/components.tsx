@@ -475,10 +475,10 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * family badge: edits from reference images, and inpainting (paint over part
  * of a reference to change only that).
  */
-function ModelAbilities({ profile, onHover }: { profile: Profile; onHover?: (hovering: boolean) => void }) {
+function ModelAbilities({ profile, showInpaint = true, onHover }: { profile: Profile; showInpaint?: boolean; onHover?: (hovering: boolean) => void }) {
   // An edit model takes references without a start-image strength; img2img models have one.
   const edits = Boolean(profile.mediaInputs?.length && !profile.capabilities.denoise);
-  const inpaints = Boolean(profile.capabilities.inpaint);
+  const inpaints = showInpaint && Boolean(profile.capabilities.inpaint);
   if (!edits && !inpaints) return null;
   return (
     // While one of these speaks, the row's own name tooltip stays shut.
@@ -489,7 +489,7 @@ function ModelAbilities({ profile, onHover }: { profile: Profile; onHover?: (hov
   );
 }
 
-export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
+export function ModelPicker({ value, profiles, showInpaint = true, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; showInpaint?: boolean; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const hardware = useHardware();
   const [abilityRow, setAbilityRow] = React.useState("");
   const [open, setOpen] = useState(false);
@@ -632,7 +632,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                               <strong>{profile.displayName || profile.label}</strong>
                               {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>}
                             </span>
-                            <span className="model-tags"><ModelAbilities profile={profile} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
+                            <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
                         {menu ? (
                           <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>

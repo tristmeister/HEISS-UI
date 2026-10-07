@@ -199,6 +199,8 @@ export type ComposerBarProps = {
   models: unknown;
   model: string;
   modelProfiles: Profile[];
+  /** Whether the model menu marks models that can inpaint (off when inpainting is switched off). */
+  showInpaint?: boolean;
   profileBadges: Record<string, string>;
   chooseModel: (value: string) => void;
   modelMenu?: ModelMenuState;
@@ -269,7 +271,7 @@ export type ComposerBarProps = {
 
 export function ComposerBar(props: ComposerBarProps) {
   const {
-    models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
+    models, model, modelProfiles, showInpaint = true, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect, autoUpscale = "none", onAutoUpscaleChange,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
@@ -291,7 +293,7 @@ export function ComposerBar(props: ComposerBarProps) {
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
-    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "Start ComfyUI to see your models." : strayModelCount ? "Some models are in a folder ComfyUI doesn’t read." : "No usable models in ComfyUI yet. Add one to its models folder, or find yours."} />
+    ? <ModelPicker value={model} profiles={modelProfiles} showInpaint={showInpaint} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "Start ComfyUI to see your models." : strayModelCount ? "Some models are in a folder ComfyUI doesn’t read." : "No usable models in ComfyUI yet. Add one to its models folder, or find yours."} />
     : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
   const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (

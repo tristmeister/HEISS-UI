@@ -1168,7 +1168,8 @@ function App() {
     : arrangedReferenceAssets;
   const canUseStartImage = Boolean(referenceInput);
   // A mask belongs to the image it was painted on, for a model that can inpaint.
-  const canInpaint = Boolean(currentProfile?.capabilities.inpaint && referenceInput && (referenceAsset?.url || referenceAsset?.thumbnailUrl));
+  // Settings › Features › Inpainting can switch it off: no brush, no mask, no inpaint settings.
+  const canInpaint = Boolean(prefs.inpainting !== false && currentProfile?.capabilities.inpaint && referenceInput && (referenceAsset?.url || referenceAsset?.thumbnailUrl));
   const activeInpaintMask = canInpaint && inpaintMask && inpaintMask.assetId === referenceAsset?.id ? inpaintMask : null;
   useEffect(() => {
     if (inpaintMask && !activeInpaintMask) setInpaintMask(null);

@@ -315,6 +315,8 @@ export type Preferences = {
   /** A folded run: a photo with edges under it, or a cover flow inside one card. */
   runStackStyle: "burst" | "flow";
   smartUpscale: boolean;
+  /** The brush on reference images, for models that can inpaint. Off hides it everywhere. */
+  inpainting: boolean;
   upscaleQuality: UpscaleQuality;
   autoUpscale: AutoUpscale;
   upscaleFaceDetail: boolean;

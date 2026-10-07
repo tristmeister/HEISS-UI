@@ -734,6 +734,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
   // Inpainting ships behind a release switch; while it's off its group stays away.
   const inpaintReleased = Boolean((models as Models | null)?.features?.inpainting);
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
+  const inpaintOn = prefs.inpainting !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
   const connected = Boolean(health?.ok);
@@ -873,18 +874,21 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
             </SettingsDrawer>
 
             {inpaintReleased ? (
-              <SettingsDrawer id="set-feature-inpaint" title={<>Inpainting<BetaTag /></>} description={inpaintModels.length ? `${inpaintModels.length} of your models can` : 'No model can yet'}>
-                <Row label="Paint over part of an image" description="Only the painted part changes. The brush is in a start or reference image’s menu in the prompt bar.">
-                  <Status tone={inpaintModels.length ? 'ok' : 'warn'}>{inpaintModels.length ? 'Ready' : 'No model yet'}</Status>
-                </Row>
-                {inpaintModels.length ? (
-                  <Row label="Your models that can inpaint" stacked>
-                    <ModelChips profiles={inpaintModels} />
-                  </Row>
-                ) : (
-                  <InpaintSuggestions onGetModels={onGetModels} />
-                )}
-                <InpaintDemo />
+              <SettingsDrawer id="set-feature-inpaint" title={<>Inpainting<BetaTag /></>} description={!inpaintOn ? 'Off' : inpaintModels.length ? `On · ${inpaintModels.length} of your models can` : 'On · no model can yet'}>
+                <SwitchRow label="Inpainting" description="A brush in a start or reference image’s menu: paint over part of it and only that part changes. Off hides the brush everywhere." checked={inpaintOn} onChange={(next) => setPrefs({ inpainting: next })} />
+                {inpaintOn ? (
+                  <>
+                    {inpaintModels.length ? (
+                      <Row label="Your models that can inpaint" stacked>
+                        <ModelChips profiles={inpaintModels} />
+                      </Row>
+                    ) : (
+                      <InpaintSuggestions onGetModels={onGetModels} />
+                    )}
+                    <Row label="Strength and edge softness" description={`While a painted image is in the prompt bar, both are in ${phoneDevice ? 'the Advanced sheet' : 'the sidebar’s Advanced tab'}. Strength is there for models that take a start image.`} />
+                    <InpaintDemo />
+                  </>
+                ) : null}
               </SettingsDrawer>
             ) : null}
           </Group>
