@@ -29,6 +29,9 @@ test("no tip on CUDA 13, without a CUDA tag, off NVIDIA, or on cards CUDA 13 dro
   assert.equal(cuda13Capable("NVIDIA GeForce RTX 5090"), true);
   assert.equal(cuda13Capable("NVIDIA GeForce GTX 1660 SUPER"), true);
   assert.equal(cuda13Capable("NVIDIA RTX A4000"), true);
+  assert.equal(cuda13Capable("NVIDIA A10G"), true);
+  assert.equal(cuda13Capable("NVIDIA GeForce MX450"), true);
+  assert.equal(cuda13Capable("NVIDIA GH200 480GB"), true);
   assert.equal(cuda13Capable("NVIDIA TITAN V"), false);
   assert.equal(cuda13Capable("Tesla V100-SXM2-16GB"), false);
 });

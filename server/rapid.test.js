@@ -124,7 +124,11 @@ test("time estimates keep Rapid runs apart while there are enough of each", () =
     history = addRun(history, { body: { ...body, ...(rapidOn ? { rapid } : {}) }, result: { runMs: ms, stepMs: ms / 8, steps: 8, setupMs: 0, tailMs: 0 } });
   };
   for (let i = 0; i < 3; i++) run(8000, false);
-  assert.ok(Math.abs(estimateRun(history, { ...body, rapid }).totalMs - 8000) < 50, "too few Rapid runs: the others stand in");
+  const borrowed = estimateRun(history, { ...body, rapid });
+  assert.ok(Math.abs(borrowed.totalMs - 6000) < 50, "too few Rapid runs: the others stand in, scaled");
+  assert.equal(borrowed.borrowed, true);
+  const missed = addRun([], { body: { ...body, rapid }, result: { runMs: 4000 }, predicted: borrowed });
+  assert.equal(missed[0].error, undefined, "a borrowed guess's miss doesn't count against trust");
   for (let i = 0; i < 3; i++) run(4000, true);
   assert.ok(Math.abs(estimateRun(history, { ...body, rapid }).totalMs - 4000) < 50);
   assert.ok(Math.abs(estimateRun(history, body).totalMs - 8000) < 50);
@@ -175,7 +179,10 @@ test("validation keeps Rapid Guidance for ready models on runs with CFG above 1"
   assert.deepEqual(sanitizeRapidGuidance({ rapidGuidance: true, rapidCfgUntil: 0.5 }, profile, 7), { until: 0.5 });
   const variant = (familyId, id) => families[familyId].variants.find((item) => item.id === id);
   assert.equal(rapidCapability(families.sd15, families.sd15.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), "ready", "no half-size start, but guidance works");
-  assert.equal(rapidCapability(families.sdxl, variant("sdxl", "turbo"), {}, { part: "guidance" }), "install");
+  assert.equal(rapidCapability(families.sdxl, variant("sdxl", "turbo"), {}, { part: "guidance" }), false, "few-step distills keep their schedule whole");
+  assert.equal(rapidCapability(families.sdxl, variant("sdxl", "pony"), {}, { part: "guidance" }), "install");
+  assert.equal(sanitizeRapidGuidance({ rapidGuidance: true }, profile, 7, { referenceAssets: [{ slot: "reference" }] }), null, "img2img keeps its CFG whole");
+  assert.equal(sanitizeRapidGuidance({ rapidGuidance: true }, { ...profile, family: "flux2_dev", variant: "dev" }, 4), null, "no negative pass, nothing to cut");
   assert.equal(rapidCapability(families.minimax_h3, families.minimax_h3.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), false);
   assert.equal(rapidCapability(families.wan22_14b, families.wan22_14b.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), false);
 });

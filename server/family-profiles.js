@@ -88,8 +88,10 @@ function canInpaint(family, info, references) {
  * the HEISS UI Nodes pack is missing) or false (not for this family, variant
  * or graph). Families with their own graph or runner never get it.
  */
-export function rapidCapability(family, variant, info, { runner = null, part = "start" } = {}) {
+export function rapidCapability(family, variant, info, { runner = null, part = "start", quant = false } = {}) {
   if (runner || ownGraphs.has(family.sampling) || family.ownLoaders) return false;
+  // A quantized checkpoint's own loader (NF4): its kernels are untested at other latent sizes.
+  if (quant && part === "start") return false;
   if (!(part === "guidance" ? guidanceFor(family, variant) : rapidFor(family, variant))) return false;
   return hasNode(info, part === "guidance" ? "HeissRapidGuidance" : "HeissRapid") ? "ready" : "install";
 }
@@ -445,9 +447,9 @@ export function familyProfiles(info, helpers) {
         denoise: Boolean(family.img2img),
         inpaint: canInpaint(family, info, references),
         // HEISS Rapid: ready to use, or only the HEISS UI Nodes missing (the composer offers the install).
-        rapid: rapidCapability(family, variant, info, { runner }) === "ready",
+        rapid: rapidCapability(family, variant, info, { runner, quant: Boolean(quantLoader) }) === "ready",
         rapidGuidance: rapidCapability(family, variant, info, { runner, part: "guidance" }) === "ready",
-        rapidInstall: [rapidCapability(family, variant, info, { runner }), rapidCapability(family, variant, info, { runner, part: "guidance" })].includes("install"),
+        rapidInstall: [rapidCapability(family, variant, info, { runner, quant: Boolean(quantLoader) }), rapidCapability(family, variant, info, { runner, part: "guidance" })].includes("install"),
         frames: family.kind === "video",
         fps: family.kind === "video"
       }

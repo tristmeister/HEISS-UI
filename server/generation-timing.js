@@ -24,6 +24,8 @@ const TRUSTED_ERROR = 0.3;
 const DEFAULT_EXPONENT = 1.15;
 // A model used within this long is most likely still loaded.
 const WARM_WINDOW_MS = 30 * 60_000;
+// A Rapid run's share of a plain one's time, until a model has Rapid runs of its own (measured: 1.2-1.7x faster).
+const RAPID_SHARE = 0.75;
 
 /** Which history a run belongs to: its kind and the model or workflow it ran. */
 export function timingKey(body = {}) {
@@ -172,7 +174,14 @@ export function estimateRun(history = [], body = {}, { now = Date.now(), warm: k
   }
   // Runs made with HEISS Rapid take a fraction of the time; estimate from the same kind while there are enough.
   const sameMode = runs.filter((run) => Boolean(run.rapid) === Boolean(body.rapid) && Boolean(run.guidance) === Boolean(body.rapidGuidance));
+  // Too few runs made the same way: the others stand in, scaled by what Rapid typically saves (docs/rapid.md),
+  // and the guess is marked so its miss doesn't count against the model's trust.
+  let borrowed = 1;
   if (sameMode.length >= need) runs = sameMode;
+  else if (sameMode.length !== runs.length) {
+    const share = (pool) => pool.filter((run) => run.rapid).length / Math.max(1, pool.length);
+    borrowed = Number(Boolean(body.rapid)) > share(runs) ? RAPID_SHARE : Number(Boolean(body.rapid)) < share(runs) ? 1 / RAPID_SHARE : 1;
+  }
   if (runs.length < need) return null;
   // Far outside the sizes this model has run at, the curve is a guess.
   const sizes = runs.map((run) => run.w);
@@ -194,12 +203,12 @@ export function estimateRun(history = [], body = {}, { now = Date.now(), warm: k
     const steps = asked ? Math.round(asked * (ratio || 1)) : Math.round(median(stepped.map((run) => run.steps)));
     const setupMs = median(setupPool.map((run) => run.setupMs).filter((ms) => ms !== null && ms !== undefined)) ?? 0;
     const tailMs = (median(stepped.map((run) => run.tailMs / run.w)) ?? 0) * w;
-    const totalMs = setupMs + steps * stepMs + tailMs;
-    return { totalMs: Math.round(totalMs), setupMs: Math.round(setupMs), stepMs, steps, tailMs: Math.round(tailMs), trusted, warm };
+    const totalMs = setupMs + steps * stepMs * borrowed + tailMs;
+    return { totalMs: Math.round(totalMs), setupMs: Math.round(setupMs), stepMs: stepMs * borrowed, steps, tailMs: Math.round(tailMs), trusted, warm, ...(borrowed !== 1 ? { borrowed: true } : {}) };
   }
   // No step reports from this workflow: scale whole runs by work instead.
   const perWork = median(setupPool.map((run) => run.runMs / run.w));
-  return perWork ? { totalMs: Math.round(perWork * w), setupMs: null, stepMs: null, steps: 0, tailMs: null, trusted, warm } : null;
+  return perWork ? { totalMs: Math.round(perWork * w * borrowed), setupMs: null, stepMs: null, steps: 0, tailMs: null, trusted, warm, ...(borrowed !== 1 ? { borrowed: true } : {}) } : null;
 }
 
 /**
@@ -216,7 +225,7 @@ export function addRun(history = [], { body, result, predicted = null, warm = fa
   if (body.rapid && body.rapidReport?.active !== false) run.rapid = true;
   if (body.rapidGuidance) run.guidance = true;
   if (result.stepMs) Object.assign(run, { stepMs: Math.round(result.stepMs * 10) / 10, steps: result.steps, setupMs: Math.round(result.setupMs), tailMs: Math.round(result.tailMs) });
-  if (predicted?.totalMs) run.error = Math.round((Math.abs(result.runMs - predicted.totalMs) / result.runMs) * 100) / 100;
+  if (predicted?.totalMs && !predicted.borrowed) run.error = Math.round((Math.abs(result.runMs - predicted.totalMs) / result.runMs) * 100) / 100;
   const next = [...history, run];
   // Keep each model's latest runs, and the whole file small.
   const counts = new Map();

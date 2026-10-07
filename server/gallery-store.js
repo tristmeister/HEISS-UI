@@ -951,9 +951,9 @@ export function generationSettings(body) {
     referenceAssets: Array.isArray(body.referenceAssets) ? body.referenceAssets.map(({ slot, assetId, source, name }) => ({ slot, assetId, source, name })) : [],
     promptPolicy: body.promptPolicy || null,
     // Made with HEISS Rapid; reusing it with its seed keeps Rapid on, so the same picture comes back.
-    ...(body.rapid && body.rapidReport?.active !== false ? { rapid: true } : {}),
+    ...(body.rapid && body.rapidReport?.active !== false ? { rapid: true, rapidAt: body.rapid.at, rapidSmooth: body.rapid.smooth !== false } : {}),
     ...(body.rapid && body.rapidReport?.active === false ? { rapidSkipped: body.rapidReport.reason || "skipped" } : {}),
-    ...(body.rapidGuidance ? { rapidGuidance: true } : {})
+    ...(body.rapidGuidance ? { rapidGuidance: true, rapidCfgUntil: body.rapidGuidance.until } : {})
   };
   const loras = Array.isArray(body.loras)
     ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 8).map((item) => ({

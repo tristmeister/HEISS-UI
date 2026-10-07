@@ -1007,7 +1007,8 @@ export function rapidFor(family, variant) {
  */
 export const GUIDANCE_UNTIL = 0.3;
 export function guidanceFor(family, variant) {
-  if (!family || family.kind !== "image") return null;
+  // Few-step distills keep their own short schedule whole.
+  if (!family || family.kind !== "image" || variant?.rapid === false) return null;
   const until = variant?.rapid?.cfgUntil ?? family.rapid?.cfgUntil ?? GUIDANCE_UNTIL;
   return { until };
 }

@@ -30,9 +30,10 @@ export function rapidState(profile, prefs, seed, rapidSeed, run = {}) {
   if (fixed && fixed !== String(rapidSeed || "").trim()) return off("seed");
   // A start picture or a mask sets the layout itself; guidance only saves where there is CFG to save.
   const use = startOn && !run.startImage && !run.inpaint;
-  const guidance = guidanceOn && Number(run.cfg ?? 2) > 1;
+  // Guidance too only from noise: a low-strength start image would begin below its cut-off.
+  const guidance = guidanceOn && Number(run.cfg ?? 2) > 1 && !run.startImage && !run.inpaint;
   if (use || guidance) return { use, guidance, status: "on" };
-  if (startOn && (run.startImage || run.inpaint)) return off("image");
+  if ((startOn || guidanceOn) && (run.startImage || run.inpaint)) return off("image");
   // What's left is guidance at CFG 1: say so, unless the half-size start would have applied but is switched off.
   return off(capabilities.rapid && prefs?.rapid === false && !run.startImage && !run.inpaint ? "parts" : "idle");
 }

@@ -53,8 +53,9 @@ export function retryRequest(item: GalleryItem, options: RetryOptions = {}): Ret
     startImageName: item.referenceImageName || String(settings.referenceImageName || ''),
     privateVault: Boolean(item.privateVault),
     // Made with HEISS Rapid: its seed frames that way, so the retry keeps it.
-    ...(settings.rapid ? { rapid: true } : {}),
-    ...(settings.rapidGuidance ? { rapidGuidance: true } : {}),
+    // The values it ran with, so a later catalog change doesn't change the retry.
+    ...(settings.rapid ? { rapid: true, ...(settings.rapidAt ? { rapidAt: Number(settings.rapidAt) } : {}), ...(typeof settings.rapidSmooth === 'boolean' ? { rapidSmooth: settings.rapidSmooth } : {}) } : {}),
+    ...(settings.rapidGuidance ? { rapidGuidance: true, ...(settings.rapidCfgUntil !== undefined ? { rapidCfgUntil: Number(settings.rapidCfgUntil) } : {}) } : {}),
     ...(options.tiledDecode ? { tiledDecode: true } : {})
   };
   const label = options.smaller ? 'Trying again smaller' : options.tiledDecode ? 'Trying again, decoding in tiles' : 'Trying again';

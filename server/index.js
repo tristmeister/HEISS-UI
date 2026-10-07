@@ -645,7 +645,9 @@ app.get("/api/hardware", async (_req, res) => {
   const stats = comfyCache.stats?.devices ? comfyCache.stats : await comfy("/system_stats", { signal: AbortSignal.timeout(3000) }).catch(() => null);
   // Setup notes for the composer (setup-tips.js); the pip command uses ComfyUI's own Python when it is on this computer.
   const python = comfyIsLocal() ? comfyPython(comfyRootDir()) : "";
-  res.json({ ok: true, hardware: { ...await describeHardware({ stats, comfyUrl }), tips: stats ? setupTips(stats, { python }) : [] } });
+  // The command runs where ComfyUI does, so its OS decides the spelling (ComfyUI reports os.name: "nt" or "posix").
+  const platform = stats?.system?.os === "nt" ? "win32" : stats?.system?.os === "posix" ? (comfyIsLocal() ? process.platform : "linux") : process.platform;
+  res.json({ ok: true, hardware: { ...await describeHardware({ stats, comfyUrl }), tips: stats ? setupTips(stats, { python, platform }) : [] } });
 });
 
 // Versions, system and GPU for a bug report (Settings › About, and a failed card's Copy report).
@@ -1734,12 +1736,13 @@ app.get("/api/upscale/status", async (req, res) => {
 app.get("/api/rapid/status", async (_req, res) => {
   let info;
   try {
-    info = await comfy("/object_info", { timeout: 60_000 });
+    ({ info } = await loadComfyContext());
   } catch {
     res.status(503).json({ ok: false, offline: true, restarting: comfyRestarting() });
     return;
   }
-  const installed = hasNode(info, "HeissRapid");
+  // Every node of the pack: an older copy with Rapid but not Rapid Guidance gets the update panel.
+  const installed = nodePacks.heiss.nodes.every((node) => hasNode(info, node));
   const setup = installed ? null : { manager: await managerAvailable(), pack: nodePack("heiss"), autoInstall: packInstallRoutes("heiss"), ...packInstallPlan(nodePacks.heiss, comfyRootDir(), process.platform) };
   res.json({ ok: true, installed, setup });
 });

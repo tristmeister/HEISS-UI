@@ -49,7 +49,7 @@ Our own ComfyUI node pack, so that later HEISS features have a home. Its first n
   - **flow** (`CONST`): state = (1−t)·x0 + t·ε
   - **sigma** (`EPS` / `V_PREDICTION`, not EDM): state = x0 + σ·ε, compared on t = σ/(1+σ), rescaled by r
 - Image (4D) and video (5D) latents. The DCT runs over the last two axes, and so does the padding.
-- The coarse size is rounded to the model's grid: multiples of 8 latent pixels for UNets (SDXL), 2 for DiTs.
+- The coarse size is rounded to the model's grid: even on both sides (UNets handle any size; DiTs patch in 2s).
 - It turns itself off, and says so, when there's:
   - an inpaint mask
   - a run starting below noise 0.9 (img2img / upscale)
@@ -102,7 +102,7 @@ Each family can carry `rapid: { at }`, and a variant can override or disable it 
 - **`gallery-store.js` (`generationSettings`):**
   - Records `rapid: true` on pictures made with it.
   - If the node reports a skip, records `rapid: false` and the reason, so the details panel tells the truth.
-- **`generation-timing.js`:** Rapid runs get their own timing key, so time estimates for runs with and without it don't get averaged together.
+- **`generation-timing.js`:** Rapid runs are tagged, and estimates use runs made the same way (borrowing plain runs, scaled, until there are enough), so time estimates for runs with and without it don't get averaged together.
 - **`civitai.js`:** the A1111 parameters text gets `Rapid: on`.
 
 ### 4. Client

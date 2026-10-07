@@ -31,7 +31,7 @@ export function torchCudaVersion(version = "") {
 export function cuda13Capable(name = "") {
   const text = String(name);
   if (/\b(GTX\s*(9\d\d|10\d\d)|Titan\s*(X|Xp|V)\b|Tesla\s*[PKMV]\d+|Quadro\s*[PMK]\d+|\bP\d{2,3}\b|\bV100\b)/i.test(text)) return false;
-  return /\b(RTX|GTX\s*16\d\d|A\d{2,4}|L\d{1,2}S?|H\d{2,3}|B\d{2,3}|GB\d{2,3}|Quadro\s*RTX|T4|T\d{3,4})\b/i.test(text);
+  return /\b(RTX|GTX\s*16\d\d|MX\s*[45]\d\d|A\d{1,4}G?|L\d{1,2}S?|GH\d{2,3}|H\d{2,3}|B\d{2,3}|GB\d{2,3}|Quadro\s*RTX|T4|T\d{3,4})\b/i.test(text);
 }
 
 /**

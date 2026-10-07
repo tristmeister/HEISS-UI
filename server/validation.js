@@ -81,11 +81,6 @@ function sanitizeInpaint(input, profile, referenceAssets) {
 }
 
 /**
- * A built-in family request, checked against the profile HEISS built for that
- * model file: encoders must be files that fit their slot, the VAE must fit (or
- * be the checkpoint's own), and nothing the model needs may be missing.
- */
-/**
  * HEISS Rapid for this run, as the graph builder takes it ({ at, smooth }), or
  * null. Only on a text-to-image run of a model that has it ready: a start
  * picture, references or an inpaint mask set the layout themselves. The
@@ -113,15 +108,25 @@ export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
  * a run with CFG above 1 (below it there is no second pass to save). Like
  * Rapid's start, the client applies the seed rule. `rapidCfgUntil` is for the benchmark.
  */
-export function sanitizeRapidGuidance(input, profile, cfg) {
+export function sanitizeRapidGuidance(input, profile, cfg, { referenceAssets = [], inpaint = null } = {}) {
   if (input.rapidGuidance !== true || profile.capabilities?.rapidGuidance !== true || !(Number(cfg) > 1)) return null;
+  // From noise only: a low-strength img2img or inpaint starts below the cut-off and would lose CFG altogether.
+  if (inpaint || referenceAssets.length || input.startImage || input.startImageId) return null;
   const family = families[profile.family];
-  const spec = guidanceFor(family, family?.variants.find((item) => item.id === profile.variant));
+  const variant = family?.variants.find((item) => item.id === profile.variant);
+  // Without a negative pass (negative "none": BasicGuider) there is no CFG to cut.
+  if ((variant?.negative || family?.negative) === "none") return null;
+  const spec = guidanceFor(family, variant);
   if (!spec) return null;
   const until = Number(input.rapidCfgUntil);
   return { until: Number.isFinite(until) && until >= 0 && until <= 1 ? until : spec.until };
 }
 
+/**
+ * A built-in family request, checked against the profile HEISS built for that
+ * model file: encoders must be files that fit their slot, the VAE must fit (or
+ * be the checkpoint's own), and nothing the model needs may be missing.
+ */
 function sanitizeFamilyBody(input, info, stats) {
   const kind = input.kind === "video" ? "video" : "image";
   const prompt = String(input.prompt || "").trim();
@@ -199,7 +204,7 @@ function sanitizeFamilyBody(input, info, stats) {
     autoResizeInputs: input.autoResizeInputs !== false,
     inpaint,
     rapid: sanitizeRapid(input, profile, { referenceAssets, inpaint }),
-    rapidGuidance: sanitizeRapidGuidance(input, profile, cfg),
+    rapidGuidance: sanitizeRapidGuidance(input, profile, cfg, { referenceAssets, inpaint }),
     promptPolicy: null,
     loras: sanitizeLoras(input, info, profile, kind, 8),
     // A retry after the GPU ran out of memory while decoding; only where this ComfyUI has the node.

@@ -33,7 +33,7 @@ test("the two parts switch on their own", () => {
   assert.deepEqual(rapidState(ready, { rapid: false }, "", "", { cfg: 4 }), { use: false, guidance: true, status: "on" });
   assert.deepEqual(rapidState(ready, { rapidGuidance: false }, "", "", { cfg: 4 }), { use: true, guidance: false, status: "on" });
   assert.deepEqual(rapidState(ready, on, "", "", { cfg: 1 }), { use: true, guidance: false, status: "on" }, "CFG 1: nothing for guidance to save");
-  assert.deepEqual(rapidState(ready, on, "", "", { startImage: true, cfg: 5 }), { use: false, guidance: true, status: "on" }, "a start picture still gets guidance");
+  assert.deepEqual(rapidState(ready, on, "", "", { startImage: true, cfg: 5 }), { use: false, guidance: false, status: "image" }, "a start picture keeps its CFG whole");
 });
 
 test("Use settings remembers the seed of a Rapid picture only", () => {
