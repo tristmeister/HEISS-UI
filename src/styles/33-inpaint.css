@@ -272,3 +272,59 @@
 @media (max-width: 640px) {
   .inpaint-close { top: 10px; right: 10px; width: 48px; height: 48px; }
 }
+
+/* ------------------------------------------------------- Settings demo */
+
+/* Settings › Features › Inpainting (src/app/InpaintDemo.tsx): the studio in
+   miniature, in place instead of floating, with the same glass and tools. */
+.inpaint-demo-wrap { display: grid; gap: 8px; padding: 12px 12px 4px; }
+.inpaint-demo {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-panel);
+  background: var(--surface-grain), var(--surface-float);
+  box-shadow: var(--shadow-float-sm);
+  isolation: isolate;
+  contain: layout paint;
+}
+.inpaint-demo .inpaint-stage { inset: 0; width: 100%; height: 100%; will-change: auto; }
+.inpaint-demo .inpaint-viewport.is-idle { cursor: default; }
+/* The paint fades out once the result is in; the result shows only inside it. */
+.inpaint-demo .inpaint-stage canvas.inpaint-demo-paint { transition: opacity 380ms var(--ease-out); }
+.inpaint-demo .inpaint-stage canvas.inpaint-demo-result { opacity: 0; transition: opacity 600ms var(--ease-out); }
+.inpaint-demo.is-done .inpaint-stage canvas.inpaint-demo-paint,
+.inpaint-demo.is-working .inpaint-stage canvas.inpaint-demo-paint { opacity: .3; }
+.inpaint-demo.is-done .inpaint-stage canvas.inpaint-demo-paint { opacity: 0; }
+.inpaint-demo.is-done .inpaint-stage canvas.inpaint-demo-result { opacity: 1; }
+.inpaint-demo.is-done.is-comparing .inpaint-stage canvas.inpaint-demo-result { opacity: 0; transition-duration: 160ms; }
+/* While "generating": the painted crop being remade, like the gallery's inpaint preview. */
+.inpaint-demo-working {
+  position: absolute;
+  z-index: 1;
+  border-radius: 10px;
+  background:
+    linear-gradient(110deg, transparent 30%, rgb(255 255 255 / .22) 50%, transparent 70%) 0 0 / 220% 100%,
+    rgb(255 154 82 / .14);
+  -webkit-backdrop-filter: blur(6px) saturate(1.2);
+  backdrop-filter: blur(6px) saturate(1.2);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18);
+  animation: inpaint-demo-sweep 1.1s linear infinite;
+  pointer-events: none;
+}
+@keyframes inpaint-demo-sweep { from { background-position: 120% 0, 0 0; } to { background-position: -120% 0, 0 0; } }
+.inpaint-demo-compare { pointer-events: auto; border: 0; font: inherit; font-size: 12.5px; font-weight: 550; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
+.inpaint-demo-compare:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* The prompt that goes with the painting, and Generate. */
+.inpaint-demo-prompt { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 4px 4px 4px 14px; border-radius: var(--r-pill); background: var(--well); }
+.inpaint-demo-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; color: hsl(var(--foreground)); }
+.inpaint-demo-text > span { margin-right: 8px; font-size: 11px; font-weight: 600; letter-spacing: .02em; color: hsl(var(--muted-foreground)); }
+.inpaint-demo-prompt .btn.is-ready { animation: inpaint-demo-ready 1.6s var(--ease-out) 1; }
+@keyframes inpaint-demo-ready { 0%, 100% { box-shadow: 0 0 0 0 rgb(255 154 82 / 0); } 40% { box-shadow: 0 0 0 6px rgb(255 154 82 / .22); } }
+@media (max-width: 620px) {
+  .inpaint-demo .inpaint-size { height: min(140px, calc(100% - 80px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .inpaint-demo-working, .inpaint-demo-prompt .btn.is-ready { animation: none; }
+}

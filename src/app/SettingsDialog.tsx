@@ -20,6 +20,7 @@ import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
 import { FeatureDrawer, SettingsDrawer, SettingsFold } from './SettingsDrawer';
 import { replayInpaintIntro } from './ReferenceMediaPicker';
+import { InpaintDemo } from './InpaintDemo';
 import { CivitaiGroup, EarlierImagesGroup, PromptHistoryRow } from './LibrarySettings';
 import { knownDiagnostics, loadDiagnostics, troubleshootingUrl } from './diagnostics';
 import { boardUrl, openFeedback } from './feedback';
@@ -845,7 +846,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                 summary={inpaintModels.length ? 'Paint over part of an image and change only that part.' : 'Needs an image model that takes a start image.'}
                 status={<Status tone={inpaintModels.length ? 'ok' : 'warn'}>{inpaintModels.length ? `${inpaintModels.length} model${inpaintModels.length === 1 ? '' : 's'}` : 'No model yet'}</Status>}
               >
-                <Row label="How to use it" description="Add a start or reference image, open its menu and pick the brush. Paint the part to change, then describe what it becomes." />
+                <InpaintDemo />
+                <Row label="In the studio" description="Add a start or reference image, open its menu and pick the brush. Paint the part to change, then describe what it becomes." />
                 <Row
                   label="Works with"
                   description={inpaintModels.length

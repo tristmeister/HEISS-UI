@@ -65,6 +65,9 @@ export function FeatureDrawer({ id, icon: Icon, title, tag, summary, status, ena
   defaultOpen?: boolean;
 }>) {
   const [open, setOpen] = React.useState(defaultOpen);
+  // A card's insides (a demo, a node installer) mount the first time it opens, not with the page.
+  const [seen, setSeen] = React.useState(defaultOpen);
+  React.useEffect(() => { if (open) setSeen(true); }, [open]);
   const bodyId = `${id}-body`;
   const hasSwitch = typeof enabled === 'boolean' && onEnabledChange;
   return (
@@ -88,7 +91,7 @@ export function FeatureDrawer({ id, icon: Icon, title, tag, summary, status, ena
         ) : null}
       </div>
       <div className="set-drawer-body" id={bodyId} inert={!open}>
-        <div className="set-drawer-inner">{children}</div>
+        <div className="set-drawer-inner">{seen || open ? children : null}</div>
       </div>
     </section>
   );

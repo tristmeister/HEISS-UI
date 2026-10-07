@@ -395,7 +395,8 @@
 /* The switch sits between the status and the knob, outside the toggle button. */
 .set-feature.has-switch .set-feature-toggle .set-drawer-knob { margin-left: 54px; }
 .set-feature-switch { position: absolute; top: 50%; right: 48px; translate: 0 -50%; display: flex; }
-.set-feature .set-drawer-inner .set-row:first-child { box-shadow: inset 0 1px 0 var(--surface-border); }
+.set-feature .set-drawer-inner > :first-child,
+.set-feature .inpaint-demo-wrap + .set-row { box-shadow: inset 0 1px 0 var(--surface-border); }
 .set-feature.is-open .set-drawer-inner { opacity: 1; }
 .set-feature-note { margin: 0; padding: 4px 16px 14px; font-size: 12px; line-height: 1.5; color: hsl(var(--muted-foreground)); }
 .set-feature-toggle:focus-visible { box-shadow: var(--focus-ring); }
