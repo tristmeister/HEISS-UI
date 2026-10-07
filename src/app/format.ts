@@ -45,8 +45,11 @@ export function formatGeneratedAt(value?: string) {
   });
 }
 
+/** No prompt gets longer than this, whatever the model says: far past any real prompt, short of a pasted novel. */
+export const HARD_TEXT_LIMIT = 100_000;
+
 export function settingMax(meta?: { max?: number }) {
-  return Number.isFinite(meta?.max) && Number(meta?.max) > 0 ? Number(meta?.max) : undefined;
+  return Number.isFinite(meta?.max) && Number(meta?.max) > 0 ? Math.min(Number(meta?.max), HARD_TEXT_LIMIT) : HARD_TEXT_LIMIT;
 }
 
 export function textLength(text: string) {
