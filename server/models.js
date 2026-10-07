@@ -82,7 +82,7 @@ function customAspectSet(defaults, ratios = [], ranges = {}) {
   }).length ? aspectSet(defaults, ratios.map((item) => Array.isArray(item) ? item : [item.label || item.value || "Custom", Number(item.w || 1), Number(item.h || 1)]), ranges) : [];
 }
 
-export function buildProfile({ id, kind, label, displayName, description, model, baseModel, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual", maxLoras = 8, settings = [] }) {
+export function buildProfile({ id, kind, label, displayName, description, model, baseModel, workflow, family, defaults, aspects, options = {}, capabilities = {}, constraints = {}, mediaInputs = [], aspectPolicy = "manual", maxLoras = 8 }) {
   return {
     id,
     kind,
@@ -99,7 +99,6 @@ export function buildProfile({ id, kind, label, displayName, description, model,
     options,
     constraints,
     mediaInputs,
-    ...(settings.length ? { settings } : {}),
     aspectPolicy: aspectPolicy === "reference" ? "reference" : "manual",
     // How many LoRAs the workflow's loader accepts (rgthree stacks take 4).
     maxLoras: Math.max(1, Math.min(8, Number(maxLoras) || 8)),
@@ -200,7 +199,6 @@ export function inferModels(info, stats = {}) {
       capabilities: workflow.capabilities,
       mediaInputs: workflow.mediaInputs || [],
       aspectPolicy: workflow.aspectPolicy,
-      settings: workflow.settings || [],
       maxLoras: workflow.loraStack?.max
     }));
   }

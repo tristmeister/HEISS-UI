@@ -22,7 +22,6 @@ import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
 import { loraFit, useLoraInfo } from './app/useLoraInfo';
 import type { LoraMismatch } from './app/LoraMismatchChip';
-import { loadWorkflowSettingValues, saveWorkflowSettingValues, type WorkflowSettingValues } from './app/WorkflowSettings';
 import { useViewerControls } from './app/useViewerControls';
 import { collapseRuns, useGalleryGroups } from './app/useGalleryGroups';
 import { viewerOrder } from './app/viewerOrder';
@@ -127,8 +126,6 @@ function App() {
   const [count, setCount] = useState(Number(initialDraft.count || prefs.defaultImageCount));
   const [frames, setFrames] = useState(Number(initialDraft.frames || prefs.defaultVideoFrames));
   const [fps, setFps] = useState(Number(initialDraft.fps || prefs.defaultFps));
-  // Imported workflows' "More settings", per workflow, remembered on this device.
-  const [workflowSettingValues, setWorkflowSettingValues] = useState<WorkflowSettingValues>(() => loadWorkflowSettingValues());
   const [sampler, setSampler] = useState(String(initialDraft.sampler || "euler_ancestral"));
   const [scheduler, setScheduler] = useState(String(initialDraft.scheduler || "beta"));
   const [loras, setLoras] = useState<LoraSelection[]>(() => normalizeLoras(initialDraft.loras));
@@ -1127,23 +1124,6 @@ function App() {
   }, [mode, models, workflowPreferences]);
 
   const currentProfile = useMemo(() => models?.profiles.find((profile) => profile.id === model) || null, [model, models]);
-  const currentWorkflowSettings = currentProfile?.settings?.length ? workflowSettingValues[currentProfile.id] || {} : undefined;
-  const setWorkflowSetting = useCallback((key: string, value: string | number | boolean) => {
-    if (!currentProfile) return;
-    setWorkflowSettingValues((current) => {
-      const next = { ...current, [currentProfile.id]: { ...(current[currentProfile.id] || {}), [key]: value } };
-      saveWorkflowSettingValues(next);
-      return next;
-    });
-  }, [currentProfile]);
-  const resetWorkflowSettings = useCallback(() => {
-    if (!currentProfile) return;
-    setWorkflowSettingValues((current) => {
-      const { [currentProfile.id]: _gone, ...rest } = current;
-      saveWorkflowSettingValues(rest);
-      return rest;
-    });
-  }, [currentProfile]);
   const toggleModelFavoriteRef = useRef<(id: string) => void>(() => undefined);
   const modelMenu = useMemo(() => ({
     favorites: workflowPreferences.favorites || [],
@@ -1417,15 +1397,15 @@ function App() {
       const workflow = JSON.parse(text);
       // Same path as the gallery import: preview first, so the prompt and other
       // controls get auto-mapped and the file name becomes the workflow name.
-      const { preview } = await apiJson<{ preview: { detected: Record<string, unknown>; graph?: Record<string, unknown> } }>("/api/workflows/import/preview", {
+      const { preview } = await apiJson<{ preview: { detected: Record<string, unknown> } }>("/api/workflows/import/preview", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ source: "file", workflow, filename: file.name })
+        body: JSON.stringify({ workflow, filename: file.name })
       });
       await apiJson("/api/workflows/import", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ graph: preview.graph, filename: file.name, metadata: preview.detected })
+        body: JSON.stringify({ workflow, filename: file.name, metadata: preview.detected })
       });
       refreshModels(false);
       refreshWorkflows();
@@ -1438,7 +1418,6 @@ function App() {
 
 
   const generationActions = useGenerationActions({
-    workflowSettings: currentWorkflowSettings,
     active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, inpaint: activeInpaintMask ? { mask: activeInpaintMask.dataUrl, strength: inpaintStrength, feather: inpaintFeather } : null, sampler, scheduler, seed, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
     openModelSetup: () => setWorkflowGalleryOpen(true),
     retryComfyStatus,
@@ -1553,7 +1532,7 @@ function App() {
   };
   // The first reference, shown at the top of the sidebar's Basics with how much it may change.
   const sidebarReference = referenceInput && referenceAsset ? { asset: referenceAsset, label: referenceInput.role === "start" ? "Start image" : referenceInput.label || "Reference image", remove: () => removeReferenceAsset(referenceInput.id) } : null;
-  const sidebarView = { sidebarReference, workflowSettings: currentWorkflowSettings || {}, setWorkflowSetting, resetWorkflowSettings, inpaintActive: Boolean(activeInpaintMask), inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather, canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab, recommended };
+  const sidebarView = { sidebarReference, inpaintActive: Boolean(activeInpaintMask), inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather, canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab, recommended };
   const sidebarControls = <StableSidebarControls view={sidebarView} />;
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;

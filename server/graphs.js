@@ -6,8 +6,6 @@ import { prepareInputImage } from './input-image-sizing.js';
 import { families } from './family-catalog.js';
 import { familyGraph } from './family-graph.js';
 import { withGgufLoaders } from './gguf.js';
-import { applyFileFallbacks } from './workflow-fallbacks.js';
-export { bypassLoraNode } from './workflow-fallbacks.js';
 
 export async function uploadReferenceImage(dataUrl, body = {}) {
   if (!dataUrl || !dataUrl.includes(",")) return "";
@@ -92,33 +90,10 @@ function cloneGraph(graph) {
   return JSON.parse(JSON.stringify(graph || {}));
 }
 
-/** Writes a value to a control's input, or to each of them: one prompt can feed several boxes (base and refiner). */
 function setMappedInput(graph, mapping, value) {
-  for (const item of [].concat(mapping || [])) {
-    if (!item?.node || !item?.input || !graph[item.node]) continue;
-    graph[item.node].inputs ||= {};
-    graph[item.node].inputs[item.input] = value;
-  }
-}
-
-/** A "More settings" value, kept to the type its input takes. */
-function settingValue(setting, value) {
-  if (value === undefined || value === null || value === "") return undefined;
-  if (setting.type === "INT") return Number.isFinite(Number(value)) ? Math.round(Number(value)) : undefined;
-  if (setting.type === "FLOAT") return Number.isFinite(Number(value)) ? Number(value) : undefined;
-  if (setting.type === "BOOLEAN") return value === true || value === "true" || value === 1;
-  if (setting.type === "COMBO") return Array.isArray(setting.options) && setting.options.length && !setting.options.includes(String(value)) ? undefined : String(value);
-  return String(value).slice(0, 20000);
-}
-
-/** The person's "More settings" values, by setting key; anything not set keeps the workflow's saved value. */
-export function applyWorkflowSettings(graph, workflow, values = {}) {
-  for (const setting of workflow.settings || []) {
-    if (!Object.hasOwn(values || {}, setting.key)) continue;
-    const value = settingValue(setting, values[setting.key]);
-    if (value !== undefined) setMappedInput(graph, setting, value);
-  }
-  return graph;
+  if (!mapping?.node || !mapping?.input || !graph[mapping.node]) return;
+  graph[mapping.node].inputs ||= {};
+  graph[mapping.node].inputs[mapping.input] = value;
 }
 
 async function applyMappedInputs(graph, workflow, body) {
@@ -228,9 +203,7 @@ export async function customWorkflowGraph(body) {
   const workflow = getCustomWorkflow(body.workflow);
   if (!workflow) throw new Error("This workflow isn’t installed.");
   const graph = cloneGraph(workflow.graph);
-  applyWorkflowSettings(graph, workflow, body.workflowSettings);
   await applyMappedInputs(graph, workflow, body);
-  applyFileFallbacks(graph, workflow);
   if (workflow.loraStack?.adapter === "rgthree-stack-v1") applyRgthreeLoraStack(graph, body, workflow.loraStack);
   else applyPowerLoraStack(graph, body, workflow.loraStack);
   return body.privateVault ? saveIntoHeissFolder(graph) : graph;

@@ -23,8 +23,6 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
   // Runs that left the queue: finished (into history) or dropped (a restart).
   const ended = new Set();
   const deleted = [];
-  // Workflows saved in ComfyUI's user folder: { "sub/name.json": workflow }.
-  const savedWorkflows = {};
   let down = false;
   let count = 0;
 
@@ -72,13 +70,6 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
       return json(res, 200, { queue_running: prompts.filter((item) => !ended.has(item.id)).map((item) => [0, item.id, {}, {}, []]), queue_pending: [] });
     }
     if (req.method === "GET" && url.pathname === "/object_info") return json(res, 200, objectInfo);
-    if (req.method === "GET" && url.pathname === "/userdata") {
-      return json(res, 200, Object.keys(savedWorkflows).map((name, index) => ({ path: name, size: 100, modified: 1700000000 + index })));
-    }
-    if (req.method === "GET" && url.pathname.startsWith("/userdata/")) {
-      const file = decodeURIComponent(url.pathname.slice("/userdata/".length)).replace(/^workflows\//, "");
-      return savedWorkflows[file] ? json(res, 200, savedWorkflows[file]) : json(res, 404, { error: "no such file" });
-    }
     if (req.method === "GET" && url.pathname === "/system_stats") {
       return json(res, 200, { system: { comfyui_version: version, os: "posix", python_version: "3.12", pytorch_version: "2.8.0" }, devices: [{ name: "Fake GPU", type: "cuda", vram_total: 24e9, vram_free: 20e9 }], ...systemStats });
     }
@@ -113,9 +104,6 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
     setDown(value) { down = Boolean(value); },
     /** History entries HEISS UI asked ComfyUI to delete. */
     deleted,
-    /** A run as ComfyUI's own page would leave it in history: prompt, canvas workflow, outputs. */
-    addHistory(id, entry) { history[id] = entry; },
-    savedWorkflows,
     /** Forgets a run without a result, as a ComfyUI restart does. */
     drop(promptId) { ended.add(promptId); },
     send(clientId, message) {

@@ -1,9 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { dataDir, gallery } from './gallery-store.js';
-import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, mappingList, validateGraph, workflowMissingFiles, workflowOptionIssues } from './custom-workflows.js';
-import { visualTitles } from './workflow-convert.js';
-import { effectiveGraph } from './workflow-fallbacks.js';
+import { allCustomWorkflowRecords, detectWorkflowFormat, detectWorkflowMetadata, graphFromJson, validateGraph, workflowMissingFiles, workflowOptionIssues } from './custom-workflows.js';
 import { catalogDownloadsForFile } from './family-profiles.js';
 import { readJsonFile, writeJsonFile } from './json-store.js';
 import { workflowRisks } from "./workflow-risk.js";
@@ -66,10 +64,10 @@ export function markWorkflowUsed(profileId, thumbnail = "") {
 }
 
 function controlsList(controls = {}) {
-  return Object.keys(controls).filter((key) => mappingList(controls[key]).length);
+  return Object.keys(controls).filter((key) => controls[key]?.node && controls[key]?.input);
 }
 
-export function validateWorkflow(workflow, info = {}, profile = null) {
+function validateWorkflow(workflow, info = {}, profile = null) {
   // Without ComfyUI's node list we can't tell a missing node from an offline server,
   // so node checks are skipped and the result is marked unverified instead.
   const online = Object.keys(info || {}).length > 0;
@@ -99,19 +97,16 @@ export function validateWorkflow(workflow, info = {}, profile = null) {
       if (classType && !info[classType]) issues.push(`Missing node class: ${classType}`);
     }
   }
-  // Files decided at import (a local stand-in, a skipped LoRA) count as there.
-  const running = { ...workflow, graph: effectiveGraph(workflow) };
-  issues.push(...workflowOptionIssues(running, info));
+  issues.push(...workflowOptionIssues(workflow, info));
   const graph = workflow.graph || {};
-  for (const [key, value] of Object.entries(workflow.controls || {})) {
-    for (const mapping of mappingList(value)) {
-      const node = graph[mapping.node];
-      if (!node) {
-        issues.push(`Mapped ${key} node is missing: ${mapping.node}`);
-        continue;
-      }
-      if (!(mapping.input in (node.inputs || {}))) issues.push(`Mapped ${key} input is missing: ${mapping.node}.${mapping.input}`);
+  for (const [key, mapping] of Object.entries(workflow.controls || {})) {
+    if (!mapping?.node || !mapping?.input) continue;
+    const node = graph[mapping.node];
+    if (!node) {
+      issues.push(`Mapped ${key} node is missing: ${mapping.node}`);
+      continue;
     }
+    if (!(mapping.input in (node.inputs || {}))) issues.push(`Mapped ${key} input is missing: ${mapping.node}.${mapping.input}`);
   }
   if (workflow.kind !== "image" && workflow.kind !== "video") issues.push(`Unsupported workflow kind: ${workflow.kind}`);
   if (workflow.graph && Object.keys(workflow.graph).length && !Object.values(workflow.graph).some((node) => /Save|Preview|Video/i.test(node?.class_type || ""))) {
@@ -123,7 +118,7 @@ export function validateWorkflow(workflow, info = {}, profile = null) {
     issues,
     warnings,
     missingNodes: issues.filter((issue) => issue.startsWith("Missing node class:")).map((issue) => issue.replace("Missing node class:", "").trim()),
-    missingParts: missingFileParts(running, info)
+    missingParts: missingFileParts(workflow, info)
   };
 }
 
@@ -243,21 +238,14 @@ export function workflowSummaries({ info = {}, profiles = [], preferences = load
   });
 }
 
-/**
- * A JSON file's import preview (the file route). The full pipeline, with
- * history, saved workflows and images, is in workflow-import.js.
- */
-export function previewWorkflowImport(raw, filename = "", info = {}, extras = {}) {
-  const detectedFormat = detectWorkflowFormat(raw);
-  // A graph handed in already (history, images, a conversion) needs no format of its own.
-  const format = extras.graph && detectedFormat === "unsupported" ? "comfyui-api" : detectedFormat;
+export function previewWorkflowImport(raw, filename = "", info = {}) {
+  const format = detectWorkflowFormat(raw);
   if (format === "unsupported") throw new Error("This isn’t a ComfyUI workflow. Use one saved from ComfyUI, in the regular or API format.");
   const source = format === "comfyui-api-wrapper" ? raw.prompt : raw;
-  const graph = extras.graph || graphFromJson(format === "comfyui-visual" ? { ...raw } : source, info);
+  const graph = graphFromJson(format === "comfyui-visual" ? { ...raw } : source, info);
   // A wrapper ({ prompt: graph }) or a visual file can carry the heissUi block beside the graph.
   const declared = raw?.heissUi || raw?.heiss_ui || raw?.jAiStudio || raw?.j_ai_studio;
-  const titles = { ...(format === "comfyui-visual" ? visualTitles(raw) : {}), ...(extras.titles || {}) };
-  const detected = detectWorkflowMetadata({ ...(declared ? { heissUi: declared } : {}), graph }, extras.name || path.basename(filename || "", path.extname(filename || "")), info, { titles, variants: extras.variants || [] });
+  const detected = detectWorkflowMetadata({ ...(declared ? { heissUi: declared } : {}), ...source, graph }, path.basename(filename || "", path.extname(filename || "")), info);
   const validation = validateWorkflow({
     id: detected.id,
     profileId: `custom:${detected.id}`,
@@ -275,7 +263,7 @@ export function previewWorkflowImport(raw, filename = "", info = {}, extras = {}
     graph,
     detected,
     format,
-    hasHeissUi: Boolean(declared),
+    hasHeissUi: Boolean(raw?.heissUi || raw?.heiss_ui || raw?.jAiStudio || raw?.j_ai_studio),
     validation,
     // Nodes that run code, touch files elsewhere or go online: the review says so before saving.
     risks: workflowRisks(graph)
