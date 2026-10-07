@@ -172,3 +172,10 @@ What this shows:
 - **Less speed-up than LC's 5090 figures.** These weights don't fit in 8 GB (6.7 GiB peak), so every step also streams weights, and that cost doesn't shrink at half size. Bigger cards and bigger pictures gain more.
 - **The smoothing step costs one full-size step.** On a 4–8 step distill that eats most of the gain. So HEISS now adds it only from 12 steps up (`SMOOTH_FROM_STEPS` in validation.js), where it's a few percent of the run. The picture comparison of fast against on still decides whether that's right.
 - **Qwen-Image 2.1 had no Rapid entry.** Its "on" runs were the same graph again, answered from ComfyUI's cache. It now has `at: 0.7`, still to be measured, and the benchmark skips Rapid modes for models without Rapid.
+
+### What the pictures show (contact sheets from that run)
+
+- **Krea 2 Turbo:** skin, freckles, hands and the sign text hold up. The chalkboard text is at least as good with Rapid as without, and sometimes better: "Croisant 2.50" where the off run has "Croisast" or "Croienst". The shot frames tighter and closer, sometimes as a quite different composition at 1536². Switch points 0.6 to 0.9 all read fine; above 0.7 only small things in the scene change.
+- **Flux.2 Klein 9B (4 steps):** text is correct with Rapid and framing changes a lot (corner shot vs front shot). The raindrops on the window come out fewer and softer in some portraits, which is the one detail loss seen so far. The switch-point sweep made identical pictures: with 4 steps, every value lands on the same step (2 small, 2 full), so few-step models can't be tuned through `at`.
+- **On vs fast:** close to identical on both models. At 4–8 steps the smoothing step shows no visible benefit, which backs turning it off below 12 steps.
+- **Qwen-Image 2.1:** not measured yet. Those runs had no Rapid in the graph and came back from ComfyUI's cache.
