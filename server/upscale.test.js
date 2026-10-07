@@ -8,7 +8,7 @@ import test from "node:test";
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-seedvr2-"));
 process.env.HEISS_SEEDVR2_MODEL_DIR = dir;
 test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-const { faceDetailSource, installState, modelFiles, startModelInstall, upscaleGraph, upscaleStatus } = await import("./upscale.js");
+const { faceDetailSource, installState, modelFiles, noteSystemRam, startModelInstall, upscaleGraph, upscaleStatus } = await import("./upscale.js");
 
 // Shaped like the real /object_info: V3 combos, and offload_device is an optional input.
 const combo = (values) => ["COMBO", { options: values }];
@@ -75,6 +75,12 @@ test("the graph uses the machine's own device and skips block swap without an of
   assert.equal(mac["5"].inputs.offload_device, "none");
   assert.equal(mac.heiss_seedvr2_dit.inputs.blocks_to_swap, 0);
   assert.equal(mac.heiss_seedvr2_dit.inputs.swap_io_components, false);
+  // SeedVR2 refuses cache_model without an offload device, however much memory the Mac has.
+  noteSystemRam({ system: { ram_total: 192 * 1024 ** 3 } });
+  const macAgain = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith({ ...registryListing, devices: ["mps"], offloads: ["none", "mps"] })).graph;
+  assert.equal(macAgain.heiss_seedvr2_dit.inputs.cache_model, false);
+  assert.equal(macAgain.heiss_seedvr2_vae.inputs.cache_model, false);
+  noteSystemRam({ system: { ram_total: 0 } });
   const cuda = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith(registryListing)).graph;
   assert.equal(cuda.heiss_seedvr2_dit.inputs.device, "cuda:0");
   assert.equal(cuda.heiss_seedvr2_dit.inputs.offload_device, "cpu");

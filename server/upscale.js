@@ -670,7 +670,8 @@ export function upscaleGraph(body, info = {}, { embedded = false } = {}) {
   const ditDevices = devicesFor(info, "SeedVR2LoadDiTModel");
   const vaeDevices = devicesFor(info, "SeedVR2LoadVAEModel");
   const swap = ditDevices.offload !== "none";
-  const keep = keepModels({ ditBytes: modelFiles[dit.file]?.bytes || 0, embedded });
+  // SeedVR2 keeps a model on its offload device; without one (Apple Silicon) it refuses cache_model.
+  const keep = ditDevices.offload !== "none" && vaeDevices.offload !== "none" && keepModels({ ditBytes: modelFiles[dit.file]?.bytes || 0, embedded });
   lastUpscaleAt = Date.now();
   const graph = {};
   graph["1"] = { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } };
