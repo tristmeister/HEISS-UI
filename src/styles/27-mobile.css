@@ -308,13 +308,9 @@
   }
 
   /* Sliders: a thumb you can find with a finger. */
-  .lora-strength input[type="range"],
-  .ref-strength input[type="range"] { height: 32px; }
-  .ref-strength input[type="range"] { width: 96px; }
-  .lora-strength input[type="range"]::-webkit-slider-thumb,
-  .ref-strength input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9.5px; }
-  .lora-strength input[type="range"]::-moz-range-thumb,
-  .ref-strength input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; }
+  .lora-strength input[type="range"] { height: 32px; }
+  .lora-strength input[type="range"]::-webkit-slider-thumb { width: 22px; height: 22px; margin-top: -9.5px; }
+  .lora-strength input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; }
 
   /* No grey flash on every tap; the controls have their own pressed states. */
   button, a, [role="button"], summary, label { -webkit-tap-highlight-color: transparent; }

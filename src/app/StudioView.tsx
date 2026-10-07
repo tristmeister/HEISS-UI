@@ -120,7 +120,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const smartUpscaleTabs = mode === "image" && prefs.smartUpscale !== false;
   const strayModelCount = modelFolders?.strayCount || 0;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
-  const { confirmAction, referenceAssets, referenceInputs, referenceStrength, referenceInpaint, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
+  const { confirmAction, referenceAssets, referenceInputs, referenceInpaint, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
   const gallerySearch = (view.gallerySearch || emptySearch) as GallerySearch;
   const setGallerySearch = view.setGallerySearch as (next: GallerySearch) => void;
   const toggleFavorite = view.toggleFavorite as (items: GalleryItem[], favorite: boolean) => void;
@@ -696,7 +696,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               refreshComfyStatus={retryComfyStatus}
               comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
-              referenceStrength={referenceStrength}
               referenceInpaint={referenceInpaint}
               loraMismatch={view.loraMismatch}
               onDismissLoraMismatch={view.dismissLoraMismatch}
@@ -811,7 +810,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               refreshComfyStatus={retryComfyStatus}
               comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
-              referenceStrength={referenceStrength}
               referenceInpaint={referenceInpaint}
               loraMismatch={view.loraMismatch}
               onDismissLoraMismatch={view.dismissLoraMismatch}
