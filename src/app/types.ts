@@ -154,6 +154,8 @@ export type Models = {
   unsupportedModels?: string[];
   modelFiles?: ModelFile[];
   modelTypeChoices?: Record<ModelSource, SelectOption[]>;
+  /** Release switches for features that are built but not yet public (server/features.js). */
+  features?: { inpainting?: boolean };
   textEncoders: string[];
   vaes: string[];
   clipTypes?: string[];

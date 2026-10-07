@@ -570,6 +570,18 @@ app.get("/api/ping", (_req, res) => res.json({ ok: true, app: "heiss-ui", versio
 let describeCache = { at: 0, value: null };
 async function commitsSinceRelease() {
   if (Date.now() - describeCache.at < 60000) return describeCache.value;
+  // Stale is fine for a version line: answer at once and look again behind it.
+  if (describeCache.at) { void describeNow(); return describeCache.value; }
+  return describeNow();
+}
+
+let describing = null;
+function describeNow() {
+  describing ||= readDescribe().finally(() => { describing = null; });
+  return describing;
+}
+
+async function readDescribe() {
   let value = null;
   try {
     const { stdout } = await execFileAsync("git", ["describe", "--tags", "--long", "--match", "v[0-9]*"], { cwd: root, timeout: 3000 });
@@ -581,6 +593,8 @@ async function commitsSinceRelease() {
   describeCache = { at: Date.now(), value };
   return value;
 }
+// Known before About first asks.
+void describeNow();
 
 /**
  * What a generation with these settings should take here, for the composer:

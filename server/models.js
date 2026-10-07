@@ -217,6 +217,8 @@ export function inferModels(info, stats = {}) {
     unsupportedModels,
     modelFiles,
     modelTypeChoices: modelTypeChoices(),
+    // Release switches the studio needs to know about (features.js).
+    features: { inpainting: inpaintingEnabled },
     textEncoders: clips,
     vaes,
     clipTypes,

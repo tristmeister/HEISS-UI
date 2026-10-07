@@ -314,6 +314,17 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
           />
         )) : null}
         {on && network && !entries.length && !(tls?.configured && !tls.ok) ? <Row label="No network address" description="This computer isn’t on a local network right now." /> : null}
+        {/* HTTPS only matters for other devices, so it lives with them, folded away. */}
+        {tls && (on || lan?.saved || tls.configured) ? (
+          <SettingsDrawer
+            id="set-https"
+            title="HTTPS"
+            description={<>{tls.active ? 'On' : tls.configured && (!tls.ok || tls.problem) ? 'Set up, but it can’t start' : tls.configured ? 'Set up' : 'Off'} · uses a certificate you already have, such as one from <code>tailscale cert</code></>}
+            defaultOpen={Boolean(tls.configured && (!tls.ok || tls.problem))}
+          >
+            <HttpsRows tls={tls} supervised={Boolean(lan?.supervised)} restartHeiss={restartHeiss} showToast={showToast} onSaved={load} Row={Row} Status={Status} />
+          </SettingsDrawer>
+        ) : null}
       </Group>
 
       <Group title="Signing in">
@@ -332,7 +343,7 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
         ) : null}
       </Group>
 
-      {canChange && (devices.length || atComputer) ? (
+      {canChange && (devices.length || (atComputer && on)) ? (
         <Group title="Signed-in devices" note={devices.length ? 'Devices stay signed in for a week.' : undefined}>
           {devices.map((device) => (
             <Row key={device.id} label={device.current ? `${device.label} · this device` : device.label} description={`Signed in ${ago(device.createdAt)} · last seen ${ago(device.lastSeenAt)}`} />
@@ -346,18 +357,6 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
         </Group>
       ) : null}
 
-      {tls ? (
-        <Group title="Advanced">
-          <SettingsDrawer
-            id="set-https"
-            title="HTTPS for other devices"
-            description={<>{tls.active ? 'On' : tls.configured && (!tls.ok || tls.problem) ? 'Set up, but it can’t start' : tls.configured ? 'Set up' : 'Off'}. Uses a certificate you already have, such as one from <code>tailscale cert</code>.</>}
-            defaultOpen={Boolean(tls.configured && (!tls.ok || tls.problem))}
-          >
-            <HttpsRows tls={tls} supervised={Boolean(lan?.supervised)} restartHeiss={restartHeiss} showToast={showToast} onSaved={load} Row={Row} Status={Status} />
-          </SettingsDrawer>
-        </Group>
-      ) : null}
     </>
   );
 }
