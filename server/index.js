@@ -63,7 +63,8 @@ import { beginComfyRestart, comfyRestartStartedAt, comfyRestarting, finishComfyR
 import { failedPacks, loadedPacks, logTextFromRaw, packLabel, restartChanges } from './restart-insights.js';
 import { comfyRestartEstimate, generationEstimate, recordComfyRestart, upscaleEstimate } from './timings.js';
 import { upscaleWork } from './upscale-timing.js';
-import { comfyRootDir, packInstallPlan } from './node-install.js';
+import { comfyPython, comfyRootDir, packInstallPlan } from './node-install.js';
+import { setupTips } from './setup-tips.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleQualities, upscaleStatus } from './upscale.js';
@@ -640,7 +641,9 @@ app.get("/api/stats", async (_req, res) => {
 // What ComfyUI runs on (GPU, memory and the budget fit hints use). See server/hardware.js.
 app.get("/api/hardware", async (_req, res) => {
   const stats = comfyCache.stats?.devices ? comfyCache.stats : await comfy("/system_stats", { signal: AbortSignal.timeout(3000) }).catch(() => null);
-  res.json({ ok: true, hardware: await describeHardware({ stats, comfyUrl }) });
+  // Setup notes for the composer (setup-tips.js); the pip command uses ComfyUI's own Python when it is on this computer.
+  const python = comfyIsLocal() ? comfyPython(comfyRootDir()) : "";
+  res.json({ ok: true, hardware: { ...await describeHardware({ stats, comfyUrl }), tips: stats ? setupTips(stats, { python }) : [] } });
 });
 
 // Versions, system and GPU for a bug report (Settings › About, and a failed card's Copy report).

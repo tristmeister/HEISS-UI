@@ -1,5 +1,6 @@
 import React from 'react';
 import { apiJson } from './api';
+import type { SetupTip } from './SetupTipChip';
 
 /**
  * What ComfyUI runs on, from /api/hardware (server/hardware.js): the GPU, its
@@ -19,6 +20,8 @@ export type Hardware = {
   budgetSource: '' | 'vram' | 'wired-limit' | 'unified-share';
   /** The operating system ComfyUI (or, without it, this computer) runs: darwin, win32, linux. */
   os?: string;
+  /** Notes about the ComfyUI setup worth acting on (server/setup-tips.js). */
+  tips?: SetupTip[];
 };
 
 let current: Hardware | null = null;

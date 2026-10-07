@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowUp, Dices, EyeOff, ChevronUp, CircleDotDashed, History, Images, Layers, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { LoraMismatchChip, type LoraMismatch } from './LoraMismatchChip';
+import { SetupTipChip, type SetupTip } from './SetupTipChip';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -251,6 +252,9 @@ export type ComposerBarProps = {
   referenceInpaint?: ReferenceInpaint | null;
   loraMismatch?: LoraMismatch | null;
   onDismissLoraMismatch?: (key: string) => void;
+  setupTip?: SetupTip | null;
+  onHideSetupTip?: (id: string) => void;
+  onNeverSetupTip?: (id: string) => void;
   referenceAssets?: SelectedReferenceAsset[];
   onReferenceSelect: (slot: string, asset: ReferenceAsset) => void;
   onReferenceRemove: (slots: string | string[]) => void;
@@ -277,7 +281,7 @@ export function ComposerBar(props: ComposerBarProps) {
     hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
-    referenceInputs = [], referenceInpaint = null, loraMismatch = null, onDismissLoraMismatch, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
+    referenceInputs = [], referenceInpaint = null, loraMismatch = null, onDismissLoraMismatch, setupTip = null, onHideSetupTip, onNeverSetupTip, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
     pinnedSeed = "", onRandomSeed, generationEstimate = null, generateKey = "", onToggleHistory, historyOpen = false
   } = props;
 
@@ -354,6 +358,7 @@ export function ComposerBar(props: ComposerBarProps) {
   return (
     <>
       <LoraMismatchChip mismatch={loraMismatch} onOpenLoras={onOpenLoras} onDismiss={(key) => onDismissLoraMismatch?.(key)} />
+      <SetupTipChip tip={loraMismatch ? null : setupTip} onHide={(id) => onHideSetupTip?.(id)} onNever={(id) => onNeverSetupTip?.(id)} />
       <ReferenceSlots inputs={referenceInputs} inpaint={referenceInpaint} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (

@@ -40,7 +40,7 @@ import { useArrowKeyGroups } from './hooks/use-arrow-key-groups';
 import { useGenerationEstimate } from './app/useGenerationEstimate';
 import { listNames, registerRestartConfirm, setComfyRestartClock, setComfyRestartResult, setComfyRestarting } from './app/ComfyRestart';
 import { memoLatest } from './lib/memo-latest';
-import { refreshHardware } from './app/hardware';
+import { refreshHardware, useHardware } from './app/hardware';
 import { starterPromptsFor, surprisePrompt } from './app/starterPrompts';
 import { generateShortcut } from './app/shortcuts';
 import { rapidState } from './app/rapid.js';
@@ -1281,6 +1281,12 @@ function App() {
     return { key, names: wrong, madeFor: [...new Set(wrong.map((name) => loraInfos[name]?.base).filter(Boolean))] as string[], model: currentProfile.familyName || currentProfile.displayName || currentProfile.label };
   }, [loraActiveCount, currentProfile, loras, loraInfos, dismissedLoraWarnings]);
   const dismissLoraMismatch = useCallback((key: string) => setDismissedLoraWarnings((current) => [...current, key]), []);
+  // A note about the ComfyUI setup (setup-tips.js) in the same place: "Hide" until reload, or never again.
+  const hardware = useHardware();
+  const [hiddenTipsThisVisit, setHiddenTipsThisVisit] = useState<string[]>([]);
+  const setupTip = (hardware?.tips || []).find((tip) => !hiddenTipsThisVisit.includes(tip.id) && !(prefs.hiddenTips || []).includes(tip.id)) || null;
+  const hideSetupTip = useCallback((id: string) => setHiddenTipsThisVisit((current) => [...current, id]), []);
+  const neverSetupTip = useCallback((id: string) => setPrefs({ hiddenTips: [...new Set([...(prefs.hiddenTips || []), id])] }), [prefs.hiddenTips]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
     if (!hasMoreGallery) return;
@@ -1556,7 +1562,7 @@ function App() {
     mask: activeInpaintMask?.dataUrl || null,
     onChange: (dataUrl: string | null) => setInpaintMask(dataUrl ? { assetId: referenceAsset.id, dataUrl } : null)
   } : null;
-  const view = { ...baseView, loraMismatch, dismissLoraMismatch, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceInpaint };
+  const view = { ...baseView, loraMismatch, dismissLoraMismatch, setupTip, hideSetupTip, neverSetupTip, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceInpaint };
   return (
     <>
       <StudioView view={view} />
