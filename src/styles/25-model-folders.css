@@ -327,12 +327,12 @@
 .model-menu .model-menu-find { flex: none; margin-top: 6px; }
 
 .model-row { position: relative; }
-.model-row .model-option { padding-right: 40px; }
+.model-row .model-option { padding-right: 36px; }
 .model-option.is-cursor { background: var(--brand-surface-hover); }
 .model-star {
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: 6px;
   display: grid;
   place-items: center;
   width: 26px;

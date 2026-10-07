@@ -106,9 +106,9 @@ export function StudioSelect({ value, onChange, options }: { value: string; onCh
   );
 }
 
-export function Tip({ content, side = "bottom", children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; children: React.ReactElement }) {
+export function Tip({ content, side = "bottom", forceOpen, children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; /** false keeps it shut, e.g. while a tooltip inside it speaks instead. */ forceOpen?: boolean; children: React.ReactElement }) {
   return (
-    <FluidTooltip content={content} side={side} sideOffset={10} className="heiss-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
+    <FluidTooltip content={content} side={side} sideOffset={10} forceOpen={forceOpen} className="heiss-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
       {children}
     </FluidTooltip>
   );
@@ -475,21 +475,23 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * family badge: edits from reference images, and inpainting (paint over part
  * of a reference to change only that).
  */
-function ModelAbilities({ profile }: { profile: Profile }) {
+function ModelAbilities({ profile, onHover }: { profile: Profile; onHover?: (hovering: boolean) => void }) {
   // An edit model takes references without a start-image strength; img2img models have one.
   const edits = Boolean(profile.mediaInputs?.length && !profile.capabilities.denoise);
   const inpaints = Boolean(profile.capabilities.inpaint);
   if (!edits && !inpaints) return null;
   return (
-    <span className="model-abilities">
-      {edits ? <span className="model-ability" title="Edits from reference images" aria-label="Edits from reference images"><ImagePlus size={13} strokeWidth={1.75} /></span> : null}
-      {inpaints ? <span className="model-ability" title="Inpainting: paint over part of an image to change only that" aria-label="Inpainting"><Brush size={13} strokeWidth={1.75} /></span> : null}
+    // While one of these speaks, the row's own name tooltip stays shut.
+    <span className="model-abilities" onPointerEnter={() => onHover?.(true)} onPointerLeave={() => onHover?.(false)}>
+      {edits ? <Tip content="Edits from reference images" side="top"><span className="model-ability" aria-label="Edits from reference images"><ImagePlus size={13} strokeWidth={1.75} /></span></Tip> : null}
+      {inpaints ? <Tip content="Inpainting: paint over part of an image to change only that" side="top"><span className="model-ability" aria-label="Inpainting"><Brush size={13} strokeWidth={1.75} /></span></Tip> : null}
     </span>
   );
 }
 
 export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const hardware = useHardware();
+  const [abilityRow, setAbilityRow] = React.useState("");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(-1);
@@ -617,7 +619,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                     const { size, fits } = sizeNote(profile, hardware);
                     return (
                       <div key={`${section.id}:${profile.id}`} className={cn("model-row", starred && "is-starred")}>
-                        <Tip content={`${profile.displayName || profile.label}${fits ? " · fits this computer" : ""}`}><button
+                        <Tip content={`${profile.displayName || profile.label}${fits ? " · fits this computer" : ""}`} forceOpen={abilityRow === `${section.id}:${profile.id}` ? false : undefined}><button
                             type="button"
                             role="option"
                             aria-selected={profile.id === value}
@@ -630,7 +632,7 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                               <strong>{profile.displayName || profile.label}</strong>
                               {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>}
                             </span>
-                            <span className="model-tags"><ModelAbilities profile={profile} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
+                            <span className="model-tags"><ModelAbilities profile={profile} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
                         {menu ? (
                           <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>

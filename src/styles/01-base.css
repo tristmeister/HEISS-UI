@@ -301,7 +301,7 @@ input.is-framed:focus-visible {
 .model-picker.is-compact .model-copy strong { font-size: 12px; }
 .model-picker.is-compact .model-menu {
   left: 0; right: auto;
-  min-width: 280px;
+  min-width: 304px;
   top: auto; bottom: calc(100% + 6px);
   animation: popUp 180ms var(--spring);
 }

@@ -32,7 +32,7 @@ import type { ShowToast } from './toast';
 export const SETTINGS_SECTIONS = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, description: 'Layout, keyboard, safety and reset.' },
   { id: 'generation', label: 'Generation', icon: Wand2, description: 'The composer, previews and starting values.' },
-  { id: 'features', label: 'Features', icon: Puzzle, description: 'Upscaling, inpainting and run stacks.' },
+  { id: 'features', label: 'Features', icon: Puzzle, description: 'Upscaling and inpainting.' },
   { id: 'models', label: 'Models', icon: Boxes, description: 'What ComfyUI has installed and where it finds models.' },
   { id: 'library', label: 'Library', icon: Library, description: 'Where images are saved and what the gallery shows.' },
   { id: 'privacy', label: 'Hidden', icon: LockKeyhole, description: 'Images you keep to yourself, encrypted and unlocked with a password, Touch ID or Windows Hello.' },
@@ -302,6 +302,16 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
     );
   }
   return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
+}
+
+/** Smart upscale's state in a word or two, for its drawer. */
+function upscaleSummary(status: UpscaleStatus | null, install: UpscaleInstall) {
+  if (install?.status === 'running') return { label: 'downloading' };
+  if (!status) return { label: 'unavailable' };
+  if (!status.nodesInstalled || status.needsDownload) return { label: 'needs setup' };
+  if (install?.status === 'error' && !status.ready) return { label: 'download stopped' };
+  if (status.substituting) return { label: 'download needed' };
+  return { label: 'ready' };
 }
 
 const profileName = (profile: Profile) => profile.displayName || profile.label;
@@ -720,6 +730,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
 
   const upscaleOn = prefs.smartUpscale !== false;
+  const upscaleState = upscaleSummary(upscaleStatus, upscaleInstall);
   // Inpainting ships behind a release switch; while it's off its group stays away.
   const inpaintReleased = Boolean((models as Models | null)?.features?.inpainting);
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
@@ -833,8 +844,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
         ) : null}
 
         {section === 'features' ? (
-          <>
-            <Group title="Upscale">
+          <Group>
+            <SettingsDrawer id="set-feature-upscale" title="Smart upscale" description={upscaleOn ? `On · ${upscaleState.label}` : 'Off'}>
               <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
               {upscaleOn ? (
                 <>
@@ -859,43 +870,24 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                   <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} onDownload={() => upscaleSetup.openSetup(null, { download: true })} />
                 </>
               ) : null}
-            </Group>
+            </SettingsDrawer>
 
             {inpaintReleased ? (
-              <Group title="Inpainting">
-                <Row label={<>Inpainting<BetaTag /></>} description="Paint over part of a start or reference image and only that part changes. The brush is in the image’s menu in the prompt bar.">
+              <SettingsDrawer id="set-feature-inpaint" title={<>Inpainting<BetaTag /></>} description={inpaintModels.length ? `${inpaintModels.length} of your models can` : 'No model can yet'}>
+                <Row label="Paint over part of an image" description="Only the painted part changes. The brush is in a start or reference image’s menu in the prompt bar.">
                   <Status tone={inpaintModels.length ? 'ok' : 'warn'}>{inpaintModels.length ? 'Ready' : 'No model yet'}</Status>
                 </Row>
                 {inpaintModels.length ? (
-                  <Row label={`Your models that can inpaint · ${inpaintModels.length}`} stacked>
+                  <Row label="Your models that can inpaint" stacked>
                     <ModelChips profiles={inpaintModels} />
                   </Row>
                 ) : (
                   <InpaintSuggestions onGetModels={onGetModels} />
                 )}
-                <SettingsDrawer id="set-inpaint-demo" title="Try it" description="Paint on a small scene, then generate">
-                  <InpaintDemo />
-                </SettingsDrawer>
-              </Group>
+                <InpaintDemo />
+              </SettingsDrawer>
             ) : null}
-
-            <Group title="Runs" note="A run is the takes and variations of one idea, found by prompt, model and time. The stack button over the gallery switches this too.">
-              <SwitchRow label="Stack runs" description="Each run folds into one tile that opens into a shelf of its takes." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
-              {prefs.stackRuns ? (
-                <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
-                  <Segmented
-                    label="Stacks look like"
-                    value={prefs.runStackStyle === 'flow' ? 'flow' : 'burst'}
-                    onChange={(next) => setPrefs({ runStackStyle: next })}
-                    options={[
-                      { value: 'burst', label: <><RunStyleGlyph kind="burst" /> Photo</> },
-                      { value: 'flow', label: <><RunStyleGlyph kind="flow" /> Cover flow</> },
-                    ]}
-                  />
-                </Row>
-              ) : null}
-            </Group>
-          </>
+          </Group>
         ) : null}
 
         {section === 'library' ? (
@@ -918,6 +910,22 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
               {features.moments ? <SwitchRow label="Group by time" description="Headings like “This evening” split the gallery into the stretches you spent making things." checked={prefs.showMoments !== false} onChange={(next) => setPrefs({ showMoments: next })} /> : null}
               <SwitchRow label="Wide images take two columns" description="Landscape images span two columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
               <SwitchRow label="Show failed items" description="Interrupted and failed generations stay in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
+            </Group>
+            <Group title="Runs" note="A run is the takes and variations of one idea, found by prompt, model and time. The stack button over the gallery switches this too.">
+              <SwitchRow label="Stack runs" description="Each run folds into one tile that opens into a shelf of its takes." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
+              {prefs.stackRuns ? (
+                <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
+                  <Segmented
+                    label="Stacks look like"
+                    value={prefs.runStackStyle === 'flow' ? 'flow' : 'burst'}
+                    onChange={(next) => setPrefs({ runStackStyle: next })}
+                    options={[
+                      { value: 'burst', label: <><RunStyleGlyph kind="burst" /> Photo</> },
+                      { value: 'flow', label: <><RunStyleGlyph kind="flow" /> Cover flow</> },
+                    ]}
+                  />
+                </Row>
+              ) : null}
             </Group>
             {atComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
             <Group title="Sharing">
