@@ -1,0 +1,49 @@
+/* ---------------------------------------------------------------------------
+   Deck columns
+
+   Between 761px and 1040px the composer still floats with lanes beside it, but
+   the lanes are too narrow for the deck's rows. Rather than lifting the rows
+   above the composer (which left an odd gap under them), each side turns into
+   a column standing on the composer's baseline: Controls with search, autoplay
+   and stack above it on the left, the dock upright on the right. At 760px and
+   below the composer runs edge to edge and the rows ride above it again
+   (17-deck.css).
+
+   Imported last so it outranks the per-button offsets in 31-habit, 11-runs and
+   34-video without extra specificity.
+--------------------------------------------------------------------------- */
+
+@media (min-width: 761px) and (max-width: 1040px) {
+  .app-shell,
+  .zen-shell { --deck-step: calc(var(--deck-h) + 8px); }
+
+  .studio-dock {
+    flex-direction: column;
+    height: auto;
+    bottom: var(--deck-gap);
+  }
+
+  .app-shell .zen-control-button,
+  .zen-shell .zen-control-button { bottom: var(--deck-gap); }
+
+  .app-shell .zen-control-button.gallery-search-button,
+  .app-shell .zen-control-button.grid-autoplay-button,
+  .app-shell .zen-control-button.stack-runs-button,
+  .app-shell:has(.grid-autoplay-button) .zen-control-button.stack-runs-button {
+    left: max(var(--deck-gap), env(safe-area-inset-left));
+  }
+  .app-shell .zen-control-button.gallery-search-button { bottom: calc(var(--deck-gap) + var(--deck-step)); }
+  .app-shell .zen-control-button.grid-autoplay-button,
+  .app-shell .zen-control-button.stack-runs-button { bottom: calc(var(--deck-gap) + 2 * var(--deck-step)); }
+  .app-shell:has(.grid-autoplay-button) .zen-control-button.stack-runs-button { bottom: calc(var(--deck-gap) + 3 * var(--deck-step)); }
+
+  .zen-shell .zen-zoom-dock,
+  .zen-shell .zen-zoom-dock.with-side {
+    flex-direction: column;
+    height: auto;
+    left: max(var(--deck-gap), env(safe-area-inset-left));
+    bottom: calc(var(--deck-gap) + var(--deck-step));
+  }
+
+  .zen-controls { bottom: calc(var(--deck-gap) + var(--deck-step)); }
+}

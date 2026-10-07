@@ -227,8 +227,8 @@
 .prompt-idea.is-surprise:hover { color: hsl(var(--foreground)); }
 .prompt-idea.is-surprise svg { flex: none; transition: rotate 360ms var(--ease-out); }
 .prompt-idea.is-surprise:hover svg { rotate: -20deg; }
-/* Below 1040px the docks rise to sit on the prompt box (17-deck.css); the ideas go above them. */
-@media (max-width: 1040px) {
+/* At 760px and below the docks rise to sit on the prompt box (17-deck.css); the ideas go above them. */
+@media (max-width: 760px) {
   .prompt-ideas { bottom: calc(100% + var(--deck-gap, 18px) + var(--deck-h, 44px) + 10px); }
 }
 /* Narrow windows: the ideas stack, one line each, the dice beside the last. */

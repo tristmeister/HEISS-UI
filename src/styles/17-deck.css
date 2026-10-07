@@ -102,11 +102,11 @@
 .dock-chip.is-cancel .dock-count { background: rgb(255 120 100 / .2); color: #ffd6cf; }
 
 /* ---------------------------------------------------------------- Stacked
-   Below 1040px the lanes beside the composer get too narrow (the composer keeps
-   a 540px minimum, the dock is 216px), so the deck rides just above the
-   composer instead of beside it. Large phones held sideways land here too. */
+   At 760px and below the composer runs edge to edge, so the deck rides just
+   above it instead of beside it. From 761px to 1040px the lanes beside it are
+   too narrow for rows, so the deck stands in columns there (36-deck-columns.css). */
 
-@media (max-width: 1040px) {
+@media (max-width: 760px) {
   .studio-dock,
   .app-shell .zen-control-button,
   .zen-shell .zen-control-button,

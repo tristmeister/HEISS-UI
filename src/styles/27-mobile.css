@@ -211,13 +211,13 @@
 
 /* The deck stacks above the composer at these widths; the image stays clear of
    both instead of running underneath. */
-@media (max-width: 1040px) {
+@media (max-width: 760px) {
   .zen-output { padding-bottom: calc(var(--deck-lift) + var(--deck-h) + 12px); }
 }
 
 /* While a composer menu or its drawer is open on a stacked deck, the dock and
    the controls button step aside rather than showing through the glass. */
-@media (max-width: 1040px) {
+@media (max-width: 760px) {
   :is(.app-shell, .zen-shell):has(.zen-prompt :is(.composer-drawer, .model-menu, .aspect-menu)) :is(.studio-dock, .zen-control-button) {
     opacity: 0;
     pointer-events: none;
