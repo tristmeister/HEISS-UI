@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { families, sanaConf, sanaLatentNode } from './family-catalog.js';
+import { MAX_BATCH, families, sanaConf, sanaLatentNode } from './family-catalog.js';
 import { krea2RawShift } from './model-families.js';
 
 /**
@@ -68,7 +68,7 @@ export function familyGraph(body) {
   const seed = Number(body.seed || crypto.randomInt(1, 2 ** 31));
   const width = Number(body.width || family.size[0]);
   const height = Number(body.height || family.size[1]);
-  const count = Math.max(1, Math.min(8, Number(body.count || 1)));
+  const count = Math.max(1, Math.min(MAX_BATCH, Number(body.count || 1)));
   const frames = Number(body.frames || family.frames || 33);
   const bundled = body.source === "checkpoint" ? (body.bundled || { encoder: true, vae: true }) : { encoder: false, vae: false };
   if (family.sampling === "sana") return sanaGraph({ add, graph, body, variant, seed, width, height, count });
