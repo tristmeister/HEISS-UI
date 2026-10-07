@@ -9,29 +9,38 @@ import { rapidLabel, type RapidStatus } from './rapid.js';
  * for the next run when it is. Hidden for models it isn't for.
  */
 type RapidView = {
-  rapid: { use: boolean; status: RapidStatus };
-  prefs: { rapid?: boolean };
-  setPrefs: (next: { rapid: boolean }) => void;
+  rapid: { use: boolean; guidance: boolean; status: RapidStatus };
+  prefs: { rapid?: boolean; rapidGuidance?: boolean };
+  setPrefs: (next: { rapid: boolean; rapidGuidance: boolean }) => void;
   openSettings?: (section: 'features') => void;
 };
 
-const explainer = 'Starts each picture at half size and finishes it at full size: about twice as fast, with the same detail and memory. A seed frames a little differently with it, so a seed you fix yourself runs without it.';
+const explainer = 'Starts each picture at half size, and drops prompt guidance for the last detail steps, which then cost half: faster, with the same detail and memory. A seed comes out a little differently with it, so a seed you fix yourself runs without it. Each part has its own switch in Settings › Features.';
+
+/** One switch for both parts: on if either is, and it moves both. */
+const umbrella = (prefs: RapidView['prefs']) => prefs.rapid !== false || prefs.rapidGuidance !== false;
+
+/** What the next run gets, in a few words. */
+function onLabel(rapid: RapidView['rapid']) {
+  if (rapid.status !== 'on') return rapidLabel(rapid.status);
+  return rapid.use && rapid.guidance ? 'Half-size start and guidance' : rapid.use ? 'Half-size start' : 'Lighter guidance';
+}
 
 export function SidebarRapidRow({ view }: { view: RapidView }) {
   const { rapid, prefs, setPrefs, openSettings } = view;
   if (rapid.status === 'model') return null;
-  const enabled = prefs.rapid !== false;
+  const enabled = umbrella(prefs);
   return (
-    <div className={cn('rapid-row', rapid.use && 'is-on')}>
+    <div className={cn('rapid-row', rapid.status === 'on' && 'is-on')}>
       <Tip content={explainer}>
         <span className="rapid-row-copy">
           <strong><Zap size={13} aria-hidden="true" /> Rapid</strong>
-          <small>{rapidLabel(rapid.status)}</small>
+          <small>{onLabel(rapid)}</small>
         </span>
       </Tip>
       {rapid.status === 'install'
         ? <button type="button" className="btn is-ghost rapid-row-setup" onClick={() => openSettings?.('features')}>Set up</button>
-        : <Switch size="sm" label="Rapid" checked={enabled} onChange={(next) => setPrefs({ rapid: next })} />}
+        : <Switch size="sm" label="Rapid" checked={enabled} onChange={(next) => setPrefs({ rapid: next, rapidGuidance: next })} />}
     </div>
   );
 }
@@ -48,11 +57,11 @@ export function PhoneRapidRow({ view }: { view: RapidView }) {
       </div>
     );
   }
-  const enabled = prefs.rapid !== false;
+  const enabled = umbrella(prefs);
   return (
     <div className="phone-group">
-      <button type="button" role="switch" aria-checked={enabled} className="phone-row" onClick={() => setPrefs({ rapid: !enabled })}>
-        <Zap size={20} /><span>Rapid<small>{rapid.status === 'on' ? 'About twice as fast, same detail' : rapidLabel(rapid.status)}</small></span>
+      <button type="button" role="switch" aria-checked={enabled} className="phone-row" onClick={() => setPrefs({ rapid: !enabled, rapidGuidance: !enabled })}>
+        <Zap size={20} /><span>Rapid<small>{onLabel(rapid)}</small></span>
         <span className={cn('phone-switch', enabled && 'is-on')} aria-hidden="true"><i /></span>
       </button>
     </div>

@@ -1000,6 +1000,18 @@ export function rapidFor(family, variant) {
   return { ...family.rapid, ...(variant?.rapid || {}) };
 }
 
+/**
+ * HEISS Rapid Guidance for this family: { until }, the noise level where CFG
+ * stops (`rapid.cfgUntil`, else 0.3), or null. Every image family on the
+ * shared graph can use it; it only acts on runs with CFG above 1.
+ */
+export const GUIDANCE_UNTIL = 0.3;
+export function guidanceFor(family, variant) {
+  if (!family || family.kind !== "image") return null;
+  const until = variant?.rapid?.cfgUntil ?? family.rapid?.cfgUntil ?? GUIDANCE_UNTIL;
+  return { until };
+}
+
 export function variantDefaults(variant, name = "", { apple = false } = {}) {
   const steps = variant.stepsFromName ? stepsInName(name) : 0;
   return { ...variant.defaults, ...(steps ? { steps } : null), ...(apple ? variant.apple : null) };

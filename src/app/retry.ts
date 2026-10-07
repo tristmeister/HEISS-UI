@@ -54,6 +54,7 @@ export function retryRequest(item: GalleryItem, options: RetryOptions = {}): Ret
     privateVault: Boolean(item.privateVault),
     // Made with HEISS Rapid: its seed frames that way, so the retry keeps it.
     ...(settings.rapid ? { rapid: true } : {}),
+    ...(settings.rapidGuidance ? { rapidGuidance: true } : {}),
     ...(options.tiledDecode ? { tiledDecode: true } : {})
   };
   const label = options.smaller ? 'Trying again smaller' : options.tiledDecode ? 'Trying again, decoding in tiles' : 'Trying again';

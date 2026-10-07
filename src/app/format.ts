@@ -157,6 +157,7 @@ export function generationDetailEntries(item: GalleryItem): GenerationDetailSect
     add("Scheduler", settings.scheduler);
     add("Seed", settings.seed);
     add("Rapid", settings.rapid ? "On" : settings.rapidSkipped ? `Skipped: ${settings.rapidSkipped}` : "");
+    add("Rapid Guidance", settings.rapidGuidance ? "On" : "");
     if (item.type === "image" && (item.referenceImage || settings.referenceImageName)) add("Denoise", settings.denoise);
   });
   section(item.type === "video" ? "Video" : "Image", (add) => {

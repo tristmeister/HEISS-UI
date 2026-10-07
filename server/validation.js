@@ -3,7 +3,7 @@ import { inferModels } from './models.js';
 import { workflowFor, workflowIds } from './workflow-registry.js';
 import { getCustomWorkflow } from './custom-workflows.js';
 import { inpaintingEnabled } from './features.js';
-import { families, rapidFor } from './family-catalog.js';
+import { families, guidanceFor, rapidFor } from './family-catalog.js';
 
 export function clampNumber(value, fallback, min, max) {
   const number = Number(value);
@@ -108,6 +108,20 @@ export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
   return { at: Number.isFinite(at) && at >= 0.3 && at <= 0.99 ? at : spec.at, smooth };
 }
 
+/**
+ * HEISS Rapid Guidance for this run ({ until }) or null: asked for, ready, and
+ * a run with CFG above 1 (below it there is no second pass to save). Like
+ * Rapid's start, the client applies the seed rule. `rapidCfgUntil` is for the benchmark.
+ */
+export function sanitizeRapidGuidance(input, profile, cfg) {
+  if (input.rapidGuidance !== true || profile.capabilities?.rapidGuidance !== true || !(Number(cfg) > 1)) return null;
+  const family = families[profile.family];
+  const spec = guidanceFor(family, family?.variants.find((item) => item.id === profile.variant));
+  if (!spec) return null;
+  const until = Number(input.rapidCfgUntil);
+  return { until: Number.isFinite(until) && until >= 0 && until <= 1 ? until : spec.until };
+}
+
 function sanitizeFamilyBody(input, info, stats) {
   const kind = input.kind === "video" ? "video" : "image";
   const prompt = String(input.prompt || "").trim();
@@ -142,6 +156,7 @@ function sanitizeFamilyBody(input, info, stats) {
     throw new Error(`${profile.displayName} makes a video from a picture. Add a start image first.`);
   }
   const inpaint = sanitizeInpaint(input, profile, referenceAssets);
+  const cfg = snapNumber(input.cfg, profile.defaults.cfg, c.cfg);
   return {
     kind,
     workflow: profile.workflow,
@@ -169,7 +184,7 @@ function sanitizeFamilyBody(input, info, stats) {
     width: snapInteger(input.width, c.width?.default, c.width),
     height: snapInteger(input.height, c.height?.default, c.height),
     steps: snapInteger(input.steps, profile.defaults.steps, c.steps),
-    cfg: snapNumber(input.cfg, profile.defaults.cfg, c.cfg),
+    cfg,
     denoise: snapNumber(input.denoise, profile.defaults.denoise ?? 1, c.denoise),
     sampler: String(input.sampler || profile.defaults.sampler || ""),
     scheduler: String(input.scheduler || profile.defaults.scheduler || ""),
@@ -184,6 +199,7 @@ function sanitizeFamilyBody(input, info, stats) {
     autoResizeInputs: input.autoResizeInputs !== false,
     inpaint,
     rapid: sanitizeRapid(input, profile, { referenceAssets, inpaint }),
+    rapidGuidance: sanitizeRapidGuidance(input, profile, cfg),
     promptPolicy: null,
     loras: sanitizeLoras(input, info, profile, kind, 8),
     // A retry after the GPU ran out of memory while decoding; only where this ComfyUI has the node.
@@ -285,6 +301,7 @@ export function sanitizeGenerateBody(input = {}, info = {}, stats = {}) {
     autoResizeInputs: input.autoResizeInputs !== false,
     // Rapid is for built-in models only; an imported workflow samples its own way.
     rapid: null,
+    rapidGuidance: null,
     promptPolicy: workflowInfo.promptComposition ? {
       policy: workflowInfo.promptComposition.policy,
       version: workflowInfo.promptComposition.version

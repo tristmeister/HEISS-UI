@@ -1178,7 +1178,7 @@ function App() {
     if (inpaintMask && !activeInpaintMask) setInpaintMask(null);
   }, [inpaintMask, activeInpaintMask]);
   // HEISS Rapid for the next run: the model, the preference and the seed rule (rapid.js).
-  const rapid = rapidState(currentProfile, prefs, seed, rapidSeed, { kind: mode, startImage: composerReferenceAssets.length > 0 || Boolean(canUseStartImage && (startImage || startImageId)), inpaint: Boolean(activeInpaintMask) });
+  const rapid = rapidState(currentProfile, prefs, seed, rapidSeed, { kind: mode, startImage: composerReferenceAssets.length > 0 || Boolean(canUseStartImage && (startImage || startImageId)), inpaint: Boolean(activeInpaintMask), cfg: Number(cfg) });
   const visibleReferenceInputs = referenceInputs.filter((input) => !input.follows
     || composerReferenceAssets.some((item) => item.slot === input.follows || item.slot === input.id));
   const widthMeta = currentProfile?.constraints?.width || {};
@@ -1235,7 +1235,8 @@ function App() {
     mode, model: currentProfile?.model || model, profileId: currentProfile?.id || model, family: currentProfile?.family || '', width, height, steps,
     count: separateRuns ? 1 : estimateCount, runs: separateRuns ? estimateCount : 1, frames: mode === "video" ? frames : 0, revision: runningCount,
     upscale: mode === "image" && prefs.smartUpscale !== false ? autoUpscaleQuality(prefs.autoUpscale) || '' : '', upscaleFaceDetail: Boolean(prefs.upscaleFaceDetail),
-    rapid: rapid.use
+    rapid: rapid.use,
+    guidance: rapid.guidance
   });
   // Every Restart ComfyUI button asks first when it would stop running work.
   useEffect(() => {
@@ -1435,7 +1436,7 @@ function App() {
 
 
   const generationActions = useGenerationActions({
-    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, inpaint: activeInpaintMask ? { mask: activeInpaintMask.dataUrl, strength: inpaintStrength, feather: inpaintFeather } : null, sampler, scheduler, seed, rapid: rapid.use, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
+    active, canUseStartImage, confirmAction, count, currentProfile, denoise, frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode, model, negative, prefs, hiddenSpace, hidden, prompt, referenceAssets: composerReferenceAssets, inpaint: activeInpaintMask ? { mask: activeInpaintMask.dataUrl, strength: inpaintStrength, feather: inpaintFeather } : null, sampler, scheduler, seed, rapid: rapid.use, rapidGuidance: rapid.guidance, setActive, setGallery, upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir: paths.outputDir, generateDisabledReason, comfyOffline: Boolean(comfyStatus.checked && !comfyStatus.connected && !comfyStatus.checking), comfyRestarting: Boolean(comfyStatus.restarting),
     openModelSetup: () => setWorkflowGalleryOpen(true),
     retryComfyStatus,
     refreshModels

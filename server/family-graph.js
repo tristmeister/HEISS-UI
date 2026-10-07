@@ -280,7 +280,7 @@ export function familyGraph(body) {
     // Flux 2's scheduler always runs the full schedule; partial strength keeps its tail.
     if (family.scheduler === "flux2" && denoise < 1) sigmas = [add("SplitSigmasDenoise", { sigmas: [sigmas, 0], denoise }), 1];
     const guider = negative
-      ? add("CFGGuider", { model, positive, negative, cfg: Number(body.cfg || 1) })
+      ? cfgGuider(add, { model, positive, negative, cfg: Number(body.cfg || 1), guidance: body.rapidGuidance })
       : add("BasicGuider", { model, conditioning: positive });
     samples = customSampler(add, { model, seed, sampler: body.sampler || "euler", guider, sigmas, latent, rapid: body.rapid });
   } else if (family.sampling === "pair") {
@@ -290,10 +290,10 @@ export function familyGraph(body) {
     const shared = { noise_seed: seed, steps, cfg: Number(body.cfg || 1), sampler_name: body.sampler || "euler", scheduler: body.scheduler || "simple", positive, negative };
     const high = add("KSamplerAdvanced", { ...shared, model, add_noise: "enable", latent_image: latent, start_at_step: 0, end_at_step: split, return_with_leftover_noise: "enable" });
     samples = [add("KSamplerAdvanced", { ...shared, model: lowModel, add_noise: "disable", latent_image: [high, 0], start_at_step: split, end_at_step: 10000, return_with_leftover_noise: "disable" }), 0];
-  } else if (body.rapid) {
-    // KSampler's own pieces, so Rapid can wrap the sampler: the same noise, guidance and schedule.
+  } else if (body.rapid || body.rapidGuidance) {
+    // KSampler's own pieces, so Rapid can wrap the sampler and the guider: the same noise, guidance and schedule.
     const sigmas = add("BasicScheduler", { model, scheduler: body.scheduler || "simple", steps: Number(body.steps || 20), denoise });
-    const guider = add("CFGGuider", { model, positive, negative: negative || positive, cfg: Number(body.cfg || 1) });
+    const guider = cfgGuider(add, { model, positive, negative: negative || positive, cfg: Number(body.cfg || 1), guidance: body.rapidGuidance });
     samples = customSampler(add, { seed, sampler: body.sampler || "euler", guider, sigmas, latent, rapid: body.rapid });
   } else {
     samples = [add("KSampler", {
@@ -362,6 +362,16 @@ export function ideogram4Preset(steps) {
   if (steps <= 14) return { mu: 0.5, std: 1.75 };
   if (steps >= 36) return { mu: 0, std: 1.5 };
   return { mu: 0, std: 1.75 };
+}
+
+/**
+ * CFG for the whole run, or with `guidance` ({ until }, from validation.js)
+ * HEISS Rapid Guidance: CFG while the noise is high, plain sampling after,
+ * where each step costs half (docs/rapid.md).
+ */
+function cfgGuider(add, { model, positive, negative, cfg, guidance = null }) {
+  if (guidance && cfg > 1) return add("HeissRapidGuidance", { model, positive, negative, cfg, cfg_until: guidance.until });
+  return add("CFGGuider", { model, positive, negative, cfg });
 }
 
 /**

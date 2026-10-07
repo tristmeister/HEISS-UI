@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { MAX_BATCH, checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, rapidFor, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
+import { MAX_BATCH, checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, guidanceFor, rapidFor, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { inpaintingEnabled } from './features.js';
 import { inpaintNodes } from './inpaint.js';
@@ -88,9 +88,10 @@ function canInpaint(family, info, references) {
  * the HEISS UI Nodes pack is missing) or false (not for this family, variant
  * or graph). Families with their own graph or runner never get it.
  */
-export function rapidCapability(family, variant, info, { runner = null } = {}) {
-  if (runner || ownGraphs.has(family.sampling) || family.ownLoaders || !rapidFor(family, variant)) return false;
-  return hasNode(info, "HeissRapid") ? "ready" : "install";
+export function rapidCapability(family, variant, info, { runner = null, part = "start" } = {}) {
+  if (runner || ownGraphs.has(family.sampling) || family.ownLoaders) return false;
+  if (!(part === "guidance" ? guidanceFor(family, variant) : rapidFor(family, variant))) return false;
+  return hasNode(info, part === "guidance" ? "HeissRapidGuidance" : "HeissRapid") ? "ready" : "install";
 }
 
 function canReference(family, info) {
@@ -445,7 +446,8 @@ export function familyProfiles(info, helpers) {
         inpaint: canInpaint(family, info, references),
         // HEISS Rapid: ready to use, or only the HEISS UI Nodes missing (the composer offers the install).
         rapid: rapidCapability(family, variant, info, { runner }) === "ready",
-        rapidInstall: rapidCapability(family, variant, info, { runner }) === "install",
+        rapidGuidance: rapidCapability(family, variant, info, { runner, part: "guidance" }) === "ready",
+        rapidInstall: [rapidCapability(family, variant, info, { runner }), rapidCapability(family, variant, info, { runner, part: "guidance" })].includes("install"),
         frames: family.kind === "video",
         fps: family.kind === "video"
       }

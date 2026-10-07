@@ -615,7 +615,8 @@ app.get("/api/estimate", (req, res) => {
     count: Number(query.count) || 1,
     steps: Number(query.steps) || 0,
     frames: Number(query.frames) || 0,
-    rapid: query.rapid === "1"
+    rapid: query.rapid === "1",
+    rapidGuidance: query.guidance === "1"
   };
   const now = Date.now();
   const estimate = generationEstimate(body, { now });

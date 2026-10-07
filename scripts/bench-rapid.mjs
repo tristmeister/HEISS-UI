@@ -15,6 +15,9 @@
 //   --rapid MODES      off, on (with the smoothing step), fast (without), comma-separated;
 //                      both = off,on · all = off,on,fast (default off)
 //   --rapid-at a,b     switch points to sweep for on/fast (default: each family's own)
+//                      guide = Rapid Guidance only (CFG while the noise is high), no half-size start
+//   --with-guidance    add Rapid Guidance to the on/fast runs too
+//   --cfg-until a,b    guidance cut-off noise levels to sweep for guide runs (default: the family's own)
 //   --sizes WxH,...    (default 1024x1024,1536x1536; snapped to each model's grid)
 //   --seeds n,...      (default 1234567,42)
 //   --prompts a,b      prompt ids from PROMPTS below (default all)
@@ -50,6 +53,7 @@ function args(argv) {
     const key = argv[i];
     const next = () => argv[++i];
     if (key === "--list") out.list = true;
+    else if (key === "--with-guidance") out["with-guidance"] = true;
     else if (key === "--dry") out.dry = true;
     else if (key === "--no-images") out.images = false;
     else if (key.startsWith("--")) out[key.slice(2)] = next();
@@ -92,15 +96,22 @@ if (!chosen.length) {
 const sizes = list(opts.sizes).map((item) => item.split("x").map(Number));
 const seeds = list(opts.seeds);
 const promptIds = list(opts.prompts).length ? list(opts.prompts) : Object.keys(PROMPTS);
-const modeNames = { both: ["off", "on"], all: ["off", "on", "fast"] }[opts.rapid] || list(opts.rapid || "off").filter((mode) => ["off", "on", "fast"].includes(mode));
+const modeNames = { both: ["off", "on"], all: ["off", "on", "fast"] }[opts.rapid] || list(opts.rapid || "off").filter((mode) => ["off", "on", "fast", "guide"].includes(mode));
+const cutoffs = list(opts["cfg-until"]).map(Number).filter((value) => value >= 0 && value <= 1);
 const switchPoints = list(opts["rapid-at"]).map(Number).filter((value) => value >= 0.3 && value <= 0.99);
 // Each run mode: its label, and what the request asks for.
 const modes = modeNames.flatMap((mode) => {
   if (mode === "off") return [{ label: "off", rapid: false }];
+  if (mode === "guide") {
+    return cutoffs.length
+      ? cutoffs.map((until) => ({ label: `guide@${until}`, rapid: false, rapidGuidance: true, rapidCfgUntil: until }))
+      : [{ label: "guide", rapid: false, rapidGuidance: true }];
+  }
   const smooth = mode === "on";
+  const guidance = opts["with-guidance"] ? { rapidGuidance: true } : {};
   return switchPoints.length
-    ? switchPoints.map((at) => ({ label: `${mode}@${at}`, rapid: true, rapidAt: at, rapidSmooth: smooth }))
-    : [{ label: mode, rapid: true, rapidSmooth: smooth }];
+    ? switchPoints.map((at) => ({ label: `${mode}@${at}${guidance.rapidGuidance ? "+g" : ""}`, rapid: true, rapidAt: at, rapidSmooth: smooth, ...guidance }))
+    : [{ label: `${mode}${guidance.rapidGuidance ? "+g" : ""}`, rapid: true, rapidSmooth: smooth, ...guidance }];
 });
 if (!modes.length) {
   console.error("--rapid takes off, on, fast, both or all.");
@@ -115,7 +126,8 @@ const device = stats.devices?.[0] || {};
 const header = {
   date: new Date().toISOString(), heiss: gitCommit, comfyui: stats.system?.comfyui_version || "", pytorch: stats.system?.pytorch_version || "",
   os: stats.system?.os || process.platform, gpu: device.name || "", vramTotalGiB: device.vram_total ? +(device.vram_total / 2 ** 30).toFixed(1) : null,
-  rapidNode: Boolean(info.HeissRapid)
+  rapidNode: Boolean(info.HeissRapid),
+  guidanceNode: Boolean(info.HeissRapidGuidance)
 };
 fs.writeFileSync(path.join(outDir, "machine.json"), JSON.stringify(header, null, 2));
 console.log(`ComfyUI ${header.comfyui} · ${header.gpu} · HEISS ${header.heiss} · Rapid node ${header.rapidNode ? "installed" : "not installed"}`);
@@ -213,6 +225,7 @@ function graphFor(profile, { prompt, seed, width, height, mode = { rapid: false 
   const input = {
     workflow: profile.workflow, profileId: profile.id, model: profile.model, kind: "image",
     prompt, seed, width, height, count: 1, rapid: mode.rapid, rapidAt: mode.rapidAt, rapidSmooth: mode.rapidSmooth,
+    rapidGuidance: mode.rapidGuidance, rapidCfgUntil: mode.rapidCfgUntil,
     ...(opts.steps ? { steps: Number(opts.steps) } : {})
   };
   const body = sanitizeGenerateBody(input, info, stats);
@@ -241,7 +254,7 @@ for (const profile of chosen) {
     continue;
   }
   // A model without Rapid would just rerun the same graph, which ComfyUI answers from its cache in 0.01 s.
-  const profileModes = profile.capabilities?.rapid ? modes : modes.filter((mode) => !mode.rapid);
+  const profileModes = modes.filter((mode) => (!mode.rapid || profile.capabilities?.rapid) && (!mode.rapidGuidance || (profile.capabilities?.rapidGuidance && Number(profile.defaults?.cfg) > 1)));
   if (profileModes.length < modes.length) console.log("  no Rapid for this model: only the off runs");
   for (const [width, height] of sizes) {
     for (const promptId of promptIds) {
@@ -265,10 +278,11 @@ for (const profile of chosen) {
             continue;
           }
           const rapidNode = Object.values(graph).find((node) => node.class_type === "HeissRapid");
+          const guidanceNode = Object.values(graph).find((node) => node.class_type === "HeissRapidGuidance");
           const row = {
             profile: profile.id, model: profile.displayName, family: profile.family, variant: profile.variant,
             width: body.width, height: body.height, steps: body.steps, sampler: body.sampler, scheduler: body.scheduler, cfg: body.cfg,
-            prompt: promptId, seed, rapid: mode.label, rapidInGraph: Boolean(rapidNode), switchAt: rapidNode?.inputs.switch_at ?? null, ...result, images: undefined
+            prompt: promptId, seed, rapid: mode.label, rapidInGraph: Boolean(rapidNode), switchAt: rapidNode?.inputs.switch_at ?? null, cfgUntil: guidanceNode?.inputs.cfg_until ?? null, ...result, images: undefined
           };
           rows.push(row);
           fs.appendFileSync(runsFile, `${JSON.stringify(row)}\n`);

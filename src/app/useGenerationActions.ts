@@ -19,7 +19,7 @@ export function useGenerationActions(view: any) {
   const {
     active, canUseStartImage, confirmAction, count, currentProfile, denoise,
     frames, fps, generateDisabled, generatePostingRef, height, loadGallery, loadGalleryDelta, loras, missingRequiredReference, mode,
-    model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, rapid, setActive, setGallery,
+    model, negative, prefs, hiddenSpace, hidden, prompt, sampler, scheduler, seed, rapid, rapidGuidance, setActive, setGallery,
     upsertGalleryItems, removeGalleryItems, removeGalleryItemsWhere, patchGalleryItems, setStatus, setZenSelectedId, showToast, startImage, startImageId, startImageName, steps, cfg,
     referenceAssets, inpaint, textEncoder, textEncoders, vae, clipType, weightDtype, width, visibleGallery, outputDir, generateDisabledReason, comfyOffline, comfyRestarting, openModelSetup, retryComfyStatus, refreshModels
   } = view;
@@ -159,6 +159,7 @@ export function useGenerationActions(view: any) {
         autoResizeInputs: prefs.autoResizeInputs !== false,
         // HEISS Rapid, as the composer decided it (rapid.js): the model, the preference and the seed rule.
         rapid: Boolean(rapid),
+        rapidGuidance: Boolean(rapidGuidance),
         loras,
         referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
         // A painted mask on the first reference: change only that part.

@@ -1,28 +1,37 @@
-// HEISS Rapid in the composer (docs/rapid.md): whether the next run asks for
-// it, and what the composer says about it. Plain JavaScript so `node --test`
-// can check it without a build step; the types live beside it in rapid.d.ts.
+// HEISS Rapid in the composer (docs/rapid.md): what the next run asks for, and
+// what the composer says about it. Rapid is two parts, switched on and off on
+// their own: the half-size start (HeissRapid) and Rapid Guidance
+// (HeissRapidGuidance: CFG only while the noise is high). Plain JavaScript so
+// `node --test` can check it without a build step; types in rapid.d.ts.
 //
-// Rapid changes how a seed frames, so a fixed seed and Rapid only go together
+// Both change how a seed comes out, so a fixed seed and Rapid only go together
 // when the seed came from a picture made with Rapid ("Use settings"): then the
 // same picture comes back. A seed you typed, or one from a picture made
 // without Rapid, makes the run without it. A random seed always gets it.
 
 /**
- * @param {{ capabilities?: { rapid?: boolean, rapidInstall?: boolean } } | null | undefined} profile
- * @param {{ rapid?: boolean }} prefs
+ * @param {{ capabilities?: Record<string, boolean> } | null | undefined} profile
+ * @param {{ rapid?: boolean, rapidGuidance?: boolean }} prefs
  * @param {string} seed the composer's seed ("" is random)
  * @param {string} rapidSeed the seed "Use settings" restored from a Rapid picture, or ""
- * @param {{ kind?: string, startImage?: boolean, inpaint?: boolean }} [run]
+ * @param {{ kind?: string, startImage?: boolean, inpaint?: boolean, cfg?: number }} [run]
+ * @returns {{ use: boolean, guidance: boolean, status: string }}
  */
 export function rapidState(profile, prefs, seed, rapidSeed, run = {}) {
   const capabilities = profile?.capabilities || {};
-  if (run.kind === "video" || (!capabilities.rapid && !capabilities.rapidInstall)) return { use: false, status: "model" };
-  if (!capabilities.rapid) return { use: false, status: "install" };
-  if (prefs?.rapid === false) return { use: false, status: "off" };
-  if (run.startImage || run.inpaint) return { use: false, status: "image" };
+  const off = (status) => ({ use: false, guidance: false, status });
+  if (run.kind === "video" || (!capabilities.rapid && !capabilities.rapidGuidance && !capabilities.rapidInstall)) return off("model");
+  if (!capabilities.rapid && !capabilities.rapidGuidance) return off("install");
+  const startOn = Boolean(capabilities.rapid) && prefs?.rapid !== false;
+  const guidanceOn = Boolean(capabilities.rapidGuidance) && prefs?.rapidGuidance !== false;
+  if (!startOn && !guidanceOn) return off("off");
   const fixed = String(seed || "").trim();
-  if (fixed && fixed !== String(rapidSeed || "").trim()) return { use: false, status: "seed" };
-  return { use: true, status: "on" };
+  if (fixed && fixed !== String(rapidSeed || "").trim()) return off("seed");
+  // A start picture or a mask sets the layout itself; guidance only saves where there is CFG to save.
+  const use = startOn && !run.startImage && !run.inpaint;
+  const guidance = guidanceOn && Number(run.cfg ?? 2) > 1;
+  if (use || guidance) return { use, guidance, status: "on" };
+  return off(startOn && (run.startImage || run.inpaint) ? "image" : "idle");
 }
 
 /** The composer's word for it. */
@@ -32,6 +41,7 @@ export function rapidLabel(status) {
     off: "Off",
     seed: "Off while the seed is fixed",
     image: "Off with a start image",
+    idle: "Nothing to speed up at CFG 1",
     install: "Needs the HEISS UI Nodes",
     model: "Not for this model"
   }[status] || "";
@@ -39,7 +49,7 @@ export function rapidLabel(status) {
 
 /** The seed "Use settings" should remember for Rapid: the picture's own, when Rapid made it. */
 export function rapidSeedFrom(settings, { vary = false } = {}) {
-  if (vary || !settings?.rapid) return "";
+  if (vary || !(settings?.rapid || settings?.rapidGuidance)) return "";
   const seed = String(settings.seed || "").trim();
   return /^\d+$/.test(seed) ? seed : "";
 }

@@ -20,6 +20,7 @@ export const defaultPrefs: Preferences = {
   runStackStyle: "burst",
   smartUpscale: true,
   rapid: true,
+  rapidGuidance: true,
   hiddenTips: [],
   inpainting: true,
   upscaleQuality: "balanced",

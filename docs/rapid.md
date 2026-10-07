@@ -194,3 +194,16 @@ Where the switch actually happened, from the ComfyUI log:
 - Klein: always at 0.883 (2 of 4 steps small), whatever `at` asks for.
 
 The agent judged 0.6 indistinguishable from off on both models. For these schedules 0.6 and 0.7 land on the same step, so the catalog keeps 0.7.
+
+
+## Rapid Guidance (2026-10-08)
+
+The second part of Rapid, with its own switch: **HEISS Rapid Guidance** (`HeissRapidGuidance`, in the same pack) replaces `CFGGuider`.
+- It keeps CFG while the noise level is at or above `until` (`rapid.cfgUntil` per family, default 0.3).
+- Below that it samples at CFG 1, where ComfyUI skips the second, prompt-less model pass, so those steps cost half.
+- It applies to every image family on the shared graph, but only on runs with CFG above 1. Video, own graphs and runners are left out.
+- It's on by default, with its own switch under Rapid in Settings › Features. The sidebar's Rapid switch moves both parts.
+- The same seed rule applies to both parts.
+- Benchmark: `--rapid guide` (alone), `--with-guidance` (with on/fast), `--cfg-until a,b` (sweep).
+
+The pack moves with HEISS: `update: true` in node-packs.js brings an older installed copy to the pinned commit (one-click install and terminal steps), unless someone has edited it.

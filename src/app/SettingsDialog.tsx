@@ -752,8 +752,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
   // Inpainting ships behind a release switch; while it's off its group stays away.
   const inpaintReleased = Boolean((models as Models | null)?.features?.inpainting);
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
-  const rapidOn = prefs.rapid !== false;
-  const rapidModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapid);
+  const rapidOn = prefs.rapid !== false || prefs.rapidGuidance !== false;
+  const rapidModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapid || profile.capabilities?.rapidGuidance);
   const rapidWaiting = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapidInstall);
   const inpaintOn = prefs.inpainting !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
@@ -874,10 +874,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
               description={!rapidOn ? 'Off' : rapidModels.length ? `On · ${rapidModels.length} of your models` : rapidWaiting.length ? 'On · needs the HEISS UI Nodes' : 'On · no model can yet'}
             >
               <SwitchRow
-                label="Rapid"
-                description="Starts each picture at half size and finishes it at full size: about twice as fast, with the same detail and memory. The noisy first steps only settle the layout, so they don’t need the full size."
-                checked={rapidOn}
+                label="Half-size start"
+                description="Works out the noisy first steps at half size and finishes at full size: they only settle the layout, so they don’t need the full size. Up to about twice as fast, same detail and memory."
+                checked={prefs.rapid !== false}
                 onChange={(next) => setPrefs({ rapid: next })}
+              />
+              <SwitchRow
+                label="Lighter guidance at the end"
+                description="Rapid Guidance: follows the prompt with full strength (CFG) while the picture takes shape, then lets the last detail steps run without it, which halves their cost. Only matters for models that use CFG above 1."
+                checked={prefs.rapidGuidance !== false}
+                onChange={(next) => setPrefs({ rapidGuidance: next })}
               />
               {rapidOn ? (
                 <>

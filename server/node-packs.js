@@ -23,10 +23,12 @@ export const nodePacks = {
     name: "HEISS UI Nodes",
     repository: "https://github.com/tristmeister/ComfyUI-HEISS-UI-Nodes.git",
     folder: "ComfyUI-HEISS-UI-Nodes",
-    commit: "ecacdd4f3e084fab58d72cbba2a4c0195e437236",
-    ref: "main, 2026-10-07",
+    commit: "0918a0b036109a4d74a68933ca8cf18c2ddc9709",
+    ref: "main, 2026-10-08",
     search: "HEISS UI",
-    nodes: ["HeissRapid"]
+    // It grows with HEISS: an installed older copy is updated to `commit` (pack-installer.js).
+    update: true,
+    nodes: ["HeissRapid", "HeissRapidGuidance"]
   },
   seedvr2: {
     name: "SeedVR2 Video Upscaler",

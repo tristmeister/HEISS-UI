@@ -952,7 +952,8 @@ export function generationSettings(body) {
     promptPolicy: body.promptPolicy || null,
     // Made with HEISS Rapid; reusing it with its seed keeps Rapid on, so the same picture comes back.
     ...(body.rapid && body.rapidReport?.active !== false ? { rapid: true } : {}),
-    ...(body.rapid && body.rapidReport?.active === false ? { rapidSkipped: body.rapidReport.reason || "skipped" } : {})
+    ...(body.rapid && body.rapidReport?.active === false ? { rapidSkipped: body.rapidReport.reason || "skipped" } : {}),
+    ...(body.rapidGuidance ? { rapidGuidance: true } : {})
   };
   const loras = Array.isArray(body.loras)
     ? body.loras.filter((item) => item?.enabled !== false && item?.name).slice(0, 8).map((item) => ({

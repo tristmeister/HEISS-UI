@@ -147,6 +147,15 @@ async function installLocally(state, pack) {
         ? `The reviewed version of ${pack.name} (${pack.ref || pack.commit}) is no longer on GitHub, so it wasn’t installed.`
         : error.message);
     }
+  } else if (pack.update && pack.commit && fs.existsSync(path.join(target, ".git"))) {
+    // HEISS's own pack moves with HEISS: an older checkout is brought to the reviewed commit, if nobody edited it.
+    state.step = "Updating the nodes";
+    const head = (await run(state, "git", ["rev-parse", "HEAD"], target)).trim();
+    if (head !== pack.commit) {
+      if ((await run(state, "git", ["status", "--porcelain"], target)).trim()) throw new Error(`${pack.folder} has local changes, so HEISS left it alone. Update it yourself, or remove the folder and install again.`);
+      await run(state, "git", ["fetch", "--quiet", "origin"], target);
+      await run(state, "git", ["-c", "advice.detachedHead=false", "checkout", "--detach", pack.commit], target);
+    }
   }
   if (fs.existsSync(path.join(target, "requirements.txt"))) {
     state.step = "Checking ComfyUI’s PyTorch";

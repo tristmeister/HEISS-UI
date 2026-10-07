@@ -70,7 +70,9 @@ export function packInstallPlan(pack, root = comfyRootDir(), platform = process.
   const clone = `git clone ${pack.repository}`;
   // The reviewed commit (node-packs.js), the same one the one-click install takes.
   const checkout = pack.commit ? `git -C ${pack.folder} checkout --detach ${pack.commit}` : "";
-  const fetchSteps = cloned ? [] : [clone, ...(checkout ? [checkout] : [])];
+  // A pack that moves with HEISS (`update`) is brought to its reviewed commit when an older copy is there.
+  const update = cloned && pack.update && checkout ? [`git -C ${pack.folder} fetch origin`, checkout] : [];
+  const fetchSteps = cloned ? update : [clone, ...(checkout ? [checkout] : [])];
   const commands = [];
   if (win) {
     const exe = python ? `"${python}"` : "python";

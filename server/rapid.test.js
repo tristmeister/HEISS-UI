@@ -10,7 +10,7 @@ process.env.HEISS_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-data-"
 const { familyGraph } = await import("./family-graph.js");
 const { families, rapidFor } = await import("./family-catalog.js");
 const { rapidCapability } = await import("./family-profiles.js");
-const { sanitizeRapid } = await import("./validation.js");
+const { sanitizeRapid, sanitizeRapidGuidance } = await import("./validation.js");
 const { generationSettings } = await import("./gallery-store.js");
 const { addRun, estimateRun } = await import("./generation-timing.js");
 const { parametersText } = await import("./civitai.js");
@@ -141,6 +141,41 @@ test("the A1111 parameters say Rapid made it", () => {
 test("HEISS UI Nodes is a pinned pack like every other", () => {
   const pack = nodePack("heiss");
   assert.match(pack.commit, /^[0-9a-f]{40}$/);
-  assert.deepEqual(pack.nodes, ["HeissRapid"]);
+  assert.deepEqual(pack.nodes, ["HeissRapid", "HeissRapidGuidance"]);
   assert.equal(pack.repository, "https://github.com/tristmeister/ComfyUI-HEISS-UI-Nodes.git");
+});
+
+/* ------------------------------------------------------------ Rapid Guidance */
+
+test("Rapid Guidance takes CFGGuider's place on runs with real CFG, on its own or with the half-size start", () => {
+  const body = { family: "krea2", variant: "raw", source: "unet", model: "k.safetensors", encoders: ["te.safetensors"], vae: "vae.safetensors", prompt: "a cat", negative: "blurry", width: 1024, height: 1024, steps: 28, cfg: 4.5, seed: 1 };
+  const alone = familyGraph({ ...body, rapidGuidance: { until: 0.3 } });
+  assert.equal(byType(alone, "KSampler").length, 0, "KSampler's pieces, so the guider can change");
+  assert.equal(byType(alone, "HeissRapid").length, 0);
+  const [guidanceId, guidance] = one(alone, "HeissRapidGuidance");
+  assert.deepEqual([guidance.inputs.cfg, guidance.inputs.cfg_until], [4.5, 0.3]);
+  assert.deepEqual(one(alone, "SamplerCustomAdvanced")[1].inputs.guider, [guidanceId, 0]);
+  assert.equal(byType(alone, "CFGGuider").length, 0);
+
+  const both = familyGraph({ ...body, rapid, rapidGuidance: { until: 0.3 } });
+  assert.equal(byType(both, "HeissRapid").length, 1);
+  assert.equal(byType(both, "HeissRapidGuidance").length, 1);
+
+  const cfgOne = familyGraph({ ...body, cfg: 1, rapid, rapidGuidance: { until: 0.3 } });
+  assert.equal(byType(cfgOne, "HeissRapidGuidance").length, 0, "CFG 1 has no second pass to save");
+  assert.equal(byType(cfgOne, "CFGGuider").length, 1);
+});
+
+test("validation keeps Rapid Guidance for ready models on runs with CFG above 1", () => {
+  const profile = { kind: "image", family: "sdxl", variant: "standard", capabilities: { rapidGuidance: true } };
+  assert.deepEqual(sanitizeRapidGuidance({ rapidGuidance: true }, profile, 7), { until: 0.3 });
+  assert.equal(sanitizeRapidGuidance({ rapidGuidance: true }, profile, 1), null);
+  assert.equal(sanitizeRapidGuidance({}, profile, 7), null);
+  assert.equal(sanitizeRapidGuidance({ rapidGuidance: true }, { ...profile, capabilities: {} }, 7), null);
+  assert.deepEqual(sanitizeRapidGuidance({ rapidGuidance: true, rapidCfgUntil: 0.5 }, profile, 7), { until: 0.5 });
+  const variant = (familyId, id) => families[familyId].variants.find((item) => item.id === id);
+  assert.equal(rapidCapability(families.sd15, families.sd15.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), "ready", "no half-size start, but guidance works");
+  assert.equal(rapidCapability(families.sdxl, variant("sdxl", "turbo"), {}, { part: "guidance" }), "install");
+  assert.equal(rapidCapability(families.minimax_h3, families.minimax_h3.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), false);
+  assert.equal(rapidCapability(families.wan22_14b, families.wan22_14b.variants[0], { HeissRapidGuidance: {} }, { part: "guidance" }), false);
 });

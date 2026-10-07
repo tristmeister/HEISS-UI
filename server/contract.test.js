@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { families, rapidFor, sanaRunners } from "./family-catalog.js";
+import { families, guidanceFor, rapidFor, sanaRunners } from "./family-catalog.js";
 import { familyGraph } from "./family-graph.js";
 import { nodesFor } from "./family-profiles.js";
 import { nodePacks } from "./node-packs.js";
@@ -171,6 +171,7 @@ function* cases(info) {
         if (family.img2img || family.startImage) yield { name: `${name}, from a start image`, family, variant, source, body: requestFor(familyId, family, variant, source, info, { startImageComfy: "start.png", denoise: 0.6 }) };
         const rapid = rapidFor(family, variant);
         if (rapid) yield { name: `${name}, with Rapid`, family, variant, source, body: requestFor(familyId, family, variant, source, info, { rapid: { ...rapid, smooth: true } }) };
+        if (guidanceFor(family, variant) && !["h3", "ideogram4", "mage", "sana", "pair"].includes(family.sampling)) yield { name: `${name}, with Rapid Guidance`, family, variant, source, body: requestFor(familyId, family, variant, source, info, { cfg: 4, rapidGuidance: { until: 0.3 } }) };
       }
     }
   }
@@ -187,6 +188,11 @@ for (const snapshot of snapshots) {
     min_full_steps: ["INT", { default: 2, min: 1, max: 50 }],
     smooth_switch: ["BOOLEAN", { default: true }]
   } }, output: ["SAMPLER"] };
+  info.HeissRapidGuidance ||= { input: { required: {
+    model: ["MODEL"], positive: ["CONDITIONING"], negative: ["CONDITIONING"],
+    cfg: ["FLOAT", { default: 4, min: 0, max: 100, step: 0.1 }],
+    cfg_until: ["FLOAT", { default: 0.3, min: 0, max: 1, step: 0.01 }]
+  } }, output: ["GUIDER"] };
 
   test(`every built-in graph fits ComfyUI ${version}`, () => {
     const failures = [];

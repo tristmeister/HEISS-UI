@@ -274,6 +274,8 @@ export type Preferences = {
   smartUpscale: boolean;
   /** HEISS Rapid: start pictures at half size on the models that support it (docs/rapid.md). */
   rapid: boolean;
+  /** HEISS Rapid Guidance: CFG only while the noise is high, plain sampling after. */
+  rapidGuidance: boolean;
   /** Setup notes (SetupTipChip) someone chose "Don't show again" for, by id. */
   hiddenTips: string[];
   /** The brush on reference images, for models that can inpaint. Off hides it everywhere. */
