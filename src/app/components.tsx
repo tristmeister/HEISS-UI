@@ -432,14 +432,6 @@ export function familyLabel(profile: Profile | null) {
   return profile.family;
 }
 
-/** A steady hue per family, so its mark reads the same in every list. */
-export function familyHue(profile: Profile) {
-  const key = profile.family === "custom" ? "custom" : profile.familyName || profile.family || "";
-  let hash = 0;
-  for (let index = 0; index < key.length; index += 1) hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
-  return String((hash % 12) * 30 + 12);
-}
-
 /** What an unready model still lacks, in the words the gallery badges use; "" when it can run. */
 export function setupNote(profile: Profile | null) {
   const missing = profile?.missing || [];
@@ -640,11 +632,8 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
                             <span className="model-copy">
                               <strong>{profile.displayName || profile.label}</strong>
                               {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : (
-                                <em>
-                                  {/* The family once, as a coloured mark and its name, instead of a pill beside a line that said it too. */}
-                                  <i className="model-family-mark" style={{ "--family-hue": familyHue(profile) } as React.CSSProperties} aria-hidden="true" />
-                                  {profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}
-                                </em>
+                                // The family once, under the name, instead of a pill beside a line that said it too.
+                                <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>
                               )}
                             </span>
                             <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
