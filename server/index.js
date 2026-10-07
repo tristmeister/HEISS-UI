@@ -2062,6 +2062,11 @@ function cancelOwnJobs() {
   for (const [id, job] of jobs) {
     if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
       if (job.promptId) promptIds.push(job.promptId);
+      // Only upscaling now: its pictures stay, and runJob delivers them once ComfyUI lets go.
+      if (job.keepsPicture) {
+        jobs.set(id, { ...job, status: "canceling" });
+        continue;
+      }
       setTerminalJob(id, { status: "canceled" });
       updateGalleryJob(id, { status: "canceled" });
     }
@@ -2075,11 +2080,6 @@ function freeComfyMemory() {
 
 // Model folders ComfyUI is not reading, and adding them to its extra_model_paths.yaml.
 // HEISS can only look at (and change) the machine it runs on, so a remote ComfyUI gets none of this.
-      // Only upscaling now: its pictures stay, and runJob delivers them once ComfyUI lets go.
-      if (job.keepsPicture) {
-        jobs.set(id, { ...job, status: "canceling" });
-        continue;
-      }
 const comfyIsLocal = () => {
   try { return ["127.0.0.1", "localhost", "::1", "[::1]"].includes(new URL(comfyUrl).hostname); } catch { return false; }
 };
