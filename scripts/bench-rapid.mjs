@@ -9,7 +9,9 @@
 //
 // Options:
 //   --comfy URL        ComfyUI to use (default COMFY_URL or http://127.0.0.1:8188)
-//   --list             print the ready image models and stop
+//   --list             print the ready image models (and every other model file with why it isn't ready) and stop
+//   --type FILE=TYPE   tell HEISS what a file is when it can't tell (as Settings › Models does),
+//                      e.g. --type muse_q8.gguf=krea2/turbo; kept in HEISS's data like the app's own choice
 //   --families a,b     only these families (family-catalog.js ids)
 //   --profiles a,b     only these model profiles (ids from --list)
 //   --rapid MODES      off, on (with the smoothing step), fast (without), comma-separated;
@@ -55,6 +57,7 @@ function args(argv) {
     if (key === "--list") out.list = true;
     else if (key === "--with-guidance") out["with-guidance"] = true;
     else if (key === "--dry") out.dry = true;
+    else if (key === "--type") (out.types ||= []).push(next());
     else if (key === "--no-images") out.images = false;
     else if (key.startsWith("--")) out[key.slice(2)] = next();
   }
@@ -77,11 +80,26 @@ const get = async (pathname) => {
 
 const info = await get("/object_info");
 const stats = await get("/system_stats");
-const profiles = (inferModels(info, stats).profiles || []).filter((item) => item.kind === "image" && item.ready && String(item.workflow).startsWith("family:"));
+if (opts.types?.length) {
+  const { setModelChoice } = await import("../server/model-families.js");
+  for (const entry of opts.types) {
+    const [file, type] = String(entry).split("=");
+    for (const source of ["unet", "checkpoint"]) {
+      try { setModelChoice(source, file, type); console.log(`${file} (${source}) is now ${type}`); } catch { /* not in this folder */ }
+    }
+  }
+}
+const inferred = inferModels(info, stats);
+const profiles = (inferred.profiles || []).filter((item) => item.kind === "image" && item.ready && String(item.workflow).startsWith("family:"));
 
 if (opts.list) {
   for (const p of profiles) console.log(`${p.id}\n    ${p.displayName} · family ${p.family} · variant ${p.variant} · ${p.defaults.steps} steps · ${p.defaults.sampler}/${p.defaults.scheduler} · cfg ${p.defaults.cfg}`);
   if (!profiles.length) console.log("No ready image models. Is ComfyUI running with models installed?");
+  const others = (inferred.modelFiles || []).filter((file) => !profiles.some((p) => p.model === file.name));
+  if (others.length) {
+    console.log("\nNot ready:");
+    for (const file of others) console.log(`  ${file.name} (${file.source}) · ${file.label || "unknown type"} · detected by ${file.via || "nothing"} · ${file.reason || (file.missing || []).join(", ") || "not an image model"}`);
+  }
   process.exit(0);
 }
 
