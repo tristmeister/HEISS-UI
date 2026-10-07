@@ -179,3 +179,18 @@ What this shows:
 - **Flux.2 Klein 9B (4 steps):** text is correct with Rapid and framing changes a lot (corner shot vs front shot). The raindrops on the window come out fewer and softer in some portraits, which is the one detail loss seen so far. The switch-point sweep made identical pictures: with 4 steps, every value lands on the same step (2 small, 2 full), so few-step models can't be tuned through `at`.
 - **On vs fast:** close to identical on both models. At 4–8 steps the smoothing step shows no visible benefit, which backs turning it off below 12 steps.
 - **Qwen-Image 2.1:** not measured yet. Those runs had no Rapid in the graph and came back from ComfyUI's cache.
+
+### Run A/B medians as reported (3070, before the warm-up fix)
+
+| Model | 1024² on / fast | 1536² on / fast |
+|---|---|---|
+| Krea 2 Turbo (8 steps) | 1.21× / 1.39× | 1.39× / 1.65× |
+| Flux.2 Klein 9B (4 steps) | 0.97× / 1.26× | 1.27× / 1.74× |
+
+Below 12 steps HEISS now runs the fast variant (no smoothing step), so these models get the **fast** numbers.
+
+Where the switch actually happened, from the ComfyUI log:
+- Krea: at 0.655 (5 of 8 steps small) for `at` 0.6 and 0.7, and at 0.84 or 0.905 for 0.8 and 0.9.
+- Klein: always at 0.883 (2 of 4 steps small), whatever `at` asks for.
+
+The agent judged 0.6 indistinguishable from off on both models. For these schedules 0.6 and 0.7 land on the same step, so the catalog keeps 0.7.
