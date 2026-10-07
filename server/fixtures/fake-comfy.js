@@ -25,6 +25,8 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
   const deleted = [];
   let down = false;
   let count = 0;
+  // `history(id)`: runs while a /history/:id request is out, before it is answered.
+  const hooks = {};
 
   const json = (res, status, value) => {
     res.writeHead(status, { "content-type": "application/json" });
@@ -52,7 +54,10 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
     }
     if (req.method === "GET" && url.pathname.startsWith("/history/")) {
       const id = decodeURIComponent(url.pathname.slice("/history/".length));
-      json(res, 200, history[id] ? { [id]: history[id] } : {});
+      // The answer as it stands when asked, sent after the test's hook (if any) has run.
+      const answer = history[id] ? { [id]: history[id] } : {};
+      await hooks.history?.(id);
+      json(res, 200, answer);
       return;
     }
     if (req.method === "GET" && url.pathname === "/history") return json(res, 200, history);
@@ -100,6 +105,8 @@ export async function startFakeComfy({ objectInfo = {}, systemStats = {}, versio
     /** Resolves once the job's progress socket is connected. */
     socketFor: (clientId) => new Promise((resolve) => (sockets.has(clientId) ? resolve() : waiting.set(`socket:${clientId}`, resolve))),
     connected: (clientId) => sockets.has(clientId),
+    /** Runs `hook(promptId)` inside every /history/:id request until cleared with null. */
+    onHistory(hook) { hooks.history = hook; },
     /** Stops (or resumes) answering: every route fails with 503 meanwhile. */
     setDown(value) { down = Boolean(value); },
     /** History entries HEISS UI asked ComfyUI to delete. */
