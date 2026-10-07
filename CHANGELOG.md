@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Inpainting, smart upscale in every run, and run stacks
+
 ### Added
 - **Inpainting.** Hover a reference image and press the brush to paint over the
   part that should change, then say what it becomes. Only the painted part is
@@ -18,8 +20,58 @@ version opens with a `> ` summary line, which the update pill shows.
   models (Flux.2, Klein, Qwen-Image 2.1) and every model that can start from an
   image (Z-Image, SDXL, Flux.1 and more), with no extra nodes to install. The
   studio rises out of the prompt bar: a brush, an eraser and a hand, undo, zoom
-  and a brush size on the left. **Inpaint strength** and **Edge softness** are
-  in the sidebar under Advanced once something is painted.
+  and a brush size on the left. **Edge softness**, and **Inpaint strength** for
+  models that start from an image, are in the sidebar under Advanced once
+  something is painted. The model menu marks which models can inpaint, and
+  Settings › Features can switch it off.
+- **Smart upscale.** None, 2K or 4K on top of the size menu (and in the phone's
+  create sheet) upscales new pictures with SeedVR2 as part of the run itself:
+  one ComfyUI job, done on the server, so no page has to stay open. Stopping
+  or a failure during the upscale keeps the picture at its generated size. If
+  the model or nodes for a tier are missing, its tab opens the setup for it.
+- **Upscales say how long they have left.** Upscale times are learned per
+  model and picture size, so a 2K/4K run's countdown and the queue include the
+  upscale, and the upscale ring and buttons count down in seconds.
+- **Runs stack.** Pictures from the same prompt, even one edited a little at a
+  time, are found as a run and fold into one tile once you've stopped working
+  on them: a photo stack or a cover flow, with the count in the corner and the
+  bottom of the tile to skim through. Opening one lays the run out as a shelf;
+  Unstack keeps a run apart for good. Nothing is stored, and the switch by
+  search turns it off.
+- A note above the prompt bar when an active LoRA was made for another model
+  family.
+- A crash log in `data/logs/` (kept a week), and `npm run crash-kit` to load a
+  gallery harder than the app does and see what stops answering. The crash
+  screen names browser extensions or translators that may have tampered with
+  the page.
+
+### Changed
+- **Phone viewer.** Pinch zooms about the picture and follows your fingers,
+  gives like rubber past its limits and springs back below 100%; a swipe or a
+  quick flick slides in the next picture in gallery order, and the ones beside
+  it are loaded ahead. Upscale shows its progress ring and time left there too.
+- **Phone layout reaches the bottom of the screen**, under Safari's toolbar and
+  in the Home Screen app, instead of stopping on a black band. Sheets no longer
+  flash the page behind as they close.
+- **Settings in seven sections** with one restart button: smart upscale,
+  inpainting and run stacks each in their own drawer under Features, the
+  connection status first, feedback and Discord under About.
+- The model menu names each model's family once, under its name, with icons
+  for what it can do (edit from references, inpaint).
+- The start image sits in the sidebar's Basics with its change amount under it.
+- Between 761 and 1040 px wide the deck stands in columns beside the composer.
+- The Images picker stops at 8 for built-in models, the most one run renders.
+
+### Fixed
+- **Gallery export of any size.** Past 4 GB or 65,535 files it writes a ZIP64
+  archive, and it streams each file once instead of holding the whole export
+  in memory.
+- A large gallery scrolls without re-laying itself out on every tick, and at
+  most four thumbnails are built at once instead of dozens.
+- Inpainting with Qwen-Image 2.1 no longer turns the painted part into noise,
+  and edit models no longer leave a ghost band around it.
+- A malformed or oversized request gets a short error instead of a stack trace;
+  prompts are capped at 100,000 characters.
 
 ## [0.16.0] - 2026-10-04
 
