@@ -13,25 +13,14 @@
 </p>
 
 <p align="center">
-  <a href="https://heiss-ui.vercel.app/"><b>Website</b></a>
-  &nbsp;·&nbsp;
-  <a href="#quick-start">Quick start</a>
-  &nbsp;·&nbsp;
-  <a href="#supported-models">Models</a>
-  &nbsp;·&nbsp;
-  <a href="#bring-your-own-workflow">Your own workflows</a>
-  &nbsp;·&nbsp;
-  <a href="#on-your-phone">Phone</a>
-  &nbsp;·&nbsp;
-  <a href="#connect-over-lan">LAN</a>
-  &nbsp;·&nbsp;
-  <a href="#troubleshooting">Help</a>
-  &nbsp;·&nbsp;
-  <a href="https://heiss-ui.vercel.app/board/">Feedback board</a>
-  &nbsp;·&nbsp;
-  <a href="https://discord.gg/Hf7ysvDeGa">Discord</a>
-  &nbsp;·&nbsp;
-  <a href="#faq">FAQ</a>
+  <a href="https://github.com/tristmeister/HEISS-UI/releases/latest"><img src="https://img.shields.io/github/v/release/tristmeister/HEISS-UI?style=flat-square&label=download&labelColor=1a1a1a&color=ff7a3d" alt="Download the latest release" /></a>
+  <a href="https://heiss-ui.vercel.app/"><img src="https://img.shields.io/badge/website-heiss--ui-ff7a3d?style=flat-square&labelColor=1a1a1a" alt="Website" /></a>
+  <a href="https://discord.gg/Hf7ysvDeGa"><img src="https://img.shields.io/badge/discord-join-5865F2?style=flat-square&logo=discord&logoColor=white&labelColor=1a1a1a" alt="Join the Discord" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-444?style=flat-square&labelColor=1a1a1a" alt="MIT license" /></a>
+</p>
+
+<p align="center">
+  <sub><a href="#quick-start">Quick start</a> &nbsp;·&nbsp; <a href="#supported-models">Models</a> &nbsp;·&nbsp; <a href="#bring-your-own-workflow">Workflows</a> &nbsp;·&nbsp; <a href="#troubleshooting">Help</a> &nbsp;·&nbsp; <a href="#faq">FAQ</a></sub>
 </p>
 
 <p align="center">
