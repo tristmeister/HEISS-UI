@@ -202,7 +202,7 @@ The second part of Rapid, with its own switch: **HEISS Rapid Guidance** (`HeissR
 - It keeps CFG while the noise level is at or above `until` (`rapid.cfgUntil` per family, default 0.3).
 - Below that it samples at CFG 1, where ComfyUI skips the second, prompt-less model pass, so those steps cost half.
 - It applies to every image family on the shared graph, but only on runs with CFG above 1. Video, own graphs and runners are left out.
-- It's on by default, with its own switch under Rapid in Settings › Features. The sidebar's Rapid switch moves both parts.
+- It's on by default, with its own switch under Rapid in Settings › Features. The sidebar's Rapid switch is a master switch over both parts (`prefs.rapidAll`); each part keeps its own setting underneath.
 - The same seed rule applies to both parts.
 - Benchmark: `--rapid guide` (alone), `--with-guidance` (with on/fast), `--cfg-until a,b` (sweep).
 
