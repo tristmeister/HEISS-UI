@@ -247,12 +247,23 @@ function UpscaleSheetRow({ item, actions, run }: { item: GalleryItem; actions: P
 function UpscaleBarButton({ item, actions }: { item: GalleryItem; actions: PhoneItemActions }) {
   const running = item.upscale?.status === 'running';
   const clock = useUpscaleClock(item);
+  // The ring, as on a desktop tile: the learned time when there is one, else the step count, else a spinning arc.
+  const stepRatio = item.upscale?.progress?.max ? Math.min(1, Math.max(0, item.upscale.progress.value / item.upscale.progress.max)) : 0;
+  const ratio = clock.ratio ?? (clock.leftMs !== null ? 0 : stepRatio);
   const label = running
     ? clock.leftMs === null ? 'Stop' : clock.leftMs <= 1500 ? 'Almost' : shortLeft(clock.leftMs)
     : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale';
   return (
     <button type="button" className={cn(item.upscaleActive && item.upscale?.url && 'is-on')} aria-label={running ? upscaleTooltip(item, clock.leftMs) : undefined} disabled={actions.upscaleBusy(item)} onClick={() => (running ? actions.cancelUpscale(item) : actions.upscale(item))}>
-      {actions.upscaleBusy(item) ? <RefreshCw size={20} className="spin" /> : running ? <Square size={15} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={21} />}
+      <i className={cn('viewer-phone-upscale', running && 'is-running', running && !ratio && 'is-indeterminate', running && clock.ratio !== null && 'is-timed')}>
+        {actions.upscaleBusy(item) ? <RefreshCw size={18} className="spin" /> : running ? <Square size={11} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={19} />}
+        {running ? (
+          <svg className="viewer-phone-upscale-ring" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
+            <circle className="is-track" cx="15" cy="15" r="14" />
+            <circle cx="15" cy="15" r="14" pathLength={100} strokeDasharray={ratio ? `${ratio * 100} 100` : '25 75'} />
+          </svg>
+        ) : null}
+      </i>
       <span className={cn(running && clock.leftMs !== null && 'is-count')}>{label}</span>
     </button>
   );
@@ -357,6 +368,14 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
   const readings = pending.map((item) => progressReading(item.progress));
   const withSteps = readings.flatMap((reading) => reading.kind === 'steps' ? [reading.ratio] : []);
   const progress = withSteps.length ? withSteps.reduce((sum, ratio) => sum + ratio, 0) / withSteps.length : 0;
+  // The top bar names what is running: an upscale (on its own, or the end of a run) is not a generation.
+  const upscalingCount = gallery.filter((item) => item.upscale?.status === 'running' || (item.status === 'pending' && item.progress?.upscaling)).length;
+  const generatingCount = Math.max(0, runningCount - upscalingCount);
+  const runningLabel = !upscalingCount
+    ? generatingCount === 1 ? 'Generating 1 image' : `Generating ${generatingCount}`
+    : !generatingCount
+      ? upscalingCount === 1 ? 'Upscaling 1 image' : `Upscaling ${upscalingCount}`
+      : `Generating ${generatingCount} · upscaling ${upscalingCount}`;
   const stepLine = pending.length === 1 ? progressLine(pending[0].progress) : withSteps.length ? `${Math.round(progress * 100)}%` : '';
 
   // A finished run shows itself: a small card slides up, tap to open.
@@ -425,7 +444,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
       {runningCount ? (
         <div className="phone-running" role="status">
           <RefreshCw size={14} className="spin" />
-          <span>{runningCount === 1 ? 'Generating 1 image' : `Generating ${runningCount}`}</span>
+          <span>{runningLabel}</span>
           <button type="button" className="phone-pill" onClick={cancelQueue}><CircleStop size={15} /> Stop all</button>
         </div>
       ) : null}

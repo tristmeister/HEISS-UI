@@ -685,6 +685,16 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [active, gallery, mode]);
 
+  // The viewer holds the item it opened with; follow the gallery's copy, so an
+  // upscale starting, ticking and finishing (or a star) shows while it is open.
+  useEffect(() => {
+    setActive((current) => {
+      if (!current) return current;
+      const fresh = gallery.find((item) => item.id === current.id);
+      return fresh && fresh !== current ? fresh : current;
+    });
+  }, [gallery]);
+
   useEffect(() => {
     if (!prefs.zenMode || active || settings) return;
     const zenItems = zenGallery;

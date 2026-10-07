@@ -610,6 +610,39 @@
 .viewer-phone-bar button:active { background: rgb(255 255 255 / .08); }
 .viewer-phone-bar button:disabled { opacity: .45; }
 .viewer-phone-bar button.is-on { color: #0b0b0b; background: #f2f2f2; }
+/* Upscale: the icon in a 30px circle that carries the progress ring while it runs, as on desktop tiles. */
+.viewer-phone-upscale {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -4px 0 -5px;
+  font-style: normal;
+}
+.viewer-phone-upscale svg.viewer-phone-upscale-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  rotate: -90deg;
+  overflow: visible;
+  pointer-events: none;
+}
+.viewer-phone-upscale-ring circle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke-dasharray 400ms var(--ease-out);
+}
+.viewer-phone-upscale-ring circle.is-track { stroke: rgb(255 255 255 / .16); }
+.viewer-phone-upscale.is-timed .viewer-phone-upscale-ring circle { transition: stroke-dasharray 1s linear; }
+.viewer-phone-upscale.is-indeterminate .viewer-phone-upscale-ring { animation: upscale-ring-spin 1.1s linear infinite; }
+.viewer-phone-upscale.is-indeterminate .viewer-phone-upscale-ring circle { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .viewer-phone-upscale.is-indeterminate .viewer-phone-upscale-ring { animation: none; opacity: .5; }
+}
 .viewer-phone-bar button.is-danger { color: #ff9c8a; }
 .scrim .viewer-stage:has(.viewer-phone-bar) .viewer-canvas { padding-bottom: calc(92px + env(safe-area-inset-bottom)); }
 .scrim .viewer-stage:has(.viewer-phone-bar) .viewer-arrow { display: none; } /* swipe steps through */
