@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, Circle
 import { cn, aspectIconStyle } from './format';
 import { familyLabel, setupNote } from './components';
 import { downloadUrl } from './GalleryTile';
-import { autoUpscaleTiers, canUpscaleItem, upscaledWithRun } from './useUpscale';
+import { autoUpscaleTiers, canUpscaleItem, shortLeft, upscaledWithRun, upscaleLeftLine, upscaleTooltip, useUpscaleClock } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { ReferenceSlots } from './ReferenceMediaPicker';
 import { haptic, HapticTarget } from './phoneControls';
@@ -231,6 +231,33 @@ function upscaleLabel(item: GalleryItem) {
   return 'Upscale';
 }
 
+/** The sheet's upscale row; a running upscale says how long is left under its label. Its own component, so the clock re-renders it alone. */
+function UpscaleSheetRow({ item, actions, run }: { item: GalleryItem; actions: PhoneItemActions; run: (action: () => void) => void }) {
+  const running = item.upscale?.status === 'running';
+  const clock = useUpscaleClock(item);
+  return (
+    <button type="button" className="phone-row" disabled={actions.upscaleBusy(item)} onClick={() => run(() => (running ? actions.cancelUpscale(item) : actions.upscale(item)))}>
+      {running ? <Square size={16} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={20} />}
+      <span>{upscaleLabel(item)}{running && clock.leftMs !== null ? <small>{upscaleLeftLine(item, clock.leftMs)}</small> : null}</span>
+    </button>
+  );
+}
+
+/** The viewer bar's upscale button: while running, its label is the time left (the stop square says what a tap does). */
+function UpscaleBarButton({ item, actions }: { item: GalleryItem; actions: PhoneItemActions }) {
+  const running = item.upscale?.status === 'running';
+  const clock = useUpscaleClock(item);
+  const label = running
+    ? clock.leftMs === null ? 'Stop' : clock.leftMs <= 1500 ? 'Almost' : shortLeft(clock.leftMs)
+    : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale';
+  return (
+    <button type="button" className={cn(item.upscaleActive && item.upscale?.url && 'is-on')} aria-label={running ? upscaleTooltip(item, clock.leftMs) : undefined} disabled={actions.upscaleBusy(item)} onClick={() => (running ? actions.cancelUpscale(item) : actions.upscale(item))}>
+      {actions.upscaleBusy(item) ? <RefreshCw size={20} className="spin" /> : running ? <Square size={15} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={21} />}
+      <span className={cn(running && clock.leftMs !== null && 'is-count')}>{label}</span>
+    </button>
+  );
+}
+
 /** What a long press on a tile offers, as one sheet of big labelled rows. */
 export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: GalleryItem | null; onClose: () => void; actions: PhoneItemActions; onSelect?: (item: GalleryItem) => void }) {
   React.useEffect(() => { prefetchShare(item); }, [item]);
@@ -245,11 +272,7 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
               {canShareFiles ? <Share size={20} /> : <Download size={20} />}<span>{canShareFiles ? 'Share or save' : 'Save'}</span>
             </button>
           ) : null}
-          {actions.smartUpscale && canUpscaleItem(item) ? (
-            <button type="button" className="phone-row" disabled={actions.upscaleBusy(item)} onClick={() => run(() => (item.upscale?.status === 'running' ? actions.cancelUpscale(item) : actions.upscale(item)))}>
-              {item.upscale?.status === 'running' ? <Square size={16} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={20} />}<span>{upscaleLabel(item)}</span>
-            </button>
-          ) : null}
+          {actions.smartUpscale && canUpscaleItem(item) ? <UpscaleSheetRow item={item} actions={actions} run={run} /> : null}
           {canStar(item) ? (
             <button type="button" className={cn('phone-row', item.favorite && 'is-starred')} onClick={() => run(() => { haptic('tap'); actions.star(item); })}>
               <Star size={20} fill={item.favorite ? 'currentColor' : 'none'} /><span>{item.favorite ? 'Unstar' : 'Star'}</span><HapticTarget />
@@ -277,12 +300,7 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, co
   return (
     <nav className="viewer-phone-bar" aria-label="Image actions">
       {done ? <button type="button" onClick={() => shareItem(item, actions.showToast)}>{canShareFiles ? <Share size={21} /> : <Download size={21} />}<span>{canShareFiles ? 'Share' : 'Save'}</span></button> : null}
-      {actions.smartUpscale && canUpscaleItem(item) ? (
-        <button type="button" className={cn(item.upscaleActive && item.upscale?.url && 'is-on')} disabled={actions.upscaleBusy(item)} onClick={() => (item.upscale?.status === 'running' ? actions.cancelUpscale(item) : actions.upscale(item))}>
-          {actions.upscaleBusy(item) ? <RefreshCw size={20} className="spin" /> : item.upscale?.status === 'running' ? <Square size={15} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={21} />}
-          <span>{item.upscale?.status === 'running' ? 'Stop' : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale'}</span>
-        </button>
-      ) : null}
+      {actions.smartUpscale && canUpscaleItem(item) ? <UpscaleBarButton item={item} actions={actions} /> : null}
       {item.upscale?.url && !upscaledWithRun(item) ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
       {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Reuse</span></button> : null}
       {canStar(item) ? (

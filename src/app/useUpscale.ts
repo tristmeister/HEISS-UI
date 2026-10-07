@@ -3,6 +3,7 @@ import { ApiError, apiJson } from './api';
 import type { AutoUpscale, GalleryItem, Preferences, UpscaleInstall, UpscaleQuality, UpscaleStatus } from './types';
 import type { ShowToast } from './toast';
 import { mediaUrl } from './mediaUrl';
+import { formatLeft, useRunClock } from './GenerationProgress';
 
 /** The gallery keeps the original as the record; only the view swaps. */
 export function upscaleDisplayUrl(item: GalleryItem) {
@@ -25,6 +26,42 @@ export function upscaledWithRun(item: GalleryItem) {
 export function canUpscaleItem(item: GalleryItem) {
   // Images added from another folder stay where they are, so there is nothing to upscale into.
   return item.status === "done" && item.type === "image" && !item.vaultLocked && !item.library && Boolean(item.url) && !upscaledWithRun(item);
+}
+
+/**
+ * A running upscale's clock: time left and how far along, from what SeedVR2
+ * has taken on this machine before (server/upscale-timing.js). Nulls until
+ * there is an honest estimate, or when the item is not upscaling.
+ */
+export function useUpscaleClock(item: GalleryItem | null | undefined) {
+  return useRunClock(item?.upscale?.status === "running" ? item.upscale.progress : null);
+}
+
+/** "Upscaling · About 20 s left", or "Waiting to upscale" while it is still behind other work. */
+export function upscaleLeftLine(item: GalleryItem, leftMs: number | null) {
+  if (leftMs === null) return "";
+  return `${item.upscale?.progress?.runStartedAt ? "Upscaling" : "Waiting to upscale"} · ${formatLeft(leftMs)}`;
+}
+
+/** "20 s", "2 min": the time left where a label has room for little. */
+export function shortLeft(ms: number) {
+  if (ms <= 1500) return "almost";
+  const seconds = Math.ceil(ms / 1000);
+  return seconds < 60 ? `${seconds} s` : `${Math.round(seconds / 60)} min`;
+}
+
+/** The upscale control's tip, for the tile, the viewer and their labels. */
+export function upscaleTooltip(item: GalleryItem, leftMs: number | null = null) {
+  const state = item.upscale;
+  if (state?.status === "running") {
+    // Time left once this machine has upscaled enough to say; SeedVR2's own count is the fallback.
+    if (leftMs !== null) return `${upscaleLeftLine(item, leftMs)} · click to stop`;
+    const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
+    return `Upscaling${step} · click to stop`;
+  }
+  if (state?.status === "error") return `${state.error || "Upscale failed"}. Click to try again`;
+  if (state?.url) return item.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale";
+  return "Smart upscale";
 }
 
 /** Decimal units, like the Finder and every model setup panel, so one file never shows two sizes. */

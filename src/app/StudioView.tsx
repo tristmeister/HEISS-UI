@@ -18,7 +18,7 @@ import { StackRunsButton } from './StackRunsButton';
 import { runTitle, type Run } from './runs';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
-import { canUpscaleItem, upscaledWithRun } from './useUpscale';
+import { canUpscaleItem, shortLeft, upscaledWithRun, upscaleTooltip, useUpscaleClock } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { ModelFoldersDialog } from './ModelFoldersDialog';
 import { UpscaleNoticePopover } from './UpscaleNotice';
@@ -972,17 +972,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">
                     {upscaleNotices?.get(active.id) ? <UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /> : null}
-                    <Tip content={active.upscale?.status === "running" ? "Upscaling · click to stop" : active.upscale?.url ? (active.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale") : "Smart upscale"}>
-                      <button
-                        className={cn("icon-button", active.upscaleActive && active.upscale?.url && "active")}
-                        aria-label="Smart upscale"
-                        aria-pressed={active.upscale?.url ? Boolean(active.upscaleActive) : undefined}
-                        disabled={upscaleBusyIds?.has(active.id)}
-                        onClick={() => active.upscale?.status === "running" ? cancelUpscale(active) : activateUpscale(active)}
-                      >
-                        {upscaleBusyIds?.has(active.id) ? <RefreshCw size={15} className="spin" /> : active.upscale?.status === "running" ? <Square size={11} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={16} />}
-                      </button>
-                    </Tip>
+                    <ViewerUpscaleButton item={active} busy={Boolean(upscaleBusyIds?.has(active.id))} onCancel={cancelUpscale} onActivate={activateUpscale} />
                     </span>
                   ) : null}
                   {active.upscale?.url && !upscaledWithRun(active) ? (
@@ -1026,5 +1016,30 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     </TileLongPressContext.Provider>
     </HiddenActionsContext.Provider>
     </GenerationPreviewMode.Provider>
+  );
+}
+
+/**
+ * The viewer's upscale button. Its own component, so a running upscale's
+ * clock re-renders this alone each second; the tip and a small count beside
+ * the icon say how long is left once the time is known.
+ */
+function ViewerUpscaleButton({ item, busy, onCancel, onActivate }: { item: GalleryItem; busy: boolean; onCancel: (item: GalleryItem) => void; onActivate: (item: GalleryItem) => void }) {
+  const running = item.upscale?.status === "running";
+  const clock = useUpscaleClock(item);
+  const tip = upscaleTooltip(item, clock.leftMs);
+  return (
+    <Tip content={tip}>
+      <button
+        className={cn("icon-button", item.upscaleActive && item.upscale?.url && "active", running && clock.leftMs !== null && "has-count")}
+        aria-label={running ? tip : "Smart upscale"}
+        aria-pressed={item.upscale?.url ? Boolean(item.upscaleActive) : undefined}
+        disabled={busy}
+        onClick={() => running ? onCancel(item) : onActivate(item)}
+      >
+        {busy ? <RefreshCw size={15} className="spin" /> : running ? <Square size={11} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={16} />}
+        {running && clock.leftMs !== null ? <span className="viewer-upscale-left" aria-hidden="true">{shortLeft(clock.leftMs)}</span> : null}
+      </button>
+    </Tip>
   );
 }

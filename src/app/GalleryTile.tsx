@@ -6,10 +6,10 @@ import { cn } from './format';
 import { Tip } from './components';
 import { GenerationMedia } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
-import { formatLeft, GenerationProgress, useRunClock } from './GenerationProgress';
+import { GenerationProgress } from './GenerationProgress';
 import { FailureTile } from './GenerationFailure';
 import type { GalleryItem } from './types';
-import { canUpscaleItem, upscaleDisplayUrl, upscaledWithRun } from './useUpscale';
+import { canUpscaleItem, upscaleDisplayUrl, upscaledWithRun, upscaleTooltip, useUpscaleClock } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { useHiddenActions } from './hiddenContext';
@@ -60,24 +60,11 @@ export function downloadUrl(item: GalleryItem) {
   return params ? `${url}${url.includes("?") ? "&" : "?"}${params}` : url;
 }
 
-function upscaleTooltip(item: GalleryItem, leftMs: number | null = null) {
-  const state = item.upscale;
-  if (state?.status === "running") {
-    // Time left once this machine has upscaled enough to say; waiting behind other work says that instead.
-    if (leftMs !== null) return `${state.progress?.runStartedAt ? "Upscaling" : "Waiting to upscale"} · ${formatLeft(leftMs)} · click to stop`;
-    const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
-    return `Upscaling${step} · click to stop`;
-  }
-  if (state?.status === "error") return `${state.error || "Upscale failed"}. Click to try again`;
-  if (state?.url) return item.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale";
-  return "Smart upscale";
-}
-
 function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void; onCancelUpscale: (item: GalleryItem) => void; held?: boolean }) {
   const state = item.upscale;
   const running = state?.status === "running";
   // The ring follows the learned time when there is one; SeedVR2's own count jumps in a few big steps.
-  const clock = useRunClock(running ? state?.progress : null);
+  const clock = useUpscaleClock(item);
   const stepRatio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
   const ratio = clock.ratio ?? (clock.leftMs !== null ? 0 : stepRatio);
   const active = Boolean(item.upscaleActive && state?.url);
