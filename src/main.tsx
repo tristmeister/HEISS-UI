@@ -30,7 +30,7 @@ import { useRunSettling } from './app/useRunSettling';
 import { runTitle, type Run } from './app/runs';
 import { useGalleryStore } from './app/useGalleryStore';
 import { emptySearch, searchActive, useFavorites, type GallerySearch } from './app/favorites';
-import { upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/useUpscale';
+import { autoUpscaleQuality, upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/useUpscale';
 import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
@@ -1228,7 +1228,8 @@ function App() {
   const separateRuns = mode === "image" && prefs.variationQueueMode === "separate";
   const generationEstimate = useGenerationEstimate({
     mode, model: currentProfile?.model || model, profileId: currentProfile?.id || model, family: currentProfile?.family || '', width, height, steps,
-    count: separateRuns ? 1 : estimateCount, runs: separateRuns ? estimateCount : 1, frames: mode === "video" ? frames : 0, revision: runningCount
+    count: separateRuns ? 1 : estimateCount, runs: separateRuns ? estimateCount : 1, frames: mode === "video" ? frames : 0, revision: runningCount,
+    upscale: mode === "image" && prefs.smartUpscale !== false ? autoUpscaleQuality(prefs.autoUpscale) || '' : '', upscaleFaceDetail: Boolean(prefs.upscaleFaceDetail)
   });
   // Every Restart ComfyUI button asks first when it would stop running work.
   useEffect(() => {

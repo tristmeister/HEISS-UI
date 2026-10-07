@@ -3,6 +3,7 @@ import { dataDir } from "./gallery-store.js";
 import { readJsonFile, writeJsonFile } from "./json-store.js";
 import { addRestartSample, restartEstimate } from "./restart-insights.js";
 import { addRun, estimateRun, isWarm, timingKey } from "./generation-timing.js";
+import { addUpscale, estimateUpscale } from "./upscale-timing.js";
 
 /**
  * How long things take on this machine, kept only for HEISS UI's own
@@ -17,9 +18,9 @@ function load() {
   if (timings) return timings;
   try {
     const raw = readJsonFile(timingsPath);
-    timings = { restarts: Array.isArray(raw?.restarts) ? raw.restarts : [], runs: Array.isArray(raw?.runs) ? raw.runs : [] };
+    timings = { restarts: Array.isArray(raw?.restarts) ? raw.restarts : [], runs: Array.isArray(raw?.runs) ? raw.runs : [], upscales: Array.isArray(raw?.upscales) ? raw.upscales : [] };
   } catch {
-    timings = { restarts: [], runs: [] };
+    timings = { restarts: [], runs: [], upscales: [] };
   }
   return timings;
 }
@@ -61,4 +62,18 @@ export function recordGeneration(entry) {
   if (runs === current.runs) return;
   timings = { ...current, runs };
   save("generation");
+}
+
+/** What a SeedVR2 upscale should take here; see estimateUpscale. */
+export function upscaleEstimate(params) {
+  return estimateUpscale(load().upscales, params);
+}
+
+/** A finished upscale, from the gallery's arrow or inside a run. Never a Hidden one. */
+export function recordUpscale(entry) {
+  const current = load();
+  const upscales = addUpscale(current.upscales, entry);
+  if (upscales === current.upscales) return;
+  timings = { ...current, upscales };
+  save("upscale");
 }

@@ -14,7 +14,8 @@ import { keptMessage, missedUpscaleState, pairRunOutputs, runUpscaleState } from
 import { writeCivitaiParameters } from './civitai.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 import { remainingMs, RunTimer, slowSteps } from './generation-timing.js';
-import { generationEstimate, generationWarm, recordGeneration } from './timings.js';
+import { generationEstimate, generationWarm, recordGeneration, recordUpscale, upscaleEstimate } from './timings.js';
+import { upscaleLeftMs, upscaleWork } from './upscale-timing.js';
 
 export const jobs = new Map();
 const previewSlots = new Map();
@@ -141,22 +142,47 @@ function applyExecutedOutputPreviews(id, output) {
  */
 const runTimings = new Map();
 
+/**
+ * How long is left of a job, or null when there is nothing honest to say: a
+ * generation by its live steps and learned estimate, plus its Smart upscale
+ * when it has one; an upscale by what SeedVR2 has taken here before
+ * (upscale-timing.js). Once the upscale is running, its own clock is all that is left.
+ */
+function leftMsFor(timing, now = Date.now()) {
+  const up = timing.upscale || null;
+  if (up && !up.estimate?.trusted) return null;
+  if (up?.startAt) return upscaleLeftMs(up.estimate, up.startAt, now);
+  const upscaleMs = up ? up.estimate.totalMs : 0;
+  if (timing.kind === "upscale") return upscaleMs;
+  const generation = timing.timer && timing.timer.runAt !== null
+    ? remainingMs(timing.timer, timing.estimate, now)
+    : timing.estimate?.trusted ? timing.estimate.totalMs : null;
+  return generation === null ? null : generation + upscaleMs;
+}
+
+/** When a job's run started in ComfyUI (its generation, or a lone upscale), or null while it waits. */
+function startedAt(timing) {
+  if (timing.timer && timing.timer.runAt !== null) return timing.timer.runAt;
+  return timing.kind === "upscale" ? timing.upscale?.startAt || null : null;
+}
+
 /** Progress with when the job should end, or without when there is nothing honest to say. */
 function withEta(id, progress, now = Date.now()) {
   const timing = runTimings.get(id);
   const { endsAt: _endsAt, runStartedAt: _runStartedAt, ...plain } = progress || {};
-  // Upscaling, after the picture itself: nothing has timed SeedVR2, so no countdown.
-  if (timing?.upscaling) return { ...plain, upscaling: true };
-  if (!timing?.timer) return plain;
-  const left = remainingMs(timing.timer, timing.estimate, now);
-  if (left === null) return plain;
-  return { ...plain, endsAt: Math.round(now + left), ...(timing.timer.runAt !== null ? { runStartedAt: timing.timer.runAt } : {}) };
+  // The picture is saved and Smart upscale is working on it.
+  const upscaling = timing?.upscaling ? { upscaling: true } : {};
+  if (!timing?.timer) return { ...plain, ...upscaling };
+  const left = leftMsFor(timing, now);
+  if (left === null) return { ...plain, ...upscaling };
+  const started = startedAt(timing);
+  return { ...plain, ...upscaling, endsAt: Math.round(now + left), ...(started !== null ? { runStartedAt: started } : {}) };
 }
 
 /**
  * When each job still waiting in ComfyUI's queue should be done: after the
  * ones ahead of it. The chain stops at the first job whose length is unknown
- * (an upscale, a model without a trusted estimate), since everything behind it
+ * (a model or upscale without a trusted estimate), since everything behind it
  * would be a guess.
  */
 function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
@@ -169,18 +195,21 @@ function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
       known = false;
       continue;
     }
-    if (timing.timer && timing.timer.runAt !== null) {
-      const left = remainingMs(timing.timer, timing.estimate, now);
-      // A run with Smart upscale in it runs on for an unknown time past its estimate.
-      if (left === null || timing.withUpscale) known = false;
+    const left = leftMsFor(timing, now);
+    if (startedAt(timing) !== null || timing.upscale?.startAt) {
+      if (left === null) known = false;
       else cursor = Math.max(cursor, now + left);
+      if (apply && timing.kind === "upscale") timing.onEta?.(left === null ? null : Math.round(now + left));
       continue;
     }
-    const estimate = timing.estimate?.trusted && !timing.withUpscale ? timing.estimate : null;
-    const endsAt = known && estimate ? Math.round(cursor + estimate.totalMs) : null;
+    const endsAt = known && left !== null ? Math.round(cursor + left) : null;
     if (endsAt) cursor = endsAt;
     else known = false;
     if (!apply) continue;
+    if (timing.kind === "upscale") {
+      timing.onEta?.(endsAt);
+      continue;
+    }
     const previous = job.progress?.endsAt;
     if (endsAt ? previous && Math.abs(previous - endsAt) < 2000 : previous === undefined) continue;
     const { endsAt: _endsAt, ...rest } = job.progress || { value: 0, max: 0 };
@@ -189,6 +218,43 @@ function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
     updateGalleryJob(id, { progress }, { persist: false });
   }
   return known ? cursor : null;
+}
+
+/**
+ * An upscale from the gallery's arrow joins the queue's clock: `onEta` hears
+ * when it should be done (or null) whenever that moves by more than a moment.
+ * Returns its clock: `start()` once ComfyUI starts it, `end()` when it is over.
+ */
+export function trackUpscale(jobId, estimate, onEta = () => {}) {
+  let last;
+  const timing = {
+    kind: "upscale",
+    upscale: { estimate, startAt: null },
+    onEta(endsAt) {
+      if (endsAt === last || (endsAt && last && Math.abs(endsAt - last) < 2000)) return;
+      last = endsAt;
+      onEta(endsAt ? { endsAt, ...(timing.upscale.startAt ? { runStartedAt: timing.upscale.startAt } : {}) } : {});
+    }
+  };
+  runTimings.set(jobId, timing);
+  refreshQueueEstimates();
+  return {
+    start(at = Date.now()) {
+      if (timing.upscale.startAt) return;
+      timing.upscale.startAt = at;
+      last = undefined;
+      refreshQueueEstimates();
+    },
+    /** The clock fields for a progress patch. */
+    eta() {
+      return last ? { endsAt: last, ...(timing.upscale.startAt ? { runStartedAt: timing.upscale.startAt } : {}) } : {};
+    },
+    startAt: () => timing.upscale.startAt,
+    end() {
+      runTimings.delete(jobId);
+      refreshQueueEstimates();
+    }
+  };
 }
 
 /** When HEISS's own queue should be clear (now, when empty), or null when a job in it has no known length. */
@@ -277,13 +343,25 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
         // The picture is saved and Smart upscale takes over: from here a stop keeps the picture.
         if (run.pairs?.some((pair) => pair.base === String(data.node))) {
           run.saved.set(String(data.node), data.output);
-          if (timing) timing.upscaling = true;
+          if (timing) {
+            timing.upscaling = true;
+            // The upscale's clock starts with the first picture it can work on.
+            if (timing.upscale) timing.upscale.startAt ??= Date.now();
+          }
           const job = jobs.get(id);
-          if (job && !job.terminalAt) jobs.set(id, { ...job, keepsPicture: true, progress: withEta(id, job.progress) });
+          if (job && !job.terminalAt) {
+            const progress = withEta(id, job.progress);
+            jobs.set(id, { ...job, keepsPicture: true, progress });
+            updateGalleryJob(id, { progress }, { persist: false });
+            refreshQueueEstimates();
+          }
         }
       }
       // Finished: look for the images now rather than at the next poll.
-      if (message.type === "execution_success" || (message.type === "executing" && (data.node === null || data.node === undefined))) run.wake?.();
+      if (message.type === "execution_success" || (message.type === "executing" && (data.node === null || data.node === undefined))) {
+        if (timing?.upscale?.startAt) timing.upscale.endAt ??= Date.now();
+        run.wake?.();
+      }
       // Stopped or failed while upscaling: runJob delivers the saved picture instead.
       if ((message.type === "execution_interrupted" || message.type === "execution_error") && run.saved?.size) {
         run.missed = message.type === "execution_interrupted" ? { canceled: true } : { error: normalizeComfyError(data.exception_message || "") };
@@ -387,7 +465,12 @@ async function runJob(id, body, { prepare = null } = {}) {
     if (embed) prompt = embed.graph;
     const pairs = embed?.pairs || [];
     timing.timer = new RunTimer(prompt, { endNodes: pairs.map((pair) => pair.base) });
-    timing.withUpscale = Boolean(embed);
+    if (embed) {
+      // Its upscale is part of the run's time: learned from every SeedVR2 upscale here (upscale-timing.js).
+      const work = upscaleWork({ width: embed.plan?.estimatedWidth, height: embed.plan?.estimatedHeight, count: (Number(body.count) || 1) * pairs.length });
+      const learn = { quality: embed.quality, model: embed.plan?.model || "", faceDetail: Boolean(embed.faceDetail), work };
+      timing.upscale = { estimate: upscaleEstimate(learn), learn, startAt: null, endAt: null };
+    }
     socket = openProgressSocket(id);
     await waitForSocketOpen(socket);
     sendSocketFeatureFlags(socket);
@@ -432,6 +515,11 @@ async function runJob(id, body, { prepare = null } = {}) {
       const outputs = results.map((result) => result.output);
       const kept = missed ? keptMessage({ canceled: Boolean(missed.canceled), count: outputs.length }) : "";
       const skipped = upscale?.skipped ? { status: "error", quality: upscale.quality, progress: null, error: upscale.skipped } : null;
+      // Every upscale it made teaches the next estimate; a Hidden run never does.
+      const clock = timing.upscale;
+      if (clock?.startAt && !missed && !body.privateVault && results.some((result) => result.upscale)) {
+        recordUpscale({ ...clock.learn, ms: (clock.endAt ?? Date.now()) - clock.startAt, predicted: clock.estimate });
+      }
       if (body.privateVault) {
         const { items, leftBehind } = await storeHiddenOutputs(jobs.get(id)?.vaultKey, outputs, body, gallery.filter((item) => item.jobId === id));
         const key = jobs.get(id)?.vaultKey;

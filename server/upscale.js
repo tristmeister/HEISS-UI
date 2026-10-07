@@ -697,7 +697,8 @@ export function upscaleGraph(body, info = {}) {
     }
   });
   graph["9"] = { class_type: "SaveImage", inputs: { images: ["5", 0], filename_prefix: "heiss-ui/upscale" } };
-  return { graph, plan };
+  // The weight it runs on, which is what its timing is learned by (upscale-timing.js).
+  return { graph, plan: { ...plan, model: dit.file } };
 }
 
 /** A link inside the upscale's own graph, renamed into the run's graph; its LoadImage becomes `source`. */

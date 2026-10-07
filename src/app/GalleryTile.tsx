@@ -6,7 +6,7 @@ import { cn } from './format';
 import { Tip } from './components';
 import { GenerationMedia } from './GenerationPreview';
 import { ElapsedTime } from './ElapsedTime';
-import { GenerationProgress } from './GenerationProgress';
+import { formatLeft, GenerationProgress, useRunClock } from './GenerationProgress';
 import { FailureTile } from './GenerationFailure';
 import type { GalleryItem } from './types';
 import { canUpscaleItem, upscaleDisplayUrl, upscaledWithRun } from './useUpscale';
@@ -60,9 +60,11 @@ export function downloadUrl(item: GalleryItem) {
   return params ? `${url}${url.includes("?") ? "&" : "?"}${params}` : url;
 }
 
-function upscaleTooltip(item: GalleryItem) {
+function upscaleTooltip(item: GalleryItem, leftMs: number | null = null) {
   const state = item.upscale;
   if (state?.status === "running") {
+    // Time left once this machine has upscaled enough to say; waiting behind other work says that instead.
+    if (leftMs !== null) return `${state.progress?.runStartedAt ? "Upscaling" : "Waiting to upscale"} · ${formatLeft(leftMs)} · click to stop`;
     const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
     return `Upscaling${step} · click to stop`;
   }
@@ -74,14 +76,18 @@ function upscaleTooltip(item: GalleryItem) {
 function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void; onCancelUpscale: (item: GalleryItem) => void; held?: boolean }) {
   const state = item.upscale;
   const running = state?.status === "running";
-  const ratio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
+  // The ring follows the learned time when there is one; SeedVR2's own count jumps in a few big steps.
+  const clock = useRunClock(running ? state?.progress : null);
+  const stepRatio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
+  const ratio = clock.ratio ?? (clock.leftMs !== null ? 0 : stepRatio);
   const active = Boolean(item.upscaleActive && state?.url);
+  const tooltip = upscaleTooltip(item, clock.leftMs);
   return (
-    <Tip content={upscaleTooltip(item)}>
+    <Tip content={tooltip}>
       <button
         type="button"
-        className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", busy && "is-busy", held && "is-held")}
-        aria-label={upscaleTooltip(item)}
+        className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", running && clock.ratio !== null && "is-timed", busy && "is-busy", held && "is-held")}
+        aria-label={tooltip}
         aria-pressed={state?.url ? active : undefined}
         aria-disabled={busy}
         onClick={() => { if (!busy) (running ? onCancelUpscale(item) : onUpscale(item)); }}

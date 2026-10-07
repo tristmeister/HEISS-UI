@@ -61,7 +61,8 @@ import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readU
 import { nodePack, nodePacks } from './node-packs.js';
 import { beginComfyRestart, comfyRestartStartedAt, comfyRestarting, finishComfyRestart, lastComfyRestart, noteComfyRestart } from './comfy-restart.js';
 import { failedPacks, loadedPacks, logTextFromRaw, packLabel, restartChanges } from './restart-insights.js';
-import { comfyRestartEstimate, generationEstimate, recordComfyRestart } from './timings.js';
+import { comfyRestartEstimate, generationEstimate, recordComfyRestart, upscaleEstimate } from './timings.js';
+import { upscaleWork } from './upscale-timing.js';
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
@@ -71,7 +72,7 @@ import { convertWithComfyPage, resetComfyPage } from './comfy-page-convert.js';
 import { startWorkflowSetup, undoWorkflowSetup, workflowSetupState } from './workflow-setup.js';
 import { installHistory } from './install-safety.js';
 import { listDownload } from './workflow-models.js';
-import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscaleQualities, upscaleStatus } from './upscale.js';
+import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleQualities, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, startUpscale, toggleUpscaleView } from './upscale-jobs.js';
 import { planRunUpscale } from './run-upscale.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
@@ -625,10 +626,15 @@ app.get("/api/estimate", (req, res) => {
   // Variations run one after another as separate runs: the first as things stand, the rest with the model loaded.
   const runs = Math.max(1, Math.min(8, Number(query.runs) || 1));
   const rest = runs > 1 ? generationEstimate(body, { now, warm: true }) : null;
-  const trusted = estimate?.trusted && (runs === 1 || rest?.trusted);
+  // Smart upscale is part of each run: its time, from the upscales this machine has made, is added to every one.
+  const upscaleQuality = body.kind === "image" && upscaleQualities.includes(query.upscale) ? query.upscale : "";
+  const plan = upscaleQuality ? upscalePlan({ width: body.width, height: body.height, quality: upscaleQuality }) : null;
+  const upscale = plan ? upscaleEstimate({ quality: upscaleQuality, faceDetail: query.faceDetail === "1", work: upscaleWork({ width: plan.estimatedWidth, height: plan.estimatedHeight, count: body.count }) }) : null;
+  const trusted = estimate?.trusted && (runs === 1 || rest?.trusted) && (!plan || upscale?.trusted);
   const clears = queueClearsAt(now);
   const queueMs = clears === null ? null : Math.max(0, clears - now);
-  res.json({ ok: true, ...(trusted ? { ms: estimate.totalMs + (runs - 1) * (rest?.totalMs || 0) } : {}), ...(queueMs ? { queueMs } : {}) });
+  const upscaleMs = upscale?.totalMs || 0;
+  res.json({ ok: true, ...(trusted ? { ms: estimate.totalMs + upscaleMs + (runs - 1) * ((rest?.totalMs || 0) + upscaleMs) } : {}), ...(queueMs ? { queueMs } : {}) });
 });
 
 app.get("/api/stats", async (_req, res) => {

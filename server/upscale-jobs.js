@@ -2,7 +2,9 @@ import crypto from "node:crypto";
 import { comfy, comfyUrl, normalizeComfyError } from "./comfy.js";
 import { cancelPrompt, promptTracker } from "./comfy-queue.js";
 import { gallery, outputsFrom, updateGalleryJob } from "./gallery-store.js";
-import { jobs, setTerminalJob } from "./jobs.js";
+import { jobs, setTerminalJob, trackUpscale } from "./jobs.js";
+import { recordUpscale, upscaleEstimate } from "./timings.js";
+import { upscaleWork } from "./upscale-timing.js";
 import { faceDetailSource, upscaleGraph, upscalePlan } from "./upscale.js";
 import { forgetComfyRun } from "./hidden-traces.js";
 import { releaseHiddenRun, rememberHiddenRun } from "./hidden-runs.js";
@@ -104,7 +106,12 @@ export function hiddenTarget(itemId, key, inputNames = []) {
   };
 }
 
-function watchUpscaleProgress(clientId, target, promptId, alive = () => {}) {
+/**
+ * Listens from before the prompt is queued, so an idle ComfyUI's start is
+ * heard and times the upscale. `run.promptId`, once known, guards against
+ * strays; `run.clock` is the job's place on the queue's clock (jobs.js).
+ */
+function watchUpscaleProgress(clientId, target, run) {
   let socket;
   try {
     socket = new WebSocket(`${comfyUrl.replace(/^http/i, "ws")}/ws?clientId=${encodeURIComponent(clientId)}`);
@@ -116,10 +123,13 @@ function watchUpscaleProgress(clientId, target, promptId, alive = () => {}) {
     try {
       const message = JSON.parse(event.data);
       const data = message.data || {};
-      if (data.prompt_id && data.prompt_id !== promptId) return;
-      alive();
+      if (data.prompt_id && run.promptId && data.prompt_id !== run.promptId) return;
+      run.alive?.();
+      if (message.type === "execution_start" || message.type === "executing" || message.type === "progress") run.clock.start();
+      if (message.type === "execution_success") run.endAt ??= Date.now();
       if (message.type === "progress") {
-        target.patch({ status: "running", progress: { value: Number(data.value || 0), max: Number(data.max || 0) } }, { persist: false });
+        run.progress = { value: Number(data.value || 0), max: Number(data.max || 0) };
+        target.patch({ status: "running", progress: { ...run.progress, ...run.clock.eta() } }, { persist: false });
       }
       if (message.type === "execution_interrupted") {
         target.patch({ status: "canceled", progress: null });
@@ -136,11 +146,24 @@ function watchUpscaleProgress(clientId, target, promptId, alive = () => {}) {
 
 export async function runUpscaleJob(jobId, body, info, target = galleryTarget(body.galleryItemId)) {
   let socket = null;
+  let clock = null;
   try {
     const { graph, plan } = upscaleGraph(body, info);
     target.patch({ status: "running", jobId, quality: plan.quality, faceDetail: Boolean(body.faceDetail), scale: plan.scale, startedAt: new Date().toISOString(), error: "" });
+    // How long it should take, from every SeedVR2 upscale here before (upscale-timing.js).
+    const learn = { quality: plan.quality, model: plan.model || "", faceDetail: Boolean(body.faceDetail), work: upscaleWork({ width: plan.estimatedWidth, height: plan.estimatedHeight }) };
+    const estimate = upscaleEstimate(learn);
+    const run = { promptId: "", alive: null, progress: { value: 0, max: 0 }, endAt: null };
+    clock = trackUpscale(jobId, estimate, (eta) => {
+      if (jobs.get(jobId)?.terminalAt) return;
+      target.patch({ status: "running", progress: { ...run.progress, ...eta } }, { persist: false });
+    });
+    run.clock = clock;
+    socket = watchUpscaleProgress(jobId, target, run);
+    await waitForOpen(socket);
     const hiddenPromptId = target.hidden ? crypto.randomUUID() : "";
     if (hiddenPromptId) target.begin(hiddenPromptId, plan);
+    run.promptId = hiddenPromptId;
     const queued = await comfy("/prompt", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -151,12 +174,14 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
       await cancelPrompt(queued.prompt_id).catch(() => null);
       target.setPromptId?.(queued.prompt_id);
       target.patch({ status: "canceled", progress: null });
+      socket?.close();
       return;
     }
     jobs.set(jobId, { ...jobs.get(jobId), status: "running", promptId: queued.prompt_id });
     target.setPromptId?.(queued.prompt_id);
+    run.promptId = queued.prompt_id;
     const tracker = promptTracker(queued.prompt_id);
-    socket = watchUpscaleProgress(jobId, target, queued.prompt_id, tracker.alive);
+    run.alive = tracker.alive;
     while (true) {
       const state = jobs.get(jobId)?.status;
       if (state === "canceling" || state === "canceled") {
@@ -176,6 +201,9 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
         const outputs = outputsFrom(checked.entry);
         const output = outputs.find((item) => item.type === "image");
         if (!output) throw new Error("The upscale ended without an image.");
+        // Learned from, unless it is Hidden's or its start was never heard.
+        const startAt = clock.startAt();
+        if (startAt && !target.hidden) recordUpscale({ ...learn, ms: (run.endAt ?? Date.now()) - startAt, predicted: estimate });
         await target.finish(output, plan);
         setTerminalJob(jobId, { status: "done", outputs: target.hidden ? [] : [output] });
         socket?.close();
@@ -188,7 +216,18 @@ export async function runUpscaleJob(jobId, body, info, target = galleryTarget(bo
     target.patch({ status: "error", progress: null, error: message });
     setTerminalJob(jobId, { status: "error", error: message });
     socket?.close();
+  } finally {
+    clock?.end();
   }
+}
+
+function waitForOpen(socket) {
+  if (!socket || socket.readyState === WebSocket.OPEN) return Promise.resolve();
+  return new Promise((resolve) => {
+    socket.addEventListener("open", () => resolve(), { once: true });
+    socket.addEventListener("error", () => resolve(), { once: true });
+    setTimeout(resolve, 1200);
+  });
 }
 
 /**
