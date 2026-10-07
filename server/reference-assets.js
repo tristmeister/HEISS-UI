@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import Busboy from "busboy";
-import { comfy, comfyOutputDir, comfyInputDir } from "./comfy.js";
+import { comfy, comfyOutputDir } from "./comfy.js";
 import { dataDir, filterVisibleGallery, gallery, galleryKey, outputFileCandidates } from "./gallery-store.js";
 import { encryptionKeyFromRequest } from "./privacy.js";
 import { readVaultAsset, vaultGalleryItemsForRequest } from "./vault.js";
@@ -12,7 +12,7 @@ import { loadSharp } from "./sharp-loader.js";
 import { prepareInputImage } from "./input-image-sizing.js";
 import { forgetComfyRun } from "./hidden-traces.js";
 import { families } from "./family-catalog.js";
-import { mimeExtension, referenceInputName } from "./reference-names.js";
+import { mimeExtension, referenceInputName, resizedInputName } from "./reference-names.js";
 
 const assetsDir = path.join(dataDir, "reference-assets");
 const filesDir = path.join(assetsDir, "files");
@@ -336,11 +336,11 @@ export async function bytesForReference(req, id) {
   return preferUpscale(original, () => publicGalleryBuffer({ id: url, url, outputName, type: "image" }));
 }
 
-export async function uploadBufferToComfy({ buffer, mime, name }, { unique = false } = {}) {
+export async function uploadBufferToComfy({ buffer, mime, name }, { unique = false, filename: named = "" } = {}) {
   await inspectImage(buffer, mime);
   // Content-named files are shared between runs; a Hidden run gets its own copy,
   // so removing it afterwards can never pull an input out from under another job.
-  const filename = unique ? `heiss-ui-${crypto.randomUUID()}.${mimeExtension(mime)}` : referenceInputName(buffer, mime);
+  const filename = unique ? `heiss-ui-${crypto.randomUUID()}.${mimeExtension(mime)}` : named || referenceInputName(buffer, mime);
   const form = new FormData();
   form.append("image", new Blob([buffer], { type: mime }), filename);
   form.append("type", "input");
@@ -363,11 +363,14 @@ export async function stageReferenceAssets(req, references = [], { unique = fals
       const pixels = generation && generation.autoResizeInputs !== false && !keepOriginal
         ? Number(generation.width) * Number(generation.height) : 0;
       const step = family?.img2img && !family.references ? family.sizeStep || 8 : 1;
-      const bytes = await prepareInputImage(await bytesForReference(req, assetId), { pixels, step });
-      // Remote ComfyUI has no native input-delete endpoint. Reuse content names there
-      // instead of accumulating a new public resized file on every run.
-      const temporary = unique || assetId.startsWith("vault:") || Boolean(bytes.resized && comfyInputDir());
-      const uploaded = await uploadBufferToComfy(bytes, { unique: temporary });
+      const original = await bytesForReference(req, assetId);
+      const bytes = await prepareInputImage(original, { pixels, step });
+      // A Hidden run's copies are its own and go when it ends. Everything else keeps a
+      // stable name (a resized copy: by its original and size), so a repeat run finds
+      // ComfyUI's cache warm instead of loading and encoding it all again.
+      const temporary = unique || assetId.startsWith("vault:");
+      const filename = !temporary && bytes.resized && bytes.width ? resizedInputName(original.buffer, bytes) : "";
+      const uploaded = await uploadBufferToComfy(bytes, { unique: temporary, filename });
       staged.push({ slot, assetId, source: String(reference?.source || ""), ...uploaded, ...(temporary ? { temporary: true } : {}), ...(bytes.width ? { width: bytes.width, height: bytes.height } : {}) });
     }
     return staged;

@@ -1,12 +1,12 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { comfy, comfyOutputDir, comfyRecentlyUnreachable } from "./comfy.js";
+import { comfy, comfyInputDir, comfyOutputDir, comfyRecentlyUnreachable } from "./comfy.js";
 import { dataDir, generationSettings, outputFileCandidates, promptTitle } from "./gallery-store.js";
 import { encryptionKeyFromRequest, passwordWrapForBackup } from "./privacy.js";
 import { renameWithRetry } from "./json-store.js";
 import { isInside } from "./paths.js";
-import { referenceInputName } from "./reference-names.js";
+import { referenceInputName, resizedInputPrefix } from "./reference-names.js";
 import {
   applyBundlesToItems,
   createBundleRecords,
@@ -509,12 +509,24 @@ export async function hideItems(key, items) {
     moved: moved.map(viewItem),
     movedFrom: prepared.map(({ item }) => item),
     // Copies an earlier run left in ComfyUI's input folder when it used these as a reference.
-    inputNames: prepared.flatMap(({ original, upscale }) => [original, upscale].filter(Boolean).map((bytes) => referenceInputName(bytes.buffer, bytes.mime))),
+    inputNames: prepared.flatMap(({ original, upscale }) => [original, upscale].filter(Boolean).flatMap((bytes) => [referenceInputName(bytes.buffer, bytes.mime), ...resizedCopies(bytes.buffer)])),
     failed,
     leftBehind,
     // Items recovered from ComfyUI's history carry its prompt id as their job id; for the rest it is harmless.
     promptIds: prepared.flatMap(({ item }) => [item.promptId, item.jobId]).filter(Boolean)
   };
+}
+
+/** The resized copies runs left of a picture in a local ComfyUI's input folder (reference-names.js). */
+function resizedCopies(buffer) {
+  const dir = comfyInputDir();
+  if (!dir) return [];
+  const prefix = resizedInputPrefix(buffer);
+  try {
+    return fs.readdirSync(dir).filter((name) => name.startsWith(prefix));
+  } catch {
+    return [];
+  }
 }
 
 function safeOutputName(name) {

@@ -27,7 +27,7 @@ test("non-image uploads are rejected", async () => {
   await assert.rejects(() => referenceAssets.saveUploadedReference({ buffer: Buffer.from("not an image"), name: "fake.png", mime: "image/png" }));
 });
 
-test("staging resizes every slot before upload, keeps originals, and isolates temporary copies", async (t) => {
+test("staging resizes every slot before upload, keeps originals, and names resized copies stably", async (t) => {
   const source = await sharp({ create: { width: 3000, height: 4000, channels: 4, background: { r: 30, g: 60, b: 90, alpha: 0.4 } } }).png().toBuffer();
   const asset = await referenceAssets.saveUploadedReference({ buffer: source, name: "portrait.png", mime: "image/png" });
   const uploads = [];
@@ -40,9 +40,11 @@ test("staging resizes every slot before upload, keeps originals, and isolates te
   const generation = { family: "sdxl", width: 1024, height: 1024 };
   const staged = await referenceAssets.stageReferenceAssets({}, refs, { generation });
   assert.equal(staged.length, 2);
-  assert.notEqual(staged[0].comfyName, staged[1].comfyName, "parallel runs must not share deletable resized files");
+  // Named by the original and the size, so the next run hits ComfyUI's cache; nothing deletes it under another run.
+  assert.equal(staged[0].comfyName, staged[1].comfyName);
+  assert.match(staged[0].comfyName, /^heiss-ui-reference-[0-9a-f]{32}-\d+x\d+\.png$/);
   for (const item of staged) {
-    assert.equal(item.temporary, true);
+    assert.equal(item.temporary, undefined);
     assert.ok(item.width * item.height <= 1024 ** 2);
     assert.equal(item.width % 8, 0);
     assert.equal(item.height % 8, 0);
@@ -59,16 +61,19 @@ test("staging resizes every slot before upload, keeps originals, and isolates te
   const painted = await referenceAssets.stageReferenceAssets({}, refs, { generation: { ...generation, inpaint: { mask: "painted" } } });
   assert.equal(painted[0].temporary, undefined);
   assert.deepEqual(uploads.at(-2).buffer, source, "inpaint source and mask retain their coordinate system");
-  assert.equal(painted[1].temporary, true, "additional references still resize");
+  assert.ok(painted[1].width * painted[1].height <= 1024 ** 2, "additional references still resize");
   delete process.env.COMFY_INPUT_DIR;
   const remote = await referenceAssets.stageReferenceAssets({}, refs, { generation });
-  assert.equal(remote[0].comfyName, remote[1].comfyName, "remote runs reuse content-named resized uploads");
+  assert.equal(remote[0].comfyName, staged[0].comfyName, "remote runs use the same stable names");
   assert.equal(remote[0].temporary, undefined);
+  const hidden = await referenceAssets.stageReferenceAssets({}, refs, { generation, unique: true });
+  assert.notEqual(hidden[0].comfyName, hidden[1].comfyName, "a Hidden run gets its own copies, removed after it");
+  assert.equal(hidden[0].temporary, true);
   process.env.COMFY_INPUT_DIR = temporary;
   referenceAssets.deleteUploadedReference(asset.id);
 });
 
-test("failed staging removes already-uploaded temporary copies", async (t) => {
+test("failed staging removes a Hidden run's already-uploaded copies", async (t) => {
   const buffer = await sharp({ create: { width: 2000, height: 2000, channels: 3, background: "#334455" } }).png().toBuffer();
   const asset = await referenceAssets.saveUploadedReference({ buffer, name: "rollback.png", mime: "image/png" });
   let uploadedFile;
@@ -80,7 +85,7 @@ test("failed staging removes already-uploaded temporary copies", async (t) => {
   });
   await assert.rejects(() => referenceAssets.stageReferenceAssets({}, [
     { slot: "start", assetId: asset.id }, { slot: "reference", assetId: "gone" }
-  ], { generation: { width: 512, height: 512 } }));
+  ], { generation: { width: 512, height: 512 }, unique: true }));
   assert.ok(uploadedFile);
   assert.equal(fs.existsSync(uploadedFile), false);
   referenceAssets.deleteUploadedReference(asset.id);
