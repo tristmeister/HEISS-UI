@@ -68,7 +68,7 @@ import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
 import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleQualities, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, startUpscale, toggleUpscaleView } from './upscale-jobs.js';
-import { planRunUpscale } from './run-upscale.js';
+import { dropsAutoUpscale, planRunUpscale } from './run-upscale.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
 import { describeGitError, updateCheckout } from './git-update.js';
@@ -1659,6 +1659,7 @@ app.post("/api/generate", async (req, res) => {
     body.width = startSize.width;
     body.height = startSize.height;
   }
+  if (body.autoUpscale && dropsAutoUpscale({ inpaint: body.inpaint, referencesFamily: inputFamily?.references, hasReference: Boolean(startSize) })) body.autoUpscale = null;
   // Every image this run handed ComfyUI: all of them go after a Hidden run, and
   // after a normal one, temporary resized copies and any Hidden references.
   const staged = (body.referenceAssets || []).filter((item) => item.comfyName);
