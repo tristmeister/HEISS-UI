@@ -9,6 +9,8 @@
 .phone-shell {
   position: fixed;
   inset: 0;
+  /* Down over the strip a Home Screen app's window stops short of (use-keyboard-inset.ts). */
+  bottom: calc(-1 * var(--pwa-gap, 0px));
   overflow: hidden;
   background: #0a0a0a;
   color: hsl(var(--foreground));
@@ -226,6 +228,7 @@
 .phone-sheet-backdrop {
   position: fixed;
   inset: 0;
+  bottom: calc(-1 * var(--pwa-gap, 0px));
   z-index: 60;
   padding: 0;
   border: 0;
@@ -235,11 +238,11 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--kb-inset, 0px);
+  bottom: calc(var(--kb-inset, 0px) - var(--pwa-drop, 0px));
   z-index: 61;
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - var(--kb-inset, 0px));
+  max-height: calc(100dvh + var(--pwa-drop, 0px) - max(20px, env(safe-area-inset-top)) - var(--kb-inset, 0px));
   padding-bottom: max(10px, env(safe-area-inset-bottom));
   border-radius: 24px 24px 0 0;
   background: #151515;
@@ -247,7 +250,7 @@
   color: hsl(var(--foreground));
   outline: none;
 }
-.phone-sheet.is-full { height: calc(100dvh - max(12px, env(safe-area-inset-top)) - var(--kb-inset, 0px)); }
+.phone-sheet.is-full { height: calc(100dvh + var(--pwa-drop, 0px) - max(12px, env(safe-area-inset-top)) - var(--kb-inset, 0px)); }
 .phone-sheet-grab { flex: none; touch-action: none; }
 .phone-sheet-handle {
   width: 40px;

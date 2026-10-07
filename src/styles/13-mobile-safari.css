@@ -26,6 +26,8 @@ body {
   width: 100%;
   height: 100dvh;
 }
+/* The viewer reaches over the strip a Home Screen app's window stops short of (use-keyboard-inset.ts). */
+.scrim { height: calc(100dvh + var(--pwa-gap, 0px)); }
 
 .stage-gallery,
 .cover-flow-track {
