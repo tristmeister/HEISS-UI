@@ -133,7 +133,7 @@
   margin-top: auto;
   display: grid;
   gap: 2px;
-  padding: 12px;
+  padding: 9px 11px 10px;
   border: 0;
   border-radius: var(--r-item);
   background: var(--ember-soft);
@@ -144,27 +144,28 @@
 }
 .set-nav-feedback:hover { background: rgb(255 154 82 / .22); }
 .set-nav-feedback:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.set-nav-feedback strong { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+.set-nav-feedback strong { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
 .set-nav-feedback strong::before { content: ""; width: 6px; height: 6px; background: var(--ember); box-shadow: var(--ember-glow); }
-.set-nav-feedback span { color: hsl(var(--muted-foreground)); font-size: 11.5px; line-height: 1.4; }
-/* The Discord, the same quiet shape just above it. */
+.set-nav-feedback span { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.4; }
+/* The Discord: a single slim line just above it, so the board card stays the main one. */
 .set-nav-discord {
   margin-top: auto;
-  display: grid;
-  gap: 2px;
-  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
   border-radius: var(--r-item);
-  background: rgb(88 101 242 / .12);
-  color: hsl(var(--foreground));
+  background: rgb(88 101 242 / .1);
+  color: hsl(var(--foreground) / .85);
+  font-size: 12px;
+  font-weight: 550;
   text-decoration: none;
-  transition: background var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast);
 }
-.set-nav-discord:hover { background: rgb(88 101 242 / .2); }
+.set-nav-discord:hover { background: rgb(88 101 242 / .18); color: hsl(var(--foreground)); }
 .set-nav-discord:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.set-nav-discord strong { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; }
-.set-nav-discord strong svg { margin-left: -2px; color: #8c9eff; }
-.set-nav-discord span { color: hsl(var(--muted-foreground)); font-size: 11.5px; line-height: 1.4; }
-.set-nav-discord + .set-nav-feedback { margin-top: 6px; }
+.set-nav-discord svg { flex: none; color: #8c9eff; }
+.set-nav-discord + .set-nav-feedback { margin-top: 4px; }
 @media (max-width: 720px) { .set-nav-feedback, .set-nav-discord { display: none; } }
 
 /* ------------------------------------------------------ Crash screen */
