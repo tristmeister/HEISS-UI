@@ -845,6 +845,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
         ) : null}
 
         {section === 'features' ? (
+          <>
           <Group>
             <SettingsDrawer id="set-feature-upscale" title="Smart upscale" description={upscaleOn ? `On · ${upscaleState.label}` : 'Off'}>
               <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
@@ -872,8 +873,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                 </>
               ) : null}
             </SettingsDrawer>
+          </Group>
 
-            {inpaintReleased ? (
+          {inpaintReleased ? (
+            <Group>
               <SettingsDrawer id="set-feature-inpaint" title={<>Inpainting<BetaTag /></>} description={!inpaintOn ? 'Off' : inpaintModels.length ? `On · ${inpaintModels.length} of your models can` : 'On · no model can yet'}>
                 <SwitchRow label="Inpainting" description="A brush in a start or reference image’s menu: paint over part of it and only that part changes. Off hides the brush everywhere." checked={inpaintOn} onChange={(next) => setPrefs({ inpainting: next })} />
                 {inpaintOn ? (
@@ -890,8 +893,9 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                   </>
                 ) : null}
               </SettingsDrawer>
-            ) : null}
-          </Group>
+            </Group>
+          ) : null}
+          </>
         ) : null}
 
         {section === 'library' ? (
