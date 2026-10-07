@@ -30,3 +30,4 @@ data
 
 # Pinokio downloads the runnable source checkout here.
 /app/
+bench-results/
