@@ -438,7 +438,11 @@ Rather talk it through? **[Join the Discord](https://discord.gg/Hf7ysvDeGa)** fo
 
 From the app, **Settings › About** sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
 
-When `DISCORD_BOARD_WEBHOOK_URL` is configured as a server-only Vercel Secret, the board keeps one roadmap summary message current in the Discord channel connected to that webhook. It refreshes when cards are added, edited, reordered or removed; the board remains the full source of truth.
+The board mirrors itself into Discord through two optional webhooks, set as server-only Vercel env vars. The board stays the source of truth, and a Discord outage never blocks it.
+
+- `DISCORD_BOARD_WEBHOOK_URL` keeps one **roadmap** message current: in progress, up next, recently shipped and most wanted, with live relative times and buttons to post. Best in a read-only `#roadmap` channel.
+- `DISCORD_BOARD_FEED_WEBHOOK_URL` posts what happens on the board. Pointed at a **forum channel**, every post gets its own thread with status changes, maintainer answers, comments and vote milestones, and people follow a thread to get pinged when it moves. The board links each post to its thread (**Follow on Discord**). Pointed at a text channel, it posts one line per new post, status change, maintainer answer or milestone.
+- `DISCORD_BOARD_FORUM_TAGS` (optional) tags new threads by type: `bug=<tag id>,idea=<tag id>,question=<tag id>`.
 
 ## FAQ
 

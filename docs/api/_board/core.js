@@ -186,9 +186,11 @@ async function readBody(request) {
 
 /**
  * Handles one request. `store` is from store.js (null when the board isn't
- * set up), `env` holds BOARD_ADMIN_PASSWORD and friends.
+ * set up), `env` holds BOARD_ADMIN_PASSWORD and friends. `onEvent` hears what
+ * changed (created, updated, commented, voted, arranged, deleted) and `links`
+ * adds places to follow a post elsewhere; neither can fail a request.
  */
-export async function handle(request, { store, env = {}, now = () => Date.now() } = {}) {
+export async function handle(request, { store, env = {}, now = () => Date.now(), onEvent = null, links = null } = {}) {
   if (request.method === "OPTIONS") {
     return new Response(null, {
       status: 204,
@@ -218,6 +220,13 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
     const [max, seconds] = RATES[action];
     if (!(await store.hit(rateKey(request, action, salt), max, seconds))) throw new Problem(429, "That’s a lot at once. Try again in a while.");
   };
+  const emit = async (event) => {
+    try {
+      await onEvent?.(event);
+    } catch (error) {
+      console.error(`board: ${event.type} listener failed:`, error?.message || error);
+    }
+  };
   const needAdmin = () => {
     if (!admin) throw new Problem(401, "Sign in as admin first.");
     if (!sameOrigin(request)) throw new Problem(403, "Not from this page.");
@@ -230,7 +239,8 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
       if (cardId) {
         const found = await store.get(cardId, voter);
         if (!found) throw new Problem(404, "That post is gone.");
-        return reply(200, { ok: true, admin, ...found });
+        const elsewhere = links ? await Promise.resolve(links(cardId)).catch(() => ({})) : {};
+        return reply(200, { ok: true, admin, ...found, links: elsewhere || {} });
       }
       const { cards, voted } = await store.list(voter);
       if (url.searchParams.get("view") === "summary") {
@@ -263,6 +273,7 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
         // Posting from the board counts as the author's upvote; the app has no board cookie.
         let votes = 0;
         if (card.source === "web" && sameOrigin(request)) votes = await store.vote(card.id, needVoter(), true);
+        await emit({ type: "created", card: { ...card, votes, comments: 0 } });
         return reply(201, { ok: true, card: { ...card, votes, comments: 0 } });
       }
 
@@ -272,6 +283,7 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
         if (!card) throw new Problem(404, "That post is gone.");
         await limit("vote");
         const votes = await store.vote(card.id, needVoter(), body.on !== false);
+        await emit({ type: "voted", card, votes, on: body.on !== false });
         return reply(200, { ok: true, id: card.id, votes, voted: body.on !== false });
       }
 
@@ -292,6 +304,7 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
         };
         needVoter();
         const count = await store.addComment(card.id, comment);
+        await emit({ type: "commented", card, comment });
         return reply(201, { ok: true, comment, comments: count });
       }
 
@@ -315,6 +328,7 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
         if (!card) throw new Problem(404, "That post is gone.");
         const next = applyPatch(card, body.patch || {}, now());
         await store.save(next);
+        await emit({ type: "updated", before: card, card: next });
         return reply(200, { ok: true, card: next });
       }
 
@@ -328,12 +342,15 @@ export async function handle(request, { store, env = {}, now = () => Date.now() 
         const order = new Map(ids.map((cardId, index) => [cardId, index]));
         const moved = found.map((card) => ({ ...card, type: body.type, pos: order.get(card.id), updatedAt: card.type === body.type ? card.updatedAt : at }));
         await store.saveMany(moved);
+        await emit({ type: "arranged", cards: moved });
         return reply(200, { ok: true, cards: moved.map(({ id, type, pos }) => ({ id, type, pos })) });
       }
 
       case "delete": {
         needAdmin();
+        const card = await store.raw(String(body.id || ""));
         await store.remove(String(body.id || ""));
+        if (card) await emit({ type: "deleted", card });
         return reply(200, { ok: true });
       }
 
