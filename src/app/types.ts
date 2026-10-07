@@ -79,7 +79,10 @@ export type GenerationFailure = {
 };
 export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; /** A stacked run standing in for its outputs (zen's strip). */ run?: Run; /** Starred. */ favorite?: boolean; /** Added from another folder and shown where it is (server/library.js). */ library?: { folder: string; path: string } };
 export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[]; /** Its pictures were kept without their Smart upscale, and why, for a toast. */ kept?: string };
-export type TouchGesture = { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; moved: boolean } | { mode: "pan"; id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | { mode: "pinch"; distance: number; zoom: number; panX: number; panY: number; centerX: number; centerY: number; moved: boolean };
+export type TouchGesture =
+  | { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; axis: "x" | "y" | null; velocity: import("./viewerGesture").Velocity; moved: boolean }
+  | { mode: "pan"; id: number; x: number; y: number; zoom: number; pan: { x: number; y: number }; current: { x: number; y: number }; geometry: import("./viewerGesture").ViewerGeometry | null; velocity: import("./viewerGesture").Velocity; moved: boolean }
+  | { mode: "pinch"; distance: number; zoom: number; pan: { x: number; y: number }; center: { x: number; y: number }; last: { x: number; y: number }; current: { zoom: number; pan: { x: number; y: number } }; geometry: import("./viewerGesture").ViewerGeometry | null; moved: boolean };
 export type SelectOption = { label: string; value: string };
 export type Profile = {
   id: string;

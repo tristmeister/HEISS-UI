@@ -851,8 +851,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { resumeHiddenSetup.current = true; hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
       {active ? (() => {
-        const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
-        const hasNeighbors = viewerItems.length > 1;
+        const hasNeighbors = ((view.viewerGallery || []) as GalleryItem[]).length > 1;
         return (
           <div className="scrim" role="dialog" aria-modal="true" aria-label="Image viewer" data-focus-trap tabIndex={-1} onClick={(event) => {
             if (event.target !== event.currentTarget) return;
