@@ -132,16 +132,26 @@
 
 /* ------------------------------------------------------------- Gallery */
 
+/* The gallery runs the full screen height (lvh), under Safari's glass toolbar,
+   like a page that scrolls itself; the shell and its bars stay in the visible
+   part (dvh). Fixed, so it is not clipped by the shell or scrolls the page.
+   The extra bottom padding is the toolbar's height, so the last row can still
+   scroll clear of it. */
 .phone-gallery {
-  position: absolute;
-  inset: 0;
+  --under-bar: calc(100lvh - 100dvh);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100lvh;
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   padding:
     calc(max(6px, env(safe-area-inset-top)) + 56px)
     max(6px, env(safe-area-inset-right))
-    calc(max(12px, env(safe-area-inset-bottom)) + 96px)
+    calc(max(12px, env(safe-area-inset-bottom)) + 96px + var(--under-bar))
     max(6px, env(safe-area-inset-left));
 }
 .phone-shell:has(.phone-running) .phone-gallery { padding-top: calc(max(6px, env(safe-area-inset-top)) + 110px); }
