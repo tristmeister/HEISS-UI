@@ -47,20 +47,34 @@ test("off by default; on, a finished PNG in the output folder carries it", async
   const outputs = [{ url: `/comfy/view?${new URLSearchParams({ filename: "image_00001_.png", subfolder: "heiss-ui", type: "output" })}`, filename: "image_00001_.png", type: "image" }];
 
   assert.equal(civitaiPrefs().enabled, false);
-  assert.equal(writeCivitaiParameters(outputs, body), 0);
+  assert.equal(await writeCivitaiParameters(outputs, body), 0);
   assert.equal(readPngInfo(file).text.parameters, undefined);
 
   saveCivitaiPrefs({ enabled: true });
-  assert.equal(writeCivitaiParameters(outputs, body), 1);
+  assert.equal(await writeCivitaiParameters(outputs, body), 1);
   const info = readPngInfo(file);
   assert.match(info.text.parameters, /Size: 8x6/, "the file's own size, not the one asked for");
   assert.equal((await sharp(file).metadata()).width, 8);
+});
+
+test("a run's PNGs are written side by side, and no temporary file is left behind", async () => {
+  saveCivitaiPrefs({ enabled: true });
+  const dir = path.join(outputDir, "batch");
+  fs.mkdirSync(dir, { recursive: true });
+  const names = ["a.png", "b.png", "c.png"];
+  for (const name of names) fs.writeFileSync(path.join(dir, name), await sharp({ create: { width: 4, height: 4, channels: 3, background: "#456" } }).png().toBuffer());
+  const view = (name) => ({ url: `/comfy/view?${new URLSearchParams({ filename: name, subfolder: "batch", type: "output" })}`, filename: name, type: "image" });
+  // The same file named twice (a picture and its upscale pointing at one file) is written once.
+  const outputs = [...names.map(view), view("a.png"), view("missing.png")];
+  assert.equal(await writeCivitaiParameters(outputs, body), 3);
+  for (const name of names) assert.match(readPngInfo(path.join(dir, name)).text.parameters, /Size: 4x4/);
+  assert.deepEqual(fs.readdirSync(dir).sort(), names);
 });
 
 test("never for Hidden", async () => {
   const file = path.join(outputDir, "hidden.png");
   fs.writeFileSync(file, await sharp({ create: { width: 2, height: 2, channels: 3, background: "#000" } }).png().toBuffer());
   const outputs = [{ url: `/comfy/view?${new URLSearchParams({ filename: "hidden.png", subfolder: "", type: "output" })}`, filename: "hidden.png", type: "image" }];
-  assert.equal(writeCivitaiParameters(outputs, { ...body, privateVault: true }), 0);
+  assert.equal(await writeCivitaiParameters(outputs, { ...body, privateVault: true }), 0);
   assert.equal(readPngInfo(file).text.parameters, undefined);
 });
