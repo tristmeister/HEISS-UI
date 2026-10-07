@@ -78,14 +78,15 @@ export function useGenerationActions(view: any) {
   }
 
   /** Waits `ms`, or less when the tab comes back to the front: the run may have finished meanwhile. */
-  function untilNextPoll(ms: number) {
+  // Coming back to the tab asks at once, unless the last asks failed: then the backoff stands.
+  function untilNextPoll(ms: number, { wakeOnVisible = true }: { wakeOnVisible?: boolean } = {}) {
     return new Promise<void>((resolve) => {
       const done = () => {
         window.clearTimeout(timer);
         document.removeEventListener("visibilitychange", onVisible);
         resolve();
       };
-      const onVisible = () => { if (!document.hidden) done(); };
+      const onVisible = () => { if (wakeOnVisible && !document.hidden) done(); };
       const timer = window.setTimeout(done, ms);
       document.addEventListener("visibilitychange", onVisible);
     });
@@ -235,7 +236,7 @@ export function useGenerationActions(view: any) {
         // Asked often near the end and seldom while queued (job-poll.js).
         let last: Job | null = null;
         while (true) {
-          await untilNextPoll(jobPollDelay(last, { hidden: document.hidden, serverNow: Date.now() + serverClockOffset, misses }));
+          await untilNextPoll(jobPollDelay(last, { hidden: document.hidden, serverNow: Date.now() + serverClockOffset, misses }), { wakeOnVisible: misses === 0 });
           let job: Job;
           try {
             job = await apiJson<Job>(`/api/jobs/${jobId}`);

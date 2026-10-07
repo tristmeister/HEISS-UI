@@ -1,7 +1,7 @@
-export type RapidStatus = 'on' | 'off' | 'seed' | 'image' | 'idle' | 'install' | 'model';
+export type RapidStatus = 'on' | 'off' | 'parts' | 'seed' | 'image' | 'idle' | 'install' | 'model';
 export function rapidState(
   profile: { capabilities?: Record<string, boolean> } | null | undefined,
-  prefs: { rapid?: boolean; rapidGuidance?: boolean },
+  prefs: { rapidAll?: boolean; rapid?: boolean; rapidGuidance?: boolean },
   seed: string,
   rapidSeed: string,
   run?: { kind?: string; startImage?: boolean; inpaint?: boolean; cfg?: number }

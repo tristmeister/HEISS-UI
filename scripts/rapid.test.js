@@ -20,11 +20,13 @@ test("off where the model, the setup or the run can't use it", () => {
   assert.equal(rapidState(null, on, "", "").status, "model");
   assert.equal(rapidState({ capabilities: { rapid: false } }, on, "", "").status, "model");
   assert.equal(rapidState({ capabilities: { rapid: false, rapidInstall: true } }, on, "", "").status, "install");
-  assert.equal(rapidState(ready, { rapid: false, rapidGuidance: false }, "", "").status, "off");
+  assert.equal(rapidState(ready, { rapidAll: false }, "", "").status, "off");
+  assert.equal(rapidState(ready, { rapid: false, rapidGuidance: false }, "", "").status, "parts");
+  assert.equal(rapidState(ready, { rapid: false }, "", "", { cfg: 1 }).status, "parts", "CFG 1 with the start switched off: the switch is the reason");
   assert.equal(rapidState(ready, on, "", "", { startImage: true, cfg: 1 }).status, "image");
   assert.equal(rapidState({ capabilities: { rapidGuidance: true } }, on, "", "", { cfg: 1 }).status, "idle");
   assert.equal(rapidState(ready, on, "", "", { kind: "video" }).status, "model");
-  for (const status of ["on", "off", "seed", "image", "idle", "install", "model"]) assert.ok(rapidLabel(status));
+  for (const status of ["on", "off", "parts", "seed", "image", "idle", "install", "model"]) assert.ok(rapidLabel(status));
 });
 
 test("the two parts switch on their own", () => {

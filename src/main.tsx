@@ -733,8 +733,13 @@ function App() {
     if (latest) latestZenIdRef.current = latest.id;
   }, [prefs.zenMode, prefs.followLatest, visibleGallery, zenSelectedId]);
 
+  // Merged onto the latest prefs, not the ones this render saw: a callback made in an
+  // earlier render ("Don't show again") must not undo what changed since.
+  const prefsRef = useRef(prefs);
+  prefsRef.current = prefs;
   function setPrefs(next: Partial<Preferences>) {
-    const merged = { ...prefs, ...next };
+    const merged = { ...prefsRef.current, ...next };
+    prefsRef.current = merged;
     setPrefsState(merged);
     try {
       localStorage.setItem("heiss-ui-prefs", JSON.stringify(merged));
@@ -1292,9 +1297,12 @@ function App() {
   // A note about the ComfyUI setup (setup-tips.js) in the same place: "Hide" until reload, or never again.
   const hardware = useHardware();
   const [hiddenTipsThisVisit, setHiddenTipsThisVisit] = useState<string[]>([]);
-  const setupTip = (hardware?.tips || []).find((tip) => !hiddenTipsThisVisit.includes(tip.id) && !(prefs.hiddenTips || []).includes(tip.id)) || null;
+  // Its fix runs on the ComfyUI computer, so only a browser on that side sees it.
+  const thisComputer = canManage;
+  const neverTips = Array.isArray(prefs.hiddenTips) ? prefs.hiddenTips : [];
+  const setupTip = thisComputer ? (hardware?.tips || []).find((tip) => !hiddenTipsThisVisit.includes(tip.id) && !neverTips.includes(tip.id)) || null : null;
   const hideSetupTip = useCallback((id: string) => setHiddenTipsThisVisit((current) => [...current, id]), []);
-  const neverSetupTip = useCallback((id: string) => setPrefs({ hiddenTips: [...new Set([...(prefs.hiddenTips || []), id])] }), [prefs.hiddenTips]); // eslint-disable-line react-hooks/exhaustive-deps
+  const neverSetupTip = (id: string) => setPrefs({ hiddenTips: [...new Set([...(Array.isArray(prefsRef.current.hiddenTips) ? prefsRef.current.hiddenTips : []), id])] });
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
     if (!hasMoreGallery) return;

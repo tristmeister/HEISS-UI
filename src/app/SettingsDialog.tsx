@@ -752,9 +752,11 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
   // Inpainting ships behind a release switch; while it's off its group stays away.
   const inpaintReleased = Boolean((models as Models | null)?.features?.inpainting);
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
-  const rapidOn = prefs.rapid !== false || prefs.rapidGuidance !== false;
-  const rapidModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapid || profile.capabilities?.rapidGuidance);
-  const rapidWaiting = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.rapidInstall);
+  const rapidOn = prefs.rapidAll !== false;
+  // Rapid is for pictures: every image model counts, whichever mode the composer is in.
+  const imageProfiles = (((models as Models | null)?.profiles || []) as Profile[]).filter((profile) => profile.kind === 'image');
+  const rapidModels = imageProfiles.filter((profile) => profile.capabilities?.rapid || profile.capabilities?.rapidGuidance);
+  const rapidWaiting = imageProfiles.filter((profile) => profile.capabilities?.rapidInstall);
   const inpaintOn = prefs.inpainting !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
@@ -871,22 +873,30 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
             <SettingsDrawer
               id="set-feature-rapid"
               title="Rapid"
+              // Opened from the sidebar's "Set up", it should show the install straight away.
+              defaultOpen={rapidOn && rapidWaiting.length > 0 && !rapidModels.length}
               description={!rapidOn ? 'Off' : rapidModels.length ? `On · ${rapidModels.length} of your models` : rapidWaiting.length ? 'On · needs the HEISS UI Nodes' : 'On · no model can yet'}
             >
               <SwitchRow
-                label="Half-size start"
-                description="Works out the noisy first steps at half size and finishes at full size: they only settle the layout, so they don’t need the full size. Up to about twice as fast, same detail and memory."
-                checked={prefs.rapid !== false}
-                onChange={(next) => setPrefs({ rapid: next })}
-              />
-              <SwitchRow
-                label="Lighter guidance at the end"
-                description="Rapid Guidance: follows the prompt with full strength (CFG) while the picture takes shape, then lets the last detail steps run without it, which halves their cost. Only matters for models that use CFG above 1."
-                checked={prefs.rapidGuidance !== false}
-                onChange={(next) => setPrefs({ rapidGuidance: next })}
+                label="Rapid"
+                description="Faster pictures with the same memory, in two parts you can switch on their own."
+                checked={rapidOn}
+                onChange={(next) => setPrefs({ rapidAll: next })}
               />
               {rapidOn ? (
                 <>
+                  <SwitchRow
+                    label="Half-size start"
+                    description="Works out the noisy first steps at half size and finishes at full size: they only settle the layout, so they don’t need the full size. Up to about 1.7× faster on larger pictures."
+                    checked={prefs.rapid !== false}
+                    onChange={(next) => setPrefs({ rapid: next })}
+                  />
+                  <SwitchRow
+                    label="Lighter guidance at the end"
+                    description="Follows the prompt at full strength (CFG) while the picture takes shape, then runs the last detail steps without it, which halves their cost. Only for models that use CFG above 1."
+                    checked={prefs.rapidGuidance !== false}
+                    onChange={(next) => setPrefs({ rapidGuidance: next })}
+                  />
                   <Row label="Seeds" description="A seed frames a little differently with Rapid. A seed you fix yourself runs without it, so it gives the picture it always did; “Use settings” on a Rapid picture keeps it on, so the same picture comes back." />
                   {rapidModels.length ? (
                     <Row label="Your models with Rapid" stacked>

@@ -33,7 +33,7 @@ export function SetupTipChip({ tip, onHide, onNever }: { tip: SetupTip | null; o
             <span className="setup-tip-title">{tip.title}</span>
             <button type="button" className="lora-mismatch-action" aria-expanded={open} onClick={() => setOpen((value) => !value)}>{open ? 'Less' : 'How to fix'}</button>
             <button type="button" className="lora-mismatch-action is-quiet" onClick={() => onHide(tip.id)}>Hide</button>
-            <button type="button" className="lora-mismatch-close" aria-label="Hide" onClick={() => onHide(tip.id)}><X size={12} /></button>
+            <button type="button" className="lora-mismatch-close" aria-label="Close" onClick={() => onHide(tip.id)}><X size={12} /></button>
           </div>
           {open ? (
             <div className="setup-tip-body">
