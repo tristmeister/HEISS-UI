@@ -120,6 +120,29 @@
 .feedback-tile.is-idea { --tone: var(--ember); }
 .feedback-tile.is-question { --tone: #86abff; }
 
+/* The Discord, one quiet row under the tiles: for talking it through rather than filing it. */
+.feedback-community {
+  --tone: #8c9eff;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  margin-top: 8px;
+  padding: 10px 14px 10px 12px;
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px var(--surface-border);
+  color: hsl(var(--foreground));
+  transition: background var(--dur-fast), scale 100ms;
+}
+.feedback-community:hover { background: var(--control-fill); }
+.feedback-community:active { scale: .99; }
+.feedback-community:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.feedback-community-copy { display: grid; gap: 1px; min-width: 0; }
+.feedback-hero .feedback-community strong { font-size: 13.5px; }
+.feedback-community-copy span { color: hsl(var(--muted-foreground)); font-size: 12px; line-height: 1.45; }
+.feedback-community-arrow { color: hsl(var(--muted-foreground)); transition: translate var(--dur-fast), color var(--dur-fast); }
+.feedback-community:hover .feedback-community-arrow { color: hsl(var(--foreground)); translate: 1px -1px; }
+
 @media (max-width: 720px) {
   .feedback-tiles { grid-template-columns: minmax(0, 1fr); }
   .feedback-tile { grid-template-columns: 30px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 2px; }

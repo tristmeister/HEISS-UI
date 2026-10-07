@@ -4,8 +4,9 @@ import { NodeInstall } from './NodeInstall';
 import { CopyIcon, useCopyFeedback } from './CopyFeedback';
 import { useAtComputer, usePhone, useThisComputer } from './device';
 import type { ConfirmAction } from './useConfirmation';
-import { Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Sparkles, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, SlidersHorizontal, Wand2, Library } from 'lucide-react';
-import { features, githubUrl } from './constants';
+import { ArrowUpRight, Bug, Check, RotateCw, Download, ExternalLink, FolderOpen, FolderSearch, ScanSearch, Sparkles, Github, Globe, HelpCircle, Info, LifeBuoy, Lightbulb, LockKeyhole, MessageSquarePlus, Plug, RefreshCw, Scale, ScrollText, SlidersHorizontal, Wand2, Library } from 'lucide-react';
+import { discordUrl, features, githubUrl } from './constants';
+import { DiscordIcon } from './DiscordIcon';
 import { cn } from './format';
 import { BetaTag, NumberPicker, Skeleton, StudioSelect, Tip } from './components';
 import { Modal } from './Modal';
@@ -1029,6 +1030,14 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
                   <span>Not sure how something works?</span>
                 </button>
               </div>
+              <a className="feedback-community" href={discordUrl} target="_blank" rel="noreferrer">
+                <span className="feedback-tile-icon"><DiscordIcon size={15} /></span>
+                <span className="feedback-community-copy">
+                  <strong>Rather talk it through? Join the Discord</strong>
+                  <span>App ideas, bugs, and anything AI generation. Share what you made.</span>
+                </span>
+                <ArrowUpRight size={14} className="feedback-community-arrow" />
+              </a>
               <p className="set-note">Nothing is sent on its own. A post carries what you write, plus the setup lines (versions, system, GPU) if you leave them on. No prompts, images or file names.</p>
             </section>
 
@@ -1038,8 +1047,10 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose }
               <div className="about-links">
                 <a href={githubUrl} target="_blank" rel="noreferrer"><Github size={15} /><span>Source on GitHub</span><ExternalLink size={12} /></a>
                 <a href={boardUrl} target="_blank" rel="noreferrer"><MessageSquarePlus size={15} /><span>Feedback board</span><ExternalLink size={12} /></a>
+                <a href={discordUrl} target="_blank" rel="noreferrer"><DiscordIcon size={15} /><span>Discord</span><ExternalLink size={12} /></a>
                 <a href="https://heiss-ui.vercel.app/" target="_blank" rel="noreferrer"><Globe size={15} /><span>Website</span><ExternalLink size={12} /></a>
                 <a href={`${githubUrl}/blob/main/LICENSE`} target="_blank" rel="noreferrer"><Scale size={15} /><span>MIT license</span><ExternalLink size={12} /></a>
+                <a href={`${githubUrl}/blob/main/CHANGELOG.md`} target="_blank" rel="noreferrer"><ScrollText size={15} /><span>Changelog</span><ExternalLink size={12} /></a>
               </div>
             </Group>
 

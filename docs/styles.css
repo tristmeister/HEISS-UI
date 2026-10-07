@@ -216,6 +216,8 @@ code {
 .nav-links a:hover { background-color: rgb(255 255 255 / 0.08); color: var(--text); }
 .nav-links a:active { scale: 0.96; }
 .nav-links .nav-gh { color: var(--text); }
+.nav-links .nav-discord { padding: 0 11px; color: var(--text-2); }
+.nav-links .nav-discord:hover { color: #a5b1ff; }
 
 .stars-count {
   margin-left: 2px;
@@ -691,6 +693,30 @@ code {
 .fb-btn:focus-visible { border-radius: 22px; }
 .fb-btn.is-primary { background: var(--action); color: var(--action-ink); box-shadow: 0 1px 0 rgb(255 255 255 / 0.5) inset, 0 10px 28px -10px rgb(255 255 255 / 0.25); }
 .fb-btn.is-primary:hover { background: #fff; }
+
+/* The Discord, one quiet line under the board buttons: for talking it through. */
+.fb-discord {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  margin-top: 18px;
+  padding: 10px 14px 10px 12px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-wrap: pretty;
+  transition-property: background-color, box-shadow, color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-ui);
+}
+.fb-discord > .icon:first-child { flex: none; width: 18px; height: 18px; color: #a5b1ff; }
+.fb-discord strong { color: var(--text); font-weight: 550; }
+.fb-discord-arrow { flex: none; margin-left: auto; transition: translate 160ms var(--ease-ui); }
+.fb-discord:hover { background: rgb(255 255 255 / 0.04); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); }
+.fb-discord:hover .fb-discord-arrow { translate: 2px 0; }
 
 /* A peek at the board: its three columns and what's in progress right now. */
 .fb-peek {
@@ -2063,6 +2089,7 @@ kbd {
   .nav-links a:not(.nav-gh) { display: none; }
   .nav-gh-label { display: none; }
   .nav-links .nav-gh { padding: 0 12px; }
+  .nav-links a.nav-discord { display: inline-flex; }
 
   .hero h1 br { display: none; }
   .chip { gap: 9px; padding-right: 12px; white-space: nowrap; }
