@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNeighborPrefetch } from './useNeighborPrefetch';
 import { GridAutoplayButton } from './GridAutoplayButton';
 import { ArrowLeft, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -375,6 +376,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const [islandsHeight, setIslandsHeight] = React.useState(0);
   const viewerCopy = useCopyFeedback();
   const [compareOpen, setCompareOpen] = React.useState(false);
+  // The pictures either side of the open one are fetched ahead, so a swipe lands on one already there.
+  useNeighborPrefetch(active || null, (view.viewerGallery || []) as GalleryItem[]);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
   const viewerWheelRef = useWheelRef<HTMLElement>(wheelViewer);

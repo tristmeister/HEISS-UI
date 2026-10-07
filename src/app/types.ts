@@ -81,8 +81,9 @@ export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jo
 export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[]; /** Its pictures were kept without their Smart upscale, and why, for a toast. */ kept?: string };
 export type TouchGesture =
   | { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; axis: "x" | "y" | null; velocity: import("./viewerGesture").Velocity; moved: boolean }
-  | { mode: "pan"; id: number; x: number; y: number; zoom: number; pan: { x: number; y: number }; current: { x: number; y: number }; geometry: import("./viewerGesture").ViewerGeometry | null; velocity: import("./viewerGesture").Velocity; moved: boolean }
-  | { mode: "pinch"; distance: number; zoom: number; pan: { x: number; y: number }; center: { x: number; y: number }; last: { x: number; y: number }; current: { zoom: number; pan: { x: number; y: number } }; geometry: import("./viewerGesture").ViewerGeometry | null; moved: boolean };
+  | { mode: "pan"; id: number; x: number; y: number; zoom: number; pan: { x: number; y: number }; current: { x: number; y: number }; geometry: import("./viewerGesture").ViewerGeometry | null; moved: boolean }
+  | { mode: "done" }
+  | { mode: "pinch"; distance: number; zoom: number; pan: { x: number; y: number }; center: { x: number; y: number }; current: { zoom: number; pan: { x: number; y: number } }; geometry: import("./viewerGesture").ViewerGeometry | null; moved: boolean };
 export type SelectOption = { label: string; value: string };
 export type Profile = {
   id: string;

@@ -7,7 +7,7 @@ import { flushSync } from 'react-dom';
 import { toast } from './toast';
 import { wheelPixels } from './wheel';
 import type { GalleryItem, Profile, TouchGesture } from './types';
-import { MAX_ZOOM, MIN_ZOOM, Velocity, anchoredPan as anchorPan, clampPan, liveTransform, measureViewer, paint, rubber, rubberPan, rubberZoom, type Pan } from './viewerGesture';
+import { MAX_ZOOM, MIN_ZOOM, Velocity, anchoredPan as anchorPan, clampPan, liveTransform, measureViewer, paint, rubber, rubberZoom, type Pan } from './viewerGesture';
 
 /** Where an object-fit: contain image actually draws inside its box. */
 function containedRect(media: HTMLImageElement | HTMLVideoElement) {
@@ -298,16 +298,9 @@ export function useViewerControls(view: any) {
       zoom,
       pan,
       center: touchCenter(touches),
-      last: touchCenter(touches),
       current: { zoom, pan },
       moved: false
     };
-  }
-
-  function beginPan(touch: React.Touch, zoom: number, pan: Pan, canvas: HTMLElement, moved = false) {
-    const velocity = new Velocity();
-    velocity.add(touch.clientX, touch.clientY);
-    touchGestureRef.current = { mode: "pan", id: touch.identifier, x: touch.clientX, y: touch.clientY, zoom, pan, geometry: measureViewer(canvas), current: pan, velocity, moved };
   }
 
   function startViewerTouch(event: React.TouchEvent) {
@@ -318,11 +311,12 @@ export function useViewerControls(view: any) {
     const canvas = viewerCanvas(event);
     // The last swipe is still carrying its picture off: let it land first.
     if (canvas.dataset.settle === "slide") return;
-    // Caught mid-spring, it carries on from where it is on screen.
-    const live = liveTransform(canvas, { zoom: viewerZoom, pan: viewerPan });
     const gesture = touchGestureRef.current;
-    const holding = gesture?.mode === "pinch" ? gesture.current : gesture?.mode === "pan" ? { zoom: gesture.zoom, pan: gesture.current } : null;
-    const start = holding || live;
+    // A third finger changes nothing; the finger left from a pinch only
+    // matters again once a second joins it, for a new pinch.
+    if ((gesture?.mode === "done" && event.touches.length < 2) || (gesture?.mode === "pinch" && event.touches.length > 2)) return;
+    // Caught mid-spring, it carries on from where it is on screen.
+    const start = gesture?.mode === "pinch" ? gesture.current : gesture?.mode === "pan" ? { zoom: gesture.zoom, pan: gesture.current } : liveTransform(canvas, { zoom: viewerZoom, pan: viewerPan });
     paint(canvas, start.zoom, start.pan);
     if (event.touches.length >= 2) {
       beginPinch(canvas, event.touches, start.zoom, start.pan);
@@ -330,7 +324,7 @@ export function useViewerControls(view: any) {
     }
     const touch = event.touches[0];
     if (start.zoom > MIN_ZOOM + 0.001) {
-      beginPan(touch, start.zoom, start.pan, canvas);
+      touchGestureRef.current = { mode: "pan", id: touch.identifier, x: touch.clientX, y: touch.clientY, zoom: start.zoom, pan: start.pan, geometry: measureViewer(canvas), current: start.pan, moved: false };
       return;
     }
     // At fit size one finger swipes: sideways for the next image, down to close.
@@ -339,6 +333,8 @@ export function useViewerControls(view: any) {
     touchGestureRef.current = { mode: "swipe", id: touch.identifier, x: touch.clientX, y: touch.clientY, dx: 0, dy: 0, axis: null, velocity, moved: false };
   }
 
+  // Like the inpaint canvas: every frame is clamped as it is drawn, so letting
+  // go never moves the picture. Only a pinch below 100% springs back, to fit.
   function moveViewerTouch(event: React.TouchEvent) {
     const gesture = touchGestureRef.current;
     if (!gesture) return;
@@ -350,9 +346,9 @@ export function useViewerControls(view: any) {
       const distance = touchDistance(event.touches);
       const center = touchCenter(event.touches);
       if (Math.abs(distance - gesture.distance) > 4 || Math.hypot(center.x - gesture.center.x, center.y - gesture.center.y) > 4) gesture.moved = true;
-      gesture.last = center;
-      const zoom = rubberZoom(gesture.zoom * (distance / gesture.distance));
-      const pan = rubberPan(geometry, zoom, anchorPan(geometry, zoom, gesture.zoom, gesture.pan, gesture.center, center));
+      const zoom = Math.min(MAX_ZOOM, rubberZoom(gesture.zoom * (distance / gesture.distance)));
+      // Smaller than fit it shrinks in place; it comes back on release.
+      const pan = zoom <= MIN_ZOOM ? { x: 0, y: 0 } : clampPan(geometry, zoom, anchorPan(geometry, zoom, gesture.zoom, gesture.pan, gesture.center, center));
       gesture.current = { zoom, pan };
       paint(canvas, zoom, pan);
       return;
@@ -377,20 +373,24 @@ export function useViewerControls(view: any) {
       return;
     }
     if (gesture.mode === "pan" && event.touches.length === 1) {
-      const touch = event.touches[0];
-      gesture.velocity.add(touch.clientX, touch.clientY);
+      const touch = Array.from(event.touches).find((entry) => entry.identifier === gesture.id);
+      if (!touch) return;
       const dx = touch.clientX - gesture.x;
       const dy = touch.clientY - gesture.y;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) gesture.moved = true;
-      const pan = rubberPan(gesture.geometry, gesture.zoom, { x: gesture.pan.x + dx, y: gesture.pan.y + dy });
+      const pan = clampPan(gesture.geometry, gesture.zoom, { x: gesture.pan.x + dx, y: gesture.pan.y + dy });
       gesture.current = pan;
       paint(canvas, gesture.zoom, pan);
     }
   }
 
-  /** Where the picture comes to rest, in state and on screen, sprung there unless it's already in place. */
-  function settleViewer(canvas: HTMLElement, zoom: number, pan: Pan) {
-    paint(canvas, zoom, pan, "settle");
+  /** Where the picture rests, in state and on screen; `spring` eases it there. */
+  function settleViewer(canvas: HTMLElement, zoom: number, pan: Pan, spring = true) {
+    if (spring) paint(canvas, zoom, pan, "settle");
+    else {
+      paint(canvas, zoom, pan);
+      delete canvas.dataset.gesture;
+    }
     setViewerZoom(zoom);
     setViewerPan(pan);
   }
@@ -411,11 +411,18 @@ export function useViewerControls(view: any) {
         else moveZen(direction);
       });
       requestAnimationFrame(() => {
-        paint(canvas, 1, { x: direction * width * 0.35, y: 0 });
+        paint(canvas, 1, { x: direction * width * 0.3, y: 0 });
         void canvas.offsetWidth;
         settleViewer(canvas, 1, { x: 0, y: 0 });
       });
-    }, 150);
+    }, 140);
+  }
+
+  /** A pinch is over: below fit it springs back; anywhere else it stays exactly where it is. */
+  function endPinch(canvas: HTMLElement, gesture: Extract<TouchGesture, { mode: "pinch" }>) {
+    const { zoom, pan } = gesture.current;
+    if (zoom < 1.03) settleViewer(canvas, MIN_ZOOM, { x: 0, y: 0 });
+    else settleViewer(canvas, zoom, pan, false);
   }
 
   function endViewerTouch(event: React.TouchEvent) {
@@ -423,14 +430,17 @@ export function useViewerControls(view: any) {
     lastTouchRef.current = Date.now();
     if (!gesture) return;
     const canvas = viewerCanvas(event);
-    // One finger of a pinch lifts: the other carries on panning, no jump.
-    if (event.touches.length >= 1) {
-      if (gesture.mode === "pinch" && event.touches.length === 1) beginPan(event.touches[0], gesture.current.zoom, gesture.current.pan, canvas, true);
-      else if (gesture.mode === "pinch" && event.touches.length >= 2) beginPinch(canvas, event.touches, gesture.current.zoom, gesture.current.pan);
+    if (gesture.mode !== "done" && gesture.moved) viewerDragEndRef.current = Date.now();
+    // One finger of a pinch lifts: the pinch is over, and the finger left
+    // behind does nothing until it lifts too, so nothing lurches.
+    if (gesture.mode === "pinch") {
+      endPinch(canvas, gesture);
+      touchGestureRef.current = event.touches.length ? { mode: "done" } : null;
       return;
     }
+    if (event.touches.length) return;
     touchGestureRef.current = null;
-    if (gesture.moved) viewerDragEndRef.current = Date.now();
+    if (gesture.mode === "done") return;
 
     if (gesture.mode === "swipe") {
       if (gesture.moved) {
@@ -438,7 +448,7 @@ export function useViewerControls(view: any) {
         const velocity = gesture.velocity.read();
         const width = canvas.clientWidth || window.innerWidth;
         // Far enough, or a quick flick the same way: a short fast swipe counts.
-        if (gesture.axis === "x" && viewerNeighbors() && (Math.abs(dx) > width * 0.22 || (Math.abs(velocity.x) > 0.35 && Math.abs(dx) > 20 && Math.sign(velocity.x) === Math.sign(dx)))) {
+        if (gesture.axis === "x" && viewerNeighbors() && (Math.abs(dx) > width * 0.22 || (Math.abs(velocity.x) > 0.3 && Math.abs(dx) > 20 && Math.sign(velocity.x) === Math.sign(dx)))) {
           swipeTo(canvas, dx < 0 ? 1 : -1);
           return;
         }
@@ -463,39 +473,22 @@ export function useViewerControls(view: any) {
         return;
       }
       lastTapRef.current = nowTap;
-      paint(canvas, 1, { x: 0, y: 0 }, "settle");
+      settleViewer(canvas, 1, { x: 0, y: 0 }, false);
       return;
     }
 
-    if (gesture.mode === "pan") {
-      if (!gesture.moved) {
-        const nowTap = Date.now();
-        if (nowTap - lastTapRef.current < 280) {
-          event.preventDefault();
-          lastTapRef.current = 0;
-          settleViewer(canvas, 1, { x: 0, y: 0 });
-          return;
-        }
-        lastTapRef.current = nowTap;
+    // A pan ends where the finger left it; a double tap zooms back to fit.
+    if (!gesture.moved) {
+      const nowTap = Date.now();
+      if (nowTap - lastTapRef.current < 280) {
+        event.preventDefault();
+        lastTapRef.current = 0;
+        settleViewer(canvas, 1, { x: 0, y: 0 });
+        return;
       }
-      // Let go moving, it glides on a little before it stops, kept in view.
-      const velocity = gesture.velocity.read();
-      const glide = { x: gesture.current.x + velocity.x * 220, y: gesture.current.y + velocity.y * 220 };
-      settleViewer(canvas, gesture.zoom, clampPan(gesture.geometry, gesture.zoom, glide));
-      return;
+      lastTapRef.current = nowTap;
     }
-
-    // A pinch ends: too small springs back to fit, too large back to the most
-    // there is, about the fingers, and either way the picture stays in view.
-    const geometry = gesture.geometry || measureViewer(canvas);
-    const raw = gesture.current.zoom;
-    const zoom = raw < 1.05 ? MIN_ZOOM : Math.min(MAX_ZOOM, raw);
-    if (zoom === MIN_ZOOM || !geometry) {
-      settleViewer(canvas, zoom, { x: 0, y: 0 });
-      return;
-    }
-    const pan = zoom === raw ? gesture.current.pan : anchorPan(geometry, zoom, raw, gesture.current.pan, gesture.last, gesture.last);
-    settleViewer(canvas, zoom, clampPan(geometry, zoom, pan));
+    settleViewer(canvas, gesture.zoom, gesture.current, false);
   }
   return { resetViewer, openItem, applyAllSettings, applyLoras, moveZen, moveViewer, goLatestZen, submitZenPrompt, startZenStripDrag, dragZenStrip, stopZenStripDrag, selectZenItem, zoomViewer, wheelViewer, clickViewer, startViewerDrag, dragViewer, stopViewerDrag, startViewerTouch, moveViewerTouch, endViewerTouch };
 }
