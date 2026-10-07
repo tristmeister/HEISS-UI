@@ -8,7 +8,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-run-upscale-"));
 process.env.HEISS_SEEDVR2_MODEL_DIR = dir;
 test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 const { keepModels, modelFiles, noteSystemRam } = await import("./upscale.js");
-const { pairRunOutputs, planRunUpscale } = await import("./run-upscale.js");
+const { dropsAutoUpscale, pairRunOutputs, planRunUpscale } = await import("./run-upscale.js");
 const { nextProgress } = await import("./progress-phase.js");
 const { RunTimer } = await import("./generation-timing.js");
 
@@ -99,4 +99,18 @@ test("the upscale reads as part of the run, and its time is not the model's", ()
   timer.note({ type: "executed", data: { node: "9", output: {} } }, 5000);
   timer.note({ type: "execution_success", data: {} }, 60_000);
   assert.equal(timer.result().runMs, 4000);
+});
+
+test("a 2K/4K pick drops once a reference or a painted mask decides the size", () => {
+  // Plain image mode: a 2K/4K pick on a model with no reference goes through.
+  assert.equal(dropsAutoUpscale({ inpaint: null, referencesFamily: 0, hasReference: false }), false);
+  // A reference-image model (Flux.2, Klein, Qwen-Image 2.1): once a reference
+  // is actually staged, the pick that was fine moments ago has to drop.
+  assert.equal(dropsAutoUpscale({ inpaint: null, referencesFamily: 1, hasReference: true }), true);
+  // Same model, no reference staged yet: nothing to drop it for.
+  assert.equal(dropsAutoUpscale({ inpaint: null, referencesFamily: 1, hasReference: false }), false);
+  // A painted mask, on any family: the result is the original picture's size.
+  assert.equal(dropsAutoUpscale({ inpaint: { box: {} }, referencesFamily: 0, hasReference: false }), true);
+  // A plain img2img start image (no references slot): still the model's own pick to make.
+  assert.equal(dropsAutoUpscale({ inpaint: null, referencesFamily: 0, hasReference: true }), false);
 });

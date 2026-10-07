@@ -321,6 +321,22 @@ export async function getThumbnail(filename, subfolder, type) {
   return result;
 }
 
+/**
+ * Starts the thumbnails of just-finished gallery items, the picture each tile
+ * shows (its upscale when that is the one on), so the browser's first ask for
+ * them finds one made or being made instead of starting the build itself.
+ * Same build slots and same shared builds as a request; never waited for, and
+ * never for a Hidden item, whose pictures must leave nothing on disk.
+ */
+export function warmThumbnails(items = []) {
+  for (const item of items) {
+    if (!item || item.type === "video" || item.privateVault || item.status !== "done") continue;
+    const shown = item.upscaleActive && item.upscale?.url ? item.upscale.thumbnailUrl || item.upscale.url : item.thumbnailUrl;
+    const params = viewParams(shown);
+    if (params) findOrBuild(params.filename, params.subfolder, params.type).catch(() => null);
+  }
+}
+
 async function findOrBuild(filename, subfolder, type) {
   if (!(await loadSharp())) return cachedThumbnail(cacheKey(filename, subfolder, type)) || { original: true };
   const dedupeKey = `${type}:${subfolder}:${filename}`;

@@ -12,6 +12,7 @@ import { releaseHiddenRun, rememberHiddenRun } from './hidden-runs.js';
 import { attachVaultUpscale, patchVaultItem, storeHiddenOutputs } from './vault.js';
 import { keptMessage, missedUpscaleState, pairRunOutputs, runUpscaleState } from './run-upscale.js';
 import { writeCivitaiParameters } from './civitai.js';
+import { warmThumbnails } from './thumbnails.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 import { remainingMs, RunTimer, slowSteps } from './generation-timing.js';
 import { generationEstimate, generationWarm, recordGeneration, recordUpscale, upscaleEstimate } from './timings.js';
@@ -366,12 +367,12 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
       // Finished: look for the images now rather than at the next poll.
       if (message.type === "execution_success" || (message.type === "executing" && (data.node === null || data.node === undefined))) {
         if (timing?.upscale?.startAt) timing.upscale.endAt ??= Date.now();
-        run.wake?.();
+        wakeRun(run);
       }
       // Stopped or failed while upscaling: runJob delivers the saved picture instead.
       if ((message.type === "execution_interrupted" || message.type === "execution_error") && run.saved?.size) {
         run.missed = message.type === "execution_interrupted" ? { canceled: true } : { error: normalizeComfyError(data.exception_message || "") };
-        run.wake?.();
+        wakeRun(run);
         return;
       }
       if (message.type === "execution_interrupted") {
@@ -419,13 +420,29 @@ function learnFromFailure(body, message = "") {
   return `This checkpoint has no ${part} built in, so it now uses a separate one. Rescan models, pick one in Advanced (or download it), and generate again.`;
 }
 
-/** Waits before the next look at ComfyUI; a finished-run message on the socket ends the wait early. */
+/**
+ * Waits before the next look at ComfyUI; a finished-run message on the socket
+ * ends the wait early. ComfyUI says "finished" twice: once before it writes
+ * the run's history and once after. The second often lands while the look
+ * prompted by the first is still out, so a message with nobody waiting is
+ * kept and the next pause returns at once instead of a full poll later.
+ */
 async function pause(run, ms) {
+  if (run.woken) {
+    run.woken = false;
+    return;
+  }
   await new Promise((resolve) => {
     run.wake = resolve;
     setTimeout(resolve, ms).unref?.();
   });
   run.wake = null;
+  run.woken = false;
+}
+
+function wakeRun(run) {
+  if (run.wake) run.wake();
+  else run.woken = true;
 }
 
 /**
@@ -481,7 +498,7 @@ async function runJob(id, body, { prepare = null } = {}) {
     await waitForSocketOpen(socket);
     sendSocketFeatureFlags(socket);
     // `saved`: Smart upscale's source pictures, by save node, as ComfyUI reported them; `missed`: why their upscale did not finish.
-    const run = { promptId: null, wake: null, alive: null, pairs, saved: new Map(), missed: null };
+    const run = { promptId: null, wake: null, woken: false, alive: null, pairs, saved: new Map(), missed: null };
     watchProgress(id, run, socket, prompt);
     if (body.privateVault) {
       hiddenPromptId = crypto.randomUUID();
@@ -551,8 +568,9 @@ async function runJob(id, body, { prepare = null } = {}) {
         const historyGone = await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
         hiddenDone = { stored: true, clean: historyGone };
       } else {
-        // Before the gallery shows them, so no browser reads a file mid-write.
-        writeCivitaiParameters([...outputs, ...results.map((result) => result.upscale).filter(Boolean)], body);
+        // Before the gallery shows them, so no browser (or thumbnail, which is
+        // keyed by the file's size and time) sees the file before it is final.
+        await writeCivitaiParameters([...outputs, ...results.map((result) => result.upscale).filter(Boolean)], body);
         const withUpscales = results.map((result) => {
           const done = upscaled(result);
           if (done) return { ...result.output, upscale: done, upscaleActive: true };
@@ -562,6 +580,8 @@ async function runJob(id, body, { prepare = null } = {}) {
         const completed = replaceGalleryJob(id, withUpscales, body, jobs);
         markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
         setTerminalJob(id, { status: "done", outputs: completed, ...(kept ? { kept } : {}) });
+        // Made now, while the browser is still learning the run is done.
+        warmThumbnails(completed);
         // A Hidden image used as the reference for a normal run: only its staged copy goes.
         if (body.hiddenInputNames?.length) await forgetComfyRun({ inputNames: body.hiddenInputNames });
       }

@@ -82,6 +82,32 @@ test("a run goes from queued through progress to a finished gallery image", asyn
   assert.equal(item.settings.steps, 4);
 });
 
+test("ComfyUI's second 'finished' arriving mid-look still delivers at once, not a poll later", { skip: !socketsBuiltIn }, async () => {
+  const id = "job-finished-mid-look";
+  const body = sdxlRequest();
+  queue(id, body);
+  const queued = fake.nextPrompt();
+  const running = runJob(id, body);
+  const prompt = await queued;
+  await fake.socketFor(id);
+  const save = Object.entries(prompt.prompt).find(([, node]) => node.class_type === "SaveImage")[0];
+  // As ComfyUI does it: "success" before the history is written, "executing null" after,
+  // the second landing while HEISS is still asking about the first.
+  let finishedAt = 0;
+  fake.onHistory(async () => {
+    if (finishedAt) return;
+    fake.onHistory(null);
+    fake.finish(prompt.id, { outputs: { [save]: { images: [{ filename: "image_00002_.png", subfolder: "heiss-ui", type: "output" }] } } });
+    finishedAt = Date.now();
+    fake.send(id, { type: "executing", data: { node: null, prompt_id: prompt.id } });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  });
+  fake.send(id, { type: "execution_success", data: { prompt_id: prompt.id } });
+  await running;
+  assert.equal(jobs.get(id).status, "done");
+  assert.ok(Date.now() - finishedAt < 800, `delivered ${Date.now() - finishedAt} ms after ComfyUI finished`);
+});
+
 test("a run ComfyUI fails is kept as a failure that says why", async () => {
   const id = "job-oom";
   const body = sdxlRequest({ width: 2048, height: 2048 });

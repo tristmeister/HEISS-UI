@@ -12,6 +12,16 @@ import { generationSettings, outputsFrom } from "./gallery-store.js";
 const tierLabels = { balanced: "2K", high: "4K" };
 
 /**
+ * Whether a request's own 2K/4K pick should be dropped before it reaches a
+ * run. Once a reference dictates the framing, or the run paints a mask, the
+ * output's size is already decided by that reference or mask, not the pick,
+ * so a stale one from before either was set must not sneak an upscale in.
+ */
+export function dropsAutoUpscale({ inpaint, referencesFamily, hasReference }) {
+  return Boolean(inpaint || (referencesFamily && hasReference));
+}
+
+/**
  * The run's graph with its upscale in it, or `{ skipped }` saying why the run
  * goes ahead without one. The face pass is a nicety: without what it needs the
  * upscale still runs.

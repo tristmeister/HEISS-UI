@@ -5,6 +5,7 @@ import { clientJobUuid } from './format';
 import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
 import { retryRequest, type RetryOptions, type RetryRequest } from './retry';
+import { jobPollDelay } from './job-poll';
 import { downloadActions } from './useModelDownloads';
 import { autoUpscaleQuality } from './useUpscale';
 import type { GalleryItem, Job } from './types';
@@ -74,6 +75,20 @@ export function useGenerationActions(view: any) {
 
   function nextPaint() {
     return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }
+
+  /** Waits `ms`, or less when the tab comes back to the front: the run may have finished meanwhile. */
+  function untilNextPoll(ms: number) {
+    return new Promise<void>((resolve) => {
+      const done = () => {
+        window.clearTimeout(timer);
+        document.removeEventListener("visibilitychange", onVisible);
+        resolve();
+      };
+      const onVisible = () => { if (!document.hidden) done(); };
+      const timer = window.setTimeout(done, ms);
+      document.addEventListener("visibilitychange", onVisible);
+    });
   }
 
   /** Runs what the composer holds. Takes no argument, so it can be a click handler as is. */
@@ -168,7 +183,11 @@ export function useGenerationActions(view: any) {
         startImageName,
         privateVault: Boolean(hiddenSpace),
         // Smart upscale: the upscale is part of the run itself, one job in ComfyUI.
-        autoUpscale: mode === "image" && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
+        // Off whenever the output's size isn't the model's own to pick: a reference
+        // that dictates the framing (aspectPolicy "reference"), or a painted mask,
+        // which keeps the original image's size. The size tabs hide in both cases,
+        // but a persisted 2K/4K choice from before must not sneak an upscale in too.
+        autoUpscale: mode === "image" && !inpaint && !(currentProfile?.aspectPolicy === "reference" && (referenceAssets || []).length) && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
           ? { quality: autoUpscaleQuality(prefs.autoUpscale), faceDetail: Boolean(prefs.upscaleFaceDetail) }
           : null
       };
@@ -213,12 +232,15 @@ export function useGenerationActions(view: any) {
         // A dropped Wi-Fi, a sleeping laptop or a server restart is not a failed
         // job: keep asking, slower each time, and give up only after a long gap.
         let misses = 0;
+        // Asked often near the end and seldom while queued (job-poll.js).
+        let last: Job | null = null;
         while (true) {
-          await new Promise((resolve) => setTimeout(resolve, 1600 * Math.min(5, 1 + misses)));
+          await untilNextPoll(jobPollDelay(last, { hidden: document.hidden, serverNow: Date.now() + serverClockOffset, misses }));
           let job: Job;
           try {
             job = await apiJson<Job>(`/api/jobs/${jobId}`);
             misses = 0;
+            last = job;
           } catch {
             misses += 1;
             if (misses < 12) continue;
@@ -238,6 +260,8 @@ export function useGenerationActions(view: any) {
             return job;
           }
           if (job.status === "done") {
+            // Its pictures show now, not once every other run of this batch is done too.
+            if (queuedJobs.length > 1 && loadGalleryDelta) Promise.resolve(loadGalleryDelta()).catch(() => null);
             announceFinished();
             // Stopped or failed while upscaling: the pictures were kept at their generated size.
             if (job.kept) showToast(job.kept, "default");
