@@ -12,7 +12,7 @@ export function mimeExtension(mime = "") {
   return "png";
 }
 
-function contentHash(buffer) {
+export function contentHash(buffer) {
   return crypto.createHash("sha256").update(buffer).digest("hex").slice(0, 32);
 }
 
@@ -25,10 +25,12 @@ export function referenceInputName(buffer, mime = "") {
  * run at that size uploads the same name and ComfyUI's cache still holds
  * everything made from it (a new name each run made Qwen-Image 2.1 edits
  * encode their prompt again every time). Hiding the original finds its copies
- * by the prefix (resizedInputPrefix).
+ * by the prefix (resizedInputPrefix). `source` is the hash of the picture's
+ * own file, also when what was sent is made from its upscale, so hiding the
+ * picture finds those copies too.
  */
-export function resizedInputName(original, { width, height, mime = "" }) {
-  return `${resizedInputPrefix(original)}${Number(width)}x${Number(height)}.${mimeExtension(mime)}`;
+export function resizedInputName(source, { width, height, mime = "" }) {
+  return `heiss-ui-reference-${source}-${Number(width) || 0}x${Number(height) || 0}.${mimeExtension(mime)}`;
 }
 
 export function resizedInputPrefix(original) {

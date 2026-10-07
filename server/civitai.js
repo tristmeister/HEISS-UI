@@ -229,7 +229,9 @@ export async function writeCivitaiParameters(outputs, body) {
     .filter((output) => output?.type !== "video")
     .map(outputFile)
     .filter((file) => file && /\.png$/i.test(file));
-  const written = await Promise.all([...new Set(files)].map(async (file) => {
+  // Two at a time: each holds the whole PNG twice in memory, and a batch of 4K upscales adds up.
+  const queue = [...new Set(files)];
+  const writeOne = async (file) => {
     const temp = `${file}.${process.pid}.${crypto.randomUUID()}.heiss-tmp`;
     try {
       const buffer = await fs.promises.readFile(file);
@@ -245,6 +247,14 @@ export async function writeCivitaiParameters(outputs, body) {
       await fs.promises.rm(temp, { force: true }).catch(() => {});
       return 0;
     }
-  }));
-  return written.reduce((sum, one) => sum + one, 0);
+  };
+  let written = 0;
+  const worker = async () => {
+    while (queue.length) {
+      const done = await writeOne(queue.shift());
+      written += done;
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  return written;
 }

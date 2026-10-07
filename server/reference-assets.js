@@ -12,7 +12,7 @@ import { loadSharp } from "./sharp-loader.js";
 import { prepareInputImage } from "./input-image-sizing.js";
 import { forgetComfyRun } from "./hidden-traces.js";
 import { families } from "./family-catalog.js";
-import { mimeExtension, referenceInputName, resizedInputName } from "./reference-names.js";
+import { contentHash, mimeExtension, referenceInputName, resizedInputName } from "./reference-names.js";
 
 const assetsDir = path.join(dataDir, "reference-assets");
 const filesDir = path.join(assetsDir, "files");
@@ -306,7 +306,8 @@ async function preferUpscale(original, readUpscale) {
       .resize({ width, height, fit: "fill", kernel: "lanczos3" })
       .png()
       .toBuffer();
-    return { buffer, mime: "image/png", name: String(original.name || "reference").replace(/\.[a-z0-9]+$/i, "") + ".png" };
+    // Made from the picture, not the picture's file: named after the original, like a resized copy.
+    return { buffer, mime: "image/png", name: String(original.name || "reference").replace(/\.[a-z0-9]+$/i, "") + ".png", derived: true, width, height };
   } catch {
     return original;
   }
@@ -333,7 +334,8 @@ export async function bytesForReference(req, id) {
   const original = await publicGalleryBuffer(item);
   if (!item.upscaleActive || item.upscale?.status !== "done" || !item.upscale.url) return original;
   const { url, outputName } = item.upscale;
-  return preferUpscale(original, () => publicGalleryBuffer({ id: url, url, outputName, type: "image" }));
+  const sent = await preferUpscale(original, () => publicGalleryBuffer({ id: url, url, outputName, type: "image" }));
+  return sent === original ? original : { ...sent, sourceHash: contentHash(original.buffer) };
 }
 
 export async function uploadBufferToComfy({ buffer, mime, name }, { unique = false, filename: named = "" } = {}) {
@@ -364,12 +366,15 @@ export async function stageReferenceAssets(req, references = [], { unique = fals
         ? Number(generation.width) * Number(generation.height) : 0;
       const step = family?.img2img && !family.references ? family.sizeStep || 8 : 1;
       const original = await bytesForReference(req, assetId);
+      // The picture's own file, whatever is sent (its upscale, resized): what hiding it can find.
+      const source = original.sourceHash || contentHash(original.buffer);
       const bytes = await prepareInputImage(original, { pixels, step });
       // A Hidden run's copies are its own and go when it ends. Everything else keeps a
       // stable name (a resized copy: by its original and size), so a repeat run finds
       // ComfyUI's cache warm instead of loading and encoding it all again.
       const temporary = unique || assetId.startsWith("vault:");
-      const filename = !temporary && bytes.resized && bytes.width ? resizedInputName(original.buffer, bytes) : "";
+      const derived = bytes.resized || original.derived;
+      const filename = !temporary && derived ? resizedInputName(source, { width: bytes.width || original.width, height: bytes.height || original.height, mime: bytes.mime || original.mime }) : "";
       const uploaded = await uploadBufferToComfy(bytes, { unique: temporary, filename });
       staged.push({ slot, assetId, source: String(reference?.source || ""), ...uploaded, ...(temporary ? { temporary: true } : {}), ...(bytes.width ? { width: bytes.width, height: bytes.height } : {}) });
     }

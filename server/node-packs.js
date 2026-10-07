@@ -23,7 +23,7 @@ export const nodePacks = {
     name: "HEISS UI Nodes",
     repository: "https://github.com/tristmeister/ComfyUI-HEISS-UI-Nodes.git",
     folder: "ComfyUI-HEISS-UI-Nodes",
-    commit: "0918a0b036109a4d74a68933ca8cf18c2ddc9709",
+    commit: "1ecf4ddaa50f6c2a4ac1851de341e9840fad71c5",
     ref: "main, 2026-10-08",
     search: "HEISS UI",
     // It grows with HEISS: an installed older copy is updated to `commit` (pack-installer.js).
