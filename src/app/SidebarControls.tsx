@@ -91,7 +91,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
     <div className="phone-advanced-controls">
       <div className="phone-seg phone-mode" role="radiogroup" aria-label="Make">
         {(["image", "video"] as const).map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={mode === value} className={cn(mode === value && "active")} onClick={() => changeMode(value)}>{value === "image" ? "Image" : <>Video<BetaTag /></>}</button>
+          <button key={value} type="button" role="radio" aria-checked={mode === value} className={cn(mode === value && "active")} onClick={() => changeMode(value)}>{value === "image" ? <span>Image</span> : <span>Video<BetaTag /></span>}</button>
         ))}
       </div>
 
@@ -189,7 +189,7 @@ export function SidebarControls({ view }: { view: any }) {
   // What the model's makers ship, one tap away once anything has moved from it.
   const backToRecommended = recommended?.differs ? (
     <button type="button" className="btn is-ghost sidebar-recommended" onClick={recommended.restore} title={`The steps, prompt strength, sampler and scheduler recommended for ${recommended.family || "this model"}`}>
-      <RotateCcw size={13} /> Back to recommended
+      <RotateCcw size={13} /> <span>Back to recommended</span>
     </button>
   ) : null;
 
@@ -212,7 +212,7 @@ export function SidebarControls({ view }: { view: any }) {
       <div className="sidebar-subtabs" role="tablist" aria-label="Sidebar sections">
         {(["basics", "loras", "advanced"] as SidebarTab[]).map((id) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className={cn("sidebar-subtab", tab === id && "active")} onClick={() => setTab(id)}>
-            {id === "basics" ? "Basics" : id === "advanced" ? "Advanced" : "LoRAs"}
+            <span>{id === "basics" ? "Basics" : id === "advanced" ? "Advanced" : "LoRAs"}</span>
             {id === "loras" && loraActiveCount > 0 ? <span className="sidebar-subtab-count">{loraActiveCount}</span> : null}
           </button>
         ))}

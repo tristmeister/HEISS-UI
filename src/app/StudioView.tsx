@@ -634,7 +634,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {studioDock}
           {hiddenBar}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
+          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
@@ -748,7 +748,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {hiddenLocked || !renderedGallery.some((item: GalleryItem) => item.type === 'video') ? null : <GridAutoplayButton />}
           {hiddenLocked ? null : <StackRunsButton on={Boolean(prefs.stackRuns)} disabled={searchOn} onToggle={() => setPrefs({ stackRuns: !prefs.stackRuns })} />}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
+          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
@@ -890,7 +890,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   </>
                 ) : null}
                 {showDetails ? (
-                  <aside data-open-surface className="viewer-side" onWheel={(event) => event.stopPropagation()}>
+                  <aside translate="no" data-open-surface className="viewer-side" onWheel={(event) => event.stopPropagation()}>
                     <div className="viewer-side-head">
                       <h3>Details</h3>
                     </div>
