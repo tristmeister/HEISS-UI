@@ -7,7 +7,7 @@ import test from "node:test";
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "heiss-run-upscale-"));
 process.env.HEISS_SEEDVR2_MODEL_DIR = dir;
 test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-const { modelFiles } = await import("./upscale.js");
+const { keepModels, modelFiles, noteSystemRam } = await import("./upscale.js");
 const { pairRunOutputs, planRunUpscale } = await import("./run-upscale.js");
 const { nextProgress } = await import("./progress-phase.js");
 const { RunTimer } = await import("./generation-timing.js");
@@ -43,6 +43,31 @@ test("Smart upscale goes into the run's own graph, fed by the picture the run sa
   assert.deepEqual(graph.heiss_up0_9.inputs.images, ["heiss_up0_5", 0]);
   assert.equal(graph.heiss_up0_1, undefined, "no LoadImage: nothing is staged");
   assert.equal(graph.heiss_up0_5._meta.heissPhase, "Upscaling to 4K");
+  // The loaders keep fixed ids, so SeedVR2's cache (keyed by them) finds a kept model again.
+  assert.deepEqual(graph.heiss_up0_5.inputs.dit, ["heiss_seedvr2_dit", 0]);
+  assert.deepEqual(graph.heiss_up0_5.inputs.vae, ["heiss_seedvr2_vae", 0]);
+  assert.equal(graph.heiss_up0_3, undefined);
+});
+
+test("SeedVR2 stays in system memory only where upscales come often and there is room", () => {
+  const GiB = 1024 ** 3;
+  const small = modelFiles["seedvr2_ema_3b_fp8_e4m3fn.safetensors"].bytes;
+  const large = modelFiles["seedvr2_ema_7b_fp8_e4m3fn.safetensors"].bytes;
+  const now = Date.now();
+  assert.equal(keepModels({ ditBytes: small, ramBytes: 32 * GiB, embedded: true }), true, "every picture upscales: keep it");
+  assert.equal(keepModels({ ditBytes: small, ramBytes: 16 * GiB, embedded: true }), false, "too little memory");
+  assert.equal(keepModels({ ditBytes: large, ramBytes: 32 * GiB, embedded: true }), false, "the 7B needs more room");
+  assert.equal(keepModels({ ditBytes: large, ramBytes: 64 * GiB, embedded: true }), true);
+  assert.equal(keepModels({ ditBytes: small, ramBytes: 64 * GiB, now, lastAt: now - 60_000 }), true, "a second upscale within minutes");
+  assert.equal(keepModels({ ditBytes: small, ramBytes: 64 * GiB, now, lastAt: now - 3_600_000 }), false, "an occasional one lets it go");
+  assert.equal(keepModels({ ditBytes: small, ramBytes: 64 * GiB, now, lastAt: 0 }), false);
+
+  const loader = (graph) => graph.heiss_seedvr2_dit.inputs.cache_model;
+  // This run's "high" upscale is the 16 GB 7B fp16: it takes eight times that.
+  noteSystemRam({ system: { ram_total: 160 * GiB } });
+  assert.equal(loader(planRunUpscale(runGraph(), body, info).graph), true);
+  noteSystemRam({ system: { ram_total: 16 * GiB } });
+  assert.equal(loader(planRunUpscale(runGraph(), body, info).graph), false, "a run without it releases a kept model");
 });
 
 test("a run whose upscale can't be set up goes ahead and says why", () => {

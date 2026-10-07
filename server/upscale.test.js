@@ -69,16 +69,16 @@ test("the graph uses the machine's own device and skips block swap without an of
   placeModel("ema_vae_fp16.safetensors");
   // What a Mac really offers: the offload list has no "cpu" at all.
   const mac = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith({ ...registryListing, devices: ["mps"], offloads: ["none", "mps"] })).graph;
-  assert.equal(mac["3"].inputs.device, "mps");
-  assert.equal(mac["3"].inputs.offload_device, "none");
-  assert.equal(mac["4"].inputs.offload_device, "none");
+  assert.equal(mac.heiss_seedvr2_dit.inputs.device, "mps");
+  assert.equal(mac.heiss_seedvr2_dit.inputs.offload_device, "none");
+  assert.equal(mac.heiss_seedvr2_vae.inputs.offload_device, "none");
   assert.equal(mac["5"].inputs.offload_device, "none");
-  assert.equal(mac["3"].inputs.blocks_to_swap, 0);
-  assert.equal(mac["3"].inputs.swap_io_components, false);
+  assert.equal(mac.heiss_seedvr2_dit.inputs.blocks_to_swap, 0);
+  assert.equal(mac.heiss_seedvr2_dit.inputs.swap_io_components, false);
   const cuda = upscaleGraph({ width: 1024, height: 1024, quality: "fast" }, infoWith(registryListing)).graph;
-  assert.equal(cuda["3"].inputs.device, "cuda:0");
-  assert.equal(cuda["3"].inputs.offload_device, "cpu");
-  assert.equal(cuda["3"].inputs.blocks_to_swap, 16);
+  assert.equal(cuda.heiss_seedvr2_dit.inputs.device, "cuda:0");
+  assert.equal(cuda.heiss_seedvr2_dit.inputs.offload_device, "cpu");
+  assert.equal(cuda.heiss_seedvr2_dit.inputs.blocks_to_swap, 16);
 });
 
 async function waitForInstall() {

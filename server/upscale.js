@@ -633,7 +633,35 @@ function devicesFor(info, nodeClass) {
   return { device, offload };
 }
 
-export function upscaleGraph(body, info = {}) {
+// The loaders' node ids, the same in every graph: SeedVR2 keys its model cache by them, so a kept
+// model is found again by the next run, and only ever kept once.
+const DIT_NODE = "heiss_seedvr2_dit";
+const VAE_NODE = "heiss_seedvr2_vae";
+const KEEP_FOR_MS = 10 * 60_000;
+let systemRamBytes = 0;
+let lastUpscaleAt = 0;
+
+/** ComfyUI's system memory, from /system_stats, for keepModels. */
+export function noteSystemRam(stats = {}) {
+  const ram = Number(stats?.system?.ram_total) || 0;
+  if (ram) systemRamBytes = ram;
+}
+
+/**
+ * Whether SeedVR2 keeps its model in system memory after this upscale
+ * (cache_model), so the next one copies it to the GPU instead of reading it
+ * from disk. Only when upscales come often (Smart upscale on every picture, or
+ * one within the last ten minutes) and the machine has room to spare: at least
+ * 32 GB and eight times the model. SeedVR2 holds it outside ComfyUI's memory
+ * management, which can't let go of it under pressure; a run without
+ * cache_model releases it again.
+ */
+export function keepModels({ ditBytes = 0, ramBytes = systemRamBytes, embedded = false, now = Date.now(), lastAt = lastUpscaleAt } = {}) {
+  const often = embedded || (lastAt && now - lastAt < KEEP_FOR_MS);
+  return Boolean(often && ditBytes && ramBytes >= Math.max(32 * 1024 ** 3, 8 * ditBytes));
+}
+
+export function upscaleGraph(body, info = {}, { embedded = false } = {}) {
   const plan = upscalePlan(body);
   const have = available(info, seedvr2ModelDir());
   const dit = resolveDit(plan.quality, have);
@@ -642,12 +670,14 @@ export function upscaleGraph(body, info = {}) {
   const ditDevices = devicesFor(info, "SeedVR2LoadDiTModel");
   const vaeDevices = devicesFor(info, "SeedVR2LoadVAEModel");
   const swap = ditDevices.offload !== "none";
+  const keep = keepModels({ ditBytes: modelFiles[dit.file]?.bytes || 0, embedded });
+  lastUpscaleAt = Date.now();
   const graph = {};
   graph["1"] = { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } };
   const source = body.faceDetail ? faceDetailStack(graph, body, ["1", 0], info) : ["1", 0];
   Object.assign(graph, {
     "2": { class_type: "ImageScaleBy", inputs: { image: source, upscale_method: "bicubic", scale_by: plan.preScale } },
-    "3": {
+    [DIT_NODE]: {
       class_type: "SeedVR2LoadDiTModel",
       inputs: {
         model: dit.file,
@@ -655,11 +685,11 @@ export function upscaleGraph(body, info = {}) {
         blocks_to_swap: swap ? plan.blocksToSwap : 0,
         swap_io_components: swap,
         offload_device: ditDevices.offload,
-        cache_model: false,
+        cache_model: keep,
         attention_mode: "sdpa"
       }
     },
-    "4": {
+    [VAE_NODE]: {
       class_type: "SeedVR2LoadVAEModel",
       inputs: {
         model: vae.file,
@@ -672,15 +702,15 @@ export function upscaleGraph(body, info = {}) {
         decode_tile_overlap: 128,
         tile_debug: "false",
         offload_device: vaeDevices.offload,
-        cache_model: false
+        cache_model: keep
       }
     },
     "5": {
       class_type: "SeedVR2VideoUpscaler",
       inputs: {
         image: ["2", 0],
-        dit: ["3", 0],
-        vae: ["4", 0],
+        dit: [DIT_NODE, 0],
+        vae: [VAE_NODE, 0],
         seed: Number(body.seed || crypto.randomInt(1, 2 ** 31)),
         resolution: plan.resolution,
         max_resolution: plan.maxResolution,
@@ -704,7 +734,9 @@ export function upscaleGraph(body, info = {}) {
 /** A link inside the upscale's own graph, renamed into the run's graph; its LoadImage becomes `source`. */
 function relink(value, prefix, source) {
   if (Array.isArray(value) && value.length === 2 && typeof value[0] === "string" && Number.isInteger(value[1])) {
-    return value[0] === "1" ? source : [`${prefix}${value[0]}`, value[1]];
+    if (value[0] === "1") return source;
+    // The loaders are shared by every upscale in the run, under their fixed ids.
+    return value[0] === DIT_NODE || value[0] === VAE_NODE ? value : [`${prefix}${value[0]}`, value[1]];
   }
   return value;
 }
@@ -726,12 +758,13 @@ export function embedUpscale(graph, body, info = {}, { phase = "" } = {}) {
   let plan = null;
   saves.forEach(([saveId, save], index) => {
     const prefix = `heiss_up${index}_`;
-    const built = upscaleGraph({ ...body, imageName: "" }, info);
+    const built = upscaleGraph({ ...body, imageName: "" }, info, { embedded: true });
     plan = built.plan;
     for (const [id, node] of Object.entries(built.graph)) {
       if (id === "1") continue;
       const inputs = Object.fromEntries(Object.entries(node.inputs || {}).map(([key, value]) => [key, relink(value, prefix, save.inputs.images)]));
-      next[`${prefix}${id}`] = { ...node, inputs, _meta: { title: "Smart upscale", heissUpscale: true, ...(phase ? { heissPhase: phase } : {}) } };
+      const shared = id === DIT_NODE || id === VAE_NODE;
+      next[shared ? id : `${prefix}${id}`] = { ...node, inputs, _meta: { title: "Smart upscale", heissUpscale: true, ...(phase ? { heissPhase: phase } : {}) } };
     }
     pairs.push({ base: saveId, upscale: `${prefix}9` });
   });

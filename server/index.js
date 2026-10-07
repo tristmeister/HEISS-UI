@@ -67,7 +67,7 @@ import { comfyPython, comfyRootDir, packInstallPlan } from './node-install.js';
 import { setupTips } from './setup-tips.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
-import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleQualities, upscaleStatus } from './upscale.js';
+import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, noteSystemRam, startModelInstall, upscalePlan, upscaleQualities, upscaleStatus } from './upscale.js';
 import { findUpscaleTarget, startUpscale, toggleUpscaleView } from './upscale-jobs.js';
 import { planRunUpscale } from './run-upscale.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
@@ -121,6 +121,7 @@ async function loadComfyContext({ force = false } = {}) {
     checkpoint: optionsFor(info, "CheckpointLoaderSimple", "ckpt_name")
   }).catch(() => null);
   comfyCache = { info, stats, fetchedAt: Date.now() };
+  noteSystemRam(stats);
   return comfyCache;
 }
 
