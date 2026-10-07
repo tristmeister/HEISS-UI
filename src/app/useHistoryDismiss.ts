@@ -13,6 +13,8 @@ const stack: Entry[] = [];
 let nextId = 1;
 let ignoreNextPop = 0;
 let listening = false;
+// TEMP flicker test: ?flicker=history skips the history entry overlays push.
+const skipHistory = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('flicker') === 'history';
 
 function onPopState() {
   if (ignoreNextPop > 0) {
@@ -28,7 +30,7 @@ export function useHistoryDismiss(open: boolean, close: () => void) {
   closeRef.current = close;
 
   useEffect(() => {
-    if (!open || typeof window === 'undefined') return;
+    if (!open || typeof window === 'undefined' || skipHistory) return;
     if (!listening) {
       window.addEventListener('popstate', onPopState);
       listening = true;

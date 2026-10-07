@@ -241,6 +241,7 @@
   border: 0;
   background: rgb(0 0 0 / .55);
 }
+.phone-sheet-backdrop.is-flicker-test { background: transparent; }
 .phone-sheet {
   position: fixed;
   left: 0;

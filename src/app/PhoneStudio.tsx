@@ -42,6 +42,9 @@ import { usePromptHistory } from './recentPrompts';
 
 /* ------------------------------------------------------------------ Sheet */
 
+// TEMP flicker test: ?flicker=dim leaves the backdrop clear.
+const flickerTest = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('flicker') : null;
+
 /**
  * A bottom sheet: grab handle, swipe down (or Back, or Escape, or a tap on the
  * dimmed page) to close, focus kept inside while open.
@@ -80,7 +83,7 @@ export function Sheet({ open, onClose, title, children, footer, full = false, cl
         <React.Fragment key="sheet">
           <motion.button
             type="button"
-            className="phone-sheet-backdrop"
+            className={cn('phone-sheet-backdrop', flickerTest === 'dim' && 'is-flicker-test')}
             aria-label="Close"
             tabIndex={-1}
             onClick={onClose}
