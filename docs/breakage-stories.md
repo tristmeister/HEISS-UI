@@ -61,3 +61,29 @@ User stories in the spirit of the `removeChild` crash (something outside the app
 
 41. **Memory creep over days.** As a user who leaves the studio open for a week, the gallery's blobs, video previews and listeners add up until the tab is killed. Check: leave it running with a script that generates and scrolls.
 42. **Crash reports that hide the cause.** As a maintainer, the minified stack names no component. Reports like the `removeChild` one cannot be traced. Check: ship source maps for the crash path, or name the nearest `data-*` anchor in the report.
+
+## Test results (7 Oct 2026)
+
+Run against the built app (`dist`) with a stock data folder, ComfyUI offline, plus the server test suite (495 pass).
+
+| # | Story | Result |
+|---|-------|--------|
+| 1 | Translator | Pass. Simulated translation (every text node wrapped in `<font><font>`, re-applied after each click) across the sidebar, settings, search, stacks and tabs: no crash, with and without `translate="no"`. |
+| 10 | Zoom / narrow | Pass at 467 px (phone UI) and 820 px (sidebar open). No horizontal overflow. |
+| 12 | Autofill | Pass. Only the seed field is a text input, with no name. |
+| 13 | Storage blocked | Pass by code audit. Every storage access is guarded except the "Reset all settings" button, which is user-triggered. |
+| 15, 19 | OOM, ComfyUI dies | Covered by `run-job`, `comfy-queue` and `comfy-restart` tests (failed runs are kept with a reason, the tracker recovers, dropped prompts fail cleanly). Not re-run against a real ComfyUI. |
+| 20 | Port taken | Pass. A second start prints "HEISS UI is already running" and exits. |
+| 25 | Corrupt JSON | Pass by `json-store.test.js` (backup fallback, corrupt copy set aside). |
+| 27 | Huge paste | Pass. A 1.5 M character prompt with zero-width and non-breaking spaces is accepted in 0.7 s with no crash. No upper limit applies when no model is selected. |
+| 28, 29 | Bad uploads | Partial. A non-image upload is refused with 400. A malformed JSON body returns Express's HTML error page with a stack trace and local file paths (see below). |
+| 30 | Half-downloaded model | Pass for our own downloads (`model-downloads-integrity.test.js`: hash checked, bad files discarded, resume only when still the same file). A truncated file dropped in by hand was not tested. |
+| 31 | Click storm | Partial. 90 rapid clicks on count, steps and the offline button: no crash. A real generation was not possible without ComfyUI. |
+| 32 | Delete while viewing | Pass with a note. Deleting the open item from outside leaves the viewer showing it until the next refresh; navigation and the page keep working. |
+| 38 | Focus on close | Pass. Closing the viewer returns focus to the tile that opened it. |
+
+Not tested: 2–9, 11, 14, 16–18, 21–24, 26, 33–37, 39–42 (need a real browser extension, another OS, a real ComfyUI, or long runs).
+
+Found along the way:
+- A malformed JSON body to any `/api` route returns an HTML error page with the server's stack trace and absolute paths. Local-only, and no client sends it, but a JSON error handler would be tidier.
+- With "Video" selected and no videos, the stage shows the ComfyUI-offline screen instead of an empty-videos state.
