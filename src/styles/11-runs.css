@@ -558,8 +558,10 @@
 }
 .run-flow-face {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  /* Whole pixels from FlowStack, not 50%: an odd-width card would put the
+     front face half a pixel off, soft at Windows' 125% and 150% scaling. */
+  left: var(--face-x, 50%);
+  top: var(--face-y, 50%);
   width: var(--face-w);
   height: var(--face-h);
   overflow: hidden;
@@ -691,7 +693,6 @@
 .run-stack-cover > img.media-loading,
 .run-flow-face > img.media-loading,
 .run-stack-skim-frame > img.media-loading {
-  animation: mediaShimmer 1.6s var(--ease-soft) infinite;
   filter: blur(22px) saturate(1.25);
   opacity: 0;
   transform: scale(1.035);

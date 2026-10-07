@@ -26,7 +26,10 @@ export function StackRunsButton({ on, onToggle, disabled = false, phone = false 
       >
         <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           {rects.map((rect, index) => (
-            <motion.rect key={index} rx={2} initial={false} animate={rect} transition={{ ...spring, delay: on ? (2 - index) * 0.03 : index * 0.03 }} />
+            // Height eases instead of springing: a spring overshoots the
+            // collapsed edges' 0.01 into a negative height, which Chrome and
+            // Firefox reject with a console error every frame.
+            <motion.rect key={index} rx={2} initial={false} animate={rect} transition={{ ...spring, delay: on ? (2 - index) * 0.03 : index * 0.03, height: { type: "tween", duration: 0.24, ease: [0.22, 1, 0.36, 1], delay: on ? (2 - index) * 0.03 : index * 0.03 } }} />
           ))}
         </svg>
       </button>

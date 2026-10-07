@@ -62,7 +62,6 @@
   line-height: normal;
   border-radius: var(--radius);
   transform-origin: center;
-  will-change: transform, opacity, filter;
   transition: transform 780ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 /* Card sits a hair smaller while its media decodes, then eases up to full size
@@ -122,11 +121,14 @@
     filter 560ms cubic-bezier(0.16, 1, 0.3, 1),
     opacity 380ms ease,
     transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: filter, opacity, transform;
 }
+/* No standing will-change here or on the wrap below: three layers a tile
+   across a screen of tiles is GPU memory Windows laptops don't have, and
+   Firefox drops the hint past its budget anyway. Transitions promote
+   for as long as they run. No shimmer on the image either: it is invisible
+   (opacity 0) until it loads, and the animation repainted it every frame. */
 .tile img.media-loading,
 .tile video.media-loading {
-  animation: mediaShimmer 1.6s var(--ease-soft) infinite;
   filter: blur(22px) saturate(1.25);
   opacity: 0;
   transform: scale(1.035);

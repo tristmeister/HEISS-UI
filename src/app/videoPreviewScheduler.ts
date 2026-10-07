@@ -18,12 +18,19 @@ export function toggleGridAutoplay() {
 const motion = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : undefined;
 const phone = typeof window !== 'undefined' ? window.matchMedia('(max-width: 760px), (pointer: coarse)') : undefined;
 
+// Read once: reconcile runs on every scroll step, and this only changes with a reload.
+let forcedPhoneValue: boolean | undefined;
+function forcedPhone() {
+  if (forcedPhoneValue !== undefined) return forcedPhoneValue;
+  forcedPhoneValue = new URLSearchParams(window.location.search).get('phone') === '1';
+  try { forcedPhoneValue ||= window.sessionStorage.getItem('heiss-force-phone') === '1'; } catch { /* Storage may be disabled. */ }
+  return forcedPhoneValue;
+}
+
 function reconcile() {
   const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-  let forcedPhone = new URLSearchParams(window.location.search).get('phone') === '1';
-  try { forcedPhone ||= window.sessionStorage.getItem('heiss-force-phone') === '1'; } catch { /* Storage may be disabled. */ }
   // A screenful of tiles plays at once on a computer; phones decode fewer, and Data Saver fewer still.
-  const limit = connection?.saveData ? 2 : phone?.matches || forcedPhone ? 6 : 24;
+  const limit = connection?.saveData ? 2 : phone?.matches || forcedPhone() ? 6 : 24;
   const candidates = [...previews.values()].filter((p) => p.near).sort((a, b) => b.ratio - a.ratio);
   const selected = new Set(!suspended && autoplay ? candidates.slice(0, limit) : []);
   for (const p of previews.values()) {

@@ -42,7 +42,6 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
   // Undone folds stay loose for this session.
   const held = useRef<Set<string>>(new Set());
   const seen = useRef<Set<string>>(new Set());
-  const [tick, setTick] = useState(0);
   const groupsRef = useRef(groups);
   groupsRef.current = groups;
 
@@ -92,16 +91,21 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
 
   // On every regroup (a result landing, a take joining), on a timer, and as
   // the gallery scrolls, since scrolling is what takes a quiet run off screen.
-  useEffect(() => { check(); }, [groups, tick, check]);
+  // The timer and scrolling call check() directly: it only sets state when a
+  // run actually folds, so scrolling doesn't re-render (and re-lay out) the
+  // gallery twice a second.
+  useEffect(() => { check(); }, [groups, check]);
+  const checkRef = useRef(check);
+  checkRef.current = check;
   useEffect(() => {
     if (!enabled) return;
-    const timer = window.setInterval(() => setTick((value) => value + 1), CHECK_MS);
+    const timer = window.setInterval(() => checkRef.current(), CHECK_MS);
     let last = 0;
     const onScroll = () => {
       const now = Date.now();
       if (now - last < 600) return;
       last = now;
-      setTick((value) => value + 1);
+      checkRef.current();
     };
     document.addEventListener("scroll", onScroll, { capture: true, passive: true });
     return () => {
@@ -110,6 +114,7 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
     };
   }, [enabled]);
 
+  const lastVisible = useRef<{ groups: GalleryGroups; runs: Run[]; value: GalleryGroups } | null>(null);
   const visible = useMemo(() => {
     if (!enabled) return groups;
     const now = Date.now();
@@ -118,14 +123,19 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
     // it never shows loose for a frame and then jumps into its stack.
     const runs = groups.runs.filter((run) => !runIsActive(run, now) && (settled.has(run.id) || (!seen.current.has(run.id) && !held.current.has(run.id))));
     if (runs.length === groups.runs.length) return groups;
+    // The same runs kept from the same groups as last time: the same answer.
+    const last = lastVisible.current;
+    if (last && last.groups === groups && last.runs.length === runs.length && last.runs.every((run, index) => run === runs[index])) return last.value;
     const keep = new Set(runs);
     const runOf = new Map(groups.runOf);
     for (const run of groups.runs) {
       if (keep.has(run)) continue;
       for (const item of run.items) runOf.delete(item.id);
     }
-    return { ...groups, runs, runOf };
-  }, [enabled, groups, settled, tick]); // eslint-disable-line react-hooks/exhaustive-deps
+    const value = { ...groups, runs, runOf };
+    lastVisible.current = { groups, runs, value };
+    return value;
+  }, [enabled, groups, settled]);
 
   return { groups: visible, settleVersion: settled };
 }

@@ -1145,7 +1145,8 @@ app.get("/api/gallery", (req, res) => {
     items: revealGalleryItemsForRequest(page.items).map((item) => item.bundle
       ? { ...item, bundle: { ...item.bundle, items: revealGalleryItemsForRequest(item.bundle.items || []) } }
       : item),
-    outputs: revealGalleryItemsForRequest(cursor || limit ? page.items : filterVisibleGallery(gallery))
+    // The whole list, for callers from before paging. A page is in `items` already.
+    ...(cursor || limit ? {} : { outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) })
   });
 });
 
@@ -1408,6 +1409,18 @@ app.get('/api/library/video-preview', async (req, res) => {
   catch { if (!res.headersSent) res.status(503).end(); }
 });
 
+/**
+ * A thumbnail's caching. The gallery asks for every thumbnail with a `v` that
+ * names its item (mediaUrl.ts), so a reused file name is a new address: that
+ * one is used straight from the browser's cache for a while and checked again
+ * in the background after, so a reload or a scroll back sends no requests and
+ * a file changed in place still shows up on the next look. Without `v` the
+ * address is only a file name, so it is checked every time.
+ */
+function thumbnailCacheControl(req) {
+  return req.query.v ? "private, max-age=600, stale-while-revalidate=2592000" : "private, no-cache";
+}
+
 app.get("/api/library/thumb", async (req, res) => {
   const file = libraryFile(req.query.folder, req.query.path);
   if (!file || !/\.(png|jpe?g|webp|gif|avif)$/i.test(file)) { res.status(404).end(); return; }
@@ -1415,9 +1428,9 @@ app.get("/api/library/thumb", async (req, res) => {
     const thumbnail = await getFileThumbnail(file);
     if (!thumbnail) { res.status(404).end(); return; }
     if (thumbnail.original) { res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } }); return; }
+    res.setHeader("Cache-Control", thumbnailCacheControl(req));
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
-    res.setHeader("Cache-Control", "private, no-cache");
     res.type("image/webp");
     await pipeline(fs.createReadStream(thumbnail.file), res);
   } catch (error) {
@@ -2222,11 +2235,10 @@ app.get("/comfy/thumb", async (req, res) => {
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
     // No sharp (see sharp-loader.js): the full image stands in for the thumbnail.
     if (thumbnail.original) { res.redirect(302, `/comfy/view?${new URLSearchParams({ filename, subfolder, type })}`); return; }
+    // The ETag is a source-content hash, so revalidation safely handles a reused filename.
+    res.setHeader("Cache-Control", thumbnailCacheControl(req));
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
-    // This URL identifies an output filename, not immutable image bytes. Its
-    // ETag is a source-content hash, so revalidation safely handles reuse.
-    res.setHeader("Cache-Control", "private, no-cache");
     res.type("image/webp");
     await pipeline(fs.createReadStream(thumbnail.file), res);
   } catch (error) {

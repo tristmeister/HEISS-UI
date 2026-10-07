@@ -94,9 +94,12 @@ export function installCrashLog({ heartbeatMs = 60_000, stallMs = 750 } = {}) {
     write("error", "Unhandled promise rejection (kept running)", { ...describe(reason), ...readings() });
   });
   process.on("exit", (code) => { write(code ? "error" : "info", "HEISS UI exited", { code, ...readings() }); });
-  // Only noted: gallery-store.js owns stopping (it saves the gallery first).
+  // Only noted: gallery-store.js owns stopping (it saves the gallery first,
+  // then raises the signal again for Node's default exit). Once, like that
+  // one: a listener left behind would catch the raised signal and the server
+  // would never stop (Ctrl+C, the launcher's stop, a test's SIGTERM).
   for (const signal of process.platform === "win32" ? ["SIGINT", "SIGTERM"] : ["SIGINT", "SIGTERM", "SIGHUP"]) {
-    process.on(signal, () => { write("info", `Stopping on ${signal}`); });
+    process.once(signal, () => { write("info", `Stopping on ${signal}`); });
   }
 
   // The event loop running late means the server can't answer: log stalls as

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { comfyRecentlyUnreachable, comfyUrl, localOutputFile, noteComfyFetchError, noteComfyReachable } from "./comfy.js";
 import { dataDir } from "./gallery-store.js";
-import { renameWithRetry } from "./json-store.js";
+import { renameWithRetryAsync } from "./json-store.js";
 import { loadSharp } from "./sharp-loader.js";
 
 // Small on-demand cache of downscaled previews for the gallery grid, so a LAN client
@@ -25,12 +25,43 @@ let building = 0;
 const waiting = [];
 export function buildStats() { return { building, waiting: waiting.length }; }
 async function inSlot(work) {
-  if (building >= BUILD_SLOTS) await new Promise((resolve) => waiting.push(resolve));
-  building += 1;
+  // A freed slot is handed straight to the next in line, still counted, so a
+  // caller arriving in between can never take it too and make five.
+  if (building < BUILD_SLOTS) building += 1;
+  else await new Promise((resolve) => waiting.push(resolve));
   try { return await work(); } finally {
-    building -= 1;
-    waiting.shift()?.();
+    const next = waiting.shift();
+    if (next) next(); else building -= 1;
   }
+}
+
+/*
+ * Which cached files each output has, read from the folder once and then kept
+ * up to date here. Finding an output's thumbnail, or clearing out its older
+ * ones after a build, then looks at that output's few files instead of
+ * listing a cache of tens of thousands on every build.
+ */
+let cacheIndex = null;
+const keyOfName = (name) => (name.endsWith(".webp") && name.includes("-") ? name.slice(0, name.indexOf("-")) : "");
+function indexed() {
+  if (cacheIndex) return cacheIndex;
+  cacheIndex = new Map();
+  let names = [];
+  try { names = fs.readdirSync(thumbnailDir); } catch { /* No cache yet. */ }
+  for (const name of names) indexAdd(name);
+  return cacheIndex;
+}
+function indexAdd(name) {
+  const key = keyOfName(name);
+  if (!key || !cacheIndex) return;
+  if (!cacheIndex.has(key)) cacheIndex.set(key, new Set());
+  cacheIndex.get(key).add(name);
+}
+function indexRemove(name) {
+  const names = cacheIndex?.get(keyOfName(name));
+  if (!names) return;
+  names.delete(name);
+  if (!names.size) cacheIndex.delete(keyOfName(name));
 }
 
 /*
@@ -89,6 +120,7 @@ export async function sweepThumbnails({ dir = thumbnailDir, limitBytes = cacheLi
     try {
       await fs.promises.rm(entry.file, { force: true });
       lastUsed.delete(entry.file);
+      if (dir === thumbnailDir) indexRemove(path.basename(entry.file));
       removed += 1;
       freedBytes += entry.size;
     } catch {
@@ -126,27 +158,27 @@ function cachePath(key, sourceHash) {
 
 /** The newest thumbnail already made for this output, whatever its source hash. */
 function cachedThumbnail(key) {
-  try {
-    const found = fs.readdirSync(thumbnailDir)
-      .filter((name) => name.startsWith(`${key}-`) && name.endsWith(".webp"))
-      .map((name) => ({ file: path.join(thumbnailDir, name), time: fs.statSync(path.join(thumbnailDir, name)).mtimeMs }))
-      .sort((a, b) => b.time - a.time)[0];
-    return found ? { file: found.file, etag: `"${path.basename(found.file, ".webp").slice(key.length + 1)}"` } : null;
-  } catch {
-    return null;
+  let found = null;
+  for (const name of [...(indexed().get(key) || [])]) {
+    const file = path.join(thumbnailDir, name);
+    let time;
+    // Gone from the folder behind this server's back (cleared by hand): forget it.
+    try { time = fs.statSync(file).mtimeMs; } catch { indexRemove(name); continue; }
+    if (!found || time > found.time) found = { file, time };
   }
+  return found ? { file: found.file, etag: `"${path.basename(found.file, ".webp").slice(key.length + 1)}"` } : null;
 }
 
 /** The original's bytes: from ComfyUI, or from disk while ComfyUI is not answering. */
 async function sourceBytes(filename, subfolder, type) {
   const params = new URLSearchParams({ filename, subfolder, type });
-  const local = () => {
+  const local = async () => {
     const file = localOutputFile(filename, subfolder, type);
-    return file ? fs.readFileSync(file) : undefined;
+    return file ? fs.promises.readFile(file) : undefined;
   };
   // ComfyUI just failed to answer: skip the slow refused connection when the file is here.
   if (comfyRecentlyUnreachable()) {
-    const bytes = local();
+    const bytes = await local();
     if (bytes) return bytes;
   }
   try {
@@ -225,9 +257,9 @@ async function build(filename, subfolder, type) {
     if (fs.existsSync(file)) return { file, etag: `\"${local.sourceHash}\"` };
     const made = await inSlot(async () => {
       if (fs.existsSync(file)) return { file, etag: `\"${local.sourceHash}\"` };
-      let source;
-      try { source = fs.readFileSync(local.file); } catch { source = null; }
-      return source ? writeThumbnail(key, local.sourceHash, source) : null;
+      // sharp reads the file itself, off the main thread, instead of it being
+      // read here into a buffer first. Unreadable: try ComfyUI below.
+      try { return await writeThumbnail(key, local.sourceHash, local.file); } catch { return null; }
     });
     if (made) return made;
   }
@@ -250,22 +282,31 @@ async function writeThumbnail(key, sourceHash, source) {
   const file = cachePath(key, sourceHash);
   const sharp = await loadSharp();
   if (!sharp) return { original: true };
+  // .rotate() turns a phone photo (a library image) upright by its EXIF
+  // orientation, which WebP doesn't carry; outputs have none and are unchanged.
   const resized = await sharp(source)
+    .rotate()
     .resize({ width: longestEdge, height: longestEdge, fit: "inside", withoutEnlargement: true })
     .webp({ quality })
     .toBuffer();
 
-  fs.mkdirSync(thumbnailDir, { recursive: true, mode: 0o700 });
+  await fs.promises.mkdir(thumbnailDir, { recursive: true, mode: 0o700 });
   const temp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temp, resized);
-  renameWithRetry(temp, file);
-  // Best-effort: drop any earlier cached thumbnail for this resource under a stale ETag.
-  for (const entry of fs.readdirSync(thumbnailDir)) {
-    if (entry.startsWith(`${key}-`) && path.join(thumbnailDir, entry) !== file) {
-      // Synchronous, so the stale file is gone by the time the new one is served.
-      try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); } catch { /* in use (Windows); next build retries */ }
-    }
+  try {
+    await fs.promises.writeFile(temp, resized);
+    await renameWithRetryAsync(temp, file);
+  } catch (error) {
+    await fs.promises.rm(temp, { force: true }).catch(() => {});
+    throw error;
   }
+  const name = path.basename(file);
+  // Best-effort: drop any earlier cached thumbnail for this resource under a stale ETag.
+  for (const entry of [...(indexed().get(key) || [])]) {
+    if (entry === name) continue;
+    // Synchronous, so the stale file is gone by the time the new one is served.
+    try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); indexRemove(entry); } catch { /* in use (Windows); next build retries */ }
+  }
+  indexAdd(name);
   lastUsed.set(file, Date.now());
   maybeSweep();
   return { file, etag: `\"${sourceHash}\"` };
@@ -307,11 +348,11 @@ async function findOrBuildFile(file) {
   if (!(await loadSharp())) return cachedThumbnail(key) || { original: true };
   if (pending.has(key)) return pending.get(key);
   const promise = (async () => {
-    const stat = fs.statSync(resolved);
+    const stat = await fs.promises.stat(resolved);
     const sourceHash = crypto.createHash("sha256").update(`local:${stat.size}:${stat.mtimeMs}`).digest("hex");
     const cached = cachePath(key, sourceHash);
     if (fs.existsSync(cached)) return { file: cached, etag: `"${sourceHash}"` };
-    return inSlot(() => writeThumbnail(key, sourceHash, fs.readFileSync(resolved)));
+    return inSlot(() => writeThumbnail(key, sourceHash, resolved));
   })().finally(() => pending.delete(key));
   pending.set(key, promise);
   return promise;
@@ -341,6 +382,7 @@ export function forgetThumbnail(filename, subfolder = "", type = "output") {
     if (!name.startsWith(`${key}-`)) continue;
     try {
       fs.rmSync(path.join(thumbnailDir, name), { force: true });
+      indexRemove(name);
       removed += 1;
     } catch {
       // Held open for a moment (Windows); the caller can try again.
@@ -367,7 +409,7 @@ export function forgetLegacyHiddenThumbnails(names = []) {
   for (const entry of entries) {
     const dash = entry.lastIndexOf("-");
     if (dash < 0 || !keys.has(entry.slice(0, dash))) continue;
-    try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); removed += 1; } catch { /* next time */ }
+    try { fs.rmSync(path.join(thumbnailDir, entry), { force: true }); indexRemove(entry); removed += 1; } catch { /* next time */ }
   }
   try {
     fs.mkdirSync(thumbnailDir, { recursive: true, mode: 0o700 });
@@ -402,6 +444,7 @@ export async function resizeInMemory(buffer, mime) {
   if (!sharp) return null;
   try {
     return await sharp(buffer)
+      .rotate()
       .resize({ width: longestEdge, height: longestEdge, fit: "inside", withoutEnlargement: true })
       .webp({ quality })
       .toBuffer();

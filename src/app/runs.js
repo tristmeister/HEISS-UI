@@ -44,8 +44,26 @@ function timeOf(item) {
   return Number.isFinite(value) ? value : 0;
 }
 
+/**
+ * Prompts already split into words. A gallery repeats its prompts a lot (a
+ * batch, a run of takes) and is regrouped whenever a result lands, so each
+ * prompt is split once. The sets are shared: callers never change them.
+ */
+const wordCache = new Map();
+
 /** The words that carry a prompt: lowercased, LoRA tags and weights gone, plurals folded. */
 export function promptWords(text) {
+  const key = String(text || "");
+  let words = wordCache.get(key);
+  if (!words) {
+    if (wordCache.size > 20000) wordCache.clear();
+    words = splitWords(key);
+    wordCache.set(key, words);
+  }
+  return words;
+}
+
+function splitWords(text) {
   const words = String(text || "")
     .toLowerCase()
     .replace(/<[^>]*>/g, " ")
@@ -64,6 +82,11 @@ function loraNames(item) {
   const loras = item?.settings?.loras;
   if (!Array.isArray(loras)) return [];
   return loras.filter((lora) => lora && lora.enabled !== false && lora.name).map((lora) => String(lora.name).toLowerCase());
+}
+
+/** One key for a LoRA stack, so two outputs with the same stack compare as a string. */
+function loraKey(names) {
+  return names.length ? names.slice().sort().join("\u0000") : "";
 }
 
 function overlap(a, b) {
@@ -122,10 +145,22 @@ export function runScore(a, b, weightOf = () => 1) {
   if (a.item.jobId && a.item.jobId === b.item.jobId) return 1;
   if (!a.words.size || !b.words.size) return 0;
   if ((a.item.type || "image") !== (b.item.type || "image")) return 0;
-  let score = a.prompt === b.prompt ? 0.9 : promptSimilarity(a.words, b.words, weightOf);
+  let score = a.prompt === b.prompt ? 0.9
+    : a.pair && b.pair ? a.pair(a, b)
+    : promptSimilarity(a.words, b.words, weightOf);
   if (a.item.model && b.item.model) score += a.item.model === b.item.model ? 0.06 : -0.12;
-  if (a.loras.length || b.loras.length) score += 0.04 * (overlap(a.loras, b.loras) - 0.5);
+  if (a.loras.length || b.loras.length) score += 0.04 * ((a.loraKey === b.loraKey && a.loraKey !== undefined ? 1 : overlap(a.loras, b.loras)) - 0.5);
   return score;
+}
+
+/** promptSimilarity for two prepared outputs, whose word weights are already summed: only the shared words are weighed. */
+function similarityOfPrepared(a, b, weightOf) {
+  const [small, large] = a.words.size <= b.words.size ? [a.words, b.words] : [b.words, a.words];
+  let shared = 0;
+  for (const word of small) if (large.has(word)) shared += weightOf(word);
+  const union = a.sum + b.sum - shared;
+  if (union <= 0) return 0;
+  return 0.5 * (shared / union) + 0.5 * (shared / Math.min(a.sum, b.sum));
 }
 
 /* --------------------------------------------------------------- Moments */
@@ -184,8 +219,11 @@ export function groupGallery(items, { now = Date.now(), runs: findRuns = true } 
   const moments = [];
   let current = null;
   let previousTime = 0;
+  const times = new Map();
   for (const item of items) {
-    const time = timeOf(item) || previousTime || now;
+    const parsed = timeOf(item);
+    times.set(item, parsed);
+    const time = parsed || previousTime || now;
     // Newest first: a gap opens when this one is much older than the last.
     if (!current || (previousTime - time) > MOMENT_GAP_MS) {
       current = { items: [], start: time, end: time };
@@ -199,13 +237,27 @@ export function groupGallery(items, { now = Date.now(), runs: findRuns = true } 
 
   const { weightOf } = findRuns ? wordWeights(items) : { weightOf: () => 1 };
   const prepared = new Map();
+  // Takes of one idea compare the same few prompts with each other over and
+  // over: each pair of prompts is weighed once per grouping.
+  const pairScores = new Map();
+  const pair = (a, b) => {
+    const key = a.promptId < b.promptId ? a.promptId * 1e6 + b.promptId : b.promptId * 1e6 + a.promptId;
+    let score = pairScores.get(key);
+    if (score === undefined) { score = similarityOfPrepared(a, b, weightOf); pairScores.set(key, score); }
+    return score;
+  };
   const prepare = (item) => {
-    let entry = prepared.get(item.prompt || "");
+    const cacheKey = `${item.promptProtected ? "1" : "0"}${item.prompt || ""}`;
+    let entry = prepared.get(cacheKey);
     if (!entry) {
-      entry = { prompt: String(item.prompt || "").trim().toLowerCase(), words: item.promptProtected ? new Set() : promptWords(item.prompt) };
-      prepared.set(item.prompt || "", entry);
+      const words = item.promptProtected ? new Set() : promptWords(item.prompt);
+      let sum = 0;
+      for (const word of words) sum += weightOf(word);
+      entry = { prompt: String(item.prompt || "").trim().toLowerCase(), words, sum, promptId: prepared.size };
+      prepared.set(cacheKey, entry);
     }
-    return { item, time: timeOf(item), prompt: entry.prompt, words: entry.words, loras: loraNames(item) };
+    const loras = loraNames(item);
+    return { item, time: times.get(item) ?? timeOf(item), prompt: entry.prompt, words: entry.words, sum: entry.sum, promptId: entry.promptId, pair, loras, loraKey: loraKey(loras) };
   };
 
   const result = moments.map((moment) => {
@@ -267,7 +319,7 @@ export function groupGallery(items, { now = Date.now(), runs: findRuns = true } 
       variations: prompts.size,
       model: newestFirst.find((item) => item.model)?.model || "",
       type: newestFirst[0].type || "image",
-      start: timeOf(run.members[0]),
+      start: times.get(run.members[0]) ?? timeOf(run.members[0]),
       end: run.last,
     };
     runList.push(record);

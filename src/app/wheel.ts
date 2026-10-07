@@ -3,10 +3,11 @@ import { useCallback, useEffect, useRef, type RefObject } from 'react';
 /**
  * Wheel deltas in CSS pixels. Firefox and some Windows drivers report lines
  * (deltaMode 1) or pages (deltaMode 2) instead, which would otherwise read as
- * a 3 px nudge.
+ * a 3 px nudge. A notch is 3 lines there and about 100 px in Chrome, so a line
+ * counts as 33 px: a notch zooms, steps and scrolls the same in both.
  */
 export function wheelPixels(event: WheelEvent, pageSize = window.innerHeight) {
-  const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? pageSize : 1;
+  const scale = event.deltaMode === 1 ? 33 : event.deltaMode === 2 ? pageSize : 1;
   return { x: event.deltaX * scale, y: event.deltaY * scale };
 }
 

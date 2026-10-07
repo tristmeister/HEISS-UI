@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { GalleryTile } from './GalleryTile';
 import { RunShelf, RunStack, MomentHeading } from './RunStack';
-import { layoutGallery, placementKey, type LayoutEntry, type RunStackStyle } from './galleryLayout';
+import { itemKey, layoutGallery, placementKey, type LayoutEntry, type RunStackStyle } from './galleryLayout';
 import { cn } from './format';
 import type { MasonrySlot } from './masonry';
 import type { UpscaleNotice } from './useUpscale';
@@ -120,12 +120,18 @@ export function VirtualMasonryGallery({
   // grid's tracks, where the per-column lists used to sit.
   const [columnGap, setColumnGap] = useState<number | null>(null);
   React.useLayoutEffect(() => {
-    const next = scrollParent(containerRef.current) || scrollRef.current;
+    // Walking up with getComputedStyle forces a style pass, so only when the
+    // element found last time is no longer around the gallery.
+    const container = containerRef.current;
+    if (scrollElement?.isConnected && container && scrollElement.contains(container)) return;
+    const next = scrollParent(container) || scrollRef.current;
     setScrollElement((current) => (current === next ? current : next));
-    const gap = containerRef.current ? parseFloat(getComputedStyle(containerRef.current).columnGap) : NaN;
-    if (Number.isFinite(gap)) setColumnGap((current) => (current === gap ? current : gap));
   });
   const safeColumns = Math.max(1, columns);
+  React.useLayoutEffect(() => {
+    const gap = containerRef.current ? parseFloat(getComputedStyle(containerRef.current).columnGap) : NaN;
+    if (Number.isFinite(gap)) setColumnGap((current) => (current === gap ? current : gap));
+  }, [containerWidth, safeColumns]); // eslint-disable-line react-hooks/exhaustive-deps
   const spacing = containerWidth < 620 ? 4 : 7;
   const gutter = columnGap ?? spacing;
   // The grid is newest first, each tile in the shortest column: the newest top
@@ -162,6 +168,27 @@ export function VirtualMasonryGallery({
     previous,
     holding: hold,
   });
+  // Everything the layout reads, and nothing more: order, sizes, what is
+  // pending, and how moments and runs fall. A generation's progress ticking
+  // along (a new items array every poll) leaves it alone, so the gallery isn't
+  // laid out again for it; tiles pick up the newest item at render instead.
+  const layoutKey = useMemo(() => {
+    const parts = items.map((item) => `${item.id}|${item.width}x${item.height}|${item.status}|${placementKey(item)}|${itemKey(item)}|${item.optimistic ? 1 : 0}`);
+    if (groups) {
+      for (const moment of groups.moments) parts.push(`m|${moment.id}|${moment.title}|${moment.part}|${moment.items.length}|${moment.items[0]?.id}`);
+      for (const run of groups.runs) parts.push(`r|${run.id}|${run.cover?.id}|${run.cover?.width}x${run.cover?.height}|${run.items.map((item) => `${item.id}:${item.status}`).join(",")}`);
+    }
+    return parts.join("\n");
+  }, [items, groups]);
+  const itemById = useMemo(() => {
+    const byId = new Map<string, GalleryItem>();
+    for (const run of groups?.runs || []) for (const item of run.items) byId.set(item.id, item);
+    for (const item of items) byId.set(item.id, item);
+    return byId;
+  }, [items, groups]);
+  const runById = useMemo(() => new Map((groups?.runs || []).map((run) => [run.id, run])), [groups]);
+  const freshItem = (item: GalleryItem) => itemById.get(item.id) || item;
+  const freshRun = (run: Run) => runById.get(run.id) || run;
   const layout = useMemo(() => {
     const signature = `${safeColumns}:${containerWidth}:${spanWide}:${moments}:${stackRuns}:${stackStyle}`;
     const previous = placement.current.signature === signature ? placement.current.slots : new Map();
@@ -173,7 +200,7 @@ export function VirtualMasonryGallery({
     const next = layoutFor(openRuns, previous, holding && !ownLanding);
     placement.current = { signature, slots: next.placements };
     return next;
-  }, [containerWidth, gutter, groups, holding, items, moments, openRuns, safeColumns, stackStyle, spacing, spanWide, stackRuns]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [containerWidth, gutter, layoutKey, holding, moments, openRuns, safeColumns, stackStyle, spacing, spanWide, stackRuns]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A run opening deals its tiles out where they land, one after another in
   // the order they were made, while everything below glides down to make room.
@@ -183,7 +210,7 @@ export function VirtualMasonryGallery({
   const flight = useRef<Flight | null>(null);
   const reveal = useRef<string | null>(null);
   const openStack = (entry: Extract<LayoutEntry, { kind: "stack" }>) => {
-    if (onStackPress) { onStackPress(entry.run); return; }
+    if (onStackPress) { onStackPress(freshRun(entry.run)); return; }
     flight.current = { runId: entry.run.id, x: entry.x, y: entry.y, w: entry.w, h: entry.h, at: performance.now() };
     reveal.current = entry.run.id;
     setRunOpen?.(entry.run.id, true);
@@ -324,7 +351,7 @@ export function VirtualMasonryGallery({
     const ids: string[] = [];
     for (const entry of layout.entries) if (entry.kind === "tile" || entry.kind === "stack") ids.push(entry.kind === "tile" ? entry.item.id : entry.run.id);
     const rank = new Map(items.map((item, index) => [item.id, index]));
-    const at = (id: string) => rank.get(id) ?? rank.get(groups?.runs.find((run) => run.id === id)?.cover.id || "") ?? 0;
+    const at = (id: string) => rank.get(id) ?? rank.get(runById.get(id)?.cover.id || "") ?? 0;
     return ids.sort((a, b) => at(a) - at(b));
   }, [groups, items, layout]);
 
@@ -367,22 +394,22 @@ export function VirtualMasonryGallery({
             return (
               <RunShelf
                 key={entry.key}
-                run={entry.run}
+                run={freshRun(entry.run)}
                 y={entry.y}
                 width={entry.w}
                 height={entry.h}
                 folding={folding === entry.run.id}
                 arriving={Boolean(flying && flying.runId === entry.run.id)}
                 onClose={() => closeRun(entry.run)}
-                onUnstack={onUnstack ? () => onUnstack(entry.run) : undefined}
+                onUnstack={onUnstack ? () => onUnstack(freshRun(entry.run)) : undefined}
               />
             );
           }
-          const ofRun = entry.kind === "stack" ? undefined : entry.run;
+          const ofRun = entry.kind === "stack" || !entry.run ? undefined : freshRun(entry.run);
           const inFold = Boolean(ofRun && folding && ofRun.id === folding);
           const dealing = Boolean(ofRun && flying && ofRun.id === flying.runId);
           // Tiles deal out in the order they were made, and fold back the other way.
-          const order = ofRun && entry.kind === "tile" ? ofRun.items.indexOf(entry.item) : 0;
+          const order = ofRun && entry.kind === "tile" ? Math.max(0, ofRun.items.findIndex((item) => item.id === entry.item.id)) : 0;
           const step = Math.min(order, 12) * 0.028;
           return (
             <motion.div
@@ -409,7 +436,7 @@ export function VirtualMasonryGallery({
               {entry.kind === "stack" ? (
                 <RunStack
                   variant={stackStyle}
-                  run={entry.run}
+                  run={freshRun(entry.run)}
                   width={entry.w}
                   height={entry.h}
                   arriving={Boolean(landed.current && landed.current.runId === entry.run.id && now - landed.current.at < 400)}
@@ -423,7 +450,7 @@ export function VirtualMasonryGallery({
                   deleteItem={deleteItem}
                   formatElapsed={formatElapsed}
                   height={entry.h}
-                  item={entry.item}
+                  item={freshItem(entry.item)}
                   openItem={openItem}
                   smartUpscale={smartUpscale}
                   upscaleBusy={Boolean(upscaleBusyIds?.has(entry.item.id))}

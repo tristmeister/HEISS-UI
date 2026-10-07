@@ -889,41 +889,43 @@ export function dedupeGallery(items) {
 }
 
 export function cleanupGalleryState(jobs) {
-  let changed = false;
+  // Called on every gallery page: most of the time there is nothing pending
+  // and no upscale running, and one pass says so without building anything.
+  if (!gallery.some((item) => item.status === "pending" || item.upscale?.status === "running")) return;
   const before = gallery;
-  const doneKeys = new Set(
-    gallery
-      .filter((item) => item.status === "done")
-      .map((item) => `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`)
-  );
-  gallery = gallery.filter((item) => {
+  const runKey = (item) => `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`;
+  const doneJobs = new Set();
+  const doneKeys = new Set();
+  for (const item of gallery) {
+    if (item.status !== "done") continue;
+    if (item.jobId) doneJobs.add(item.jobId);
+    doneKeys.add(runKey(item));
+  }
+  const next = [];
+  let changed = false;
+  for (let item of gallery) {
+    // Replaced, never changed in place: diffGallery tells changes by identity,
+    // and an item edited in place would never reach other open galleries.
     // An upscale whose job this server never ran (it restarted mid-upscale) is not running anymore.
     if (item.upscale?.status === "running" && !jobs.has(item.upscale.jobId)) {
-      item.upscale = { ...item.upscale, status: "canceled", progress: null };
+      item = { ...item, upscale: { ...item.upscale, status: "canceled", progress: null } };
       changed = true;
     }
-    if (item.status !== "pending") return true;
-    if (item.jobId && !jobs.has(item.jobId)) {
-      item.status = "error";
-      item.filename = "Generation interrupted";
-      changed = true;
-      return true;
+    if (item.status === "pending") {
+      if (item.jobId && !jobs.has(item.jobId)) {
+        item = { ...item, status: "error", filename: "Generation interrupted" };
+        changed = true;
+      } else if (item.jobId && (doneJobs.has(item.jobId) || doneKeys.has(runKey(item)))) {
+        changed = true;
+        continue;
+      }
     }
-    if (gallery.some((next) => next.status === "done" && next.jobId && next.jobId === item.jobId)) {
-      changed = true;
-      return false;
-    }
-    const key = `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`;
-    if (item.jobId && doneKeys.has(key)) {
-      changed = true;
-      return false;
-    }
-    return true;
-  });
-  if (changed) {
-    bumpRevision(diffGallery(before, gallery));
-    saveGallery();
+    next.push(item);
   }
+  if (!changed) return;
+  gallery = next;
+  bumpRevision(diffGallery(before, gallery));
+  saveGallery();
 }
 
 export function generationSettings(body) {

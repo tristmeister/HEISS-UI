@@ -4,6 +4,7 @@ import { ChevronsDownUp, Ungroup } from 'lucide-react';
 import { cn } from './format';
 import { Media, Tip } from './components';
 import { SafeImg } from './SafeImg';
+import { mediaUrl } from './mediaUrl';
 import { runTitle, type Moment, type Run } from './runs';
 import { videoPreviewUrl } from './videoPreviewScheduler';
 import { BURST_EDGE, FLOW_FACE_HEIGHT, FLOW_FACE_WIDTH, SHELF_FOOT, SHELF_HEAD } from './galleryLayout';
@@ -12,7 +13,8 @@ import type { GalleryItem } from './types';
 /** A still of an output for the cards behind a stack: the thumbnail, or a video's poster. */
 export function Still({ item, onLoad }: { item: GalleryItem; onLoad?: () => void }) {
   const preview = item.type === "video" && item.url ? videoPreviewUrl(item.url) : "";
-  const src = item.type === "video" ? (preview ? `${preview}${preview.includes("?") ? "&" : "?"}poster=1` : "") : item.thumbnailUrl || item.url;
+  // Through mediaUrl like a tile's image: the same address, so it comes from the same cache entry.
+  const src = item.type === "video" ? (preview ? `${preview}${preview.includes("?") ? "&" : "?"}poster=1` : "") : mediaUrl(item.thumbnailUrl || item.url, item);
   // Unblurs in like a gallery tile's image (media-loading in the styles), instead of popping in.
   const [loaded, setLoaded] = useState(false);
   return (
@@ -140,7 +142,8 @@ function SkimStrip({ count, at, onSkim }: { count: number; at: number | null; on
       className={cn("run-stack-skim", at !== null && "is-on")}
       aria-hidden="true"
       onPointerMove={(event) => {
-        if (event.pointerType !== "mouse" || !ref.current) return;
+        // A mouse or a pen (Surface, tablets) skims; a finger scrolls.
+        if (event.pointerType === "touch" || !ref.current) return;
         const box = ref.current.getBoundingClientRect();
         const share = Math.min(0.999, Math.max(0, (event.clientX - box.left) / box.width));
         onSkim(Math.floor(share * count));
@@ -173,6 +176,11 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
   let faceH = height * FLOW_FACE_HEIGHT;
   let faceW = faceH * ratio;
   if (faceW > width * FLOW_FACE_WIDTH) { faceW = width * FLOW_FACE_WIDTH; faceH = faceW / ratio; }
+  // Even whole pixels, so the front face, centred at -50%, sits on the pixel
+  // grid: at 125% or 150% display scaling (Windows) it is otherwise drawn
+  // half a pixel off and comes out soft.
+  faceW = Math.max(2, Math.round(faceW / 2) * 2);
+  faceH = Math.max(2, Math.round(faceH / 2) * 2);
   // Two faces to a side at most: more are lost in the fade and cost frames.
   const reach = Math.min(2, Math.floor((count - 1) / 2));
   const extraRight = count > 1 && (count - 1) % 2 === 1 && reach < 2 ? 1 : 0;
@@ -200,7 +208,7 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
     >
       <button type="button" className="run-stack run-flow" aria-label={`${title}. ${runKind(run)}. Open the run`} onClick={onOpen}>
         {frontReady ? <span className="run-flow-ambient" aria-hidden="true"><Still item={run.cover} /></span> : null}
-        <span className="run-flow-stage" style={{ "--face-w": `${faceW}px`, "--face-h": `${faceH}px` } as React.CSSProperties}>
+        <span className="run-flow-stage" style={{ "--face-w": `${faceW}px`, "--face-h": `${faceH}px`, "--face-x": `${Math.round((width - faceW) / 2)}px`, "--face-y": `${Math.round((height - faceH) / 2)}px` } as React.CSSProperties}>
           {leaves.map(({ item, offset }) => {
             const side = Math.sign(offset);
             const away = Math.abs(offset);
@@ -210,7 +218,7 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
                 key={item.id}
                 className={cn("run-flow-face", !away && "is-front")}
                 style={{
-                  transform: `translate(-50%, -50%) translateX(${x}px) translateZ(${-away * 46}px) rotateY(${-side * 40}deg)`,
+                  transform: `translateX(${Math.round(x)}px) translateZ(${-away * 46}px) rotateY(${-side * 40}deg)`,
                   zIndex: 10 - away,
                   "--away": away,
                 } as React.CSSProperties}

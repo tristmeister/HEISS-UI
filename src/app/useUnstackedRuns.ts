@@ -41,9 +41,10 @@ export function useUnstackedRuns(groups: GalleryGroups) {
   const visible = useMemo(() => {
     if (!unstacked.size && !session.size) return groups;
     const runs = groups.runs.filter((run) => !unstacked.has(run.id) && !session.has(run.id));
+    if (runs.length === groups.runs.length) return groups;
     const runOf = new Map(groups.runOf);
     for (const run of groups.runs) {
-      if (runs.includes(run)) continue;
+      if (!unstacked.has(run.id) && !session.has(run.id)) continue;
       for (const item of run.items) runOf.delete(item.id);
     }
     return { ...groups, runs, runOf };
