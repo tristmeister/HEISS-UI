@@ -92,6 +92,8 @@ function sanitizeInpaint(input, profile, referenceAssets) {
  * client decides whether it was asked for (preference, and the seed rule:
  * docs/rapid.md); `rapidAt` / `rapidSmooth` are for scripts/bench-rapid.mjs.
  */
+const SMOOTH_FROM_STEPS = 12;
+
 export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
   if (input.rapid !== true || profile.capabilities?.rapid !== true || profile.kind !== "image") return null;
   if (inpaint || referenceAssets.length || input.startImage || input.startImageId) return null;
@@ -99,10 +101,11 @@ export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
   const spec = rapidFor(family, family?.variants.find((item) => item.id === profile.variant));
   if (!spec) return null;
   const at = Number(input.rapidAt);
-  return {
-    at: Number.isFinite(at) && at >= 0.3 && at <= 0.99 ? at : spec.at,
-    smooth: input.rapidSmooth !== false && spec.smooth !== false
-  };
+  // The smoothing step after the switch costs one full-size step: worth it on longer runs, where it is a few
+  // percent; on a 4-8 step distill it eats most of the gain (measured, docs/rapid.md). The benchmark can force it.
+  const steps = Number(input.steps) || Number(profile.defaults?.steps) || 0;
+  const smooth = typeof input.rapidSmooth === "boolean" ? input.rapidSmooth : spec.smooth !== false && steps >= SMOOTH_FROM_STEPS;
+  return { at: Number.isFinite(at) && at >= 0.3 && at <= 0.99 ? at : spec.at, smooth };
 }
 
 function sanitizeFamilyBody(input, info, stats) {

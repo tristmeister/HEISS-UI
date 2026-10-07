@@ -240,10 +240,20 @@ for (const profile of chosen) {
     console.log(`  skipped: ${error.message}`);
     continue;
   }
+  // A model without Rapid would just rerun the same graph, which ComfyUI answers from its cache in 0.01 s.
+  const profileModes = profile.capabilities?.rapid ? modes : modes.filter((mode) => !mode.rapid);
+  if (profileModes.length < modes.length) console.log("  no Rapid for this model: only the off runs");
   for (const [width, height] of sizes) {
     for (const promptId of promptIds) {
+      // A new prompt or size encodes its text first, and on a small card that can push the model out of VRAM:
+      // the reload would land on whichever run came first. One untimed run takes it.
+      try {
+        await run((await graphFor(profile, { prompt: PROMPTS[promptId], seed: "7", width, height })).graph);
+      } catch {
+        // The timed runs report their own failures.
+      }
       for (const seed of seeds) {
-        for (const mode of modes) {
+        for (const mode of profileModes) {
           const { graph, body } = await graphFor(profile, { prompt: PROMPTS[promptId], seed, width, height, mode });
           let result;
           try {

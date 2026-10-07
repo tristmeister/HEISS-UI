@@ -375,7 +375,7 @@ export const families = {
     size: [1328, 1328]
   },
   qwen_image_21: {
-    label: "Qwen-Image 2.1", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Qwen-Image 2.1", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Qwen3-VL 8B", kinds: ["qwen3vl_8b"] }], clipType: "qwen_image",
     vae: ["qwen_image_21"], latent: "EmptyLatentImage", sizeStep: 32, negative: "qwen21", aspects: square,
     requiredNodes: ["TextEncodeQwenImage21"],

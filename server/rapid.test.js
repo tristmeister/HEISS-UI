@@ -91,7 +91,8 @@ test("Rapid is for the families measured for it, never few-step distills, video 
 test("validation keeps Rapid only for a text-to-image run of a ready model", () => {
   const profile = { kind: "image", family: "krea2", variant: "turbo", capabilities: { rapid: true } };
   const plain = { referenceAssets: [], inpaint: null };
-  assert.deepEqual(sanitizeRapid({ rapid: true }, profile, plain), { at: 0.7, smooth: true });
+  assert.deepEqual(sanitizeRapid({ rapid: true, steps: 28 }, profile, plain), { at: 0.7, smooth: true });
+  assert.deepEqual(sanitizeRapid({ rapid: true, steps: 8 }, profile, plain), { at: 0.7, smooth: false }, "a few-step run skips the smoothing step");
   assert.equal(sanitizeRapid({}, profile, plain), null, "only when asked for");
   assert.equal(sanitizeRapid({ rapid: "yes" }, profile, plain), null);
   assert.equal(sanitizeRapid({ rapid: true }, { ...profile, capabilities: { rapid: false, rapidInstall: true } }, plain), null);
@@ -100,7 +101,8 @@ test("validation keeps Rapid only for a text-to-image run of a ready model", () 
   assert.equal(sanitizeRapid({ rapid: true, startImageId: "x" }, profile, plain), null);
   // The benchmark's knobs.
   assert.deepEqual(sanitizeRapid({ rapid: true, rapidAt: 0.85, rapidSmooth: false }, profile, plain), { at: 0.85, smooth: false });
-  assert.deepEqual(sanitizeRapid({ rapid: true, rapidAt: 5 }, profile, plain), { at: 0.7, smooth: true }, "out of range falls back");
+  assert.deepEqual(sanitizeRapid({ rapid: true, steps: 4, rapidSmooth: true }, profile, plain), { at: 0.7, smooth: true });
+  assert.deepEqual(sanitizeRapid({ rapid: true, rapidAt: 5 }, profile, plain), { at: 0.7, smooth: false }, "out of range falls back");
 });
 
 /* ------------------------------------------------------------ records */

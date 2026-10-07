@@ -153,3 +153,22 @@ HEISS uses the smooth switch by default. The benchmark's `fast` mode (no smoothi
 5. Publish the pack repo, then pin its commit in `node-packs.js`.
 6. Windows: install the pack, run on vs off, compare pictures, set each family's `at`, update MODELS.md and CHANGELOG.
 7. Video (Wan 2.2 pair), Anima and the other flow families, each after measuring.
+
+## Measurements
+
+### RTX 3070 (8 GB), 2026-10-07, ComfyUI 0.37.0
+
+Median sampling time on the seed-42 runs. The first run after each prompt change also paid for reloading the model, so the 1234567 runs aren't a fair comparison; the benchmark now runs one untimed warm-up per prompt and size.
+
+| Model | Steps | Size | Off | On (smoothing step) | Fast (no smoothing) |
+|---|---|---|---|---|---|
+| Krea 2 Turbo fp8 | 8 | 1024² | ~28 s | ~24.5 s (1.15×) | ~21 s (1.35×) |
+| Krea 2 Turbo fp8 | 8 | 1536² | ~59 s | ~43.5 s (1.35×) | ~36.5 s (1.6×) |
+| Flux.2 Klein 9B fp8 | 4 | 1024² | 8.2 s | ~8.5 s (1.0×) | ~6.3 s (1.3×) |
+| Flux.2 Klein 9B fp8 | 4 | 1536² | 17.1 s | 15.8 s (1.08×) | 11.6 s (1.47×) |
+
+What this shows:
+
+- **Less speed-up than LC's 5090 figures.** These weights don't fit in 8 GB (6.7 GiB peak), so every step also streams weights, and that cost doesn't shrink at half size. Bigger cards and bigger pictures gain more.
+- **The smoothing step costs one full-size step.** On a 4–8 step distill that eats most of the gain. So HEISS now adds it only from 12 steps up (`SMOOTH_FROM_STEPS` in validation.js), where it's a few percent of the run. The picture comparison of fast against on still decides whether that's right.
+- **Qwen-Image 2.1 had no Rapid entry.** Its "on" runs were the same graph again, answered from ComfyUI's cache. It now has `at: 0.7`, still to be measured, and the benchmark skips Rapid modes for models without Rapid.
