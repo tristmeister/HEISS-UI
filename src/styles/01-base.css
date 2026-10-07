@@ -278,6 +278,16 @@ input.is-framed:focus-visible {
   color: hsl(var(--muted-foreground));
   font-size: 12px; font-style: normal;
 }
+.model-family-mark {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin: 0 6px 1px 0;
+  border-radius: 1.5px;
+  background: hsl(var(--family-hue, 0) 62% 64%);
+  vertical-align: middle;
+}
+.model-option.active .model-family-mark { box-shadow: 0 0 0 1px hsl(var(--primary-foreground) / .25); }
 /* A model that still needs files or nodes: said in the menu, flagged on the trigger. */
 .model-copy em.is-setup { color: var(--ember); }
 .model-trigger.needs-setup { position: relative; }

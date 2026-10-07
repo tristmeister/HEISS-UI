@@ -432,6 +432,14 @@ export function familyLabel(profile: Profile | null) {
   return profile.family;
 }
 
+/** A steady hue per family, so its mark reads the same in every list. */
+export function familyHue(profile: Profile) {
+  const key = profile.family === "custom" ? "custom" : profile.familyName || profile.family || "";
+  let hash = 0;
+  for (let index = 0; index < key.length; index += 1) hash = (hash * 31 + key.charCodeAt(index)) >>> 0;
+  return String((hash % 12) * 30 + 12);
+}
+
 /** What an unready model still lacks, in the words the gallery badges use; "" when it can run. */
 export function setupNote(profile: Profile | null) {
   const missing = profile?.missing || [];
@@ -615,7 +623,8 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
                   {section.rows.map((profile) => {
                     rowIndex += 1;
                     const starred = favorites.has(profile.id);
-                    const badge = menu ? familyLabel(profile) : badges[profile.id] || familyLabel(profile);
+                    // Without a menu (favorites and recents as sections), its Favorite / Recent / Workflow word stays as a pill.
+                    const badge = menu ? "" : badges[profile.id] || "";
                     const { size, fits } = sizeNote(profile, hardware);
                     return (
                       <div key={`${section.id}:${profile.id}`} className={cn("model-row", starred && "is-starred")}>
@@ -630,7 +639,13 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
                           >
                             <span className="model-copy">
                               <strong>{profile.displayName || profile.label}</strong>
-                              {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>}
+                              {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : (
+                                <em>
+                                  {/* The family once, as a coloured mark and its name, instead of a pill beside a line that said it too. */}
+                                  <i className="model-family-mark" style={{ "--family-hue": familyHue(profile) } as React.CSSProperties} aria-hidden="true" />
+                                  {profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}
+                                </em>
+                              )}
                             </span>
                             <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
