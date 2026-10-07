@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { MAX_BATCH, checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
+import { MAX_BATCH, checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, rapidFor, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { inpaintingEnabled } from './features.js';
 import { inpaintNodes } from './inpaint.js';
@@ -81,6 +81,16 @@ function canInpaint(family, info, references) {
   if (family.kind !== "image" || ownGraphs.has(family.sampling) || family.ownLoaders) return false;
   if (!references && !family.img2img) return false;
   return inpaintNodes.every((node) => hasNode(info, node));
+}
+
+/**
+ * HEISS Rapid for this model: "ready" (the node is loaded), "install" (only
+ * the HEISS UI Nodes pack is missing) or false (not for this family, variant
+ * or graph). Families with their own graph or runner never get it.
+ */
+export function rapidCapability(family, variant, info, { runner = null } = {}) {
+  if (runner || ownGraphs.has(family.sampling) || family.ownLoaders || !rapidFor(family, variant)) return false;
+  return hasNode(info, "HeissRapid") ? "ready" : "install";
 }
 
 function canReference(family, info) {
@@ -433,6 +443,7 @@ export function familyProfiles(info, helpers) {
         startImageRequired: family.startImage === "required",
         denoise: Boolean(family.img2img),
         inpaint: canInpaint(family, info, references),
+        rapid: rapidCapability(family, variant, info, { runner }),
         frames: family.kind === "video",
         fps: family.kind === "video"
       }

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { families, sanaRunners } from "./family-catalog.js";
+import { families, rapidFor, sanaRunners } from "./family-catalog.js";
 import { familyGraph } from "./family-graph.js";
 import { nodesFor } from "./family-profiles.js";
 import { nodePacks } from "./node-packs.js";
@@ -169,6 +169,8 @@ function* cases(info) {
         if (family.startImage !== "required") yield { name, family, variant, source, body: requestFor(familyId, family, variant, source, info) };
         if (family.references) yield { name: `${name}, with references`, family, variant, source, body: requestFor(familyId, family, variant, source, info, { referenceImages: ["ref-1.png", "ref-2.png"] }) };
         if (family.img2img || family.startImage) yield { name: `${name}, from a start image`, family, variant, source, body: requestFor(familyId, family, variant, source, info, { startImageComfy: "start.png", denoise: 0.6 }) };
+        const rapid = rapidFor(family, variant);
+        if (rapid) yield { name: `${name}, with Rapid`, family, variant, source, body: requestFor(familyId, family, variant, source, info, { rapid: { ...rapid, smooth: true } }) };
       }
     }
   }
@@ -177,6 +179,14 @@ function* cases(info) {
 for (const snapshot of snapshots) {
   const version = snapshot.replace(/^object_info-comfyui-|\.json$/g, "");
   const info = JSON.parse(fs.readFileSync(path.join(fixtures, snapshot), "utf8"));
+  // HEISS Rapid as ComfyUI-HEISS-UI-Nodes declares it, so its inputs are checked like a core node's.
+  info.HeissRapid ||= { input: { required: {
+    sampler: ["SAMPLER"],
+    switch_at: ["FLOAT", { default: 0.7, min: 0.3, max: 0.99, step: 0.01 }],
+    scale: ["FLOAT", { default: 0.5, min: 0.25, max: 0.9, step: 0.05 }],
+    min_full_steps: ["INT", { default: 2, min: 1, max: 50 }],
+    smooth_switch: ["BOOLEAN", { default: true }]
+  } }, output: ["SAMPLER"] };
 
   test(`every built-in graph fits ComfyUI ${version}`, () => {
     const failures = [];

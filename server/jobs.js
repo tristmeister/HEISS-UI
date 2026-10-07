@@ -319,6 +319,12 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
       if (data.prompt_id && run.promptId && data.prompt_id !== run.promptId) return;
       // Anything ComfyUI says on this socket shows it is still there.
       run.alive?.();
+      // HEISS Rapid says what it did: the picture's settings record whether it really ran (docs/rapid.md).
+      if (message.type === "heiss.rapid") {
+        const body = jobBodies.get(id);
+        if (body?.rapid) body.rapidReport = { active: Boolean(data.active), reason: String(data.reason || ""), smallSteps: Number(data.small_steps || 0), fullSteps: Number(data.full_steps || 0) };
+        return;
+      }
       const timing = runTimings.get(id);
       if (timing?.timer) {
         timing.timer.note(message);

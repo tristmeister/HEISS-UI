@@ -3,6 +3,7 @@ import { inferModels } from './models.js';
 import { workflowFor, workflowIds } from './workflow-registry.js';
 import { getCustomWorkflow } from './custom-workflows.js';
 import { inpaintingEnabled } from './features.js';
+import { families, rapidFor } from './family-catalog.js';
 
 export function clampNumber(value, fallback, min, max) {
   const number = Number(value);
@@ -84,6 +85,26 @@ function sanitizeInpaint(input, profile, referenceAssets) {
  * model file: encoders must be files that fit their slot, the VAE must fit (or
  * be the checkpoint's own), and nothing the model needs may be missing.
  */
+/**
+ * HEISS Rapid for this run, as the graph builder takes it ({ at, smooth }), or
+ * null. Only on a text-to-image run of a model that has it ready: a start
+ * picture, references or an inpaint mask set the layout themselves. The
+ * client decides whether it was asked for (preference, and the seed rule:
+ * docs/rapid.md); `rapidAt` / `rapidSmooth` are for scripts/bench-rapid.mjs.
+ */
+export function sanitizeRapid(input, profile, { referenceAssets, inpaint }) {
+  if (input.rapid !== true || profile.capabilities?.rapid !== "ready" || profile.kind !== "image") return null;
+  if (inpaint || referenceAssets.length || input.startImage || input.startImageId) return null;
+  const family = families[profile.family];
+  const spec = rapidFor(family, family?.variants.find((item) => item.id === profile.variant));
+  if (!spec) return null;
+  const at = Number(input.rapidAt);
+  return {
+    at: Number.isFinite(at) && at >= 0.3 && at <= 0.99 ? at : spec.at,
+    smooth: input.rapidSmooth !== false && spec.smooth !== false
+  };
+}
+
 function sanitizeFamilyBody(input, info, stats) {
   const kind = input.kind === "video" ? "video" : "image";
   const prompt = String(input.prompt || "").trim();
@@ -117,6 +138,7 @@ function sanitizeFamilyBody(input, info, stats) {
   if (profile.capabilities.startImageRequired && !referenceAssets.length && !input.startImage && !input.startImageId) {
     throw new Error(`${profile.displayName} makes a video from a picture. Add a start image first.`);
   }
+  const inpaint = sanitizeInpaint(input, profile, referenceAssets);
   return {
     kind,
     workflow: profile.workflow,
@@ -157,7 +179,8 @@ function sanitizeFamilyBody(input, info, stats) {
     startImageName: String(input.startImageName || ""),
     referenceAssets,
     autoResizeInputs: input.autoResizeInputs !== false,
-    inpaint: sanitizeInpaint(input, profile, referenceAssets),
+    inpaint,
+    rapid: sanitizeRapid(input, profile, { referenceAssets, inpaint }),
     promptPolicy: null,
     loras: sanitizeLoras(input, info, profile, kind, 8),
     // A retry after the GPU ran out of memory while decoding; only where this ComfyUI has the node.

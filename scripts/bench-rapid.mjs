@@ -12,7 +12,9 @@
 //   --list             print the ready image models and stop
 //   --families a,b     only these families (family-catalog.js ids)
 //   --profiles a,b     only these model profiles (ids from --list)
-//   --rapid off|on|both  (default off)
+//   --rapid MODES      off, on (with the smoothing step), fast (without), comma-separated;
+//                      both = off,on · all = off,on,fast (default off)
+//   --rapid-at a,b     switch points to sweep for on/fast (default: each family's own)
 //   --sizes WxH,...    (default 1024x1024,1536x1536; snapped to each model's grid)
 //   --seeds n,...      (default 1234567,42)
 //   --prompts a,b      prompt ids from PROMPTS below (default all)
@@ -90,7 +92,20 @@ if (!chosen.length) {
 const sizes = list(opts.sizes).map((item) => item.split("x").map(Number));
 const seeds = list(opts.seeds);
 const promptIds = list(opts.prompts).length ? list(opts.prompts) : Object.keys(PROMPTS);
-const modes = opts.rapid === "both" ? ["off", "on"] : [opts.rapid === "on" ? "on" : "off"];
+const modeNames = { both: ["off", "on"], all: ["off", "on", "fast"] }[opts.rapid] || list(opts.rapid || "off").filter((mode) => ["off", "on", "fast"].includes(mode));
+const switchPoints = list(opts["rapid-at"]).map(Number).filter((value) => value >= 0.3 && value <= 0.99);
+// Each run mode: its label, and what the request asks for.
+const modes = modeNames.flatMap((mode) => {
+  if (mode === "off") return [{ label: "off", rapid: false }];
+  const smooth = mode === "on";
+  return switchPoints.length
+    ? switchPoints.map((at) => ({ label: `${mode}@${at}`, rapid: true, rapidAt: at, rapidSmooth: smooth }))
+    : [{ label: mode, rapid: true, rapidSmooth: smooth }];
+});
+if (!modes.length) {
+  console.error("--rapid takes off, on, fast, both or all.");
+  process.exit(1);
+}
 const outDir = path.resolve(opts.out || path.join(root, "bench-results", new Date().toISOString().replace(/[:.]/g, "-")));
 fs.mkdirSync(outDir, { recursive: true });
 const runsFile = path.join(outDir, "runs.jsonl");
@@ -104,7 +119,7 @@ const header = {
 };
 fs.writeFileSync(path.join(outDir, "machine.json"), JSON.stringify(header, null, 2));
 console.log(`ComfyUI ${header.comfyui} · ${header.gpu} · HEISS ${header.heiss} · Rapid node ${header.rapidNode ? "installed" : "not installed"}`);
-if (modes.includes("on") && !header.rapidNode) console.warn("Rapid is asked for but the HeissRapid node isn't loaded; \"on\" runs will be the same graph as \"off\".");
+if (modes.some((mode) => mode.rapid) && !header.rapidNode) console.warn("Rapid is asked for but the HeissRapid node isn't loaded; \"on\" runs will be the same graph as \"off\".");
 
 /** nvidia-smi polling for peak memory, where there is a GPU tool to ask. */
 function vramWatch() {
@@ -194,10 +209,10 @@ async function saveImage(image, file) {
   fs.writeFileSync(file, Buffer.from(await response.arrayBuffer()));
 }
 
-function graphFor(profile, { prompt, seed, width, height, rapid }) {
+function graphFor(profile, { prompt, seed, width, height, mode = { rapid: false } }) {
   const input = {
     workflow: profile.workflow, profileId: profile.id, model: profile.model, kind: "image",
-    prompt, seed, width, height, count: 1, rapid,
+    prompt, seed, width, height, count: 1, rapid: mode.rapid, rapidAt: mode.rapidAt, rapidSmooth: mode.rapidSmooth,
     ...(opts.steps ? { steps: Number(opts.steps) } : {})
   };
   const body = sanitizeGenerateBody(input, info, stats);
@@ -206,7 +221,7 @@ function graphFor(profile, { prompt, seed, width, height, rapid }) {
 
 if (opts.dry) {
   for (const profile of chosen) {
-    const { graph } = await graphFor(profile, { prompt: PROMPTS.portrait, seed: seeds[0], width: sizes[0][0], height: sizes[0][1], rapid: modes.at(-1) === "on" });
+    const { graph } = await graphFor(profile, { prompt: PROMPTS.portrait, seed: seeds[0], width: sizes[0][0], height: sizes[0][1], mode: modes.at(-1) });
     console.log(`${profile.id}\n${JSON.stringify(graph, null, 1)}`);
   }
   process.exit(0);
@@ -218,7 +233,7 @@ for (const profile of chosen) {
   console.log(`\n${profile.displayName} (${profile.id})`);
   // A warm-up so model loading isn't counted against the first measured run.
   try {
-    const warm = await graphFor(profile, { prompt: PROMPTS.portrait, seed: "7", width: sizes[0][0], height: sizes[0][1], rapid: false });
+    const warm = await graphFor(profile, { prompt: PROMPTS.portrait, seed: "7", width: sizes[0][0], height: sizes[0][1] });
     const result = await run(warm.graph);
     console.log(`  warm-up ${result.total}s (includes loading)`);
   } catch (error) {
@@ -229,27 +244,27 @@ for (const profile of chosen) {
     for (const promptId of promptIds) {
       for (const seed of seeds) {
         for (const mode of modes) {
-          const { graph, body } = await graphFor(profile, { prompt: PROMPTS[promptId], seed, width, height, rapid: mode === "on" });
+          const { graph, body } = await graphFor(profile, { prompt: PROMPTS[promptId], seed, width, height, mode });
           let result;
           try {
             result = await run(graph);
           } catch (error) {
-            console.log(`  ${body.width}x${body.height} ${promptId} seed ${seed} rapid ${mode}: FAILED ${error.message}`);
-            const row = { profile: profile.id, model: profile.displayName, family: profile.family, variant: profile.variant, width: body.width, height: body.height, prompt: promptId, seed, rapid: mode, error: error.message };
+            console.log(`  ${body.width}x${body.height} ${promptId} seed ${seed} rapid ${mode.label}: FAILED ${error.message}`);
+            const row = { profile: profile.id, model: profile.displayName, family: profile.family, variant: profile.variant, width: body.width, height: body.height, prompt: promptId, seed, rapid: mode.label, error: error.message };
             fs.appendFileSync(runsFile, `${JSON.stringify(row)}\n`);
             continue;
           }
-          const rapidNode = Object.values(graph).some((node) => node.class_type === "HeissRapid");
+          const rapidNode = Object.values(graph).find((node) => node.class_type === "HeissRapid");
           const row = {
             profile: profile.id, model: profile.displayName, family: profile.family, variant: profile.variant,
             width: body.width, height: body.height, steps: body.steps, sampler: body.sampler, scheduler: body.scheduler, cfg: body.cfg,
-            prompt: promptId, seed, rapid: mode, rapidInGraph: rapidNode, ...result, images: undefined
+            prompt: promptId, seed, rapid: mode.label, rapidInGraph: Boolean(rapidNode), switchAt: rapidNode?.inputs.switch_at ?? null, ...result, images: undefined
           };
           rows.push(row);
           fs.appendFileSync(runsFile, `${JSON.stringify(row)}\n`);
-          console.log(`  ${body.width}x${body.height} ${promptId.padEnd(8)} seed ${String(seed).padEnd(8)} rapid ${mode.padEnd(3)} sampling ${row.sampling ?? "?"}s  total ${row.total}s  peak ${row.peakVramGiB ?? "?"} GiB${mode === "on" && !rapidNode ? "  (Rapid not in graph)" : ""}`);
+          console.log(`  ${body.width}x${body.height} ${promptId.padEnd(8)} seed ${String(seed).padEnd(8)} rapid ${mode.label.padEnd(8)} sampling ${row.sampling ?? "?"}s  total ${row.total}s  peak ${row.peakVramGiB ?? "?"} GiB${mode.rapid && !rapidNode ? "  (Rapid not in graph)" : ""}`);
           if (opts.images && result.images[0]) {
-            await saveImage(result.images[0], path.join(outDir, "images", safe(profile.id), `${body.width}x${body.height}`, `${promptId}-${seed}-${mode}.png`));
+            await saveImage(result.images[0], path.join(outDir, "images", safe(profile.id), `${body.width}x${body.height}`, `${promptId}-${seed}-${safe(mode.label)}.png`));
           }
         }
       }
@@ -267,19 +282,28 @@ const median = (values) => {
 const groups = new Map();
 for (const row of rows) {
   const key = `${row.profile}|${row.width}x${row.height}`;
-  if (!groups.has(key)) groups.set(key, { row, off: [], on: [] });
-  groups.get(key)[row.rapid].push(row);
+  if (!groups.has(key)) groups.set(key, { row, byMode: new Map() });
+  const byMode = groups.get(key).byMode;
+  if (!byMode.has(row.rapid)) byMode.set(row.rapid, []);
+  byMode.get(row.rapid).push(row);
 }
 const lines = [
   `# Rapid benchmark`, "",
   `${header.date} · HEISS ${header.heiss} · ComfyUI ${header.comfyui} · PyTorch ${header.pytorch} · ${header.gpu} (${header.vramTotalGiB} GiB)`, "",
-  "| Model | Size | Steps | Sampler | Off: sampling / total / peak | On: sampling / total / peak | Speed-up (sampling / total) |",
-  "|---|---|---|---|---|---|---|"
+  "Medians. Speed-up is against `off` for the same model and size.", "",
+  "| Model | Size | Steps | Sampler | Rapid | Sampling | Total | Peak VRAM | Speed-up (sampling / total) |",
+  "|---|---|---|---|---|---|---|---|---|"
 ];
-for (const { row, off, on } of groups.values()) {
-  const cell = (items) => items.length ? `${median(items.map((r) => r.sampling)) ?? "?"}s / ${median(items.map((r) => r.total))}s / ${median(items.map((r) => r.peakVramGiB)) ?? "?"} GiB` : "–";
-  const ratio = (key) => (off.length && on.length && median(on.map((r) => r[key])) ? (median(off.map((r) => r[key])) / median(on.map((r) => r[key]))).toFixed(2) + "x" : "–");
-  lines.push(`| ${row.model} | ${row.width}x${row.height} | ${row.steps} | ${row.sampler}/${row.scheduler} | ${cell(off)} | ${cell(on)} | ${ratio("sampling")} / ${ratio("total")} |`);
+for (const { row, byMode } of groups.values()) {
+  const off = byMode.get("off") || [];
+  const offSampling = median(off.map((r) => r.sampling));
+  const offTotal = median(off.map((r) => r.total));
+  for (const [label, items] of byMode) {
+    const sampling = median(items.map((r) => r.sampling));
+    const total = median(items.map((r) => r.total));
+    const ratio = (a, b) => (a && b ? `${(a / b).toFixed(2)}x` : "–");
+    lines.push(`| ${row.model} | ${row.width}x${row.height} | ${row.steps} | ${row.sampler}/${row.scheduler} | ${label} | ${sampling ?? "?"}s | ${total}s | ${median(items.map((r) => r.peakVramGiB)) ?? "?"} GiB | ${label === "off" ? "–" : `${ratio(offSampling, sampling)} / ${ratio(offTotal, total)}`} |`);
+  }
 }
 fs.writeFileSync(path.join(outDir, "summary.md"), `${lines.join("\n")}\n`);
 console.log(`\n${lines.join("\n")}\n\nWrote ${outDir}`);

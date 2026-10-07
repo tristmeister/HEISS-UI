@@ -282,7 +282,7 @@ export function familyGraph(body) {
     const guider = negative
       ? add("CFGGuider", { model, positive, negative, cfg: Number(body.cfg || 1) })
       : add("BasicGuider", { model, conditioning: positive });
-    samples = customSampler(add, { model, seed, sampler: body.sampler || "euler", guider, sigmas, latent });
+    samples = customSampler(add, { model, seed, sampler: body.sampler || "euler", guider, sigmas, latent, rapid: body.rapid });
   } else if (family.sampling === "pair") {
     // High noise lays out the motion for the first half of the steps, low noise finishes.
     const steps = Number(body.steps || 20);
@@ -290,6 +290,11 @@ export function familyGraph(body) {
     const shared = { noise_seed: seed, steps, cfg: Number(body.cfg || 1), sampler_name: body.sampler || "euler", scheduler: body.scheduler || "simple", positive, negative };
     const high = add("KSamplerAdvanced", { ...shared, model, add_noise: "enable", latent_image: latent, start_at_step: 0, end_at_step: split, return_with_leftover_noise: "enable" });
     samples = [add("KSamplerAdvanced", { ...shared, model: lowModel, add_noise: "disable", latent_image: [high, 0], start_at_step: split, end_at_step: 10000, return_with_leftover_noise: "disable" }), 0];
+  } else if (body.rapid) {
+    // KSampler's own pieces, so Rapid can wrap the sampler: the same noise, guidance and schedule.
+    const sigmas = add("BasicScheduler", { model, scheduler: body.scheduler || "simple", steps: Number(body.steps || 20), denoise });
+    const guider = add("CFGGuider", { model, positive, negative: negative || positive, cfg: Number(body.cfg || 1) });
+    samples = customSampler(add, { seed, sampler: body.sampler || "euler", guider, sigmas, latent, rapid: body.rapid });
   } else {
     samples = [add("KSampler", {
       model, seed, steps: Number(body.steps || 20), cfg: Number(body.cfg || 1),
@@ -359,10 +364,15 @@ export function ideogram4Preset(steps) {
   return { mu: 0, std: 1.75 };
 }
 
-function customSampler(add, { seed, sampler, guider, sigmas, latent }) {
+/**
+ * `rapid` ({ at, smooth }, from validation.js): HEISS Rapid wraps the sampler,
+ * so the noisy first steps run at half size (docs/rapid.md).
+ */
+function customSampler(add, { seed, sampler, guider, sigmas, latent, rapid = null }) {
   const noise = add("RandomNoise", { noise_seed: seed });
-  const samplerNode = add("KSamplerSelect", { sampler_name: sampler });
-  return [add("SamplerCustomAdvanced", { noise: [noise, 0], guider: [guider, 0], sampler: [samplerNode, 0], sigmas: Array.isArray(sigmas) ? sigmas : [sigmas, 0], latent_image: latent }), 0];
+  let samplerNode = [add("KSamplerSelect", { sampler_name: sampler }), 0];
+  if (rapid) samplerNode = [add("HeissRapid", { sampler: samplerNode, switch_at: rapid.at, scale: 0.5, min_full_steps: 2, smooth_switch: rapid.smooth !== false }), 0];
+  return [add("SamplerCustomAdvanced", { noise: [noise, 0], guider: [guider, 0], sampler: samplerNode, sigmas: Array.isArray(sigmas) ? sigmas : [sigmas, 0], latent_image: latent }), 0];
 }
 
 /**

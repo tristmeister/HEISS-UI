@@ -170,6 +170,9 @@ export function estimateRun(history = [], body = {}, { now = Date.now(), warm: k
     const family = history.filter((run) => run.fam === body.family && run.key.startsWith(kind)).slice(-RUNS_PER_KEY);
     if (family.length >= need) runs = family;
   }
+  // Runs made with HEISS Rapid take a fraction of the time; estimate from the same kind while there are enough.
+  const sameMode = runs.filter((run) => Boolean(run.rapid) === Boolean(body.rapid));
+  if (sameMode.length >= need) runs = sameMode;
   if (runs.length < need) return null;
   // Far outside the sizes this model has run at, the curve is a guess.
   const sizes = runs.map((run) => run.w);
@@ -210,6 +213,7 @@ export function addRun(history = [], { body, result, predicted = null, warm = fa
   const run = { key, at, w, asked: Number(body.steps) || 0, warm: Boolean(warm), runMs: Math.round(result.runMs) };
   // The family, so another file of it can borrow these timings until it has its own.
   if (body.family) run.fam = String(body.family);
+  if (body.rapid && body.rapidReport?.active !== false) run.rapid = true;
   if (result.stepMs) Object.assign(run, { stepMs: Math.round(result.stepMs * 10) / 10, steps: result.steps, setupMs: Math.round(result.setupMs), tailMs: Math.round(result.tailMs) });
   if (predicted?.totalMs) run.error = Math.round((Math.abs(result.runMs - predicted.totalMs) / result.runMs) * 100) / 100;
   const next = [...history, run];

@@ -15,7 +15,7 @@ import { promisify } from "node:util";
 import { printBanner } from './banner.js';
 import { releaseStatus, requestRestart, saveUpdatePrefs, startReleaseUpdate, warmReleaseCheck } from './updater.js';
 import { PORT_IN_USE_CODE, removeForeignLaunchers } from './release-swap.js';
-import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, comfyRecentlyUnreachable, inDotFolder, localOutputFile, outputMediaPattern, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, requestedPort, setListeningPort } from './comfy.js';
+import { allowLanActions, lan, lanListening, saveLanSetting, demoMode, comfy, hasNode, comfyRecentlyUnreachable, inDotFolder, localOutputFile, outputMediaPattern, comfyOutputDir, comfyUrl, host, noteComfyFetchError, noteComfyReachable, normalizeComfyUrl, optionsFor, port, root, setComfyFolderPaths, setComfyOutputDir, setComfyUrl, requestedPort, setListeningPort } from './comfy.js';
 import { canAdmin, clientOf, deviceSession, studioPasswordSet } from './access.js';
 import { limitedCheck, registerAccessRoutes } from './access-routes.js';
 import { requestGuard } from './request-guard.js';
@@ -613,7 +613,8 @@ app.get("/api/estimate", (req, res) => {
     height: Number(query.height) || 0,
     count: Number(query.count) || 1,
     steps: Number(query.steps) || 0,
-    frames: Number(query.frames) || 0
+    frames: Number(query.frames) || 0,
+    rapid: query.rapid === "1"
   };
   const now = Date.now();
   const estimate = generationEstimate(body, { now });
@@ -1718,6 +1719,23 @@ app.get("/api/upscale/status", async (req, res) => {
       .map((id) => ({ manager, pack: nodePack(id), autoInstall: packInstallRoutes(id), ...packInstallPlan(nodePacks[id], comfyRootDir(), process.platform) }));
   }
   res.json({ ok: true, ...status });
+});
+
+/**
+ * HEISS Rapid (docs/rapid.md): whether ComfyUI has the node, and while it
+ * doesn't, the same install panel every node pack gets.
+ */
+app.get("/api/rapid/status", async (_req, res) => {
+  let info;
+  try {
+    info = await comfy("/object_info", { timeout: 60_000 });
+  } catch {
+    res.status(503).json({ ok: false, offline: true, restarting: comfyRestarting() });
+    return;
+  }
+  const installed = hasNode(info, "HeissRapid");
+  const setup = installed ? null : { manager: await managerAvailable(), pack: nodePack("heiss"), autoInstall: packInstallRoutes("heiss"), ...packInstallPlan(nodePacks.heiss, comfyRootDir(), process.platform) };
+  res.json({ ok: true, installed, setup });
 });
 
 // Download progress never needs ComfyUI, so it keeps reporting while ComfyUI restarts.

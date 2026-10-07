@@ -18,6 +18,16 @@
  * change here, never automatic. Last reviewed 2026-09-28.
  */
 export const nodePacks = {
+  // HEISS's own nodes: Rapid (docs/rapid.md) first, more as features need them.
+  heiss: {
+    name: "HEISS UI Nodes",
+    repository: "https://github.com/tristmeister/ComfyUI-HEISS-UI-Nodes.git",
+    folder: "ComfyUI-HEISS-UI-Nodes",
+    commit: "ecacdd4f3e084fab58d72cbba2a4c0195e437236",
+    ref: "main, 2026-10-07",
+    search: "HEISS UI",
+    nodes: ["HeissRapid"]
+  },
   seedvr2: {
     name: "SeedVR2 Video Upscaler",
     repository: "https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git",

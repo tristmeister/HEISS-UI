@@ -204,6 +204,11 @@ const hy15Shift = (shift) => ({ node: "ModelSamplingSD3", shift });
  * Silicon (MPS), where a setting is known to break; `stepsFromName` takes the
  * steps from a count in the file name ("…_4step"), for files distilled for
  * exactly that many (see variantDefaults).
+ * rapid: { at } where HEISS Rapid (ComfyUI-HEISS-UI-Nodes) may start the run at
+ * half size: `at` is the noise level where it grows to full size (0..1, an
+ * SD-family sigma as sigma / (1 + sigma)), measured per family with
+ * scripts/bench-rapid.mjs (docs/rapid.md). A variant's `rapid` overrides it;
+ * `rapid: false` turns it off there (few-step distills).
  * docs/guides/MODELS.md walks through adding a family.
  */
 export const families = {
@@ -231,19 +236,19 @@ export const families = {
     size: [768, 768]
   },
   sdxl: {
-    label: "SDXL", kind: "image", sources: ["checkpoint", "unet"],
+    label: "SDXL", kind: "image", sources: ["checkpoint", "unet"], rapid: { at: 0.6 },
     slots: [{ slot: "clip_l", label: "CLIP-L", kinds: ["clip_l"] }, { slot: "clip_g", label: "CLIP-G", kinds: ["clip_g"] }], clipType: "sdxl",
     vae: ["sdxl"], latent: "EmptyLatentImage", sizeStep: 8, negative: "text", img2img: true, aspects: portraitFirst,
     // Pony, Illustrious and NoobAI descend from NovelAI-style training on the
     // penultimate CLIP layer; speed merges of them keep that need.
     clipSkip: (name) => (/pony|pdxl|autismmix|illustrious|noob|ilxl/i.test(name) ? -2 : 0),
     variants: [
-      { id: "turbo", label: "SDXL Turbo", match: (name) => /sd_?xl_?turbo|sdxlturbo/i.test(name), size: [512, 512], defaults: { steps: 1, cfg: 1, sampler: "euler_ancestral", scheduler: "normal" } },
-      { id: "hyper", label: "Hyper", match: (name) => /hyper/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "ddim", scheduler: "sgm_uniform" } },
-      { id: "dmd2", label: "DMD2", match: (name) => /dmd/i.test(name), defaults: { steps: 4, cfg: 1, sampler: "lcm", scheduler: "sgm_uniform" } },
-      { id: "lcm", label: "LCM", match: (name) => /lcm|pcm|tcd/i.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
+      { id: "turbo", rapid: false, label: "SDXL Turbo", match: (name) => /sd_?xl_?turbo|sdxlturbo/i.test(name), size: [512, 512], defaults: { steps: 1, cfg: 1, sampler: "euler_ancestral", scheduler: "normal" } },
+      { id: "hyper", rapid: false, label: "Hyper", match: (name) => /hyper/i.test(name), defaults: { steps: 8, cfg: 1, sampler: "ddim", scheduler: "sgm_uniform" } },
+      { id: "dmd2", rapid: false, label: "DMD2", match: (name) => /dmd/i.test(name), defaults: { steps: 4, cfg: 1, sampler: "lcm", scheduler: "sgm_uniform" } },
+      { id: "lcm", rapid: false, label: "LCM", match: (name) => /lcm|pcm|tcd/i.test(name), defaults: { steps: 6, cfg: 1.5, sampler: "lcm", scheduler: "sgm_uniform" } },
       // SDXL-Lightning's steps must equal the count its file is distilled for (2, 4 or 8); DMD2's card uses 4.
-      { id: "lightning", label: "Lightning", match: (name) => /lightning|turbo|\d+[-_ ]?steps?/i.test(name), stepsFromName: true, defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "sgm_uniform" } },
+      { id: "lightning", rapid: false, label: "Lightning", match: (name) => /lightning|turbo|\d+[-_ ]?steps?/i.test(name), stepsFromName: true, defaults: { steps: 6, cfg: 1, sampler: "euler", scheduler: "sgm_uniform" } },
       // NoobAI v-pred merges often lack the v_pred key ComfyUI looks for, so HEISS sets the mode itself.
       { id: "vpred", label: "V-prediction", match: (name, header) => Boolean(header && "v_pred" in header) || /v[-_ ]?pred/i.test(name), vpred: true, defaults: { steps: 30, cfg: 4.5, sampler: "euler", scheduler: "normal" } },
       { id: "pony", label: "Pony", match: (name) => /pony|pdxl|autismmix/i.test(name), defaults: { steps: 25, cfg: 7, sampler: "euler_ancestral", scheduler: "normal" } },
@@ -279,7 +284,7 @@ export const families = {
     size: [1024, 1024]
   },
   flux1: {
-    label: "Flux.1", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Flux.1", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.85 },
     slots: [{ slot: "clip_l", label: "CLIP-L", kinds: ["clip_l"] }, { slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }], clipType: "flux",
     vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "zero", img2img: true, aspects: square,
     variants: [
@@ -292,7 +297,7 @@ export const families = {
     size: [1024, 1024]
   },
   flux2_dev: {
-    label: "Flux.2 Dev", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Flux.2 Dev", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Mistral 3 Small", kinds: ["mistral3_24b"] }], clipType: "flux2",
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, negative: "none", sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "BasicGuider", "FluxGuidance"],
@@ -304,7 +309,7 @@ export const families = {
     size: [1024, 1024]
   },
   flux2_klein_4b: {
-    label: "Flux.2 Klein 4B", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Flux.2 Klein 4B", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Qwen3 4B", kinds: ["qwen3_4b"] }], clipType: "flux2",
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "CFGGuider"],
@@ -316,7 +321,7 @@ export const families = {
     size: [1024, 1024]
   },
   flux2_klein_9b: {
-    label: "Flux.2 Klein 9B", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Flux.2 Klein 9B", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Qwen3 8B", kinds: ["qwen3_8b"] }], clipType: "flux2",
     vae: ["flux2"], latent: "EmptyFlux2LatentImage", sizeStep: 16, sampling: "custom", scheduler: "flux2", aspects: square,
     requiredNodes: ["EmptyFlux2LatentImage", "Flux2Scheduler", "SamplerCustomAdvanced", "CFGGuider"],
@@ -328,7 +333,7 @@ export const families = {
     size: [1024, 1024]
   },
   chroma: {
-    label: "Chroma", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Chroma", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.85 },
     slots: [{ slot: "t5", label: "T5-XXL", kinds: ["t5xxl"] }], clipType: "chroma", t5Padding: { minPadding: 0, minLength: 0 },
     vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     modelSampling: { node: "ModelSamplingAuraFlow", shift: 1 },
@@ -357,7 +362,7 @@ export const families = {
     size: [1024, 1024]
   },
   qwen_image: {
-    label: "Qwen-Image", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Qwen-Image", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Qwen2.5-VL 7B", kinds: ["qwen25vl_7b"] }], clipType: "qwen_image",
     vae: ["qwen_image", "wan21"], latent: "EmptySD3LatentImage", sizeStep: 16, img2img: true, aspects: square,
     modelSampling: { node: "ModelSamplingAuraFlow", shift: 3.1 },
@@ -380,7 +385,7 @@ export const families = {
     size: [1024, 1024]
   },
   zimage: {
-    label: "Z-Image", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Z-Image", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Qwen3 4B", kinds: ["qwen3_4b"] }], clipType: "lumina2",
     vae: ["flux1"], latent: "EmptySD3LatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     variants: [
@@ -390,7 +395,7 @@ export const families = {
     size: [1024, 1024]
   },
   krea2: {
-    label: "Krea 2", kind: "image", sources: ["unet", "checkpoint"],
+    label: "Krea 2", kind: "image", sources: ["unet", "checkpoint"], rapid: { at: 0.7 },
     slots: [{ slot: "encoder", label: "Qwen3-VL 4B", kinds: ["qwen3vl_4b"] }], clipType: "krea2",
     vae: ["qwen_image"], latent: "EmptyLatentImage", sizeStep: 16, negative: "text", img2img: true, aspects: square,
     // ComfyUI-Krea2T-Enhancer, when installed, at its own default strength (0 neutral, 2 full).
@@ -985,6 +990,16 @@ export function refinedFamily(familyId = "", name = "", weightsRead = false) {
  * (`stepsFromName`), and the variant's `apple` overrides when ComfyUI runs on
  * Apple Silicon.
  */
+/**
+ * Where HEISS Rapid may run for this family and variant: { at } (see the
+ * family notes above), or null. Images only for now; video waits for its own
+ * measurements and the two-model graph.
+ */
+export function rapidFor(family, variant) {
+  if (!family?.rapid || family.kind !== "image" || variant?.rapid === false) return null;
+  return { ...family.rapid, ...(variant?.rapid || {}) };
+}
+
 export function variantDefaults(variant, name = "", { apple = false } = {}) {
   const steps = variant.stepsFromName ? stepsInName(name) : 0;
   return { ...variant.defaults, ...(steps ? { steps } : null), ...(apple ? variant.apple : null) };
