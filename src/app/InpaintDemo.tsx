@@ -2,6 +2,7 @@ import React from "react";
 import { Brush, BrushCleaning, Eraser, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { cn } from "./format";
 import { Tip } from "./components";
+import { SafeImg } from "./SafeImg";
 import { SizeSlider, drawStroke, sizes, type Stroke } from "./InpaintStudio";
 
 /**
@@ -291,7 +292,7 @@ export function InpaintDemo() {
           onContextMenu={(event) => event.preventDefault()}
         >
           <div className="inpaint-stage">
-            <img src={urls.day} alt="" draggable={false} />
+            <SafeImg src={urls.day} draggable={false} />
             <canvas ref={resultRef} className="inpaint-demo-result" width={W} height={H} />
             <canvas ref={canvasRef} className="inpaint-demo-paint" width={W} height={H} />
           </div>
