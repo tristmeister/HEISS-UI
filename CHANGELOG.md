@@ -11,7 +11,7 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> Inpainting, smart upscale in every run, and run stacks
+> Inpainting, run stacks and native smart upscale
 
 ### Added
 - **Inpainting.** Hover a reference image, press the brush, paint over what
@@ -20,18 +20,18 @@ version opens with a `> ` summary line, which the update pill shows.
   can start from an image, with no extra nodes to install. The model menu marks
   which ones can. It's in beta and on by default; Settings › Features turns it
   off.
-- **Smart upscale in every run.** Pick None, 2K or 4K next to the size menu
-  (or in the phone's create sheet) and each new picture is upscaled with SeedVR2
-  as part of its run, so you can close the page. The next run waits for it, and
-  if you stop it or it fails, you keep the picture at its generated size. If a
-  tier needs models or nodes you don't have, picking it offers to set them up.
-- **Upscales count down.** Times are learned per model and size, queue
-  estimates include them, and the ring and buttons show the seconds left.
 - **Run stacks.** Pictures from similar prompts, even ones you tweak as you go,
   fold into one tile once you stop working on them: a photo stack or a cover
   flow with the count in the corner. Slide along the bottom of a tile to skim
   it, open it to spread the images out, or Unstack to keep them apart. Nothing
   about your files changes, and the button by search turns it off.
+- **Native smart upscale.** Pick None, 2K or 4K next to the size menu (or in
+  the phone's create sheet) and each new picture is upscaled with SeedVR2
+  inside its own run, so you can close the page. The next run waits for it, and
+  if you stop it or it fails, you keep the picture at its generated size. If a
+  tier needs models or nodes you don't have, picking it offers to set them up.
+- **Upscales count down.** Times are learned per model and size, queue
+  estimates include them, and the ring and buttons show the seconds left.
 - **LoRA mismatch note.** A note above the prompt bar when an active LoRA was
   made for another model family.
 - **Crash log** in `data/logs/`, kept for a week. The crash screen now names
@@ -63,14 +63,20 @@ version opens with a `> ` summary line, which the update pill shows.
 - **Gallery export now works at any size.** Past 4 GB or 65,535 files it writes
   a ZIP64 archive and reads each file once instead of holding everything in
   memory.
-- **Large galleries scroll more smoothly**, and at most four thumbnails are
-  built at once instead of dozens.
-- **Inpainting with Qwen-Image 2.1 no longer turns the painted part into
-  noise**, and edit models no longer leave a ghost band around it.
-- **Smart upscale no longer sneaks in when a reference sets the framing or you
-  paint a mask.** A 2K or 4K pick made earlier is dropped there.
+- **Large galleries scroll more smoothly and find thumbnails faster**, and at
+  most four thumbnails are built at once instead of dozens.
+- **Translating the page no longer takes the studio down.** Chrome's and
+  Edge's translator rewrote the sidebar and viewer details and could crash
+  it; both are now left alone.
+- **Lifting one finger after a pinch no longer flings the picture.** The
+  other finger used to pan or glide it off.
 - **Prompts are capped at 100,000 characters**, and an oversized or malformed
   request now gets a short error.
+
+**Come hang out: the HEISS UI Discord is open.** Ask questions, share what you
+make, and watch the feedback board move: every idea and bug report gets a post
+when it's planned, started and fixed, and a live roadmap sits at the bottom.
+Join at https://discord.gg/Hf7ysvDeGa, or from Settings and the website.
 
 ## [0.16.0] - 2026-10-04
 
