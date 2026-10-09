@@ -6,6 +6,7 @@ import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
 import { retryRequest, type RetryOptions, type RetryRequest } from './retry';
 import { downloadActions } from './useModelDownloads';
+import { autoUpscaleQuality } from './useUpscale';
 import type { GalleryItem, Job } from './types';
 
 type GalleryPayload = { items?: GalleryItem[]; outputs?: GalleryItem[] };
@@ -162,7 +163,15 @@ export function useGenerationActions(view: any) {
         ...(inpaint ? { inpaint } : {}),
         startImageId: canUseStartImage ? startImageId : "",
         startImageName,
-        privateVault: Boolean(hiddenSpace)
+        privateVault: Boolean(hiddenSpace),
+        // Smart upscale: the upscale is part of the run itself, one job in ComfyUI.
+        // Off whenever the output's size isn't the model's own to pick: a reference
+        // that dictates the framing (aspectPolicy "reference"), or a painted mask,
+        // which keeps the original image's size. The size tabs hide in both cases,
+        // but a persisted 2K/4K choice from before must not sneak an upscale in too.
+        autoUpscale: mode === "image" && !inpaint && !(currentProfile?.aspectPolicy === "reference" && (referenceAssets || []).length) && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
+          ? { quality: autoUpscaleQuality(prefs.autoUpscale), faceDetail: Boolean(prefs.upscaleFaceDetail) }
+          : null
       };
       const queuedJobs: string[] = [];
       // One tile per job, so a failure can open straight onto its report.
@@ -180,12 +189,13 @@ export function useGenerationActions(view: any) {
         galleryUpsert(optimisticItems);
         if (prefs.zenMode) setZenSelectedId(optimisticItems[0].id);
         await nextPaint();
-        const { jobId, items, hidden: wentHidden } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number }>("/api/generate", {
+        const { jobId, items, hidden: wentHidden, notice } = await apiJson<{ jobId: string; items: GalleryItem[]; hidden?: boolean; revision?: number; notice?: string }>("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ ...requestBody, seed: runSeed, clientJobId, count: requestCount, startImage: !retry && canUseStartImage && !startImageId ? startImage : "" })
         });
         queuedJobs.push(jobId);
+        if (notice) showToast(notice, "error");
         firstItemOf.set(jobId, items?.[0] || optimisticItems[0]);
         if (wentHidden && !toHidden) {
           // Made from a Hidden image, so it stays hidden: the tile leaves this gallery and says where it went.
@@ -228,7 +238,12 @@ export function useGenerationActions(view: any) {
             setStatus(message);
             return job;
           }
-          if (job.status === "done") { announceFinished(); return job; }
+          if (job.status === "done") {
+            announceFinished();
+            // Stopped or failed while upscaling: the pictures were kept at their generated size.
+            if (job.kept) showToast(job.kept, "default");
+            return job;
+          }
           if (job.status === "canceled") return job;
           if (job.preview || job.previews?.length || job.progress || job.status === "queued" || job.status === "running") {
             galleryPatch((item: GalleryItem) => {
@@ -280,8 +295,19 @@ export function useGenerationActions(view: any) {
   async function cancelJob(jobId: string | undefined) {
     if (!jobId) return;
     // Stop acts on the whole run, so say how many images it takes with it.
-    const runSize = ((visibleGallery || []) as GalleryItem[]).filter((item) => item.jobId === jobId && item.status === "pending").length;
+    const runItems = ((visibleGallery || []) as GalleryItem[]).filter((item) => item.jobId === jobId && item.status === "pending");
+    const runSize = runItems.length;
     const many = runSize > 1;
+    // Its pictures are done and only Smart upscale is left: stopping keeps them.
+    if (runItems.some((item) => item.progress?.upscaling)) {
+      if (!await confirmAction({
+        title: "Stop the upscale?",
+        description: many ? "The pictures are done and stay, at the size they were generated." : "The picture is done and stays, at the size it was generated.",
+        action: "Stop upscale"
+      })) return;
+      await stopJob(jobId, { keep: true });
+      return;
+    }
     if (!await confirmAction({
       title: many ? `Stop all ${runSize} variants?` : "Stop generation?",
       description: many ? "They’re one run, so they stop together. Nothing is saved." : "It won’t be saved.",
@@ -291,12 +317,14 @@ export function useGenerationActions(view: any) {
     await stopJob(jobId);
   }
 
-  async function stopJob(jobId: string) {
+  async function stopJob(jobId: string, { keep = false } = {}) {
     const response = await apiFetch(`/api/jobs/${jobId}/cancel`, { method: "POST" }).catch(() => null);
     if (!response?.ok) {
-      showToast("Couldn’t stop it. It may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: () => stopJob(jobId) } });
+      showToast("Couldn’t stop it. It may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: () => stopJob(jobId, { keep }) } });
       return;
     }
+    // Kept pictures arrive with the run's next poll; the tiles stay until then.
+    if (keep) return;
     galleryRemove([jobId]);
     setStatus("Ready");
   }
@@ -312,7 +340,8 @@ export function useGenerationActions(view: any) {
       showToast("Couldn’t stop the queue. Generations may still be running in ComfyUI.", "error", { action: { label: "Try again", onClick: stopQueue } });
       return;
     }
-    galleryRemoveWhere((item: GalleryItem) => item.status === "pending" || item.status === "canceled");
+    // A run already upscaling keeps its pictures; they arrive with the next gallery update.
+    galleryRemoveWhere((item: GalleryItem) => (item.status === "pending" && !item.progress?.upscaling) || item.status === "canceled");
     setStatus("Ready");
   }
 

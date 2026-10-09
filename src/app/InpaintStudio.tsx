@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { Brush, Eraser, Hand, Redo2, Undo2, X } from "lucide-react";
+import { Brush, BrushCleaning, Eraser, Hand, Redo2, Undo2, X } from "lucide-react";
 import { cn } from "./format";
 import { Tip } from "./components";
 import { SafeImg } from "./SafeImg";
@@ -20,12 +20,12 @@ import type { ReferenceAsset } from "./types";
  */
 
 type Tool = "brush" | "eraser" | "hand";
-type Stroke = { kind: "stroke"; tool: "brush" | "eraser"; size: number; points: number[] } | { kind: "clear" };
+export type Stroke = { kind: "stroke"; tool: "brush" | "eraser"; size: number; points: number[] } | { kind: "clear" };
 type View = { scale: number; x: number; y: number };
 
 const maxSide = 2048;
 // Brush diameters as a share of the image's long side, so a step looks the same at any zoom.
-const sizes = [0.008, 0.014, 0.022, 0.034, 0.05, 0.075, 0.11, 0.16];
+export const sizes = [0.008, 0.014, 0.022, 0.034, 0.05, 0.075, 0.11, 0.16];
 const maxZoom = 12;
 const exportDelay = 220;
 const tint = "#ff9a52";
@@ -33,7 +33,7 @@ const tint = "#ff9a52";
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const typing = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || /^(input|textarea|select)$/i.test(target.tagName));
 
-function drawStroke(ctx: CanvasRenderingContext2D, stroke: Extract<Stroke, { kind: "stroke" }>, from = 0) {
+export function drawStroke(ctx: CanvasRenderingContext2D, stroke: Extract<Stroke, { kind: "stroke" }>, from = 0) {
   const { points, size } = stroke;
   ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
   ctx.strokeStyle = tint;
@@ -104,7 +104,7 @@ async function maskLayer(dataUrl: string, width: number, height: number) {
  * (thin at the bottom, wide at the top) while it's hovered or dragged.
  * It snaps to `sizes`, top is biggest.
  */
-function SizeSlider({ index, onChange, onPreview }: { index: number; onChange: (index: number) => void; onPreview: (active: boolean) => void }) {
+export function SizeSlider({ index, onChange, onPreview }: { index: number; onChange: (index: number) => void; onPreview: (active: boolean) => void }) {
   const trackRef = React.useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = React.useState(false);
   const last = sizes.length - 1;
@@ -599,10 +599,15 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
           ) : null}
         </AnimatePresence>
         <span className="inpaint-divider" aria-hidden="true" />
-        <Tip content={<>Done <kbd>Esc</kbd></>}>
-          <button type="button" className="inpaint-tool" aria-label="Done painting" onClick={onClose}><X size={16} /></button>
+        <Tip content={<>Clear the painting <kbd>Del</kbd></>}>
+          <button type="button" className="inpaint-tool" aria-label="Clear the painting" disabled={!history.painted} onClick={clear}><BrushCleaning size={16} /></button>
         </Tip>
       </div>
+
+      {/* Done sits apart, top right, so clearing and closing are never one slip apart. */}
+      <Tip content={<>Done <kbd>Esc</kbd></>}>
+        <button type="button" className="inpaint-close" aria-label="Done painting" onClick={onClose}><X size={16} /></button>
+      </Tip>
 
       <SizeSlider index={sizeIndex} onChange={setSizeIndex} onPreview={setPreviewing} />
     </motion.div>,

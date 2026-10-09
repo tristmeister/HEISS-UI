@@ -1,5 +1,6 @@
 import { envFileKeys, writeLocalEnvValue } from "./env.js";
 import { listensBeyondThisComputer, resolveLan } from "./lan.js";
+import { noteComfyState } from './crash-log.js';
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
@@ -178,10 +179,13 @@ let comfyUnreachableUntil = 0;
 export const comfyRecentlyUnreachable = () => Date.now() < comfyUnreachableUntil;
 export function noteComfyReachable() {
   comfyUnreachableUntil = 0;
+  noteComfyState(true);
 }
 /** Call with what a fetch to ComfyUI threw; a canceled request says nothing about ComfyUI. */
 export function noteComfyFetchError(error) {
-  if (error?.name !== "AbortError") comfyUnreachableUntil = Date.now() + 5000;
+  if (error?.name === "AbortError") return;
+  comfyUnreachableUntil = Date.now() + 5000;
+  noteComfyState(false, error);
 }
 
 /**

@@ -17,7 +17,7 @@ export function searchActive(search?: GallerySearch | null) {
 }
 
 export function canStar(item: GalleryItem | null | undefined) {
-  return Boolean(item && item.status === "done" && item.url && !item.vaultLocked && !item.bundle);
+  return Boolean(item && item.status === "done" && item.url && !item.vaultLocked && !item.run);
 }
 
 function withStar(item: GalleryItem, favorite: boolean): GalleryItem {

@@ -24,7 +24,7 @@ type StarterVersion = {
   id: string; family: string; label: string; detail: string; memoryGB: number; ramGB?: number; fp8: boolean;
   file: string; downloads: StarterDownload[]; totalBytes: number; remainingBytes: number; installed: boolean; fits: boolean | null;
 };
-type StarterFamily = { family: string; title: string; blurb: string; versions: StarterVersion[]; best: string | null };
+type StarterFamily = { family: string; title: string; blurb: string; versions: StarterVersion[]; best: string | null; pick: string | null };
 type StarterPlan = { hardware: Hardware | null; local: boolean; families: StarterFamily[] };
 
 /** What the studio does once a starter model is in place: select it and offer a prompt. */
@@ -32,7 +32,7 @@ export type StarterPick = { family: string; file: string; title: string };
 
 let planCache: StarterPlan | null = null;
 
-function useStarterPlan() {
+export function useStarterPlan() {
   const [plan, setPlan] = React.useState<StarterPlan | null>(planCache);
   const load = React.useCallback(() => {
     apiJson<StarterPlan & { ok: boolean }>('/api/starter-models')
@@ -131,12 +131,12 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   return (
     <div className={cn('starter-models', compact && 'is-compact')}>
       <p className="starter-note">
-        {sentence ? <>{sentence} </> : null}Each version shows the {memoryWord(hardware)} it needs.
+        {sentence ? <>{sentence} </> : null}Each version shows the {memoryWord(hardware)} it needs to run; the download is smaller.
       </p>
       <div className="starter-grid">
         {plan.families.map((family) => {
           const revealedVersion = revealing ? family.versions.find((item) => item.downloads.some((download) => download.file === revealing)) : undefined;
-          const selectedId = revealedVersion?.id || chosen[family.family] || family.best || family.versions[0]?.id;
+          const selectedId = revealedVersion?.id || chosen[family.family] || family.pick || family.versions[0]?.id;
           const version = family.versions.find((item) => item.id === selectedId) || family.versions[0];
           if (!version) return null;
           const fitting = family.versions.filter((item) => item.fits).length;
@@ -164,12 +164,14 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
                       <strong>{item.label}{item.id === family.best ? <i className="starter-best-dot" aria-label="Best on this computer" /> : null}</strong>
                       <small>{item.detail}</small>
                     </span>
-                    <span className="starter-version-memory">{item.installed ? <Check size={13} strokeWidth={2.6} aria-label="Installed" /> : formatGB(item.memoryGB)}</span>
+                    <span className="starter-version-memory">
+                      {item.installed ? <Check size={13} strokeWidth={2.6} aria-label="Installed" /> : <>{formatGB(item.memoryGB)}<small>to run</small></>}
+                    </span>
                   </button>
                 ))}
               </div>
               <p className="starter-caption">
-                <span>{ready ? 'Installed' : `${formatDownload(version.remainingBytes || version.totalBytes)} download`}</span>
+                <span>{ready ? 'Installed' : `${formatDownload(version.remainingBytes || version.totalBytes)} download, into ComfyUI’s models folder`}</span>
                 {fitNote ? <span className="starter-fit"><i aria-hidden="true" />{fitNote}</span> : null}
               </p>
               <footer className="starter-card-foot">

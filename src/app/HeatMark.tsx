@@ -181,24 +181,10 @@ export function HeatMark({ className }: { className?: string }) {
     const wrap = wrapRef.current;
     const canvas = canvasRef.current;
     if (!wrap || !canvas) return;
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' });
-    if (!gl) { setFailed(true); return; }
+    // Run once the program is linked. Getting there compiles a shader, which can
+    // stall the page for a beat, so it starts after the panel has painted (below).
+    const run = (gl: WebGLRenderingContext, prog: WebGLProgram) => {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    const compile = (type: number, src: string) => {
-      const shader = gl.createShader(type)!;
-      gl.shaderSource(shader, src);
-      gl.compileShader(shader);
-      return gl.getShaderParameter(shader, gl.COMPILE_STATUS) ? shader : null;
-    };
-    const vs = compile(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}');
-    const fs = compile(gl.FRAGMENT_SHADER, COMMON + MARK);
-    if (!vs || !fs) { setFailed(true); return; }
-    const prog = gl.createProgram()!;
-    gl.attachShader(prog, vs);
-    gl.attachShader(prog, fs);
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { setFailed(true); return; }
     gl.useProgram(prog);
     const tracked = trackCanvasSize(canvas, 2, () => { if (reduce) frame(performance.now()); });
     const { dpr } = tracked;
@@ -308,6 +294,39 @@ export function HeatMark({ className }: { className?: string }) {
       wrap.removeEventListener('pointerdown', press);
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
+    };
+
+    let disposed = false;
+    let frameId = 0;
+    let timer = 0;
+    let teardown = () => {};
+    const begin = () => {
+      if (disposed) return;
+      const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, powerPreference: 'low-power' });
+      if (!gl) { setFailed(true); return; }
+      const shader = (type: number, src: string) => {
+        const item = gl.createShader(type)!;
+        gl.shaderSource(item, src);
+        gl.compileShader(item);
+        return item;
+      };
+      const prog = gl.createProgram()!;
+      gl.attachShader(prog, shader(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.0,1.0);}'));
+      gl.attachShader(prog, shader(gl.FRAGMENT_SHADER, COMMON + MARK));
+      gl.linkProgram(prog);
+      // Where the GPU compiles in the background, wait for it instead of blocking on the link status.
+      const parallel = gl.getExtension('KHR_parallel_shader_compile');
+      const ready = () => {
+        frameId = 0;
+        if (disposed) return;
+        if (parallel && !gl.getProgramParameter(prog, parallel.COMPLETION_STATUS_KHR)) { frameId = requestAnimationFrame(ready); return; }
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { gl.getExtension('WEBGL_lose_context')?.loseContext(); setFailed(true); return; }
+        teardown = run(gl, prog);
+      };
+      ready();
+    };
+    frameId = requestAnimationFrame(() => { frameId = 0; timer = window.setTimeout(begin, 0); });
+    return () => { disposed = true; cancelAnimationFrame(frameId); window.clearTimeout(timer); teardown(); };
   }, []);
 
   return (

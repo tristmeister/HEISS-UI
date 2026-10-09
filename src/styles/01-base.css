@@ -301,7 +301,7 @@ input.is-framed:focus-visible {
 .model-picker.is-compact .model-copy strong { font-size: 12px; }
 .model-picker.is-compact .model-menu {
   left: 0; right: auto;
-  min-width: 280px;
+  min-width: 304px;
   top: auto; bottom: calc(100% + 6px);
   animation: popUp 180ms var(--spring);
 }
@@ -465,3 +465,10 @@ input.is-framed:focus-visible {
   45% { transform: translateY(-1px) rotate(-6deg); }
   70% { transform: translateY(0) rotate(4deg); }
 }
+
+/* What a model can do with a picture: bare muted icons just before its family badge. */
+.model-tags { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.model-abilities { display: inline-flex; align-items: center; gap: 6px; color: hsl(var(--muted-foreground) / .8); }
+.model-ability { display: grid; place-items: center; }
+.model-option:hover .model-abilities,
+.model-option.active .model-abilities { color: hsl(var(--foreground) / .8); }

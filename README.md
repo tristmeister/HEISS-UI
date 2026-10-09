@@ -13,23 +13,14 @@
 </p>
 
 <p align="center">
-  <a href="https://heiss-ui.vercel.app/"><b>Website</b></a>
-  &nbsp;·&nbsp;
-  <a href="#quick-start">Quick start</a>
-  &nbsp;·&nbsp;
-  <a href="#supported-models">Models</a>
-  &nbsp;·&nbsp;
-  <a href="#bring-your-own-workflow">Your own workflows</a>
-  &nbsp;·&nbsp;
-  <a href="#on-your-phone">Phone</a>
-  &nbsp;·&nbsp;
-  <a href="#connect-over-lan">LAN</a>
-  &nbsp;·&nbsp;
-  <a href="#troubleshooting">Help</a>
-  &nbsp;·&nbsp;
-  <a href="https://heiss-ui.vercel.app/board/">Feedback board</a>
-  &nbsp;·&nbsp;
-  <a href="#faq">FAQ</a>
+  <a href="https://github.com/tristmeister/HEISS-UI/releases/latest"><img src="https://img.shields.io/github/v/release/tristmeister/HEISS-UI?style=for-the-badge&label=download&labelColor=1a1a1a&color=ff7a3d" alt="Download the latest release" /></a>
+  <a href="https://heiss-ui.vercel.app/"><img src="https://img.shields.io/badge/website-heiss--ui-ff7a3d?style=for-the-badge&labelColor=1a1a1a" alt="Website" /></a>
+  <a href="https://discord.gg/Hf7ysvDeGa"><img src="https://img.shields.io/badge/discord-join-5865F2?style=for-the-badge&logo=discord&logoColor=white&labelColor=1a1a1a" alt="Join the Discord" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/badge/license-MIT-444?style=for-the-badge&labelColor=1a1a1a" alt="MIT license" /></a>
+</p>
+
+<p align="center">
+  <b><a href="#quick-start">Quick start</a> &nbsp;·&nbsp; <a href="#supported-models">Models</a> &nbsp;·&nbsp; <a href="#bring-your-own-workflow">Workflows</a> &nbsp;·&nbsp; <a href="#troubleshooting">Help</a> &nbsp;·&nbsp; <a href="#faq">FAQ</a></b>
 </p>
 
 <p align="center">
@@ -87,7 +78,7 @@ The plain `heiss-ui-*.zip` (no system in its name) is for in-app updates; you ca
 
 **2. Unpack it and double-click Start HEISS UI** (`.bat` on Windows, `.command` on macOS, `.desktop` on Linux), or run `npm start` in the folder. Node.js and the packages are inside, so there's nothing else to install, and the studio opens in the browser.
 
-**3. Have ComfyUI running.** ComfyUI on this computer connects on its own, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000. On another machine or port, set its address in **Settings › Connection**. [No ComfyUI yet?](#no-comfyui-yet)
+**3. Have ComfyUI running.** ComfyUI on this computer connects automatically, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000. On another machine or port, set its address in **Settings › Connection**. [No ComfyUI yet?](#no-comfyui-yet)
 
 <details>
 <summary><b>Windows: first launch</b></summary>
@@ -435,17 +426,19 @@ Start-Process "http://localhost:8787/"
 - **A generation fails?** Open the card. It says what went wrong and offers a fix. **Copy report** includes versions and GPU for an issue.
 - **A GGUF won't load?** See [ComfyUI-GGUF can't load this model yet](./docs/guides/TROUBLESHOOTING.md#comfyui-gguf-cant-load-this-model-yet).
 - **Looking for video?** Switch the sidebar from Image to **Video** (beta). Wan 2.1, Wan 2.2 5B and 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, and the model's setup lists anything missing.
-- **Asking for help?** **Settings › About › Copy diagnostics** copies versions, system and GPU, without prompts or images.
+- **Asking for help?** **Settings › About › Copy diagnostics** copies versions, system and GPU, without prompts or images. Paste it on the [board](https://heiss-ui.vercel.app/board/) or in the [Discord](https://discord.gg/Hf7ysvDeGa).
 
 </details>
 
-## Feedback
+## Feedback and community
 
 Found a bug, want a feature, or not sure how something works? Post it on the **[feedback board](https://heiss-ui.vercel.app/board/)**. It's public: upvote what matters to you, comment, and see what's planned, in progress and done. No account needed.
 
-From the app, **Settings › Feedback** sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
+Rather talk it through? **[Join the Discord](https://discord.gg/Hf7ysvDeGa)** for app ideas, bugs and general AI generation talk: workflows, models, settings and what you made with them.
 
-When `DISCORD_BOARD_WEBHOOK_URL` is configured as a server-only Vercel Secret, the board keeps one roadmap summary message current in the Discord channel connected to that webhook. It refreshes when cards are added, edited, reordered or removed; the board remains the full source of truth.
+From the app, **Settings › About** sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
+
+When `DISCORD_BOARD_WEBHOOK_URL` is set as a server-only Vercel env var, the board doubles as an update channel in Discord. When the maintainer moves a post (planned, in progress, done or shipped in a version), replies to one or adds one, that goes in as its own message with a link to the post. The roadmap (in progress, up next, recently done) is always the newest message: it's posted again below each update. Votes and community comments stay on the board, and a Discord outage never blocks it.
 
 ## FAQ
 

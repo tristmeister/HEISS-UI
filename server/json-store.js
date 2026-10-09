@@ -33,6 +33,19 @@ export function renameWithRetry(from, to, { retries = 5, step = 20 } = {}) {
   }
 }
 
+/** renameWithRetry that waits without holding up the server, for files nothing else races to write. */
+export async function renameWithRetryAsync(from, to, { retries = 5, step = 20 } = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await fs.promises.rename(from, to);
+      return;
+    } catch (error) {
+      if (attempt >= retries || !["EPERM", "EACCES", "EBUSY"].includes(error.code)) throw error;
+      await new Promise((resolve) => setTimeout(resolve, step * (attempt + 1)));
+    }
+  }
+}
+
 function parseFile(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }

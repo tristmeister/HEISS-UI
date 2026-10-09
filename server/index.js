@@ -1,5 +1,8 @@
 // First: keeps a copy of data/ before a new version's stores load and migrate it.
 import { dropSnapshots } from "./data-snapshot.js";
+// Next, so a crash anywhere below, even while starting, is written down (data/logs).
+import "./crash-log-install.js";
+import { addProbe, logDir } from "./crash-log.js";
 import express from "express";
 import crypto from "node:crypto";
 import fs from "node:fs";
@@ -28,7 +31,7 @@ import { cancelDownload, discardDownload, downloadState, replaceDownload, startD
 import { sanitizeGenerateBody } from './validation.js';
 import { addGalleryItems, dedupeGallery, deleteGalleryFiles, writeGalleryNow, filterVisibleGallery, gallery, galleryKey, galleryLimit, dataDir, hideGalleryItems, makePendingItems, migrateLegacyPrompts, recordsFromComfyHistory, removeGalleryItems, saveGallery, setGallery, cleanupGalleryState, updateGalleryJob, pageGallery, galleryDelta, galleryRevisionValue, sortGallery } from './gallery-store.js';
 import { galleryFilter, setGalleryFavorites } from './gallery-store.js';
-import { forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
+import { buildStats, forgetItemThumbnails, forgetLegacyHiddenThumbnails, getFileThumbnail, getThumbnail, resizeInMemory } from './thumbnails.js';
 import { clearPromptHistory, forgetPrompts, listPrompts, promptHistoryEnabled, promptKey, recordPrompt, setPromptHistoryEnabled, setPromptPinned } from './prompt-history.js';
 import { addLibraryFolder, fillVideoSizes, importOutputFolder, libraryFile, libraryFolders, removeLibraryFolder, rescanLibraryFolders, scanLibraryFolder } from './library.js';
 import { forgetItemVideoPreviews, forgetPrivateVideoPreviews, getComfyVideoPoster, getComfyVideoPreview, getFileVideoPoster, getFileVideoPreview, getPrivateVideoPreview, sendVideoPreview, sendVideoPoster } from './video-previews.js';
@@ -58,21 +61,31 @@ import { deleteUploadedReference, listReferenceAssets, readMultipartImage, readU
 import { nodePack, nodePacks } from './node-packs.js';
 import { beginComfyRestart, comfyRestartStartedAt, comfyRestarting, finishComfyRestart, lastComfyRestart, noteComfyRestart } from './comfy-restart.js';
 import { failedPacks, loadedPacks, logTextFromRaw, packLabel, restartChanges } from './restart-insights.js';
-import { comfyRestartEstimate, generationEstimate, recordComfyRestart } from './timings.js';
+import { comfyRestartEstimate, generationEstimate, recordComfyRestart, upscaleEstimate } from './timings.js';
+import { upscaleWork } from './upscale-timing.js';
 import { comfyRootDir, packInstallPlan } from './node-install.js';
 import { linkModelFolders, modelFolderReport, unlinkModelFolder } from './model-folders.js';
 import { packInstallRoutes, packInstallState, startPackInstall } from './pack-installer.js';
-import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, faceDetailSource, normalizeQuality, startModelInstall, upscalePlan, upscaleStatus } from './upscale.js';
-import { findUpscaleTarget, hiddenTarget, runUpscaleJob, toggleUpscaleView } from './upscale-jobs.js';
+import { cancelModelInstall, downloadPlan, installState, managerAvailable, managerInfo, nodeInstallPlan, normalizeQuality, startModelInstall, upscalePlan, upscaleQualities, upscaleStatus } from './upscale.js';
+import { findUpscaleTarget, startUpscale, toggleUpscaleView } from './upscale-jobs.js';
+import { dropsAutoUpscale, planRunUpscale } from './run-upscale.js';
 import { autoDetectOutputDir, detectOutputDirs, inspectOutputDir, outputDirChoice, pickFolder } from './output-folder.js';
 import { compressJson, serveApp } from './http-assets.js';
 import { describeGitError, updateCheckout } from './git-update.js';
 import { diagnostics, diagnosticsText } from './diagnostics.js';
 
+// Thumbnails building and waiting, in every heartbeat and crash line.
+addProbe("thumbs", () => buildStats());
+
 const app = express();
 // Before anything reads a body: other websites and rebound hostnames stop here (request-guard.js).
 app.use(requestGuard({ lan: () => allowLanActions, extraHosts: tlsHostNames }));
 app.use(express.json({ limit: "25mb" }));
+// A body that is not valid JSON, or too big, gets a plain JSON answer, not Express's HTML page with a stack trace and file paths.
+app.use((error, _req, res, next) => {
+  if (!error || (error.type !== "entity.parse.failed" && error.type !== "entity.too.large")) return next(error);
+  res.status(error.type === "entity.too.large" ? 413 : 400).json({ ok: false, error: error.type === "entity.too.large" ? "That request is too large." : "That request wasn't valid JSON." });
+});
 // Gallery pages and model lists travel compressed to phones and tablets; this computer skips the work.
 app.use(compressJson({ skip: (req) => clientOf(req).thisComputer }));
 const execFileAsync = promisify(execFile);
@@ -558,6 +571,18 @@ app.get("/api/ping", (_req, res) => res.json({ ok: true, app: "heiss-ui", versio
 let describeCache = { at: 0, value: null };
 async function commitsSinceRelease() {
   if (Date.now() - describeCache.at < 60000) return describeCache.value;
+  // Stale is fine for a version line: answer at once and look again behind it.
+  if (describeCache.at) { void describeNow(); return describeCache.value; }
+  return describeNow();
+}
+
+let describing = null;
+function describeNow() {
+  describing ||= readDescribe().finally(() => { describing = null; });
+  return describing;
+}
+
+async function readDescribe() {
   let value = null;
   try {
     const { stdout } = await execFileAsync("git", ["describe", "--tags", "--long", "--match", "v[0-9]*"], { cwd: root, timeout: 3000 });
@@ -569,6 +594,8 @@ async function commitsSinceRelease() {
   describeCache = { at: Date.now(), value };
   return value;
 }
+// Known before About first asks.
+void describeNow();
 
 /**
  * What a generation with these settings should take here, for the composer:
@@ -593,10 +620,15 @@ app.get("/api/estimate", (req, res) => {
   // Variations run one after another as separate runs: the first as things stand, the rest with the model loaded.
   const runs = Math.max(1, Math.min(8, Number(query.runs) || 1));
   const rest = runs > 1 ? generationEstimate(body, { now, warm: true }) : null;
-  const trusted = estimate?.trusted && (runs === 1 || rest?.trusted);
+  // Smart upscale is part of each run: its time, from the upscales this machine has made, is added to every one.
+  const upscaleQuality = body.kind === "image" && upscaleQualities.includes(query.upscale) ? query.upscale : "";
+  const plan = upscaleQuality ? upscalePlan({ width: body.width, height: body.height, quality: upscaleQuality }) : null;
+  const upscale = plan ? upscaleEstimate({ quality: upscaleQuality, faceDetail: query.faceDetail === "1", work: upscaleWork({ width: plan.estimatedWidth, height: plan.estimatedHeight, count: body.count }) }) : null;
+  const trusted = estimate?.trusted && (runs === 1 || rest?.trusted) && (!plan || upscale?.trusted);
   const clears = queueClearsAt(now);
   const queueMs = clears === null ? null : Math.max(0, clears - now);
-  res.json({ ok: true, ...(trusted ? { ms: estimate.totalMs + (runs - 1) * (rest?.totalMs || 0) } : {}), ...(queueMs ? { queueMs } : {}) });
+  const upscaleMs = upscale?.totalMs || 0;
+  res.json({ ok: true, ...(trusted ? { ms: estimate.totalMs + upscaleMs + (runs - 1) * ((rest?.totalMs || 0) + upscaleMs) } : {}), ...(queueMs ? { queueMs } : {}) });
 });
 
 app.get("/api/stats", async (_req, res) => {
@@ -623,6 +655,18 @@ app.get("/api/diagnostics", async (_req, res) => {
 
 // When this server process started, so the app can tell a restart (e.g. after an update) happened.
 const serverStartedAt = Date.now();
+
+// The latest lines of today's log (crash-log.js), for the crash kit and bug reports. This computer only.
+app.get("/api/logs", (req, res) => {
+  if (!requireLocal(req, res)) return;
+  const lines = Math.max(1, Math.min(500, Number(req.query.lines || 100)));
+  try {
+    const text = fs.readFileSync(path.join(logDir, `heiss-${new Date().toISOString().slice(0, 10)}.log`), "utf8");
+    res.type("text/plain").send(text.trimEnd().split("\n").slice(-lines).join("\n"));
+  } catch {
+    res.type("text/plain").send("");
+  }
+});
 
 app.get("/api/health", async (req, res) => {
   try {
@@ -1101,7 +1145,8 @@ app.get("/api/gallery", (req, res) => {
     items: revealGalleryItemsForRequest(page.items).map((item) => item.bundle
       ? { ...item, bundle: { ...item.bundle, items: revealGalleryItemsForRequest(item.bundle.items || []) } }
       : item),
-    outputs: revealGalleryItemsForRequest(cursor || limit ? page.items : filterVisibleGallery(gallery))
+    // The whole list, for callers from before paging. A page is in `items` already.
+    ...(cursor || limit ? {} : { outputs: revealGalleryItemsForRequest(filterVisibleGallery(gallery)) })
   });
 });
 
@@ -1364,6 +1409,18 @@ app.get('/api/library/video-preview', async (req, res) => {
   catch { if (!res.headersSent) res.status(503).end(); }
 });
 
+/**
+ * A thumbnail's caching. The gallery asks for every thumbnail with a `v` that
+ * names its item (mediaUrl.ts), so a reused file name is a new address: that
+ * one is used straight from the browser's cache for a while and checked again
+ * in the background after, so a reload or a scroll back sends no requests and
+ * a file changed in place still shows up on the next look. Without `v` the
+ * address is only a file name, so it is checked every time.
+ */
+function thumbnailCacheControl(req) {
+  return req.query.v ? "private, max-age=600, stale-while-revalidate=2592000" : "private, no-cache";
+}
+
 app.get("/api/library/thumb", async (req, res) => {
   const file = libraryFile(req.query.folder, req.query.path);
   if (!file || !/\.(png|jpe?g|webp|gif|avif)$/i.test(file)) { res.status(404).end(); return; }
@@ -1371,9 +1428,9 @@ app.get("/api/library/thumb", async (req, res) => {
     const thumbnail = await getFileThumbnail(file);
     if (!thumbnail) { res.status(404).end(); return; }
     if (thumbnail.original) { res.sendFile(file, { headers: { "Cache-Control": "private, max-age=0, must-revalidate" } }); return; }
+    res.setHeader("Cache-Control", thumbnailCacheControl(req));
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
-    res.setHeader("Cache-Control", "private, no-cache");
     res.type("image/webp");
     await pipeline(fs.createReadStream(thumbnail.file), res);
   } catch (error) {
@@ -1541,6 +1598,11 @@ app.post("/api/generate", async (req, res) => {
     return;
   }
   body.privateVault = hidden || fromHidden;
+  // Smart upscale: the run's images upscale at this effort as part of the run itself (smartUpscalePrepare).
+  const autoUpscale = req.body?.autoUpscale;
+  body.autoUpscale = body.kind === "image" && upscaleQualities.includes(autoUpscale?.quality)
+    ? { quality: autoUpscale.quality, faceDetail: Boolean(autoUpscale.faceDetail) }
+    : null;
   // Recent prompts are the gallery's: nothing made for Hidden is ever written there.
   if (!body.privateVault) try { recordPrompt(body.prompt); } catch { /* a run matters more than its history */ }
   // An older page (or a draft restored from before the reference library) can
@@ -1571,6 +1633,12 @@ app.post("/api/generate", async (req, res) => {
     }
   }
   // An empty painted mask falls back to a normal run, so apply normal sizing too.
+  if (body.inpaint?.box) {
+    const { box, image, work } = body.inpaint;
+    console.log(`[HEISS] Inpaint: repainting ${box.width}×${box.height} at ${box.x},${box.y} of ${image?.width}×${image?.height}, sampled at ${work.width}×${work.height}, strength ${body.inpaint.strength}`);
+  }
+  // Said back to the page: a mask was sent but nothing in it was painted, so this runs as a plain edit.
+  const inpaintSkipped = Boolean(!isMockJob && req.body?.inpaint?.mask && !body.inpaint);
   if (!isMockJob && req.body?.inpaint && !body.inpaint && body.referenceAssets?.length) {
     try {
       const [first, ...others] = body.referenceAssets;
@@ -1591,6 +1659,7 @@ app.post("/api/generate", async (req, res) => {
     body.width = startSize.width;
     body.height = startSize.height;
   }
+  if (body.autoUpscale && dropsAutoUpscale({ inpaint: body.inpaint, referencesFamily: inputFamily?.references, hasReference: Boolean(startSize) })) body.autoUpscale = null;
   // Every image this run handed ComfyUI: all of them go after a Hidden run, and
   // after a normal one, temporary resized copies and any Hidden references.
   const staged = (body.referenceAssets || []).filter((item) => item.comfyName);
@@ -1616,11 +1685,11 @@ app.post("/api/generate", async (req, res) => {
   markWorkflowUsed(body.profileId || body.model || body.workflow || "");
   setGallery(dedupeGallery([...items, ...gallery]).slice(0, galleryLimit));
   jobs.set(id, { status: "queued", kind: body.kind, prompt: body.prompt, outputs: [], items, startedAt: body.startedAt, privateVault: body.privateVault, vaultKey: body.privateVault ? requestKey : null });
-  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue() });
+  res.json({ jobId: id, items, hidden: body.privateVault, revision: galleryRevisionValue(), ...(inpaintSkipped ? { notice: "Nothing painted showed up in the mask, so this ran as a normal edit of the whole picture." } : {}) });
   if (isMockJob) {
     setTimeout(() => runMockJob(id, body), 0);
   } else {
-    setTimeout(() => runJob(id, body), 0);
+    setTimeout(() => runJob(id, body, { prepare: body.autoUpscale ? (graph) => smartUpscalePrepare(graph, body) : null }).catch(() => null), 0);
   }
 });
 
@@ -1738,24 +1807,22 @@ app.post("/api/upscale", async (req, res) => {
     res.status(502).json({ ok: false, reason: "source", error: "ComfyUI didn’t accept the original image. Make sure ComfyUI is running and can write to its input folder." });
     return;
   }
-  const jobId = crypto.randomUUID();
-  const body = {
-    galleryItemId: item.id,
-    imageName,
-    quality,
-    faceDetail,
-    width: Number(item.width || 0),
-    height: Number(item.height || 0),
-    prompt: item.prompt || "",
-    ...faceDetailSource(item, String(item.model || "").startsWith("custom:") ? getCustomWorkflow(item.model) : null)
-  };
-  const plan = upscalePlan(body);
-  jobs.set(jobId, { status: "queued", kind: "upscale", galleryItemId: item.id, startedAt: Date.now(), outputs: [] });
+  const customWorkflow = String(item.model || "").startsWith("custom:") ? getCustomWorkflow(item.model) : null;
+  const { jobId, plan } = startUpscale({ item, imageName, quality, faceDetail, info, customWorkflow, hiddenKey: hiddenItem ? hiddenKey : null });
   res.json({ ok: true, jobId, plan, revision: galleryRevisionValue() });
-  setTimeout(() => hiddenItem
-    ? runUpscaleJob(jobId, body, info, hiddenTarget(item.id, hiddenKey, [imageName]))
-    : runUpscaleJob(jobId, body, info), 0);
 });
+
+/**
+ * Smart upscale (2K / 4K in the size menu) goes into the run's own graph, so
+ * a run and its upscale are one ComfyUI job (run-upscale.js). When ComfyUI's
+ * node list is out of reach the run still goes ahead, without the upscale.
+ */
+async function smartUpscalePrepare(graph, body) {
+  const { info } = await loadComfyContext().catch(() => ({ info: null }));
+  if (!info) return { skipped: "Smart upscale couldn’t check ComfyUI’s nodes", quality: body.autoUpscale?.quality };
+  const customWorkflow = String(body.model || "").startsWith("custom:") ? getCustomWorkflow(body.model) : null;
+  return planRunUpscale(graph, body, info, customWorkflow);
+}
 
 // Stops an image's running upscale. runUpscaleJob sees the canceled job and resets the tile.
 app.post("/api/upscale/cancel", async (req, res) => {
@@ -1818,7 +1885,8 @@ app.post("/api/jobs/:id/cancel", async (req, res) => {
     return;
   }
   jobs.set(req.params.id, { ...job, status: "canceling" });
-  updateGalleryJob(req.params.id, { status: "canceled" });
+  // Its pictures are saved and only Smart upscale is left: they stay, and runJob delivers them.
+  if (!job.keepsPicture) updateGalleryJob(req.params.id, { status: "canceled" });
   // Without a prompt id yet, runJob takes it back out of ComfyUI as soon as /prompt answers.
   if (job.promptId) await cancelPrompt(job.promptId).catch(() => null);
   res.json({ ok: true });
@@ -1826,7 +1894,7 @@ app.post("/api/jobs/:id/cancel", async (req, res) => {
 
 app.post("/api/queue/cancel", async (_req, res) => {
   const promptIds = cancelOwnJobs();
-  setGallery(gallery.map((item) => (item.status === "pending" ? { ...item, status: "canceled" } : item)));
+  setGallery(gallery.map((item) => (item.status === "pending" && !jobs.get(item.jobId)?.keepsPicture ? { ...item, status: "canceled" } : item)));
   saveGallery();
   // Only HEISS's own prompts: ComfyUI's queue also holds runs from its own UI and other apps.
   await cancelPrompts(promptIds);
@@ -1910,6 +1978,11 @@ function cancelOwnJobs() {
   for (const [id, job] of jobs) {
     if (job.status === "queued" || job.status === "running" || job.status === "canceling") {
       if (job.promptId) promptIds.push(job.promptId);
+      // Only upscaling now: its pictures stay, and runJob delivers them once ComfyUI lets go.
+      if (job.keepsPicture) {
+        jobs.set(id, { ...job, status: "canceling" });
+        continue;
+      }
       setTerminalJob(id, { status: "canceled" });
       updateGalleryJob(id, { status: "canceled" });
     }
@@ -2163,11 +2236,10 @@ app.get("/comfy/thumb", async (req, res) => {
     if (!thumbnail) { res.status(404).json({ error: "Source image is unavailable." }); return; }
     // No sharp (see sharp-loader.js): the full image stands in for the thumbnail.
     if (thumbnail.original) { res.redirect(302, `/comfy/view?${new URLSearchParams({ filename, subfolder, type })}`); return; }
+    // The ETag is a source-content hash, so revalidation safely handles a reused filename.
+    res.setHeader("Cache-Control", thumbnailCacheControl(req));
     if (req.headers["if-none-match"] === thumbnail.etag) { res.status(304).end(); return; }
     if (thumbnail.etag) res.setHeader("ETag", thumbnail.etag);
-    // This URL identifies an output filename, not immutable image bytes. Its
-    // ETag is a source-content hash, so revalidation safely handles reuse.
-    res.setHeader("Cache-Control", "private, no-cache");
     res.type("image/webp");
     await pipeline(fs.createReadStream(thumbnail.file), res);
   } catch (error) {

@@ -50,17 +50,23 @@ export function useStableProps<T>(value: T, depth = 4): T {
       const before = isPlainObject(prev) ? prev : null;
       const keys = Object.keys(next);
       let same = Boolean(before) && keys.length === Object.keys(before!).length;
+      let untouched = true;
       const out: Record<string, unknown> = {};
       for (const key of keys) {
         out[key] = stabilize(next[key], before?.[key], `${path}\0${key}`, level - 1);
         if (!before || out[key] !== before[key]) same = false;
+        if (out[key] !== next[key]) untouched = false;
       }
-      return same ? before : out;
+      // Nothing inside needed a proxy: keep the object itself rather than a
+      // copy, so it stays the same object as everywhere else (a gallery item
+      // in a Map, a run in a list) and the next render finds it unchanged at a glance.
+      return same ? before : untouched ? next : out;
     }
     if (Array.isArray(next)) {
       const before = Array.isArray(prev) && prev.length === next.length ? prev : null;
       const out = next.map((item, index) => stabilize(item, before?.[index], `${path}\0${index}`, level - 1));
-      return before && out.every((item, index) => item === before[index]) ? before : out;
+      if (before && out.every((item, index) => item === before[index])) return before;
+      return out.every((item, index) => item === next[index]) ? next : out;
     }
     return next;
   };

@@ -8,6 +8,9 @@
 
 const hf = (repo, file) => `https://huggingface.co/${repo}/resolve/main/${file}`;
 
+/** Images per run for the built-in families: the graph renders at most this many, whatever the latent node accepts. */
+export const MAX_BATCH = 8;
+
 /* ------------------------------------------------------------ Downloads */
 
 // Where to get each part. The first entry is what a Download button fetches;

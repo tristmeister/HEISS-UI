@@ -1,4 +1,4 @@
-import { ChevronRight, GalleryHorizontalEnd, RotateCcw, Wand2 } from 'lucide-react';
+import { ChevronRight, GalleryHorizontalEnd, RotateCcw, Wand2, X } from 'lucide-react';
 import { fallbackSamplers, fallbackSchedulers } from './constants';
 import { cn } from './format';
 import { maxLoras } from './loras';
@@ -10,6 +10,7 @@ import { workflowState } from './workflowStatus';
 import { useComfyRestarting } from './ComfyRestart';
 import type { WorkflowSummary } from './types';
 import { SafeImg } from './SafeImg';
+import { referenceName } from './ReferenceMediaPicker';
 import { PhoneSelect, PhoneSlider } from './phoneControls';
 
 function WorkflowPreviewCard({ workflow, onOpen }: { workflow: WorkflowSummary | null; onOpen: () => void }) {
@@ -90,7 +91,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
     <div className="phone-advanced-controls">
       <div className="phone-seg phone-mode" role="radiogroup" aria-label="Make">
         {(["image", "video"] as const).map((value) => (
-          <button key={value} type="button" role="radio" aria-checked={mode === value} className={cn(mode === value && "active")} onClick={() => changeMode(value)}>{value === "image" ? "Image" : <>Video<BetaTag /></>}</button>
+          <button key={value} type="button" role="radio" aria-checked={mode === value} className={cn(mode === value && "active")} onClick={() => changeMode(value)}>{value === "image" ? <span>Image</span> : <span>Video<BetaTag /></span>}</button>
         ))}
       </div>
 
@@ -118,7 +119,7 @@ export function PhoneAdvancedControls({ view }: { view: any }) {
       <PhoneSlider label="Prompt strength (CFG)" value={cfg} min={cfgMeta.min ?? 0} max={Math.min(cfgMeta.max ?? 30, 20)} step={cfgMeta.step || 0.5} onChange={setCfg} format={(value) => value.toFixed(1)} hint={<><span>Looser</span><span>Follows the prompt closely</span></>} />
       {inpaintActive ? (
         <>
-          <PhoneSlider label="Inpaint strength" value={inpaintStrength} min={0.05} max={1} step={0.05} onChange={setInpaintStrength} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Touch it up</span><span>Paint it anew</span></>} />
+          {currentProfile?.capabilities.denoise ? <PhoneSlider label="Inpaint strength" value={inpaintStrength} min={0.05} max={1} step={0.05} onChange={setInpaintStrength} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Touch it up</span><span>Paint it anew</span></>} /> : null}
           <PhoneSlider label="Edge softness" value={inpaintFeather} min={0} max={1} step={0.05} onChange={setInpaintFeather} format={(value) => `${Math.round(value * 100)}%`} hint={<><span>Crisp</span><span>Soft</span></>} />
         </>
       ) : canUseStartImage && currentProfile?.capabilities.denoise ? (
@@ -180,7 +181,7 @@ export function SidebarControls({ view }: { view: any }) {
     setWeightDtype, setWidth, steps, stepsMeta, textEncoder, vae, weightDtype,
     width, widthMeta, setWorkflowGalleryOpen, loraLibrary, rememberedLoraStrength,
     textEncoders, setTextEncoders, refreshModels, refreshWorkflows, showToast, modelFolders,
-    sidebarTab: tab, setSidebarTab: setTab, recommended,
+    sidebarTab: tab, setSidebarTab: setTab, recommended, sidebarReference,
     inpaintActive, inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather
   } = view as Record<string, any> & { sidebarTab: SidebarTab; setSidebarTab: (tab: SidebarTab) => void; recommended?: { differs: boolean; restore: () => void; family: string } };
 
@@ -188,7 +189,7 @@ export function SidebarControls({ view }: { view: any }) {
   // What the model's makers ship, one tap away once anything has moved from it.
   const backToRecommended = recommended?.differs ? (
     <button type="button" className="btn is-ghost sidebar-recommended" onClick={recommended.restore} title={`The steps, prompt strength, sampler and scheduler recommended for ${recommended.family || "this model"}`}>
-      <RotateCcw size={13} /> Back to recommended
+      <RotateCcw size={13} /> <span>Back to recommended</span>
     </button>
   ) : null;
 
@@ -211,7 +212,7 @@ export function SidebarControls({ view }: { view: any }) {
       <div className="sidebar-subtabs" role="tablist" aria-label="Sidebar sections">
         {(["basics", "loras", "advanced"] as SidebarTab[]).map((id) => (
           <button key={id} type="button" role="tab" aria-selected={tab === id} className={cn("sidebar-subtab", tab === id && "active")} onClick={() => setTab(id)}>
-            {id === "basics" ? "Basics" : id === "advanced" ? "Advanced" : "LoRAs"}
+            <span>{id === "basics" ? "Basics" : id === "advanced" ? "Advanced" : "LoRAs"}</span>
             {id === "loras" && loraActiveCount > 0 ? <span className="sidebar-subtab-count">{loraActiveCount}</span> : null}
           </button>
         ))}
@@ -220,6 +221,38 @@ export function SidebarControls({ view }: { view: any }) {
       <div className="sidebar-body">
         {tab === "basics" ? (
           <>
+            {sidebarReference ? (
+              <section className="sidebar-reference" aria-label={sidebarReference.label}>
+                <div className="sidebar-reference-row">
+                  <span className="sidebar-reference-thumb"><SafeImg src={sidebarReference.asset.thumbnailUrl || sidebarReference.asset.url || ""} alt="" /></span>
+                  <span className="sidebar-reference-copy">
+                    <strong>{sidebarReference.label}</strong>
+                    <small>{referenceName(sidebarReference.asset.name)}</small>
+                  </span>
+                  <Tip content={`Remove ${sidebarReference.label.toLowerCase()}`}>
+                    <button type="button" className="icon-button sidebar-reference-remove" aria-label={`Remove ${sidebarReference.label.toLowerCase()}`} onClick={sidebarReference.remove}><X size={14} /></button>
+                  </Tip>
+                </div>
+                {inpaintActive ? (
+                  <>
+                    {/* Edit models edit the crop whole, so only image-to-image models have a strength here. */}
+                    {currentProfile?.capabilities.denoise ? (
+                      <>
+                        <NumberPicker label="Inpaint strength" value={inpaintStrength} onChange={setInpaintStrength} min={0.05} max={1} step={0.05} precision={2} fill />
+                        <div className="sidebar-scale-hint" aria-hidden="true"><span>Touch it up</span><span>Paint it anew</span></div>
+                      </>
+                    ) : null}
+                    <NumberPicker label="Edge softness" value={inpaintFeather} onChange={setInpaintFeather} min={0} max={1} step={0.05} precision={2} fill />
+                    <div className="sidebar-scale-hint" aria-hidden="true"><span>Crisp</span><span>Soft</span></div>
+                  </>
+                ) : canUseStartImage && currentProfile?.capabilities.denoise ? (
+                  <>
+                    <NumberPicker label="Change from the reference" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
+                    <div className="sidebar-scale-hint" aria-hidden="true"><span>Keep it close</span><span>Change a lot</span></div>
+                  </>
+                ) : null}
+              </section>
+            ) : null}
             {mode === "video" ? (
               <div className="number-row">
                 <NumberPicker label="Frames" value={frames} onChange={setFrames} min={frameMeta.min || 1} max={frameMeta.max ?? 240} step={frameMeta.step || 4} fill />
@@ -281,19 +314,6 @@ export function SidebarControls({ view }: { view: any }) {
             </div>
             <NumberPicker label="Prompt strength (CFG)" value={cfg} onChange={setCfg} min={cfgMeta.min ?? 0} max={cfgMeta.max ?? 30} step={cfgMeta.step || 0.5} precision={1} fill />
             <div className="sidebar-scale-hint" aria-hidden="true"><span>Looser</span><span>Follows the prompt closely</span></div>
-            {inpaintActive ? (
-              <>
-                <NumberPicker label="Inpaint strength" value={inpaintStrength} onChange={setInpaintStrength} min={0.05} max={1} step={0.05} precision={2} fill />
-                <div className="sidebar-scale-hint" aria-hidden="true"><span>Touch it up</span><span>Paint it anew</span></div>
-                <NumberPicker label="Edge softness" value={inpaintFeather} onChange={setInpaintFeather} min={0} max={1} step={0.05} precision={2} fill />
-                <div className="sidebar-scale-hint" aria-hidden="true"><span>Crisp</span><span>Soft</span></div>
-              </>
-            ) : canUseStartImage && currentProfile?.capabilities.denoise ? (
-              <>
-                <NumberPicker label="Change from the reference" value={denoise} onChange={setDenoise} min={denoiseMeta.min ?? 0} max={denoiseMeta.max ?? 1} step={denoiseMeta.step || 0.05} precision={2} fill />
-                <div className="sidebar-scale-hint" aria-hidden="true"><span>Keep it close</span><span>Change a lot</span></div>
-              </>
-            ) : null}
             {currentProfile?.capabilities.sampler !== false ? (
               <div className="advanced-grid">
                 <Field label="Sampler"><Select value={sampler} onChange={setSampler} options={profileOptions.samplers?.length ? profileOptions.samplers : models?.samplers?.length ? models.samplers : fallbackSamplers} /></Field>

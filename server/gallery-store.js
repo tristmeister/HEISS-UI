@@ -818,7 +818,9 @@ export function recordsFromComfyHistory(history) {
     }).slice(0, 8);
     const rawCreatedAt = Number(item?.prompt?.[3]?.create_time || Date.now());
     const createdAtMs = rawCreatedAt > 0 && rawCreatedAt < 1e12 ? rawCreatedAt * 1000 : rawCreatedAt;
-    for (const output of outputsFrom(item)) {
+    // Smart upscale's copy belongs to its picture; recovered on its own it would be a second tile.
+    const own = Object.fromEntries(Object.entries(item?.outputs || {}).filter(([id]) => !graph[id]?._meta?.heissUpscale));
+    for (const output of outputsFrom({ outputs: own })) {
       const record = {
         ...output,
         id: output.url,
@@ -855,8 +857,9 @@ export function makePendingItems(id, body) {
     prompt: body.prompt || "",
     negative: body.negative || "",
     createdAt,
-    width: Number(body.width || 0),
-    height: Number(body.height || 0),
+    // An inpaint result is the whole original picture, whatever size the crop sampled at.
+    width: Number(body.inpaint?.image?.width || body.width || 0),
+    height: Number(body.inpaint?.image?.height || body.height || 0),
     model: body.model || "",
     referenceImage: body.startImageId || "",
     referenceImageName: body.startImageName || "",
@@ -886,41 +889,43 @@ export function dedupeGallery(items) {
 }
 
 export function cleanupGalleryState(jobs) {
-  let changed = false;
+  // Called on every gallery page: most of the time there is nothing pending
+  // and no upscale running, and one pass says so without building anything.
+  if (!gallery.some((item) => item.status === "pending" || item.upscale?.status === "running")) return;
   const before = gallery;
-  const doneKeys = new Set(
-    gallery
-      .filter((item) => item.status === "done")
-      .map((item) => `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`)
-  );
-  gallery = gallery.filter((item) => {
+  const runKey = (item) => `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`;
+  const doneJobs = new Set();
+  const doneKeys = new Set();
+  for (const item of gallery) {
+    if (item.status !== "done") continue;
+    if (item.jobId) doneJobs.add(item.jobId);
+    doneKeys.add(runKey(item));
+  }
+  const next = [];
+  let changed = false;
+  for (let item of gallery) {
+    // Replaced, never changed in place: diffGallery tells changes by identity,
+    // and an item edited in place would never reach other open galleries.
     // An upscale whose job this server never ran (it restarted mid-upscale) is not running anymore.
     if (item.upscale?.status === "running" && !jobs.has(item.upscale.jobId)) {
-      item.upscale = { ...item.upscale, status: "canceled", progress: null };
+      item = { ...item, upscale: { ...item.upscale, status: "canceled", progress: null } };
       changed = true;
     }
-    if (item.status !== "pending") return true;
-    if (item.jobId && !jobs.has(item.jobId)) {
-      item.status = "error";
-      item.filename = "Generation interrupted";
-      changed = true;
-      return true;
+    if (item.status === "pending") {
+      if (item.jobId && !jobs.has(item.jobId)) {
+        item = { ...item, status: "error", filename: "Generation interrupted" };
+        changed = true;
+      } else if (item.jobId && (doneJobs.has(item.jobId) || doneKeys.has(runKey(item)))) {
+        changed = true;
+        continue;
+      }
     }
-    if (gallery.some((next) => next.status === "done" && next.jobId && next.jobId === item.jobId)) {
-      changed = true;
-      return false;
-    }
-    const key = `${item.jobId || ""}|${item.prompt || ""}|${item.model || ""}|${item.width || ""}|${item.height || ""}`;
-    if (item.jobId && doneKeys.has(key)) {
-      changed = true;
-      return false;
-    }
-    return true;
-  });
-  if (changed) {
-    bumpRevision(diffGallery(before, gallery));
-    saveGallery();
+    next.push(item);
   }
+  if (!changed) return;
+  gallery = next;
+  bumpRevision(diffGallery(before, gallery));
+  saveGallery();
 }
 
 export function generationSettings(body) {
@@ -958,7 +963,12 @@ export function generationSettings(body) {
     settings.count = Number(body.count || 1);
     if (body.startImage || body.startImageId) settings.denoise = Number(body.denoise || 0);
     // Where the painted part sat in the reference; the mask itself is never kept.
-    if (body.inpaint?.box) settings.inpaint = { box: body.inpaint.box, strength: body.inpaint.strength, feather: body.inpaint.feather };
+    if (body.inpaint?.box) {
+      settings.inpaint = { box: body.inpaint.box, strength: body.inpaint.strength, feather: body.inpaint.feather };
+      if (body.inpaint.image?.width) settings.inpaint.image = { width: body.inpaint.image.width, height: body.inpaint.image.height };
+      // The reference's id lets the live preview draw over the original; a Hidden one stays out of the record.
+      if (body.inpaint.referenceId && !body.privateVault && !String(body.inpaint.referenceId).startsWith("vault:")) settings.inpaint.referenceId = body.inpaint.referenceId;
+    }
   }
   if (body.kind === "video") {
     settings.frames = Number(body.frames || 0);
@@ -984,8 +994,9 @@ export function replaceGalleryJob(id, outputs, body, jobs, status = "done") {
     durationMs,
     // How long ComfyUI itself took, without waiting in its queue.
     ...(job.timing ? { timing: job.timing } : {}),
-    width: Number(body.width || 0),
-    height: Number(body.height || 0),
+    // An inpaint result is the whole original picture, whatever size the crop sampled at.
+    width: Number(body.inpaint?.image?.width || body.width || 0),
+    height: Number(body.inpaint?.image?.height || body.height || 0),
     model: body.model || "",
     referenceImage: body.startImageId || "",
     referenceImageName: body.startImageName || "",

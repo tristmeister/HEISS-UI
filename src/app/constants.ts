@@ -15,11 +15,13 @@ export const defaultPrefs: Preferences = {
   followLatest: true,
   spanWideImages: false,
   showFailedItems: true,
-  groupRuns: true,
-  runGroupingMode: "smart",
-  runCooldownMinutes: 1,
+  showMoments: true,
+  stackRuns: false,
+  runStackStyle: "burst",
   smartUpscale: true,
+  inpainting: true,
   upscaleQuality: "balanced",
+  autoUpscale: "none",
   upscaleFaceDetail: false,
   hiddenAutoLockMinutes: 15,
   modelFolderHints: true,
@@ -27,13 +29,10 @@ export const defaultPrefs: Preferences = {
   hiddenShareWithoutSettings: true
 };
 
-/**
- * Features that are built but kept out of sight for now. Off hides every way
- * in; what a feature already made (like existing stacks) still shows.
- */
+/** Built but kept out of sight for now. */
 export const features = {
-  /** Stacking finished runs in the gallery: the "Group runs" chip and Library › Runs. */
-  runGrouping: false
+  /** Time headings in the gallery ("This evening"). */
+  moments: false
 } as const;
 
 export const galleryInitialBatch = 72;
@@ -61,3 +60,4 @@ export const fallbackAspectPresets: Record<Mode, AspectPreset[]> = {
 export const fallbackSamplers = ["euler_ancestral", "euler", "uni_pc", "dpmpp_2m", "dpmpp_sde"];
 export const fallbackSchedulers = ["beta", "simple", "normal", "karras", "sgm_uniform"];
 export const githubUrl = "https://github.com/tristmeister/HEISS-UI";
+export const discordUrl = "https://discord.gg/Hf7ysvDeGa";

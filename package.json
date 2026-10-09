@@ -29,6 +29,7 @@
     "preview": "vite preview --host 127.0.0.1 --port 5173",
     "site": "node scripts/site-preview.mjs",
     "test": "node --test server/*.test.js scripts/*.test.js",
+    "crash-kit": "node scripts/crash-kit.mjs",
     "release": "node scripts/release.mjs",
     "check:updates": "npm outdated",
     "package": "npm run build && node scripts/package-release.mjs"

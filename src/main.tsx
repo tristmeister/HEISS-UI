@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { showToastTone as showToast, toast } from "./app/toast";
 import "./styles.css";
@@ -20,11 +20,17 @@ import { TooltipProvider } from './components/ui/tooltip';
 import { setShareSettings } from './app/shareSettings';
 import { PhoneAdvancedControls, SidebarControls } from './app/SidebarControls';
 import { useGenerationActions } from './app/useGenerationActions';
+import { loraFit, useLoraInfo } from './app/useLoraInfo';
+import type { LoraMismatch } from './app/LoraMismatchChip';
 import { useViewerControls } from './app/useViewerControls';
-import { useGalleryBundles } from './app/useGalleryBundles';
+import { collapseRuns, useGalleryGroups } from './app/useGalleryGroups';
+import { viewerOrder } from './app/viewerOrder';
+import { useUnstackedRuns } from './app/useUnstackedRuns';
+import { useRunSettling } from './app/useRunSettling';
+import { runTitle, type Run } from './app/runs';
 import { useGalleryStore } from './app/useGalleryStore';
-import { emptySearch, useFavorites, type GallerySearch } from './app/favorites';
-import { upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/useUpscale';
+import { emptySearch, searchActive, useFavorites, type GallerySearch } from './app/favorites';
+import { autoUpscaleQuality, upscaleDisplayThumbnail, upscaleDisplayUrl, useUpscale } from './app/useUpscale';
 import { useHidden, type HiddenIntent } from './app/useHidden';
 import { flyInto, hiddenDockTarget } from './app/hiddenMotion';
 import { useVisibleInterval } from './hooks/use-visible-interval';
@@ -188,14 +194,44 @@ function App() {
   } = useGalleryStore({ mode, showFailedItems: prefs.showFailedItems, space: hidden.space, onLocked: hidden.refresh, search: gallerySearch });
   const toggleFavorite = useFavorites({ patchGalleryItems, removeGalleryItems, setActive, search: gallerySearch, showToast });
 
-  const { pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle } = useGalleryBundles({
-    prefs,
-    galleryRevision,
-    domain: hiddenSpace ? "vault" : "gallery",
-    enabled: !hiddenSpace || hidden.unlocked,
-    reloadGallery: loadGallery,
-    showToast
-  });
+  // Moments and runs: a way of looking at the gallery, worked out from what is
+  // loaded (runs.js). Runs stack only when asked, and never in search results.
+  const stackRuns = Boolean(prefs.stackRuns) && !searchActive(gallerySearch);
+  const foundGroups = useGalleryGroups(visibleGallery, { runs: stackRuns });
+  const { groups: keptGroups, unstack } = useUnstackedRuns(foundGroups);
+  // Runs settle rather than snap: a run being worked on stays plain tiles, and
+  // folds once it's been quiet and is off screen (useRunSettling).
+  const { groups: galleryGroups, settleVersion } = useRunSettling(keptGroups, { enabled: stackRuns, showToast });
+  // Which stacked runs are laid out open, on their shelves.
+  const [openRuns, setOpenRuns] = useState<Set<string>>(() => new Set());
+  const setRunOpen = useCallback((runId: string, open: boolean) => {
+    setOpenRuns((current) => {
+      if (current.has(runId) === open) return current;
+      const next = new Set(current);
+      if (open) next.add(runId); else next.delete(runId);
+      return next;
+    });
+  }, []);
+  // Taking a run apart for good: its tiles stay separate, with a way back.
+  const unstackRun = useCallback((run: Run) => {
+    unstack(run, true);
+    setOpenRuns((current) => {
+      if (!current.has(run.id)) return current;
+      const next = new Set(current);
+      next.delete(run.id);
+      return next;
+    });
+    showToast("Unstacked", "default", { description: runTitle(run), action: { label: "Undo", onClick: () => { unstack(run, false); setOpenRuns((current) => new Set([...current, run.id])); } } });
+  }, [unstack]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Zen steps over a stacked run as one thing, and shows it as a run.
+  const zenGallery = useMemo(() => {
+    const shown = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
+    return stackRuns ? collapseRuns(shown, galleryGroups, openRuns) : shown;
+  }, [visibleGallery, stackRuns, galleryGroups, openRuns]);
+
+  // The viewer steps through the gallery as it is laid out: a stacked run's
+  // takes one after another where the stack stands, not wherever they fell in time.
+  const viewerGallery = useMemo(() => viewerOrder(visibleGallery, stackRuns ? galleryGroups : null, openRuns), [visibleGallery, stackRuns, galleryGroups, openRuns]);
 
   // Chrome on Windows can hand playing videos to a hardware layer that frosted
   // glass can't blur, so the glass over the video gallery shows it through.
@@ -651,9 +687,19 @@ function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [active, gallery, mode]);
 
+  // The viewer holds the item it opened with; follow the gallery's copy, so an
+  // upscale starting, ticking and finishing (or a star) shows while it is open.
+  useEffect(() => {
+    setActive((current) => {
+      if (!current) return current;
+      const fresh = gallery.find((item) => item.id === current.id);
+      return fresh && fresh !== current ? fresh : current;
+    });
+  }, [gallery]);
+
   useEffect(() => {
     if (!prefs.zenMode || active || settings) return;
-    const zenItems = visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error");
+    const zenItems = zenGallery;
     const currentIndex = Math.max(0, zenItems.findIndex((item) => item.id === zenSelectedId));
     function onKeyDown(event: KeyboardEvent) {
       if (document.querySelector(OPEN_DIALOG)) return;
@@ -669,7 +715,7 @@ function App() {
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [prefs.zenMode, active, settings, gallery, mode, zenSelectedId]);
+  }, [prefs.zenMode, active, settings, gallery, mode, zenSelectedId, zenGallery]);
 
   useEffect(() => {
     const latest = visibleGallery.find((item) => item.status === "done");
@@ -700,12 +746,13 @@ function App() {
 
   const { confirmAction, confirmationDialog } = useConfirmation(prefs.confirmActions);
 
-  const { upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, toggleUpscale, cancelUpscale } = useUpscale({
+  const { upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, toggleUpscale, cancelUpscale, chooseAutoUpscale } = useUpscale({
     gallery,
     prefs,
     showToast,
     loadGalleryDelta,
-    patchGalleryItems
+    patchGalleryItems,
+    setPrefs
   });
 
 
@@ -1116,7 +1163,8 @@ function App() {
     : arrangedReferenceAssets;
   const canUseStartImage = Boolean(referenceInput);
   // A mask belongs to the image it was painted on, for a model that can inpaint.
-  const canInpaint = Boolean(currentProfile?.capabilities.inpaint && referenceInput && (referenceAsset?.url || referenceAsset?.thumbnailUrl));
+  // Settings › Features › Inpainting can switch it off: no brush, no mask, no inpaint settings.
+  const canInpaint = Boolean(prefs.inpainting !== false && currentProfile?.capabilities.inpaint && referenceInput && (referenceAsset?.url || referenceAsset?.thumbnailUrl));
   const activeInpaintMask = canInpaint && inpaintMask && inpaintMask.assetId === referenceAsset?.id ? inpaintMask : null;
   useEffect(() => {
     if (inpaintMask && !activeInpaintMask) setInpaintMask(null);
@@ -1141,6 +1189,13 @@ function App() {
     setHeight(snapDimension(referenceForAspect.height * scale, heightMeta));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectLocked, referenceForAspect?.id, model, prefs.autoResizeInputs]);
+  /* A reference that dictates the framing, or a painted mask, takes the size
+     tabs (and Smart upscale with them) off the composer: the reference's own
+     size is what gets made. The saved 2K/4K pick has to go with them, not
+     just hide, so taking the reference off again doesn't bring it back. */
+  useEffect(() => {
+    if ((aspectLocked || activeInpaintMask) && prefs.autoUpscale && prefs.autoUpscale !== "none") setPrefs({ autoUpscale: "none" });
+  }, [aspectLocked, activeInpaintMask, prefs.autoUpscale]);
   const frameMeta = currentProfile?.constraints?.frames || {};
   const countMeta = currentProfile?.constraints?.count || {};
   const stepsMeta = currentProfile?.constraints?.steps || {};
@@ -1175,7 +1230,8 @@ function App() {
   const separateRuns = mode === "image" && prefs.variationQueueMode === "separate";
   const generationEstimate = useGenerationEstimate({
     mode, model: currentProfile?.model || model, profileId: currentProfile?.id || model, family: currentProfile?.family || '', width, height, steps,
-    count: separateRuns ? 1 : estimateCount, runs: separateRuns ? estimateCount : 1, frames: mode === "video" ? frames : 0, revision: runningCount
+    count: separateRuns ? 1 : estimateCount, runs: separateRuns ? estimateCount : 1, frames: mode === "video" ? frames : 0, revision: runningCount,
+    upscale: mode === "image" && prefs.smartUpscale !== false ? autoUpscaleQuality(prefs.autoUpscale) || '' : '', upscaleFaceDetail: Boolean(prefs.upscaleFaceDetail)
   });
   // Every Restart ComfyUI button asks first when it would stop running work.
   useEffect(() => {
@@ -1194,7 +1250,6 @@ function App() {
     onStopHints: () => setPrefs({ modelFolderHints: false })
   });
   const doneGallery = useMemo(() => visibleGallery.filter((item) => item.status === "done" || item.status === "error"), [visibleGallery]);
-  const zenGallery = useMemo(() => visibleGallery.filter((item) => item.status === "pending" || item.status === "done" || item.status === "error"), [visibleGallery]);
   const zenItem = zenGallery.find((item) => item.id === zenSelectedId) || zenGallery[0] || null;
   const zenDisplayItem = zenItem;
   const missingReferenceInput = referenceInputs.find((input) => (input.required || (input.min || 0) > 0) && !composerReferenceAssets.some((item) => item.slot === input.id));
@@ -1209,6 +1264,19 @@ function App() {
     : modelSetupMissing ? "This model needs files first"
     : !currentProfile ? (models ? "Choose a model" : "Loading models…") : undefined;
   const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
+  // Active LoRAs whose files clearly say another model family (lora-info.js): a quiet note above the prompt bar.
+  const loraOptionNames = useMemo(() => ((currentProfile?.options?.loras || models?.loras || []) as unknown[]).map((option) => typeof option === "string" ? option : String((option as { name?: string })?.name || "")).filter(Boolean), [currentProfile, models]);
+  const loraInfos = useLoraInfo(loraActiveCount ? loraOptionNames : []);
+  const [dismissedLoraWarnings, setDismissedLoraWarnings] = useState<string[]>([]);
+  const loraMismatch = useMemo<LoraMismatch | null>(() => {
+    if (!loraActiveCount || !currentProfile) return null;
+    const wrong = loras.filter((item) => item.enabled && item.name && loraFit(loraInfos[item.name], currentProfile) === "other").map((item) => item.name);
+    if (!wrong.length) return null;
+    const key = `${currentProfile.id}|${[...wrong].sort().join("|")}`;
+    if (dismissedLoraWarnings.includes(key)) return null;
+    return { key, names: wrong, madeFor: [...new Set(wrong.map((name) => loraInfos[name]?.base).filter(Boolean))] as string[], model: currentProfile.familyName || currentProfile.displayName || currentProfile.label };
+  }, [loraActiveCount, currentProfile, loras, loraInfos, dismissedLoraWarnings]);
+  const dismissLoraMismatch = useCallback((key: string) => setDismissedLoraWarnings((current) => [...current, key]), []);
 
   function onGalleryScroll(event: React.UIEvent<HTMLElement>) {
     if (!hasMoreGallery) return;
@@ -1365,7 +1433,7 @@ function App() {
   const { generate, cancelJob, cancelQueue, clearGallery, clearFailedItems, resetAllSettings, clearAllCache, openOutputFolder, deleteItem, deleteItems } = generationActions;
 
   const viewerActions = useViewerControls({
-    draft: { prompt, negative, seed, mode, model, width, height, steps, cfg, count, loras }, active, deleteItem, doneGallery: zenGallery, generate, generateDisabled, height, lastTapRef, lastTouchRef, mode, models, prefs, setActive, setCfg, setClipType, setCount, setCustomSize, setDenoise, setFps, setFrames, setHeight, setIsDraggingViewer, setLoras: setLorasWithMemory, setMode, setModel, setNegative, setPrompt, setSampler, setScheduler, setSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth, setZenSelectedId, showToast, touchGestureRef, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef
+    draft: { prompt, negative, seed, mode, model, width, height, steps, cfg, count, loras }, active, deleteItem, doneGallery: zenGallery, generate, generateDisabled, height, lastTapRef, lastTouchRef, mode, models, prefs, setActive, setCfg, setClipType, setCount, setCustomSize, setDenoise, setFps, setFrames, setHeight, setIsDraggingViewer, setLoras: setLorasWithMemory, setMode, setModel, setNegative, setPrompt, setSampler, setScheduler, setSeed, setShowDetails, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setViewerPan, setViewerZoom, setWeightDtype, setWidth, setZenSelectedId, showToast, touchGestureRef, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, visibleGallery, width, zenItem, zenStripDragRef, zenStripRef, viewerGallery
   });
   const { resetViewer, openItem, applyAllSettings, applyLoras, moveZen, moveViewer, goLatestZen, submitZenPrompt, startZenStripDrag, dragZenStrip, stopZenStripDrag, selectZenItem, zoomViewer, wheelViewer, clickViewer, startViewerDrag, dragViewer, stopViewerDrag, startViewerTouch, moveViewerTouch, endViewerTouch } = viewerActions;
 
@@ -1469,22 +1537,22 @@ function App() {
     toggleFavorite: (name: string) => { toggleLoraFavorite(name); bumpLoraLibrary(); },
     recordRecents: (names: string[]) => { recordLoraRecents(names); bumpLoraLibrary(); }
   };
-  const sidebarView = { inpaintActive: Boolean(activeInpaintMask), inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather, canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab, recommended };
+  // The first reference, shown at the top of the sidebar's Basics with how much it may change.
+  const sidebarReference = referenceInput && referenceAsset ? { asset: referenceAsset, label: referenceInput.role === "start" ? "Start image" : referenceInput.label || "Reference image", remove: () => removeReferenceAsset(referenceInput.id) } : null;
+  const sidebarView = { sidebarReference, inpaintActive: Boolean(activeInpaintMask), inpaintStrength, setInpaintStrength, inpaintFeather, setInpaintFeather, canUseStartImage, cfg, cfgMeta, changeMode, clipType, confirmAction, count, countMeta, currentProfile, currentWorkflow, customSize, aspectLocked, denoise, denoiseMeta, fps, fpsMeta, frameMeta, frames, height, heightMeta, loras, loraActiveCount, mode, models, profileOptions, readStartImage, sampler, scheduler, seed, setCfg, setCount, setDenoise, setFps, setFrames, setHeight, setLoras: setLorasWithMemory, setSampler, setScheduler, setSeed, setStartImage, setStartImageId, setStartImageName, setSteps, setTextEncoder, setTextEncoders, setVae, setWeightDtype, setWidth, setWorkflowGalleryOpen, startImageName, steps, stepsMeta, textEncoder, textEncoders, refreshModels, refreshWorkflows, showToast, modelFolders, vae, weightDtype, width, widthMeta, workflowPreferences, loraLibrary, rememberedLoraStrength: loraStrengthForCurrentWorkflow, sidebarTab, setSidebarTab, recommended };
   const sidebarControls = <StableSidebarControls view={sidebarView} />;
   // The same settings as the sidebar, laid out for the phone's Advanced sheet.
   const phoneAdvancedControls = <StablePhoneAdvancedControls view={sidebarView} />;
 
-  const baseView = { gallerySearch, setGallerySearch, toggleFavorite, seed, setSeed, pendingBundles, compactGallery, compactBusy, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restartHeiss, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, upscaleDisplayUrl, modelFolders, generationEstimate, openLoras: () => { setSidebarTab('loras'); setZenControls(true); }, varyItem, fillPrompt, surprise: () => fillPrompt(surprisePrompt(prompt, mode)), starterPrompts, onStarterStarted: rememberStarter, selectStarterModel, generateKey: generateShortcut(prefs.enterToGenerate), failureFixes: generationActions.failureFixes };
+  const baseView = { viewerGallery, gallerySearch, setGallerySearch, toggleFavorite, seed, setSeed, galleryGroups, settleVersion, stackRuns, openRuns, setRunOpen, unstackRun, active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, checkForUpdates, restartForUpdate, restartHeiss, restarting, justUpdated, clearJustUpdated: () => setJustUpdated(""), setUpdatePrefs, refreshUpdateStatus, confirmAction, clearAllCache, clearFailedItems, clearGallery, clickViewer, comfyStatus, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, deleteItems, doneGallery, zenGallery, gallery, galleryColumnCount, galleryLoaded, galleryCrossing, galleryRevision, galleryStageRef, galleryTotalApprox, generate, generateDisabled, generateDisabledReason, goLatestZen, hasMoreGallery, health, height, heightMeta, importWorkflowFile, installUpdate, isDraggingViewer, isMobile, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, now, onGalleryScroll, openItem, openOutputFolder, paths, prefs, hidden, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, referenceAsset, referenceInput, refreshComfyStatus, retryComfyStatus, comfyRetrying, comfyReconnectedAt, refreshHealth, refreshModels, refreshWorkflows, removeReferenceAsset, renderedGallery, resetAllSettings, resetViewer, runningCount, saveOutputDirectory, selectReferenceAsset, selectWorkflow, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setWorkflowPreferences, setWorkflows, setZenControls, setZenGalleryOpen, setZenMode, showDetails, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, phoneAdvancedControls, startViewerDrag, startViewerTouch, status, steps, stepsMeta, stopViewerDrag, submitZenPrompt, touchGestureRef, updateBusy, updateStatus, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, workflowPreferences, workflows, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenSelectedId, zenStripDragRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, characterMeta, formatElapsed, generationDetailEntries, titleFromPrompt , zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, settings, setPrefs, upscaleStatus, upscaleUnavailableReason, upscaleSetup, upscaleInstall, upscaleBusyIds, upscaleNotices, dismissUpscaleNotice, toggleUpscale, cancelUpscale, refreshUpscaleStatus, cancelUpscaleInstall, activateUpscale, chooseAutoUpscale, upscaleDisplayUrl, modelFolders, generationEstimate, openLoras: () => { setSidebarTab('loras'); setZenControls(true); }, varyItem, fillPrompt, surprise: () => fillPrompt(surprisePrompt(prompt, mode)), starterPrompts, onStarterStarted: rememberStarter, selectStarterModel, generateKey: generateShortcut(prefs.enterToGenerate), failureFixes: generationActions.failureFixes };
 
-  // How much a start image may change: denoise, shown next to the image in the composer.
-  const referenceStrength = currentProfile?.capabilities.denoise ? { value: denoise, onChange: setDenoise, meta: denoiseMeta } : null;
   // Painting on the first reference, for a model that can inpaint (InpaintStudio.tsx).
   const referenceInpaint: ReferenceInpaint | null = canInpaint && referenceInput && referenceAsset ? {
     slot: referenceInput.id,
     mask: activeInpaintMask?.dataUrl || null,
     onChange: (dataUrl: string | null) => setInpaintMask(dataUrl ? { assetId: referenceAsset.id, dataUrl } : null)
   } : null;
-  const view = { ...baseView, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceStrength, referenceInpaint };
+  const view = { ...baseView, loraMismatch, dismissLoraMismatch, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceInpaint };
   return (
     <>
       <StudioView view={view} />

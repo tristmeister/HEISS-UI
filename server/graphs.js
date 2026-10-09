@@ -78,6 +78,7 @@ async function builtInGraph(body) {
       width: inpaint.work.width,
       height: inpaint.work.height,
       startImageComfy: inpaint.crop,
+      // Edit models edit the crop itself; only the painted part is stitched back.
       referenceImages: [inpaint.crop, ...referenceImages.slice(1)],
       inpaint
     }));

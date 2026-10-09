@@ -52,8 +52,10 @@ const median = (values) => {
  * Timestamps are passed in, so it can be fed recorded messages in tests.
  */
 export class RunTimer {
-  constructor(graph = {}) {
+  /** `endNodes`: save nodes whose output ends the generation proper (Smart upscale runs on after them). */
+  constructor(graph = {}, { endNodes = [] } = {}) {
     this.graph = graph;
+    this.endNodes = new Set(endNodes.map(String));
     this.runAt = null;
     this.endAt = null;
     // One segment per sampler run: its first and latest reported step. A
@@ -71,6 +73,7 @@ export class RunTimer {
     const data = message?.data || {};
     if (message?.type === "execution_start") this.runAt ??= now;
     if (message?.type === "execution_success" || (message?.type === "executing" && (data.node === null || data.node === undefined) && this.runAt !== null)) this.endAt ??= now;
+    if (message?.type === "executed" && this.runAt !== null && this.endNodes.has(String(data.node ?? ""))) this.endAt ??= now;
     if (message?.type !== "progress") return;
     this.runAt ??= now;
     const node = String(data.node ?? "");

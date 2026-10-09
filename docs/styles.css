@@ -216,6 +216,8 @@ code {
 .nav-links a:hover { background-color: rgb(255 255 255 / 0.08); color: var(--text); }
 .nav-links a:active { scale: 0.96; }
 .nav-links .nav-gh { color: var(--text); }
+.nav-links .nav-discord { padding: 0 11px; color: var(--text-2); }
+.nav-links .nav-discord:hover { color: #a5b1ff; }
 
 .stars-count {
   margin-left: 2px;
@@ -614,6 +616,15 @@ code {
   text-wrap: balance;
 }
 
+/* ── Model search (the component styles itself in its shadow root) ──── */
+
+.models-search {
+  max-width: calc(var(--content) + var(--gutter) * 2);
+  margin: 0 auto;
+  padding: clamp(96px, 12vw, 140px) var(--gutter) 0;
+  scroll-margin-top: calc(100px - clamp(96px, 12vw, 140px));
+}
+
 /* ── Feedback board teaser ───────────────────────────────────────────── */
 
 .fb {
@@ -683,9 +694,34 @@ code {
 .fb-btn.is-primary { background: var(--action); color: var(--action-ink); box-shadow: 0 1px 0 rgb(255 255 255 / 0.5) inset, 0 10px 28px -10px rgb(255 255 255 / 0.25); }
 .fb-btn.is-primary:hover { background: #fff; }
 
+/* The Discord, one quiet line under the board buttons: for talking it through. */
+.fb-discord {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 440px;
+  margin-top: 18px;
+  padding: 10px 14px 10px 12px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text-2);
+  font-size: 13.5px;
+  line-height: 1.45;
+  text-wrap: pretty;
+  transition-property: background-color, box-shadow, color;
+  transition-duration: 160ms;
+  transition-timing-function: var(--ease-ui);
+}
+.fb-discord > .icon:first-child { flex: none; width: 18px; height: 18px; color: #a5b1ff; }
+.fb-discord strong { color: var(--text); font-weight: 550; }
+.fb-discord-arrow { flex: none; margin-left: auto; transition: translate 160ms var(--ease-ui); }
+.fb-discord:hover { background: rgb(255 255 255 / 0.04); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); }
+.fb-discord:hover .fb-discord-arrow { translate: 2px 0; }
+
 /* A peek at the board: its three columns and what's in progress right now. */
 .fb-peek {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   padding: 20px;
   border-radius: 22px;
@@ -722,7 +758,8 @@ code {
 .fb-cols b:empty { display: none; }
 .fb-cols > span:has(b:empty) { padding-right: 12px; }
 
-.fb-now { display: grid; gap: 10px; }
+/* minmax(0, 1fr) all the way down, or a long post title widens the auto tracks past the phone instead of ellipsizing. */
+.fb-now { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .fb-now-label {
   display: inline-flex;
   align-items: center;
@@ -732,7 +769,7 @@ code {
   letter-spacing: 0.02em;
 }
 .fb-now-label i { width: 6px; height: 6px; background: var(--ember); box-shadow: 0 0 8px rgb(255 154 82 / 0.8); animation: blink 1.1s steps(2) infinite; }
-.fb-rows { display: grid; gap: 6px; }
+.fb-rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .fb-row {
   display: flex;
   align-items: center;
@@ -2054,6 +2091,7 @@ kbd {
   .nav-links a:not(.nav-gh) { display: none; }
   .nav-gh-label { display: none; }
   .nav-links .nav-gh { padding: 0 12px; }
+  .nav-links a.nav-discord { display: inline-flex; }
 
   .hero h1 br { display: none; }
   .chip { gap: 9px; padding-right: 12px; white-space: nowrap; }

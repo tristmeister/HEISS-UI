@@ -28,3 +28,13 @@
   /* Focus rings are box-shadows (var(--focus-ring)), which forced colors remove. */
   :focus-visible { outline: 2px solid Highlight !important; outline-offset: 2px !important; }
 }
+
+/* Runs: a burst's edges, a stack's skim ticks and its cover are drawn with
+   backgrounds and shadows, which forced colors remove. Edges in CanvasText,
+   the tick you're on in Highlight. */
+@media (forced-colors: active) {
+  .run-burst-edge { border: 1px solid CanvasText; border-top: 0; }
+  .run-stack-cover, .run-flow { border: 1px solid CanvasText; }
+  .run-stack-skim i { forced-color-adjust: none; background: CanvasText; }
+  .run-stack-skim i.is-at { background: Highlight; }
+}

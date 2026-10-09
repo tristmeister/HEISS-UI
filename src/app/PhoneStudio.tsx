@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowUp, Check, CheckCircle2, ChevronRight, Columns2, Circle
 import { cn, aspectIconStyle } from './format';
 import { familyLabel, setupNote } from './components';
 import { downloadUrl } from './GalleryTile';
-import { canUpscaleItem } from './useUpscale';
+import { autoUpscaleTiers, canUpscaleItem, shortLeft, upscaledWithRun, upscaleLeftLine, upscaleTooltip, useUpscaleClock } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { ReferenceSlots } from './ReferenceMediaPicker';
 import { haptic, HapticTarget } from './phoneControls';
@@ -16,10 +16,11 @@ import { useHistoryDismiss } from './useHistoryDismiss';
 import { progressLine, progressReading, RunLeft } from './GenerationProgress';
 import { RestartEtaText } from './ComfyRestart';
 import { estimatePhrase } from './useGenerationEstimate';
-import type { AspectPreset, GalleryItem, Profile } from './types';
+import type { AspectPreset, AutoUpscale, GalleryItem, Profile } from './types';
 import type { ShowToast } from './toast';
 import { PromptHistorySheet } from './PromptHistory';
 import { PhoneSearchBar } from './GallerySearch';
+import { StackRunsButton } from './StackRunsButton';
 import { canStar, emptySearch, searchActive, type GallerySearch } from './favorites';
 import { usePromptHistory } from './recentPrompts';
 
@@ -83,9 +84,12 @@ export function Sheet({ open, onClose, title, children, footer, full = false, cl
             aria-label="Close"
             tabIndex={-1}
             onClick={onClose}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            // The colour fades, not opacity: Safari runs framer's opacity fades as
+            // hardware animations and shows the wrong end state for a frame when
+            // one finishes, so the whole page behind would flash.
+            initial={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
+            animate={{ backgroundColor: 'rgba(0, 0, 0, 0.55)' }}
+            exit={{ backgroundColor: 'rgba(0, 0, 0, 0)' }}
             transition={{ duration: 0.2 }}
           />
           <motion.div
@@ -227,6 +231,44 @@ function upscaleLabel(item: GalleryItem) {
   return 'Upscale';
 }
 
+/** The sheet's upscale row; a running upscale says how long is left under its label. Its own component, so the clock re-renders it alone. */
+function UpscaleSheetRow({ item, actions, run }: { item: GalleryItem; actions: PhoneItemActions; run: (action: () => void) => void }) {
+  const running = item.upscale?.status === 'running';
+  const clock = useUpscaleClock(item);
+  return (
+    <button type="button" className="phone-row" disabled={actions.upscaleBusy(item)} onClick={() => run(() => (running ? actions.cancelUpscale(item) : actions.upscale(item)))}>
+      {running ? <Square size={16} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={20} />}
+      <span>{upscaleLabel(item)}{running && clock.leftMs !== null ? <small>{upscaleLeftLine(item, clock.leftMs)}</small> : null}</span>
+    </button>
+  );
+}
+
+/** The viewer bar's upscale button: while running, its label is the time left (the stop square says what a tap does). */
+function UpscaleBarButton({ item, actions }: { item: GalleryItem; actions: PhoneItemActions }) {
+  const running = item.upscale?.status === 'running';
+  const clock = useUpscaleClock(item);
+  // The ring, as on a desktop tile: the learned time when there is one, else the step count, else a spinning arc.
+  const stepRatio = item.upscale?.progress?.max ? Math.min(1, Math.max(0, item.upscale.progress.value / item.upscale.progress.max)) : 0;
+  const ratio = clock.ratio ?? (clock.leftMs !== null ? 0 : stepRatio);
+  const label = running
+    ? clock.leftMs === null ? 'Stop' : clock.leftMs <= 1500 ? 'Almost' : shortLeft(clock.leftMs)
+    : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale';
+  return (
+    <button type="button" className={cn(item.upscaleActive && item.upscale?.url && 'is-on')} aria-label={running ? upscaleTooltip(item, clock.leftMs) : undefined} disabled={actions.upscaleBusy(item)} onClick={() => (running ? actions.cancelUpscale(item) : actions.upscale(item))}>
+      <i className={cn('viewer-phone-upscale', running && 'is-running', running && !ratio && 'is-indeterminate', running && clock.ratio !== null && 'is-timed')}>
+        {actions.upscaleBusy(item) ? <RefreshCw size={18} className="spin" /> : running ? <Square size={11} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={19} />}
+        {running ? (
+          <svg className="viewer-phone-upscale-ring" viewBox="0 0 30 30" aria-hidden="true" focusable="false">
+            <circle className="is-track" cx="15" cy="15" r="14" />
+            <circle cx="15" cy="15" r="14" pathLength={100} strokeDasharray={ratio ? `${ratio * 100} 100` : '25 75'} />
+          </svg>
+        ) : null}
+      </i>
+      <span className={cn(running && clock.leftMs !== null && 'is-count')}>{label}</span>
+    </button>
+  );
+}
+
 /** What a long press on a tile offers, as one sheet of big labelled rows. */
 export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: GalleryItem | null; onClose: () => void; actions: PhoneItemActions; onSelect?: (item: GalleryItem) => void }) {
   React.useEffect(() => { prefetchShare(item); }, [item]);
@@ -241,11 +283,7 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
               {canShareFiles ? <Share size={20} /> : <Download size={20} />}<span>{canShareFiles ? 'Share or save' : 'Save'}</span>
             </button>
           ) : null}
-          {actions.smartUpscale && canUpscaleItem(item) ? (
-            <button type="button" className="phone-row" disabled={actions.upscaleBusy(item)} onClick={() => run(() => (item.upscale?.status === 'running' ? actions.cancelUpscale(item) : actions.upscale(item)))}>
-              {item.upscale?.status === 'running' ? <Square size={16} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={20} />}<span>{upscaleLabel(item)}</span>
-            </button>
-          ) : null}
+          {actions.smartUpscale && canUpscaleItem(item) ? <UpscaleSheetRow item={item} actions={actions} run={run} /> : null}
           {canStar(item) ? (
             <button type="button" className={cn('phone-row', item.favorite && 'is-starred')} onClick={() => run(() => { haptic('tap'); actions.star(item); })}>
               <Star size={20} fill={item.favorite ? 'currentColor' : 'none'} /><span>{item.favorite ? 'Unstar' : 'Star'}</span><HapticTarget />
@@ -256,7 +294,7 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
           {done && !item.library ? (
             item.privateVault
               ? <button type="button" className="phone-row" onClick={() => run(() => actions.unhide(item))}><Eye size={20} /><span>Move to gallery</span></button>
-              : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Hide</span></button>
+              : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Move to Hidden</span></button>
           ) : null}
           {onSelect && (item.status === 'done' || item.status === 'error') ? <button type="button" className="phone-row" onClick={() => run(() => onSelect(item))}><CheckCircle2 size={20} /><span>Select several<small>Then save, hide or delete them together</small></span><HapticTarget /></button> : null}
           <button type="button" className="phone-row is-danger" onClick={() => run(() => { haptic('warning'); actions.remove(item); })}><Trash2 size={20} /><span>Delete</span><HapticTarget /></button>
@@ -273,13 +311,8 @@ export function PhoneViewerBar({ item, actions, showDetails, onToggleDetails, co
   return (
     <nav className="viewer-phone-bar" aria-label="Image actions">
       {done ? <button type="button" onClick={() => shareItem(item, actions.showToast)}>{canShareFiles ? <Share size={21} /> : <Download size={21} />}<span>{canShareFiles ? 'Share' : 'Save'}</span></button> : null}
-      {actions.smartUpscale && canUpscaleItem(item) ? (
-        <button type="button" className={cn(item.upscaleActive && item.upscale?.url && 'is-on')} disabled={actions.upscaleBusy(item)} onClick={() => (item.upscale?.status === 'running' ? actions.cancelUpscale(item) : actions.upscale(item))}>
-          {actions.upscaleBusy(item) ? <RefreshCw size={20} className="spin" /> : item.upscale?.status === 'running' ? <Square size={15} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={21} />}
-          <span>{item.upscale?.status === 'running' ? 'Stop' : item.upscale?.url ? (item.upscaleActive ? 'Original' : 'Upscale') : 'Upscale'}</span>
-        </button>
-      ) : null}
-      {item.upscale?.url ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
+      {actions.smartUpscale && canUpscaleItem(item) ? <UpscaleBarButton item={item} actions={actions} /> : null}
+      {item.upscale?.url && !upscaledWithRun(item) ? <button type="button" className={cn(compareOpen && 'is-on')} aria-pressed={compareOpen} onClick={() => { haptic('tap'); onToggleCompare(); }}><Columns2 size={21} /><span>Compare</span><HapticTarget /></button> : null}
       {item.prompt ? <button type="button" onClick={() => actions.reuse(item)}><Wand2 size={21} /><span>Reuse</span></button> : null}
       {canStar(item) ? (
         <button type="button" className={cn(item.favorite && 'is-starred')} aria-pressed={Boolean(item.favorite)} onClick={() => { haptic('tap'); actions.star(item); }}>
@@ -335,6 +368,14 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
   const readings = pending.map((item) => progressReading(item.progress));
   const withSteps = readings.flatMap((reading) => reading.kind === 'steps' ? [reading.ratio] : []);
   const progress = withSteps.length ? withSteps.reduce((sum, ratio) => sum + ratio, 0) / withSteps.length : 0;
+  // The top bar names what is running: an upscale (on its own, or the end of a run) is not a generation.
+  const upscalingCount = gallery.filter((item) => item.upscale?.status === 'running' || (item.status === 'pending' && item.progress?.upscaling)).length;
+  const generatingCount = Math.max(0, runningCount - upscalingCount);
+  const runningLabel = !upscalingCount
+    ? generatingCount === 1 ? 'Generating 1 image' : `Generating ${generatingCount}`
+    : !generatingCount
+      ? upscalingCount === 1 ? 'Upscaling 1 image' : `Upscaling ${upscalingCount}`
+      : `Generating ${generatingCount} · upscaling ${upscalingCount}`;
   const stepLine = pending.length === 1 ? progressLine(pending[0].progress) : withSteps.length ? `${Math.round(progress * 100)}%` : '';
 
   // A finished run shows itself: a small card slides up, tap to open.
@@ -388,6 +429,9 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
         {!hiddenLocked && gallery.some((item) => item.type === 'video') ? (
           <GridAutoplayButton phone />
         ) : null}
+        {!hiddenLocked && !selecting ? (
+          <StackRunsButton phone on={Boolean(view.prefs.stackRuns)} disabled={searchActive(gallerySearch)} onToggle={() => { haptic('tap'); view.setPrefs({ stackRuns: !view.prefs.stackRuns }); }} />
+        ) : null}
         {!hiddenSpace ? (
           <button type="button" className={cn('phone-icon', hidden.enabled && hidden.unlocked && 'has-dot')} aria-label={hidden.enabled && hidden.unlocked ? 'Open Hidden, unlocked' : 'Open Hidden'} onClick={toggleHiddenSpace}><LockKeyhole size={20} /></button>
         ) : hidden.unlocked ? (
@@ -400,7 +444,7 @@ export function PhoneShell({ view, galleryBody, canUseNegativePrompt, comfyOffli
       {runningCount ? (
         <div className="phone-running" role="status">
           <RefreshCw size={14} className="spin" />
-          <span>{runningCount === 1 ? 'Generating 1 image' : `Generating ${runningCount}`}</span>
+          <span>{runningLabel}</span>
           <button type="button" className="phone-pill" onClick={cancelQueue}><CircleStop size={15} /> Stop all</button>
         </div>
       ) : null}
@@ -488,8 +532,9 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const {
     prompt, setPrompt, promptLimit, clampText, negative, setNegative, negativeLimit, currentProfile, hiddenSpace,
     aspectOptions, aspectPickerValue, aspectLocked, defaultAspectSize, mode, count, countMeta, setCount, steps, stepsMeta, setSteps,
-    referenceInputs, referenceStrength, referenceInpaint, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
-    generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls, generationEstimate
+    referenceInputs, referenceInpaint, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
+    generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls, generationEstimate,
+    prefs, chooseAutoUpscale
   } = view;
   const [sheet, setSheet] = React.useState<'' | 'workflow' | 'aspect' | 'advanced'>('');
   const [showNegative, setShowNegative] = React.useState(Boolean(negative));
@@ -500,6 +545,9 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const maxCount = Math.max(1, Math.min(4, Number(countMeta?.max || 4)));
   const { min: stepMin, max: stepMax, recommended: stepDefault } = practicalStepRange(currentProfile, stepsMeta, steps);
   const aspect = (aspectOptions as AspectPreset[] || []).find((option) => option.value === aspectPickerValue);
+  // Smart upscale, as in the desktop size menu: images only, and only while it is on in Settings.
+  const smartUpscale = mode === 'image' && prefs?.smartUpscale !== false && typeof chooseAutoUpscale === 'function';
+  const autoUpscale: AutoUpscale = prefs?.autoUpscale || 'none';
   // A long run says so before it starts; a quick one needs no warning.
   const estimate = generationEstimate?.ms && generationEstimate.ms >= 45_000 ? `Takes ${estimatePhrase(generationEstimate)}.` : '';
   const reason = restarting ? <>ComfyUI is restarting. <RestartEtaText fallback="Back in a few seconds." /></> : comfyOffline ? 'ComfyUI is offline.' : !prompt.trim() ? '' : generateDisabled ? generateDisabledReason : estimate;
@@ -541,7 +589,6 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
       <div className="phone-compose">
         <ReferenceSlots
           inputs={referenceInputs || []}
-          strength={referenceStrength}
           inpaint={referenceInpaint}
           selected={referenceAssets || []}
           onSelect={selectReferenceAsset}
@@ -601,6 +648,18 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
           </button>
         ) : null}
       </div>
+
+      {smartUpscale ? (
+        <div className="phone-control">
+          <span className="phone-control-label" id="phone-upscale-label">Smart upscale</span>
+          <div className="phone-seg" role="radiogroup" aria-labelledby="phone-upscale-label">
+            {autoUpscaleTiers.map((tier) => (
+              <button key={tier.value} type="button" role="radio" aria-checked={autoUpscale === tier.value} className={cn(autoUpscale === tier.value && 'active')} onClick={() => chooseAutoUpscale(tier.value)}>{tier.label}</button>
+            ))}
+          </div>
+          <p className="phone-control-note">Upscales each new image with SeedVR2, rebuilding fine detail. Takes a little longer.</p>
+        </div>
+      ) : null}
 
       {variations && maxCount > 1 ? (
         <div className="phone-control">

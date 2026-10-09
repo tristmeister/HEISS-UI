@@ -1,6 +1,7 @@
+import type { Run } from './runs';
 export type Mode = "image" | "video";
 /** `steps` marks a sampler's count; other nodes report a `phase` ("Encoding image") instead. */
-export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean; /** When the run should be done, on the server's clock; only there when it can be said honestly. */ endsAt?: number; /** When ComfyUI started running it (not queued), on the server's clock. */ runStartedAt?: number; /** ComfyUI is out of reach for now; the server keeps trying for about a minute. */ reconnecting?: boolean };
+export type Progress = { value: number; max: number; node?: string; phase?: string; steps?: boolean; /** When the run should be done, on the server's clock; only there when it can be said honestly. */ endsAt?: number; /** When ComfyUI started running it (not queued), on the server's clock. */ runStartedAt?: number; /** ComfyUI is out of reach for now; the server keeps trying for about a minute. */ reconnecting?: boolean; /** The picture is saved and Smart upscale is working on it: stopping now keeps the picture. */ upscaling?: boolean };
 /** How long a finished run took in ComfyUI itself, without waiting in its queue; `slow` when its steps ran far slower than this model's usual. */
 export type RunTiming = { runMs: number; stepMs?: number; slow?: boolean };
 export type Output = { url: string; filename: string; type: "image" | "video"; prompt?: string; negative?: string; outputName?: string };
@@ -40,6 +41,8 @@ export type ReferenceInpaint = { slot: string; mask: string | null; onChange: (d
 export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
 export type UpscaleQuality = "fast" | "balanced" | "high";
+/** Smart upscale in the size menu: every new image comes out at this size, upscaled as part of its run. */
+export type AutoUpscale = "none" | "2k" | "4k";
 export type UpscaleState = {
   status: "running" | "done" | "error" | "canceled";
   jobId?: string;
@@ -57,6 +60,10 @@ export type UpscaleState = {
   completedAt?: string;
   /** A Hidden item's upscale whose plaintext copy HEISS UI could not remove from ComfyUI's output folder. */
   leftBehind?: boolean;
+  /** Made as part of the run (Smart upscale's 2K / 4K): the picture itself, not a version to switch to. */
+  withRun?: boolean;
+  /** The run's upscale stopped or failed after the picture was saved, so the picture was kept without it. */
+  kept?: boolean;
 };
 /** Why a run failed: a headline, a plain hint, and the raw detail for bug reports. */
 export type GenerationFailure = {
@@ -70,22 +77,13 @@ export type GenerationFailure = {
   /** What a retry after running out of memory may change. */
   retry?: { smaller?: boolean; tiledDecode?: boolean };
 };
-export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; bundle?: GalleryBundle; /** Starred. */ favorite?: boolean; /** Added from another folder and shown where it is (server/library.js). */ library?: { folder: string; path: string } };
-export type GalleryBundle = {
-  id: string;
-  domain: "gallery" | "vault";
-  reason: "prompt" | "batch";
-  reasonLabel: string;
-  count: number;
-  startedAt: string;
-  endedAt: string;
-  coverId: string;
-  items: GalleryItem[];
-};
-export type BundlePending = { runs: number; items: number; itemIds?: string[] };
-export type BundleStatus = { bundles: unknown[]; pending: BundlePending; mode: string; cooldownMinutes: number };
-export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[] };
-export type TouchGesture = { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; moved: boolean } | { mode: "pan"; id: number; x: number; y: number; panX: number; panY: number; moved: boolean } | { mode: "pinch"; distance: number; zoom: number; panX: number; panY: number; centerX: number; centerY: number; moved: boolean };
+export type GalleryItem = Output & { failure?: GenerationFailure; id: string; jobId?: string; status: "done" | "pending" | "error" | "canceled"; progress?: Progress; preview?: string; width?: number; height?: number; createdAt?: string; durationMs?: number; timing?: RunTiming; model?: string; settings?: GenerationSettings; index?: number; referenceImage?: string; referenceImageName?: string; startImageId?: string; optimistic?: boolean; promptProtected?: boolean; privateVault?: boolean; vaultLocked?: boolean; thumbnailUrl?: string; upscale?: UpscaleState; upscaleActive?: boolean; /** A stacked run standing in for its outputs (zen's strip). */ run?: Run; /** Starred. */ favorite?: boolean; /** Added from another folder and shown where it is (server/library.js). */ library?: { folder: string; path: string } };
+export type Job = { status: string; outputs: GalleryItem[]; error?: string; progress?: Progress; preview?: string; previews?: string[]; /** Its pictures were kept without their Smart upscale, and why, for a toast. */ kept?: string };
+export type TouchGesture =
+  | { mode: "swipe"; id: number; x: number; y: number; dx: number; dy: number; axis: "x" | "y" | null; velocity: import("./viewerGesture").Velocity; moved: boolean }
+  | { mode: "pan"; id: number; x: number; y: number; zoom: number; pan: { x: number; y: number }; current: { x: number; y: number }; geometry: import("./viewerGesture").ViewerGeometry | null; moved: boolean }
+  | { mode: "done" }
+  | { mode: "pinch"; distance: number; zoom: number; pan: { x: number; y: number }; center: { x: number; y: number }; current: { zoom: number; pan: { x: number; y: number } }; geometry: import("./viewerGesture").ViewerGeometry | null; moved: boolean };
 export type SelectOption = { label: string; value: string };
 export type Profile = {
   id: string;
@@ -162,6 +160,8 @@ export type Models = {
   unsupportedModels?: string[];
   modelFiles?: ModelFile[];
   modelTypeChoices?: Record<ModelSource, SelectOption[]>;
+  /** Release switches for features that are built but not yet public (server/features.js). */
+  features?: { inpainting?: boolean };
   textEncoders: string[];
   vaes: string[];
   clipTypes?: string[];
@@ -265,11 +265,17 @@ export type Preferences = {
   /** Wide images take two gallery columns, from three columns up. */
   spanWideImages: boolean;
   showFailedItems: boolean;
-  groupRuns: boolean;
-  runGroupingMode: "smart" | "job";
-  runCooldownMinutes: number;
+  /** Headings for each stretch of time in the gallery ("This evening"). */
+  showMoments: boolean;
+  /** Runs of one idea fold into stacks (runs.js). */
+  stackRuns: boolean;
+  /** A folded run: a photo with edges under it, or a cover flow inside one card. */
+  runStackStyle: "burst" | "flow";
   smartUpscale: boolean;
+  /** The brush on reference images, for models that can inpaint. Off hides it everywhere. */
+  inpainting: boolean;
   upscaleQuality: UpscaleQuality;
+  autoUpscale: AutoUpscale;
   upscaleFaceDetail: boolean;
   /** Minutes untouched before Hidden locks itself; 0 leaves it to the session. */
   hiddenAutoLockMinutes: number;

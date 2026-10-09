@@ -98,7 +98,7 @@ function FeedbackDialog({ draft, onClose }: { draft: FeedbackDraft | null; onClo
         className="feedback-modal"
         icon={<span className="feedback-done-icon"><Check size={18} strokeWidth={2.5} /></span>}
         title="Sent. Thank you!"
-        description={kind === 'question' ? 'Answers show up on the board, under your question.' : 'It’s on the board now. Upvotes and replies show up there, and so does its status as it gets worked on.'}
+        description={kind === 'question' ? 'Answers show up on the board, under your question.' : 'It’s on the board. Upvotes, replies and status updates show up there.'}
         footer={
           <>
             <button type="button" className="btn is-ghost" onClick={onClose}>Done</button>

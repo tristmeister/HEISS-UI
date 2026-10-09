@@ -1,6 +1,7 @@
 import React from 'react';
+import { useNeighborPrefetch } from './useNeighborPrefetch';
 import { GridAutoplayButton } from './GridAutoplayButton';
-import { ArrowLeft, BrushCleaning, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Layers, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { ArrowLeft, ChevronDown, CircleStop, Columns2, Shuffle, ChevronLeft, ChevronRight, ChevronUp, Download, Eye, EyeOff, GalleryHorizontalEnd, ImagePlus, Lock, LockKeyhole, Maximize2, Minimize2, PanelLeft, Plug, RefreshCw, RotateCcw, Settings, SlidersHorizontal, Smartphone, Square, Star, Trash2, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn, nearTextLimit, settingsText } from './format';
 import { GallerySkeleton, Media, Skeleton, Tip } from './components';
@@ -11,9 +12,14 @@ import { GenerationMedia, GenerationPreviewMode } from './GenerationPreview';
 import { GenerationProgress } from './GenerationProgress';
 import { ComposerBar } from './ComposerBar';
 import { VirtualMasonryGallery } from './VirtualMasonryGallery';
+import { features } from './constants';
+import { RunCard, runKind } from './RunStack';
+import { RunSheet } from './RunSheet';
+import { StackRunsButton } from './StackRunsButton';
+import { runTitle, type Run } from './runs';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleCompare } from './UpscaleCompare';
-import { canUpscaleItem } from './useUpscale';
+import { canUpscaleItem, shortLeft, upscaledWithRun, upscaleTooltip, useUpscaleClock } from './useUpscale';
 import { UpscaleSetupDialog } from './UpscaleDialogs';
 import { ModelFoldersDialog } from './ModelFoldersDialog';
 import { UpscaleNoticePopover } from './UpscaleNotice';
@@ -79,9 +85,9 @@ const ZenStrip = memoLatest(function ZenStrip({ items, activeId, stripRef, onPoi
       onPointerCancel={onPointerUp}
     >
       {items.map((item) => (
-        <Tip key={item.id} content={item.bundle ? `${item.bundle.reasonLabel} · ${item.bundle.count} outputs` : titleFromPrompt(item.prompt || item.filename || "")}><button data-zen-id={item.id} className={cn(item.id === activeId && "active", item.bundle && "is-run")} onClick={(event) => { event.stopPropagation(); onSelect(item.id); }} onDragStart={(event) => event.preventDefault()}>
+        <Tip key={item.id} content={item.run ? `${runTitle(item.run)} · ${runKind(item.run)}` : titleFromPrompt(item.prompt || item.filename || "")}><button data-zen-id={item.id} className={cn(item.id === activeId && "active", item.run && "is-run")} onClick={(event) => { event.stopPropagation(); onSelect(item.id); }} onDragStart={(event) => event.preventDefault()}>
           <Media item={item} muted />
-          {item.bundle ? <span className="zen-run-count" aria-hidden="true"><Layers size={9} />{item.bundle.count}</span> : null}
+          {item.run ? <span className="zen-run-count" aria-hidden="true">{item.run.count}</span> : null}
         </button></Tip>
       ))}
     </div>
@@ -110,10 +116,12 @@ function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retryi
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
-  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, compactGallery, compactBusy, pendingBundles, gatheringIds, settlingBundles, setBundleCover, ungroupBundle, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
+  const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, galleryGroups, stackRuns, openRuns, setRunOpen, unstackRun, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
+  // Smart upscale works on images, and only while it is on in Settings.
+  const smartUpscaleTabs = mode === "image" && prefs.smartUpscale !== false;
   const strayModelCount = modelFolders?.strayCount || 0;
   const canUseNegativePrompt = currentProfile?.capabilities?.negativePrompt !== false;
-  const { confirmAction, referenceAssets, referenceInputs, referenceStrength, referenceInpaint, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
+  const { confirmAction, referenceAssets, referenceInputs, referenceInpaint, retryComfyStatus, comfyRetrying, comfyReconnectedAt } = view;
   const gallerySearch = (view.gallerySearch || emptySearch) as GallerySearch;
   const setGallerySearch = view.setGallerySearch as (next: GallerySearch) => void;
   const toggleFavorite = view.toggleFavorite as (items: GalleryItem[], favorite: boolean) => void;
@@ -311,9 +319,15 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     resumeHiddenSetup.current = false;
     if (!hidden.enabled) hidden.setSetupOpen(true);
   }, [settings]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Expansion is a view concern: a run stays grouped once created, it just
-  // opens and closes in place.
-  const [expandedBundles, setExpandedBundles] = React.useState<Set<string>>(() => new Set());
+  // A run opened from somewhere other than its stack (zen, a phone's sheet) is scrolled to once laid out.
+  const [focusRun, setFocusRun] = React.useState("");
+  const [runSheet, setRunSheet] = React.useState<Run | null>(null);
+  const showRunInGallery = React.useCallback((run: Run) => {
+    setRunSheet(null);
+    if (prefs.zenMode) setZenMode(false);
+    setRunOpen(run.id, true);
+    setFocusRun(run.id);
+  }, [prefs.zenMode, setRunOpen, setZenMode]);
   // Long-running work floats at the top as activities, in this order; the toasts start under them.
   const upscaleActivity = useUpscaleDownloadActivity(upscaleSetup, upscaleInstall);
   // A text encoder or VAE landing rescans models, so every panel catches up at once.
@@ -362,6 +376,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
   const [islandsHeight, setIslandsHeight] = React.useState(0);
   const viewerCopy = useCopyFeedback();
   const [compareOpen, setCompareOpen] = React.useState(false);
+  // The pictures either side of the open one are fetched ahead, so a swipe lands on one already there.
+  useNeighborPrefetch(active || null, (view.viewerGallery || []) as GalleryItem[]);
   // A different image has its own comparison, so never carry the mode over.
   React.useEffect(() => { setCompareOpen(false); }, [active?.id]);
   const viewerWheelRef = useWheelRef<HTMLElement>(wheelViewer);
@@ -388,13 +404,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     observer.observe(gallery);
     return () => observer.disconnect();
   }, [prefs.zenMode]);
-  const toggleBundle = React.useCallback((bundleId: string) => {
-    setExpandedBundles((current) => {
-      const next = new Set(current);
-      if (next.has(bundleId)) next.delete(bundleId); else next.add(bundleId);
-      return next;
-    });
-  }, []);
   // One compact dock, bottom right, in both layouts. Transient actions (tidy up,
   // cancel queue) rise above it as small chips, so the dock never changes size.
   const dockChip = { initial: { opacity: 0, y: 8, scale: 0.94 }, animate: { opacity: 1, y: 0, scale: 1 }, exit: { opacity: 0, y: 6, scale: 0.96 }, transition: { type: "spring" as const, duration: 0.34, bounce: 0 } };
@@ -402,17 +411,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     <div className="studio-dock">
       <div className="dock-transients">
         <AnimatePresence initial={false}>
-          {!prefs.zenMode && pendingBundles.runs > 0 ? (
-            <motion.div key="tidy" {...dockChip}>
-              <Tip content={`Group ${pendingBundles.items} outputs from ${pendingBundles.runs} finished run${pendingBundles.runs === 1 ? "" : "s"} into stacks`} side="left">
-                <button type="button" className="dock-chip gallery-tidy" onClick={compactGallery} disabled={compactBusy}>
-                  <BrushCleaning size={14} />
-                  <span>{compactBusy ? "Grouping" : "Group runs"}</span>
-                  <i className="dock-count"><AnimatedNumber value={pendingBundles.runs} /></i>
-                </button>
-              </Tip>
-            </motion.div>
-          ) : null}
           {phoneDevice && prefs.fullStudioOnPhone ? (
             // Chose the full studio on a phone: the way back stays in plain sight.
             <motion.div key="simple" {...dockChip}>
@@ -480,12 +478,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {hiddenLocked || galleryCrossing ? <section className="gallery" /> : !galleryLoaded ? <section className="gallery virtual-gallery" style={{ "--gallery-columns": galleryColumnCount } as React.CSSProperties}><GallerySkeleton columns={galleryColumnCount} /></section> : renderedGallery.length ? (
             <StableGallery
               cancelJob={cancelJob}
-              expandedBundles={expandedBundles}
-              gatheringIds={gatheringIds}
-              settlingBundles={settlingBundles}
-              setBundleCover={setBundleCover}
-              toggleBundle={toggleBundle}
-              ungroupBundle={ungroupBundle}
+              groups={galleryGroups}
+              moments={features.moments && prefs.showMoments !== false}
+              stackRuns={stackRuns}
+              openRuns={openRuns}
+              settleVersion={view.settleVersion}
+              stackStyle={prefs.runStackStyle === "flow" ? "flow" : "burst"}
+              setRunOpen={setRunOpen}
+              onUnstack={unstackRun}
+              onStackPress={phone ? setRunSheet : undefined}
+              focusRun={focusRun}
+              onFocused={() => setFocusRun("")}
               columns={galleryColumnCount}
               spanWide={Boolean(prefs.spanWideImages) && !phone}
               copyPromptAndToast={(item) => copyToClipboard(item.prompt || item.filename || "", "Prompt copied")}
@@ -545,6 +548,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     <TileLongPressContext.Provider value={phoneTiles}>
     <FavoriteContext.Provider value={toggleFavorite}>
     <div className={cn(phone ? "phone-shell" : prefs.zenMode ? "zen-shell" : "app-shell", showNegativePrompt && canUseNegativePrompt && "negative-open", hiddenSpace && "is-hidden-space", hiddenLocked && "is-hidden-locked", passageClass)}>
+      {phone ? <RunSheet run={runSheet} onClose={() => setRunSheet(null)} openItem={openItem} onShowInGallery={showRunInGallery} /> : null}
       {phone ? (
         <PhoneShell
           view={view}
@@ -564,7 +568,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       ) : prefs.zenMode ? (
         <>
           <div className="zen-stage">
-            {hiddenLocked ? null : zenDisplayItem ? (
+            {hiddenLocked ? null : zenDisplayItem?.run ? (
+              <RunCard key={zenDisplayItem.run.id} run={zenDisplayItem.run} onOpen={() => showRunInGallery(zenDisplayItem.run)} />
+            ) : zenDisplayItem ? (
               <button
                 aria-label={zenDisplayItem.status === "pending" ? "Generating" : "Open in the viewer"}
                 className={cn("zen-output", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging", zenDisplayItem.status === "pending" && "is-pending")}
@@ -607,13 +613,6 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <div className="zen-fade" />
             <div className="bottom-fade" />
           </div>
-          {zenDisplayItem?.bundle ? (
-            <div className="zen-run-badge">
-              <Layers size={12} />
-              <span>{zenDisplayItem.bundle.reasonLabel}</span>
-              <i>{zenDisplayItem.bundle.count}</i>
-            </div>
-          ) : null}
           {zenGallery.length > 1 ? (
             <div className="zen-arrows">
               <Tip content="Previous output"><button aria-label="Previous output" onClick={() => moveZen(-1)}><ChevronLeft size={22} /></button></Tip>
@@ -623,7 +622,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
-          {zenItem ? (
+          {zenItem && !zenItem.run ? (
             <div className={cn("zen-zoom-dock", zenControls && "with-side")}>
               <Tip content="Zoom out (-)"><button className="icon-button" aria-label="Zoom out" onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
               <Tip content="Reset zoom (0)"><button className="text-button viewer-zoom" aria-label={`Reset zoom, now ${Math.round(viewerZoom * 100)}%`} onClick={resetViewer}>{viewerZoom !== 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
@@ -638,7 +637,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {studioDock}
           {hiddenBar}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
+          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
@@ -655,6 +654,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               models={models}
               model={model}
               modelProfiles={modelProfiles}
+              showInpaint={prefs.inpainting !== false}
               profileBadges={profileBadges}
               chooseModel={pickModel}
               modelMenu={modelMenu}
@@ -670,6 +670,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               aspectValue={aspectValue}
               defaultAspectSize={defaultAspectSize}
               applyAspect={applyAspect}
+              autoUpscale={prefs.autoUpscale || "none"}
+              onAutoUpscaleChange={smartUpscaleTabs ? view.chooseAutoUpscale : undefined}
               customSize={Boolean(customSize)}
               aspectLocked={Boolean(aspectLocked)}
               width={width}
@@ -697,8 +699,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               refreshComfyStatus={retryComfyStatus}
               comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
-              referenceStrength={referenceStrength}
               referenceInpaint={referenceInpaint}
+              loraMismatch={view.loraMismatch}
+              onDismissLoraMismatch={view.dismissLoraMismatch}
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
@@ -746,8 +749,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {hiddenLocked ? null : <GallerySearchButton search={gallerySearch} open={searchOpen} setOpen={setSearchOpen} />}
           {/* Only a grid with videos in it has previews to pause. */}
           {hiddenLocked || !renderedGallery.some((item: GalleryItem) => item.type === 'video') ? null : <GridAutoplayButton />}
+          {hiddenLocked ? null : <StackRunsButton on={Boolean(prefs.stackRuns)} disabled={searchOn} onToggle={() => setPrefs({ stackRuns: !prefs.stackRuns })} />}
           {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside id="studio-controls" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
+          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
@@ -764,6 +768,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               models={models}
               model={model}
               modelProfiles={modelProfiles}
+              showInpaint={prefs.inpainting !== false}
               profileBadges={profileBadges}
               chooseModel={pickModel}
               modelMenu={modelMenu}
@@ -779,6 +784,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               aspectValue={aspectValue}
               defaultAspectSize={defaultAspectSize}
               applyAspect={applyAspect}
+              autoUpscale={prefs.autoUpscale || "none"}
+              onAutoUpscaleChange={smartUpscaleTabs ? view.chooseAutoUpscale : undefined}
               customSize={Boolean(customSize)}
               aspectLocked={Boolean(aspectLocked)}
               width={width}
@@ -806,8 +813,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               refreshComfyStatus={retryComfyStatus}
               comfyRetrying={Boolean(comfyRetrying)}
               referenceInputs={referenceInputs}
-              referenceStrength={referenceStrength}
               referenceInpaint={referenceInpaint}
+              loraMismatch={view.loraMismatch}
+              onDismissLoraMismatch={view.dismissLoraMismatch}
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
@@ -825,7 +833,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </section>
         </>
       )}
-      <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} />
+      <SettingsDialog view={view} open={Boolean(settings)} section={settingsSection} onSectionChange={setSettingsSection} onClose={() => setSettings(false)} onGetModels={thisComputer ? () => { setSettings(false); openGetModels(); } : undefined} />
       <NoComfySheet open={noComfyOpen} onOpenChange={setNoComfyOpen} onChangeAddress={thisComputer ? () => openSettings("connection") : undefined} />
       <GetModelsSheet open={getModelsOpen} onOpenChange={setGetModelsOpen} showToast={showToast} onStarted={view.onStarterStarted} onUse={view.selectStarterModel} onFindModels={thisComputer ? modelFolders?.openDialog : undefined} />
       <ShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
@@ -836,7 +844,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         status={upscaleStatus}
         install={upscaleInstall}
         reason={upscaleUnavailableReason}
-        quality={prefs.upscaleQuality || "balanced"}
+        quality={upscaleSetup.quality}
         comfyUrl={health?.comfyUrl}
         onQualityChange={(upscaleQuality) => setPrefs({ upscaleQuality })}
         onOpenLibrary={() => { upscaleSetup.closeSetup(); openSettings("library"); }}
@@ -846,8 +854,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       <HiddenSetupDialog hidden={hidden} comfyOnline={Boolean(comfyStatus?.connected)} comfyUrl={health?.comfyUrl} onRecheck={refreshComfyStatus} onDone={() => { if (!hidden.intent || hidden.intent.kind === "enter") hidden.setSpace("hidden"); }} onChooseFolder={() => { resumeHiddenSetup.current = true; hidden.setSetupOpen(false); openSettings("library"); }} />
       <HiddenUnlockSheet hidden={hidden} />
       {active ? (() => {
-        const viewerItems = visibleGallery.filter((item: GalleryItem) => item.status === "pending" || item.status === "done" || item.status === "error");
-        const hasNeighbors = viewerItems.length > 1;
+        const hasNeighbors = ((view.viewerGallery || []) as GalleryItem[]).length > 1;
         return (
           <div className="scrim" role="dialog" aria-modal="true" aria-label="Image viewer" data-focus-trap tabIndex={-1} onClick={(event) => {
             if (event.target !== event.currentTarget) return;
@@ -872,7 +879,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   onClick={clickViewer}
                   onDoubleClick={(event) => { event.stopPropagation(); zoomViewer(viewerZoom > 1 ? 1 : 2.5); }}
                 >
-                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} fixes={view.failureFixes} showToast={showToast} onNodesInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : compareOpen && active.upscale?.url ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
+                  {active.status === "error" ? <FailurePanel item={active} onCopy={copyToClipboard} onReuse={() => { applyAllSettings(active); setActive(null); }} fixes={view.failureFixes} showToast={showToast} onNodesInstalled={() => { refreshModels(false); refreshWorkflows(); }} /> : compareOpen && active.upscale?.url && !upscaledWithRun(active) ? <UpscaleCompare item={active} zoomed={viewerZoom > 1} /> : (
                   <GenerationMedia item={active} fit="contain">
                   {active.status === "pending" ? <GenerationProgress item={active} formatElapsed={formatElapsed} /> : null}
                   </GenerationMedia>
@@ -885,7 +892,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   </>
                 ) : null}
                 {showDetails ? (
-                  <aside data-open-surface className="viewer-side" onWheel={(event) => event.stopPropagation()}>
+                  <aside translate="no" data-open-surface className="viewer-side" onWheel={(event) => event.stopPropagation()}>
                     <div className="viewer-side-head">
                       <h3>Details</h3>
                     </div>
@@ -967,20 +974,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">
                     {upscaleNotices?.get(active.id) ? <UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /> : null}
-                    <Tip content={active.upscale?.status === "running" ? "Upscaling · click to stop" : active.upscale?.url ? (active.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale") : "Smart upscale"}>
-                      <button
-                        className={cn("icon-button", active.upscaleActive && active.upscale?.url && "active")}
-                        aria-label="Smart upscale"
-                        aria-pressed={active.upscale?.url ? Boolean(active.upscaleActive) : undefined}
-                        disabled={upscaleBusyIds?.has(active.id)}
-                        onClick={() => active.upscale?.status === "running" ? cancelUpscale(active) : activateUpscale(active)}
-                      >
-                        {upscaleBusyIds?.has(active.id) ? <RefreshCw size={15} className="spin" /> : active.upscale?.status === "running" ? <Square size={11} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={16} />}
-                      </button>
-                    </Tip>
+                    <ViewerUpscaleButton item={active} busy={Boolean(upscaleBusyIds?.has(active.id))} onCancel={cancelUpscale} onActivate={activateUpscale} />
                     </span>
                   ) : null}
-                  {active.upscale?.url ? (
+                  {active.upscale?.url && !upscaledWithRun(active) ? (
                     <Tip content={compareOpen ? "Hide the comparison" : "Compare with the original"}>
                       <button
                         className={cn("icon-button", compareOpen && "active")}
@@ -997,7 +994,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       ? <Tip content="Move to gallery"><button className="icon-button" aria-label="Move to gallery" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
                       : <Tip content="Move to Hidden"><button className="icon-button" aria-label="Move to Hidden" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
                   ) : null}
-                  {active.url ? <Tip content={active.upscaleActive ? "Download the upscale" : "Download"}><a className="icon-button" aria-label={active.upscaleActive ? "Download the upscale" : "Download"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
+                  {active.url ? <Tip content={active.upscaleActive && !upscaledWithRun(active) ? "Download the upscale" : "Download"}><a className="icon-button" aria-label={active.upscaleActive && !upscaledWithRun(active) ? "Download the upscale" : "Download"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
                   <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label={active.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />
                   <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>
@@ -1021,5 +1018,30 @@ export function StudioView({ view }: { view: Record<string, any> }) {
     </TileLongPressContext.Provider>
     </HiddenActionsContext.Provider>
     </GenerationPreviewMode.Provider>
+  );
+}
+
+/**
+ * The viewer's upscale button. Its own component, so a running upscale's
+ * clock re-renders this alone each second; the tip and a small count beside
+ * the icon say how long is left once the time is known.
+ */
+function ViewerUpscaleButton({ item, busy, onCancel, onActivate }: { item: GalleryItem; busy: boolean; onCancel: (item: GalleryItem) => void; onActivate: (item: GalleryItem) => void }) {
+  const running = item.upscale?.status === "running";
+  const clock = useUpscaleClock(item);
+  const tip = upscaleTooltip(item, clock.leftMs);
+  return (
+    <Tip content={tip}>
+      <button
+        className={cn("icon-button", item.upscaleActive && item.upscale?.url && "active", running && clock.leftMs !== null && "has-count")}
+        aria-label={running ? tip : "Smart upscale"}
+        aria-pressed={item.upscale?.url ? Boolean(item.upscaleActive) : undefined}
+        disabled={busy}
+        onClick={() => running ? onCancel(item) : onActivate(item)}
+      >
+        {busy ? <RefreshCw size={15} className="spin" /> : running ? <Square size={11} fill="currentColor" strokeWidth={0} /> : <UpscaleArrow size={16} />}
+        {running && clock.leftMs !== null ? <span className="viewer-upscale-left" aria-hidden="true">{shortLeft(clock.leftMs)}</span> : null}
+      </button>
+    </Tip>
   );
 }

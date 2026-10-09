@@ -2,11 +2,11 @@ import React, { lazy, Suspense, memo, useCallback, useEffect, useRef, useState }
 import { VideoPreview } from './VideoPreview';
 import { mediaUrl } from './mediaUrl';
 import { useDismiss } from './useDismiss';
-import { ChevronDown, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
+import { Brush, ChevronDown, ImagePlus, Info, Minus, Plus, Search, Star, X } from 'lucide-react';
 import { Select as FluidSelect, SelectContent as FluidSelectContent, SelectItem as FluidSelectItem, SelectTrigger as FluidSelectTrigger } from '@/components/ui/select';
 import { Tooltip as FluidTooltip } from '@/components/ui/tooltip';
 import { AnimatedNumber } from './AnimatedNumber';
-import type { AspectPreset, Output, Profile } from './types';
+import type { AspectPreset, AutoUpscale, Output, Profile } from './types';
 import { aspectIconStyle, cn, titleFromPrompt } from './format';
 import { wheelPixels } from './wheel';
 import { formatDownload, modelFits, useHardware } from './hardware';
@@ -106,9 +106,9 @@ export function StudioSelect({ value, onChange, options }: { value: string; onCh
   );
 }
 
-export function Tip({ content, side = "bottom", children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; children: React.ReactElement }) {
+export function Tip({ content, side = "bottom", forceOpen, children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; /** false keeps it shut, e.g. while a tooltip inside it speaks instead. */ forceOpen?: boolean; children: React.ReactElement }) {
   return (
-    <FluidTooltip content={content} side={side} sideOffset={10} className="heiss-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
+    <FluidTooltip content={content} side={side} sideOffset={10} forceOpen={forceOpen} className="heiss-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
       {children}
     </FluidTooltip>
   );
@@ -302,7 +302,48 @@ export function NumberPicker({
   );
 }
 
-export function AspectPicker({ value, options, onChange, currentSize, defaultSize, density = "full" }: { value: string; options: AspectPreset[]; onChange: (value: string) => void; currentSize: string; defaultSize: string; density?: ControlDensity }) {
+const upscaleTabs: { value: AutoUpscale; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "2k", label: "2K" },
+  { value: "4k", label: "4K" }
+];
+
+/** Smart upscale's tabs, on top of the size menu: what every new image becomes once it finishes. */
+function SmartUpscaleTabs({ value, onChange }: { value: AutoUpscale; onChange: (value: AutoUpscale) => void }) {
+  const index = Math.max(0, upscaleTabs.findIndex((tab) => tab.value === value));
+  return (
+    <div className="aspect-upscale">
+      <div className="aspect-upscale-head">
+        <span id="aspect-upscale-label">Smart upscale</span>
+        <InfoTip side="top" content="Upscales every new image with SeedVR2 as it finishes, rebuilding fine detail instead of stretching pixels. Takes a little longer; the original is kept." />
+      </div>
+      <div className="aspect-upscale-tabs" role="radiogroup" aria-labelledby="aspect-upscale-label" style={{ "--tab-index": index } as React.CSSProperties} onKeyDown={(event) => {
+        if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+        event.preventDefault();
+        event.stopPropagation();
+        const next = upscaleTabs[(index + (event.key === "ArrowRight" ? 1 : -1) + upscaleTabs.length) % upscaleTabs.length];
+        onChange(next.value);
+        requestAnimationFrame(() => event.currentTarget.querySelector<HTMLButtonElement>(`[data-tier="${next.value}"]`)?.focus());
+      }}>
+        <i aria-hidden="true" />
+        {upscaleTabs.map((tab) => (
+          <button
+            key={tab.value}
+            type="button"
+            role="radio"
+            data-tier={tab.value}
+            aria-checked={tab.value === value}
+            tabIndex={tab.value === value ? 0 : -1}
+            className={cn(tab.value === value && "is-active")}
+            onClick={() => onChange(tab.value)}
+          >{tab.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function AspectPicker({ value, options, onChange, currentSize, defaultSize, density = "full", upscale = "none", onUpscaleChange }: { value: string; options: AspectPreset[]; onChange: (value: string) => void; currentSize: string; defaultSize: string; density?: ControlDensity; upscale?: AutoUpscale; onUpscaleChange?: (value: AutoUpscale) => void }) {
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement | null>(null);
   const selected = options.find((item) => item.value === value);
@@ -310,6 +351,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   const close = useCallback(() => setOpen(false), []);
   useDismiss(pickerRef, open, close);
   const label = selected ? selected.label : isDefault ? "Default" : "Free";
+  const upscaleLabel = onUpscaleChange && upscale !== "none" ? upscale.toUpperCase() : "";
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -321,13 +363,19 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   }, [open]);
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}`} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
-          {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
+      <Tip content={`${density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
+          {/* The tag sits on the icon's corner, so turning Smart upscale on never changes the button's width. */}
+          <span className="aspect-shape-slot">
+            {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}
+            {upscaleLabel ? <b className="aspect-upscale-badge" aria-hidden="true">{upscaleLabel}</b> : null}
+          </span>
           {density === "full" ? <span>{label}</span> : null}
           {density === "mini" ? null : <ChevronDown size={14} className={cn(open && "flip")} />}
         </button></Tip>
       {open ? (
-        <div className="aspect-menu" data-open-surface role="listbox" aria-label="Aspect ratio" onKeyDown={(event) => {
+        <div className="aspect-menu" data-open-surface>
+        {onUpscaleChange ? <SmartUpscaleTabs value={upscale} onChange={onUpscaleChange} /> : null}
+        <div className="aspect-list" role="listbox" aria-label="Aspect ratio" onKeyDown={(event) => {
           // Up and down move between options; the menu opens with focus on the chosen one.
           if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
           event.preventDefault();
@@ -335,7 +383,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
           const index = items.indexOf(document.activeElement as HTMLButtonElement);
           items[(index + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
         }} ref={(node) => { if (node && !node.contains(document.activeElement)) (node.querySelector<HTMLButtonElement>("button.aspect-option.active") || node.querySelector<HTMLButtonElement>("button.aspect-option"))?.focus({ preventScroll: true }); }}>
-          <Tip content="Use the model’s default size"><button
+          <button
               type="button"
               className={cn("aspect-option", value === "default" && "active")}
               role="option"
@@ -348,7 +396,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
               <span className="aspect-shape default" />
               <span>Default</span>
               <em>{defaultSize}</em>
-            </button></Tip>
+            </button>
           {options.map((option) => (
             <button
                 key={option.value}
@@ -367,6 +415,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
               </button>
           ))}
           {value === "free" ? <div className="aspect-option active is-readonly"><span className="aspect-shape custom" /><span>Free</span><em>{currentSize}</em></div> : null}
+        </div>
         </div>
       ) : null}
     </div>
@@ -421,8 +470,28 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * all it offers "Get a model" instead. Arrow keys move, Enter picks, typing
  * searches.
  */
-export function ModelPicker({ value, profiles, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
+/**
+ * What a model can do with a picture, as two small plain icons before its
+ * family badge: edits from reference images, and inpainting (paint over part
+ * of a reference to change only that).
+ */
+function ModelAbilities({ profile, showInpaint = true, onHover }: { profile: Profile; showInpaint?: boolean; onHover?: (hovering: boolean) => void }) {
+  // An edit model takes references without a start-image strength; img2img models have one.
+  const edits = Boolean(profile.mediaInputs?.length && !profile.capabilities.denoise);
+  const inpaints = showInpaint && Boolean(profile.capabilities.inpaint);
+  if (!edits && !inpaints) return null;
+  return (
+    // While one of these speaks, the row's own name tooltip stays shut.
+    <span className="model-abilities" onPointerEnter={() => onHover?.(true)} onPointerLeave={() => onHover?.(false)}>
+      {edits ? <Tip content="Edits from reference images" side="top"><span className="model-ability" aria-label="Edits from reference images"><ImagePlus size={13} strokeWidth={1.75} /></span></Tip> : null}
+      {inpaints ? <Tip content="Inpainting: paint over part of an image to change only that" side="top"><span className="model-ability" aria-label="Inpainting"><Brush size={13} strokeWidth={1.75} /></span></Tip> : null}
+    </span>
+  );
+}
+
+export function ModelPicker({ value, profiles, showInpaint = true, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; showInpaint?: boolean; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
   const hardware = useHardware();
+  const [abilityRow, setAbilityRow] = React.useState("");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(-1);
@@ -546,11 +615,12 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                   {section.rows.map((profile) => {
                     rowIndex += 1;
                     const starred = favorites.has(profile.id);
-                    const badge = menu ? familyLabel(profile) : badges[profile.id] || familyLabel(profile);
+                    // Without a menu (favorites and recents as sections), its Favorite / Recent / Workflow word stays as a pill.
+                    const badge = menu ? "" : badges[profile.id] || "";
                     const { size, fits } = sizeNote(profile, hardware);
                     return (
                       <div key={`${section.id}:${profile.id}`} className={cn("model-row", starred && "is-starred")}>
-                        <Tip content={`${profile.displayName || profile.label}${fits ? " · fits this computer" : ""}`}><button
+                        <Tip content={`${profile.displayName || profile.label}${fits ? " · fits this computer" : ""}`} forceOpen={abilityRow === `${section.id}:${profile.id}` ? false : undefined}><button
                             type="button"
                             role="option"
                             aria-selected={profile.id === value}
@@ -561,9 +631,12 @@ export function ModelPicker({ value, profiles, onChange, compact = false, badges
                           >
                             <span className="model-copy">
                               <strong>{profile.displayName || profile.label}</strong>
-                              {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>}
+                              {setupNote(profile) ? <em className="is-setup">{setupNote(profile)}</em> : (
+                                // The family once, under the name, instead of a pill beside a line that said it too.
+                                <em>{profile.description || familyLabel(profile)}{size ? <span className="model-size"> · {size}</span> : null}</em>
+                              )}
                             </span>
-                            {badge ? <span className="model-badge">{badge}</span> : null}
+                            <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
                         {menu ? (
                           <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>

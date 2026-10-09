@@ -9,11 +9,13 @@ import { imageGraph, videoGraph } from './graphs.js';
 import { gallery, hideGalleryItems, outputsFrom, removeGalleryJob, replaceGalleryJob, updateGalleryJob, updateGalleryJobPreviews } from './gallery-store.js';
 import { forgetComfyRun } from './hidden-traces.js';
 import { releaseHiddenRun, rememberHiddenRun } from './hidden-runs.js';
-import { storeHiddenOutputs } from './vault.js';
+import { attachVaultUpscale, patchVaultItem, storeHiddenOutputs } from './vault.js';
+import { keptMessage, missedUpscaleState, pairRunOutputs, runUpscaleState } from './run-upscale.js';
 import { writeCivitaiParameters } from './civitai.js';
 import { markWorkflowUsed } from './workflow-catalog.js';
 import { remainingMs, RunTimer, slowSteps } from './generation-timing.js';
-import { generationEstimate, generationWarm, recordGeneration } from './timings.js';
+import { generationEstimate, generationWarm, recordGeneration, recordUpscale, upscaleEstimate } from './timings.js';
+import { upscaleLeftMs, upscaleWork } from './upscale-timing.js';
 
 export const jobs = new Map();
 const previewSlots = new Map();
@@ -140,20 +142,47 @@ function applyExecutedOutputPreviews(id, output) {
  */
 const runTimings = new Map();
 
+/**
+ * How long is left of a job, or null when there is nothing honest to say: a
+ * generation by its live steps and learned estimate, plus its Smart upscale
+ * when it has one; an upscale by what SeedVR2 has taken here before
+ * (upscale-timing.js). Once the upscale is running, its own clock is all that is left.
+ */
+function leftMsFor(timing, now = Date.now()) {
+  const up = timing.upscale || null;
+  if (up && !up.estimate?.trusted) return null;
+  if (up?.startAt) return upscaleLeftMs(up.estimate, up.startAt, now);
+  const upscaleMs = up ? up.estimate.totalMs : 0;
+  if (timing.kind === "upscale") return upscaleMs;
+  const generation = timing.timer && timing.timer.runAt !== null
+    ? remainingMs(timing.timer, timing.estimate, now)
+    : timing.estimate?.trusted ? timing.estimate.totalMs : null;
+  return generation === null ? null : generation + upscaleMs;
+}
+
+/** When a job's run started in ComfyUI (its generation, or a lone upscale), or null while it waits. */
+function startedAt(timing) {
+  if (timing.timer && timing.timer.runAt !== null) return timing.timer.runAt;
+  return timing.kind === "upscale" ? timing.upscale?.startAt || null : null;
+}
+
 /** Progress with when the job should end, or without when there is nothing honest to say. */
 function withEta(id, progress, now = Date.now()) {
   const timing = runTimings.get(id);
   const { endsAt: _endsAt, runStartedAt: _runStartedAt, ...plain } = progress || {};
-  if (!timing?.timer) return plain;
-  const left = remainingMs(timing.timer, timing.estimate, now);
-  if (left === null) return plain;
-  return { ...plain, endsAt: Math.round(now + left), ...(timing.timer.runAt !== null ? { runStartedAt: timing.timer.runAt } : {}) };
+  // The picture is saved and Smart upscale is working on it.
+  const upscaling = timing?.upscaling ? { upscaling: true } : {};
+  if (!timing?.timer) return { ...plain, ...upscaling };
+  const left = leftMsFor(timing, now);
+  if (left === null) return { ...plain, ...upscaling };
+  const started = startedAt(timing);
+  return { ...plain, ...upscaling, endsAt: Math.round(now + left), ...(started !== null ? { runStartedAt: started } : {}) };
 }
 
 /**
  * When each job still waiting in ComfyUI's queue should be done: after the
  * ones ahead of it. The chain stops at the first job whose length is unknown
- * (an upscale, a model without a trusted estimate), since everything behind it
+ * (a model or upscale without a trusted estimate), since everything behind it
  * would be a guess.
  */
 function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
@@ -166,17 +195,21 @@ function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
       known = false;
       continue;
     }
-    if (timing.timer && timing.timer.runAt !== null) {
-      const left = remainingMs(timing.timer, timing.estimate, now);
+    const left = leftMsFor(timing, now);
+    if (startedAt(timing) !== null || timing.upscale?.startAt) {
       if (left === null) known = false;
       else cursor = Math.max(cursor, now + left);
+      if (apply && timing.kind === "upscale") timing.onEta?.(left === null ? null : Math.round(now + left));
       continue;
     }
-    const estimate = timing.estimate?.trusted ? timing.estimate : null;
-    const endsAt = known && estimate ? Math.round(cursor + estimate.totalMs) : null;
+    const endsAt = known && left !== null ? Math.round(cursor + left) : null;
     if (endsAt) cursor = endsAt;
     else known = false;
     if (!apply) continue;
+    if (timing.kind === "upscale") {
+      timing.onEta?.(endsAt);
+      continue;
+    }
     const previous = job.progress?.endsAt;
     if (endsAt ? previous && Math.abs(previous - endsAt) < 2000 : previous === undefined) continue;
     const { endsAt: _endsAt, ...rest } = job.progress || { value: 0, max: 0 };
@@ -185,6 +218,43 @@ function refreshQueueEstimates(now = Date.now(), { apply = true } = {}) {
     updateGalleryJob(id, { progress }, { persist: false });
   }
   return known ? cursor : null;
+}
+
+/**
+ * An upscale from the gallery's arrow joins the queue's clock: `onEta` hears
+ * when it should be done (or null) whenever that moves by more than a moment.
+ * Returns its clock: `start()` once ComfyUI starts it, `end()` when it is over.
+ */
+export function trackUpscale(jobId, estimate, onEta = () => {}) {
+  let last;
+  const timing = {
+    kind: "upscale",
+    upscale: { estimate, startAt: null },
+    onEta(endsAt) {
+      if (endsAt === last || (endsAt && last && Math.abs(endsAt - last) < 2000)) return;
+      last = endsAt;
+      onEta(endsAt ? { endsAt, ...(timing.upscale.startAt ? { runStartedAt: timing.upscale.startAt } : {}) } : {});
+    }
+  };
+  runTimings.set(jobId, timing);
+  refreshQueueEstimates();
+  return {
+    start(at = Date.now()) {
+      if (timing.upscale.startAt) return;
+      timing.upscale.startAt = at;
+      last = undefined;
+      refreshQueueEstimates();
+    },
+    /** The clock fields for a progress patch. */
+    eta() {
+      return last ? { endsAt: last, ...(timing.upscale.startAt ? { runStartedAt: timing.upscale.startAt } : {}) } : {};
+    },
+    startAt: () => timing.upscale.startAt,
+    end() {
+      runTimings.delete(jobId);
+      refreshQueueEstimates();
+    }
+  };
 }
 
 /** When HEISS's own queue should be clear (now, when empty), or null when a job in it has no known length. */
@@ -270,9 +340,34 @@ function watchProgress(id, run, socket = openProgressSocket(id), graph = {}) {
       }
       if (message.type === "executed" && data.output) {
         applyExecutedOutputPreviews(id, data.output);
+        // The picture is saved and Smart upscale takes over: from here a stop keeps the picture.
+        if (run.pairs?.some((pair) => pair.base === String(data.node))) {
+          run.saved.set(String(data.node), data.output);
+          if (timing) {
+            timing.upscaling = true;
+            // The upscale's clock starts with the first picture it can work on.
+            if (timing.upscale) timing.upscale.startAt ??= Date.now();
+          }
+          const job = jobs.get(id);
+          if (job && !job.terminalAt) {
+            const progress = withEta(id, job.progress);
+            jobs.set(id, { ...job, keepsPicture: true, progress });
+            updateGalleryJob(id, { progress }, { persist: false });
+            refreshQueueEstimates();
+          }
+        }
       }
       // Finished: look for the images now rather than at the next poll.
-      if (message.type === "execution_success" || (message.type === "executing" && (data.node === null || data.node === undefined))) run.wake?.();
+      if (message.type === "execution_success" || (message.type === "executing" && (data.node === null || data.node === undefined))) {
+        if (timing?.upscale?.startAt) timing.upscale.endAt ??= Date.now();
+        run.wake?.();
+      }
+      // Stopped or failed while upscaling: runJob delivers the saved picture instead.
+      if ((message.type === "execution_interrupted" || message.type === "execution_error") && run.saved?.size) {
+        run.missed = message.type === "execution_interrupted" ? { canceled: true } : { error: normalizeComfyError(data.exception_message || "") };
+        run.wake?.();
+        return;
+      }
       if (message.type === "execution_interrupted") {
         setTerminalJob(id, { status: "canceled" });
         updateGalleryJob(id, { status: "canceled" });
@@ -348,7 +443,12 @@ function showReconnecting(id, run, on) {
   updateGalleryJob(id, { progress }, { persist: false });
 }
 
-async function runJob(id, body) {
+/**
+ * `prepare` may put more into the run's graph before ComfyUI gets it: Smart
+ * upscale (run-upscale.js) returns the graph with its upscale and which save
+ * node each upscale belongs to, or `{ skipped }` saying why there is none.
+ */
+async function runJob(id, body, { prepare = null } = {}) {
   jobBodies.set(id, body);
   const timing = { timer: null, estimate: generationEstimate(body), warm: false };
   runTimings.set(id, timing);
@@ -359,12 +459,23 @@ async function runJob(id, body) {
   let hiddenPromptId = "";
   let hiddenDone = {};
   try {
-    const prompt = body.kind === "video" ? await videoGraph(body) : await imageGraph(body);
-    timing.timer = new RunTimer(prompt);
+    let prompt = body.kind === "video" ? await videoGraph(body) : await imageGraph(body);
+    const upscale = prepare ? await prepare(prompt) : null;
+    const embed = upscale?.graph ? upscale : null;
+    if (embed) prompt = embed.graph;
+    const pairs = embed?.pairs || [];
+    timing.timer = new RunTimer(prompt, { endNodes: pairs.map((pair) => pair.base) });
+    if (embed) {
+      // Its upscale is part of the run's time: learned from every SeedVR2 upscale here (upscale-timing.js).
+      const work = upscaleWork({ width: embed.plan?.estimatedWidth, height: embed.plan?.estimatedHeight, count: (Number(body.count) || 1) * pairs.length });
+      const learn = { quality: embed.quality, model: embed.plan?.model || "", faceDetail: Boolean(embed.faceDetail), work };
+      timing.upscale = { estimate: upscaleEstimate(learn), learn, startAt: null, endAt: null };
+    }
     socket = openProgressSocket(id);
     await waitForSocketOpen(socket);
     sendSocketFeatureFlags(socket);
-    const run = { promptId: null, wake: null, alive: null };
+    // `saved`: Smart upscale's source pictures, by save node, as ComfyUI reported them; `missed`: why their upscale did not finish.
+    const run = { promptId: null, wake: null, alive: null, pairs, saved: new Map(), missed: null };
     watchProgress(id, run, socket, prompt);
     if (body.privateVault) {
       hiddenPromptId = crypto.randomUUID();
@@ -393,7 +504,79 @@ async function runJob(id, body) {
     jobs.set(id, { ...jobs.get(id), status: "running", promptId: queued.prompt_id });
     const tracker = promptTracker(queued.prompt_id);
     run.alive = tracker.alive;
+    /**
+     * Into the gallery (or Hidden): each picture with its upscale riding on it.
+     * `missed` is set when the upscale stopped or failed after the pictures were
+     * saved; they are kept at their generated size and the toast says so.
+     */
+    const deliver = async (results, missed = null) => {
+      const upscaled = (result) => (result.upscale && !missed ? runUpscaleState(embed, result.upscale) : null);
+      const missedState = (result) => (result.paired && (missed || !result.upscale) ? missedUpscaleState(embed, missed || { error: "The upscale ended without an image" }) : null);
+      const outputs = results.map((result) => result.output);
+      const kept = missed ? keptMessage({ canceled: Boolean(missed.canceled), count: outputs.length }) : "";
+      const skipped = upscale?.skipped ? { status: "error", quality: upscale.quality, progress: null, error: upscale.skipped } : null;
+      // Every upscale it made teaches the next estimate; a Hidden run never does.
+      const clock = timing.upscale;
+      if (clock?.startAt && !missed && !body.privateVault && results.some((result) => result.upscale)) {
+        recordUpscale({ ...clock.learn, ms: (clock.endAt ?? Date.now()) - clock.startAt, predicted: clock.estimate });
+      }
+      if (body.privateVault) {
+        const { items, leftBehind } = await storeHiddenOutputs(jobs.get(id)?.vaultKey, outputs, body, gallery.filter((item) => item.jobId === id));
+        const key = jobs.get(id)?.vaultKey;
+        for (const [index, result] of results.entries()) {
+          const item = items[index];
+          if (!item) continue;
+          const done = upscaled(result);
+          try {
+            // Sealed into the item; ComfyUI's address for the file means nothing once it is gone.
+            if (done) {
+              const { url: _url, thumbnailUrl: _thumb, outputName: _name, ...state } = done;
+              Object.assign(item, (await attachVaultUpscale(key, item.id, result.upscale, state)).item);
+            }
+            else if (missedState(result) || skipped) patchVaultItem(key, item.id, { upscale: missedState(result) || skipped });
+          } catch { /* the picture is in Hidden; only its upscale is missing */ }
+        }
+        removeGalleryJob(id);
+        // No thumbnail for the workflow card: that list is not encrypted.
+        markWorkflowUsed(body.profileId || body.model || body.workflow || "", "");
+        setTerminalJob(id, { status: "done", outputs: items, leftBehind, ...(kept ? { kept } : {}) });
+        // A copy that could not be removed is marked, so no import of the output folder brings it in.
+        if (leftBehind) hideGalleryItems(outputs);
+        const historyGone = await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
+        hiddenDone = { stored: true, clean: historyGone };
+      } else {
+        // Before the gallery shows them, so no browser reads a file mid-write.
+        writeCivitaiParameters([...outputs, ...results.map((result) => result.upscale).filter(Boolean)], body);
+        const withUpscales = results.map((result) => {
+          const done = upscaled(result);
+          if (done) return { ...result.output, upscale: done, upscaleActive: true };
+          const state = missedState(result) || skipped;
+          return state ? { ...result.output, upscale: state } : result.output;
+        });
+        const completed = replaceGalleryJob(id, withUpscales, body, jobs);
+        markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
+        setTerminalJob(id, { status: "done", outputs: completed, ...(kept ? { kept } : {}) });
+        // A Hidden image used as the reference for a normal run: only its staged copy goes.
+        if (body.hiddenInputNames?.length) await forgetComfyRun({ inputNames: body.hiddenInputNames });
+      }
+      socket?.close();
+    };
+    // The pictures Smart upscale was working on, from what ComfyUI said as each was saved.
+    const savedResults = () => pairs.flatMap((pair) => {
+      const output = run.saved.get(pair.base);
+      return output ? pairRunOutputs({ [pair.base]: output }, [pair]) : [];
+    });
     while (true) {
+      if ((jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") && run.saved.size) {
+        // Stopped while upscaling: the pictures are done, so they stay.
+        await cancelPrompt(queued.prompt_id).catch(() => null);
+        await deliver(savedResults(), { canceled: true });
+        return;
+      }
+      if (run.missed && run.saved.size) {
+        await deliver(savedResults(), run.missed);
+        return;
+      }
       if (jobs.get(id)?.status === "canceling" || jobs.get(id)?.status === "canceled") {
         // The cancel route already asked; asking again covers a ComfyUI that was out of reach then.
         await cancelPrompt(queued.prompt_id).catch(() => null);
@@ -426,6 +609,17 @@ async function runJob(id, body) {
         }
       }
       const entry = checked.state === "done" ? checked.entry : null;
+      // Stopped or failed after its pictures were saved (and the socket missed it): keep them.
+      if (entry?.status?.status_str === "error" && pairs.length) {
+        const results = pairRunOutputs(entry.outputs, pairs).filter((result) => result.paired);
+        if (results.length) {
+          const messages = entry.status.messages || [];
+          const interrupted = messages.some(([type]) => type === "execution_interrupted");
+          const failed = messages.find(([type]) => type === "execution_error")?.[1] || {};
+          await deliver(results, interrupted ? { canceled: true } : { error: normalizeComfyError(failed.exception_message || "") });
+          return;
+        }
+      }
       // A run that failed while the socket was down still says why in its history.
       if (entry?.status?.status_str === "error") {
         const failed = (entry.status.messages || []).find(([type]) => type === "execution_error")?.[1] || {};
@@ -433,31 +627,12 @@ async function runJob(id, body) {
       }
       if (entry) {
         recordTiming(id, body, timing);
-        const outputs = outputsFrom(entry);
+        const results = pairRunOutputs(entry.outputs, pairs);
         // Replacing the placeholder with nothing would delete the tile; keep it as a failure that says why.
-        if (!outputs.length) {
+        if (!results.length) {
           throw Object.assign(new Error("ComfyUI finished the run but saved no image."), { noOutput: true });
         }
-        if (body.privateVault) {
-          const { items, leftBehind } = await storeHiddenOutputs(jobs.get(id)?.vaultKey, outputs, body, gallery.filter((item) => item.jobId === id));
-          removeGalleryJob(id);
-          // No thumbnail for the workflow card: that list is not encrypted.
-          markWorkflowUsed(body.profileId || body.model || body.workflow || "", "");
-          setTerminalJob(id, { status: "done", outputs: items, leftBehind });
-          // A copy that could not be removed is marked, so no import of the output folder brings it in.
-          if (leftBehind) hideGalleryItems(outputs);
-          const historyGone = await forgetComfyRun({ promptIds: [queued.prompt_id], inputNames: body.stagedInputNames });
-          hiddenDone = { stored: true, clean: historyGone };
-        } else {
-          // Before the gallery shows them, so no browser reads a file mid-write.
-          writeCivitaiParameters(outputs, body);
-          const completed = replaceGalleryJob(id, outputs, body, jobs);
-          markWorkflowUsed(body.profileId || body.model || body.workflow || "", completed[0]?.url || "");
-          setTerminalJob(id, { status: "done", outputs: completed });
-          // A Hidden image used as the reference for a normal run: only its staged copy goes.
-          if (body.hiddenInputNames?.length) await forgetComfyRun({ inputNames: body.hiddenInputNames });
-        }
-        socket?.close();
+        await deliver(results);
         return;
       }
       await pause(run, 1600);

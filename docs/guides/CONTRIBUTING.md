@@ -88,7 +88,7 @@ Between releases a source checkout shows how far it is past its tag in **Setting
 
 ## Found a bug?
 
-Post it on the [feedback board](https://heiss-ui.vercel.app/board/), from the website or from the app (**Settings › Feedback**, or **Report bug** on a failed card), or [open an issue](https://github.com/tristmeister/HEISS-UI/issues). Say what you did, what you expected and what happened. Your ComfyUI version and the model or workflow you used help a lot. Ideas and questions go on the same board.
+Post it on the [feedback board](https://heiss-ui.vercel.app/board/), from the website or from the app (**Settings › About**, or **Report bug** on a failed card), or [open an issue](https://github.com/tristmeister/HEISS-UI/issues). Say what you did, what you expected and what happened. Your ComfyUI version and the model or workflow you used help a lot. Ideas and questions go on the same board. To talk something through first, there's the [Discord](https://discord.gg/Hf7ysvDeGa).
 
 ## The feedback board
 

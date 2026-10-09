@@ -1,0 +1,107 @@
+/* ---------------------------------------------------------------------------
+   Smart upscale: three tabs on top of the size menu. A dark well with one
+   sliding thumb, like Segmented in Settings; a tier that is on carries the
+   ember note, here and as a small tag on the closed trigger.
+--------------------------------------------------------------------------- */
+
+.aspect-list { display: grid; gap: 3px; }
+
+.aspect-upscale {
+  display: grid;
+  gap: 7px;
+  padding: 4px 4px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.aspect-upscale-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .01em;
+}
+
+.aspect-upscale-tabs {
+  --tab-count: 3;
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--tab-count), 1fr);
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--well);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / .5);
+}
+/* The thumb slides under the chosen tab instead of each tab lighting up on its own. */
+.aspect-upscale-tabs > i {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--tab-count));
+  border-radius: var(--r-pill);
+  background: var(--selected);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / .1), 0 1px 3px rgb(0 0 0 / .4);
+  transform: translateX(calc(var(--tab-index, 0) * 100%));
+  transition: transform 260ms var(--spring, cubic-bezier(.3, 1.3, .5, 1));
+  pointer-events: none;
+}
+.aspect-upscale-tabs button {
+  position: relative;
+  min-height: 30px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color 160ms var(--ease-out, ease-out), transform 180ms var(--spring, ease-out);
+}
+.aspect-upscale-tabs button:hover { color: hsl(var(--foreground)); }
+.aspect-upscale-tabs button:active { transform: scale(.96); transition-duration: 60ms; }
+.aspect-upscale-tabs button.is-active { color: hsl(var(--foreground)); }
+.aspect-upscale-tabs button.is-active:not([data-tier="none"]) { color: var(--ember); }
+.aspect-upscale-tabs button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+
+/* On the closed trigger: a tag pinned to the ratio icon's corner. It is out
+   of the flow, so switching tiers never resizes the button or the bar. */
+.aspect-shape-slot {
+  position: relative;
+  justify-self: center;
+  display: grid;
+  place-items: center;
+}
+.aspect-upscale-badge {
+  position: absolute;
+  right: -9px;
+  bottom: -6px;
+  padding: 0 3px;
+  border-radius: 4px;
+  background: var(--ember);
+  color: #1a0d03;
+  font: 700 8.5px/1.35 var(--font-mono);
+  letter-spacing: .02em;
+  box-shadow: 0 0 0 1.5px var(--well), var(--ember-glow);
+  pointer-events: none;
+}
+
+@media (max-width: 760px) {
+  .aspect-upscale-tabs button { min-height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aspect-upscale-tabs > i { transition: none; }
+}
+
+/* Phone studio: the same three tiers as a segmented row in the create sheet. */
+.phone-control-note {
+  margin: 0;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 1.4;
+  text-wrap: pretty;
+}

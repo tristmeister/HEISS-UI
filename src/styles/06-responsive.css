@@ -25,9 +25,9 @@
   }
   .model-option {
     min-height: 64px;
-    /* The badge is hidden below, so the copy is the only column - a leading
-       30px track here squeezed every workflow name down to "SA...". */
-    grid-template-columns: minmax(0, 1fr);
+    /* The copy, then what the model can do beside it (the icons, never a
+       fixed track: a leading 30px one once squeezed names down to "SA..."). */
+    grid-template-columns: minmax(0, 1fr) auto;
     padding: 10px;
   }
   .model-copy strong,

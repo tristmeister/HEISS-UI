@@ -272,8 +272,8 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
     const seq = ++loadSeq.current;
     // Hidden is its own list; a locked session gets nothing back and shows the lock instead.
     const page = hidden
-      ? await apiJson<GalleryPage>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}`).catch(() => { onLocked?.(); return { items: [], revision: 0 }; })
-      : await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}${searchQuery()}`);
+      ? await apiJson<GalleryPage>(`/api/hidden/gallery?type=${encodeURIComponent(mode)}&includeFailed=${includeFailed}&bundles=0`).catch(() => { onLocked?.(); return { items: [], revision: 0 }; })
+      : await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&includeFailed=${includeFailed}&bundles=0${searchQuery()}`);
     if (spaceRef.current !== space || seq !== loadSeq.current) return page;
     dispatch({ type: "reset", page });
     return page;
@@ -298,7 +298,7 @@ export function useGalleryStore({ mode, showFailedItems, space = "gallery", onLo
     if (!state.hasMore || !state.nextCursor || loadingMoreRef.current === state.nextCursor) return;
     loadingMoreRef.current = state.nextCursor;
     try {
-      const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&cursor=${encodeURIComponent(state.nextCursor)}&includeFailed=${includeFailed}${searchQuery()}`);
+      const page = await apiJson<GalleryPage>(`/api/gallery?type=${encodeURIComponent(mode)}&limit=220&cursor=${encodeURIComponent(state.nextCursor)}&includeFailed=${includeFailed}&bundles=0${searchQuery()}`);
       dispatch({ type: "append", page });
     } catch {
       // Leave the cursor as it was, so the next scroll or the button tries again.

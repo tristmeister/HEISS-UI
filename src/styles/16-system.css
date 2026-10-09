@@ -325,6 +325,8 @@
   stroke-linecap: round;
   transition: stroke-dasharray 400ms var(--ease-out);
 }
+/* Following the clock: one even sweep per second's tick, not a jump. */
+.tile-upscale.is-timed .tile-upscale-ring circle { transition: stroke-dasharray 1s linear; }
 .tile-upscale.is-indeterminate .tile-upscale-ring { animation: upscale-ring-spin 1.1s linear infinite; }
 .tile-upscale.is-indeterminate .tile-upscale-ring circle { transition: none; }
 @keyframes upscale-ring-spin { from { rotate: -90deg; } to { rotate: 270deg; } }
@@ -370,3 +372,8 @@
 @media (prefers-reduced-motion: reduce) {
   .comfy-status-dot.is-restarting span { animation: none; }
 }
+
+/* The viewer's upscale button while it counts down: the time beside the stop square. */
+.icon-button.has-count { width: auto; min-width: 34px; padding-inline: 9px; gap: 5px; }
+.viewer-upscale-left { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.viewer-phone-bar span.is-count { font-variant-numeric: tabular-nums; }

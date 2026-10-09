@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { hasNode, missingNodes, modelFolders, nodeRange, optionsFor } from './comfy.js';
-import { checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
+import { MAX_BATCH, checkpointDownloads, encoderDownloads, families, knownFamilies, modelDownloads, quantFormats, sanaConf, sanaLabel, sanaLatentNode, sanaPresets, sanaRunnerFor, vaeDownloads, variantDefaults, visionDownloads, visionKinds } from './family-catalog.js';
 import { existingCopy } from './model-downloads.js';
 import { inpaintingEnabled } from './features.js';
 import { inpaintNodes } from './inpaint.js';
@@ -365,7 +365,8 @@ export function familyProfiles(info, helpers) {
     heightRange.min = Math.max(64, Number(heightRange.min) || 0);
     widthRange.default = width;
     heightRange.default = height;
-    const countRange = nodeRange(info, latentNode, "batch_size", { default: 1, min: 1, max: 8, step: 1 });
+    const countRange = nodeRange(info, latentNode, "batch_size", { default: 1, min: 1, max: MAX_BATCH, step: 1 });
+    countRange.max = Math.min(MAX_BATCH, Number(countRange.max) || MAX_BATCH);
     const frameRange = family.kind === "video" ? nodeRange(info, latentNode, "length", { default: family.frames, min: 1, max: 1000, step: family.frameStep || 1 }) : {};
     if (family.kind === "video") frameRange.default = family.frames;
     const fpsRange = family.kind === "video" ? { ...nodeRange(info, "CreateVideo", "fps", { default: family.fps, min: 1, max: 120, step: 1 }), default: family.fps } : {};

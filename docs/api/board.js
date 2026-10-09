@@ -4,37 +4,33 @@ import { createDiscordRoadmapSync } from "./_board/discord.js";
 import { storeFromEnv } from "./_board/store.js";
 
 const store = storeFromEnv();
-const sync = store
-  ? createDiscordRoadmapSync({ store, webhookUrl: process.env.DISCORD_BOARD_WEBHOOK_URL })
-  : null;
+const discord = store ? createDiscordRoadmapSync({ store, webhookUrl: process.env.DISCORD_BOARD_WEBHOOK_URL }) : null;
+const mirror = discord?.enabled ? discord : null;
 
-// Keep Discord as a best-effort mirror so a webhook outage never blocks feedback.
-if (sync) {
-  for (const method of ["create", "save", "saveMany", "remove"]) {
-    const original = store[method].bind(store);
-    store[method] = async (...args) => {
-      const result = await original(...args);
-      try {
-        await sync.notify();
-      } catch (error) {
-        console.error("Discord roadmap sync could not queue an update:", error?.message || error);
-      }
-      return result;
-    };
+/**
+ * Discord work finishes after the response when Vercel lets it (the same hook
+ * @vercel/functions' waitUntil uses), so nobody waits on a webhook; elsewhere it's awaited.
+ */
+function later(work) {
+  const context = globalThis[Symbol.for("@vercel/request-context")]?.get?.();
+  if (typeof context?.waitUntil === "function") {
+    context.waitUntil(work);
+    return undefined;
   }
+  return work;
 }
 
+const options = {
+  store,
+  env: process.env,
+  onEvent: mirror ? (event) => later(mirror.event(event)) : null,
+};
+
 export async function GET(request) {
-  const response = await handle(request, { store, env: process.env });
-  if (sync && response.ok) {
-    try {
-      await sync.ensure();
-    } catch (error) {
-      console.error("Discord roadmap sync could not refresh:", error?.message || error);
-    }
-  }
+  const response = await handle(request, options);
+  if (mirror && response.ok) await later(mirror.ensure());
   return response;
 }
 
-export const POST = (request) => handle(request, { store, env: process.env });
-export const OPTIONS = (request) => handle(request, { store, env: process.env });
+export const POST = (request) => handle(request, options);
+export const OPTIONS = (request) => handle(request, options);

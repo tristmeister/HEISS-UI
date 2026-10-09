@@ -293,7 +293,7 @@
 }
 
 /* A stacked deck steps aside for the recent-prompts list, as for the composer's menus. */
-@media (max-width: 1040px) {
+@media (max-width: 760px) {
   :is(.app-shell, .zen-shell):has(.zen-prompt .prompt-history) :is(.studio-dock, .zen-control-button) {
     opacity: 0;
     pointer-events: none;

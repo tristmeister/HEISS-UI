@@ -1,11 +1,12 @@
 import React from 'react';
 import { ArrowUp, Dices, EyeOff, ChevronUp, CircleDotDashed, History, Images, Layers, MoveHorizontal, MoveVertical, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { LoraMismatchChip, type LoraMismatch } from './LoraMismatchChip';
 import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
-import { ReferenceSlots, type ReferenceStrength } from './ReferenceMediaPicker';
-import type { AspectPreset, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from './types';
+import { ReferenceSlots } from './ReferenceMediaPicker';
+import type { AspectPreset, AutoUpscale, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from './types';
 import { estimatePhrase, formatAbout, type GenerationEstimate } from './useGenerationEstimate';
 
 /* ---------------------------------------------------------------------------
@@ -198,6 +199,8 @@ export type ComposerBarProps = {
   models: unknown;
   model: string;
   modelProfiles: Profile[];
+  /** Whether the model menu marks models that can inpaint (off when inpainting is switched off). */
+  showInpaint?: boolean;
   profileBadges: Record<string, string>;
   chooseModel: (value: string) => void;
   modelMenu?: ModelMenuState;
@@ -215,6 +218,9 @@ export type ComposerBarProps = {
   aspectValue: string;
   defaultAspectSize: string;
   applyAspect: (value: string) => void;
+  /** Smart upscale's tabs on top of the size menu; left out where it doesn't apply (video). */
+  autoUpscale?: AutoUpscale;
+  onAutoUpscaleChange?: (value: AutoUpscale) => void;
   customSize: boolean;
   aspectLocked?: boolean;
   width: number;
@@ -242,8 +248,9 @@ export type ComposerBarProps = {
   refreshComfyStatus: () => void;
   comfyRetrying?: boolean;
   referenceInputs?: MediaInput[];
-  referenceStrength?: ReferenceStrength | null;
   referenceInpaint?: ReferenceInpaint | null;
+  loraMismatch?: LoraMismatch | null;
+  onDismissLoraMismatch?: (key: string) => void;
   referenceAssets?: SelectedReferenceAsset[];
   onReferenceSelect: (slot: string, asset: ReferenceAsset) => void;
   onReferenceRemove: (slots: string | string[]) => void;
@@ -263,14 +270,14 @@ export type ComposerBarProps = {
 
 export function ComposerBar(props: ComposerBarProps) {
   const {
-    models, model, modelProfiles, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
-    aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect,
+    models, model, modelProfiles, showInpaint = true, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
+    aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect, autoUpscale = "none", onAutoUpscaleChange,
     customSize, aspectLocked = false, width, widthMeta, setWidth, height, heightMeta, setHeight,
     steps, stepsMeta, setSteps, count, countMeta, setCount, loraActiveCount,
     hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
-    referenceInputs = [], referenceStrength = null, referenceInpaint = null, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
+    referenceInputs = [], referenceInpaint = null, loraMismatch = null, onDismissLoraMismatch, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
     pinnedSeed = "", onRandomSeed, generationEstimate = null, generateKey = "", onToggleHistory, historyOpen = false
   } = props;
 
@@ -285,7 +292,7 @@ export function ComposerBar(props: ComposerBarProps) {
   /* Every control is a function of its density, so the drawer can render the
      same control at full size while the bar shows a demoted copy. */
   const workflowPicker = (density: ControlDensity) => models
-    ? <ModelPicker value={model} profiles={modelProfiles} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "Start ComfyUI to see your models." : strayModelCount ? "Some models are in a folder ComfyUI doesn’t read." : "No usable models in ComfyUI yet. Add one to its models folder, or find yours."} />
+    ? <ModelPicker value={model} profiles={modelProfiles} showInpaint={showInpaint} onChange={chooseModel} menu={modelMenu} compact badges={profileBadges} density={density} onFindModels={comfyOffline ? undefined : onFindModels} onGetModels={comfyOffline ? undefined : onGetModels} strayCount={strayModelCount} emptyHint={comfyOffline ? "Start ComfyUI to see your models." : strayModelCount ? "Some models are in a folder ComfyUI doesn’t read." : "No usable models in ComfyUI yet. Add one to its models folder, or find yours."} />
     : comfyOffline ? null : <Skeleton className="composer-skeleton" />;
 
   const aspectPicker = (density: ControlDensity) => aspectLocked ? null : (
@@ -296,6 +303,8 @@ export function ComposerBar(props: ComposerBarProps) {
       currentSize={aspectValue}
       defaultSize={defaultAspectSize}
       density={density}
+      upscale={autoUpscale}
+      onUpscaleChange={onAutoUpscaleChange}
     />
   );
 
@@ -344,7 +353,8 @@ export function ComposerBar(props: ComposerBarProps) {
 
   return (
     <>
-      <ReferenceSlots inputs={referenceInputs} strength={referenceStrength} inpaint={referenceInpaint} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
+      <LoraMismatchChip mismatch={loraMismatch} onOpenLoras={onOpenLoras} onDismiss={(key) => onDismissLoraMismatch?.(key)} />
+      <ReferenceSlots inputs={referenceInputs} inpaint={referenceInpaint} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (
         <motion.div

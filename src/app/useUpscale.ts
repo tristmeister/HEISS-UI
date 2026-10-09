@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
-import type { GalleryItem, Preferences, UpscaleInstall, UpscaleStatus } from './types';
+import type { AutoUpscale, GalleryItem, Preferences, UpscaleInstall, UpscaleQuality, UpscaleStatus } from './types';
 import type { ShowToast } from './toast';
 import { mediaUrl } from './mediaUrl';
+import { formatLeft, useRunClock } from './GenerationProgress';
 
 /** The gallery keeps the original as the record; only the view swaps. */
 export function upscaleDisplayUrl(item: GalleryItem) {
@@ -14,9 +15,53 @@ export function upscaleDisplayThumbnail(item: GalleryItem) {
   return mediaUrl(item.upscale.thumbnailUrl || item.upscale.url, item, `upscale:${item.upscale.jobId || ''}`);
 }
 
+/**
+ * Upscaled as part of its run (Smart upscale's 2K / 4K): one picture, so it
+ * offers no original to flip back to, no comparison and no upscale arrow.
+ */
+export function upscaledWithRun(item: GalleryItem) {
+  return Boolean(item.upscale?.withRun && item.upscale.url);
+}
+
 export function canUpscaleItem(item: GalleryItem) {
   // Images added from another folder stay where they are, so there is nothing to upscale into.
-  return item.status === "done" && item.type === "image" && !item.vaultLocked && !item.library && Boolean(item.url);
+  return item.status === "done" && item.type === "image" && !item.vaultLocked && !item.library && Boolean(item.url) && !upscaledWithRun(item);
+}
+
+/**
+ * A running upscale's clock: time left and how far along, from what SeedVR2
+ * has taken on this machine before (server/upscale-timing.js). Nulls until
+ * there is an honest estimate, or when the item is not upscaling.
+ */
+export function useUpscaleClock(item: GalleryItem | null | undefined) {
+  return useRunClock(item?.upscale?.status === "running" ? item.upscale.progress : null);
+}
+
+/** "Upscaling · About 20 s left", or "Waiting to upscale" while it is still behind other work. */
+export function upscaleLeftLine(item: GalleryItem, leftMs: number | null) {
+  if (leftMs === null) return "";
+  return `${item.upscale?.progress?.runStartedAt ? "Upscaling" : "Waiting to upscale"} · ${formatLeft(leftMs)}`;
+}
+
+/** "20 s", "2 min": the time left where a label has room for little. */
+export function shortLeft(ms: number) {
+  if (ms <= 1500) return "almost";
+  const seconds = Math.ceil(ms / 1000);
+  return seconds < 60 ? `${seconds} s` : `${Math.round(seconds / 60)} min`;
+}
+
+/** The upscale control's tip, for the tile, the viewer and their labels. */
+export function upscaleTooltip(item: GalleryItem, leftMs: number | null = null) {
+  const state = item.upscale;
+  if (state?.status === "running") {
+    // Time left once this machine has upscaled enough to say; SeedVR2's own count is the fallback.
+    if (leftMs !== null) return `${upscaleLeftLine(item, leftMs)} · click to stop`;
+    const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
+    return `Upscaling${step} · click to stop`;
+  }
+  if (state?.status === "error") return `${state.error || "Upscale failed"}. Click to try again`;
+  if (state?.url) return item.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale";
+  return "Smart upscale";
 }
 
 /** Decimal units, like the Finder and every model setup panel, so one file never shows two sizes. */
@@ -38,6 +83,17 @@ export const upscaleEfforts = [
   { value: "balanced", label: "Balanced", scale: "2×", model: "SeedVR2 7B", detail: "2× with the 7B fp8 model.", downloadBytes: 8_967_621_152 },
   { value: "high", label: "High", scale: "3×", model: "SeedVR2 7B fp16", detail: "3× with the 7B fp16 model. Slowest, and uses the most graphics memory.", downloadBytes: 16_980_659_238 }
 ] as const;
+
+/** Smart upscale's tabs in the size menu, each riding on one of the efforts above. */
+export const autoUpscaleTiers: { value: AutoUpscale; label: string; quality?: UpscaleQuality }[] = [
+  { value: "none", label: "None" },
+  { value: "2k", label: "2K", quality: "balanced" },
+  { value: "4k", label: "4K", quality: "high" }
+];
+
+export function autoUpscaleQuality(tier: AutoUpscale | undefined) {
+  return autoUpscaleTiers.find((item) => item.value === tier)?.quality || null;
+}
 
 export function upscaleQualityLabel(quality = "balanced") {
   return upscaleEfforts.find((effort) => effort.value === quality)?.label || "Balanced";
@@ -76,13 +132,14 @@ type UpscaleOptions = {
   showToast: ShowToast;
   loadGalleryDelta: () => void;
   patchGalleryItems: (update: (item: GalleryItem) => GalleryItem) => void;
+  setPrefs: (patch: Partial<Preferences>) => void;
 };
 
 // Long enough to read the check as a step of its own, short enough to never feel like waiting.
 const VERIFY_BEAT_MS = 1500;
 const READY_BEAT_MS = 1400;
 
-export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchGalleryItems }: UpscaleOptions) {
+export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchGalleryItems, setPrefs }: UpscaleOptions) {
   const [status, setStatus] = useState<UpscaleStatus | null>(null);
   const [install, setInstall] = useState<UpscaleInstall>(null);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
@@ -122,6 +179,11 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
   const [lastChecked, setLastChecked] = useState(0);
   // The image whose click opened setup; it upscales on its own once setup is done.
   const [pending, setPending] = useState<GalleryItem | null>(null);
+  // Setup opened from Smart upscale's tabs: it sets up that tab's effort, not the one in Settings.
+  const [setupAuto, setSetupAuto] = useState<AutoUpscale | null>(null);
+  const setupQuality: UpscaleQuality = autoUpscaleQuality(setupAuto ?? undefined) || prefs.upscaleQuality || "balanced";
+  // What Smart upscale was on before a tab opened setup, to go back to if setup is left unfinished.
+  const autoBefore = useRef<AutoUpscale>("none");
   const startingRef = useRef(false);
   // Callers need the reason in the same tick they call refreshStatus.
   const reasonRef = useRef("");
@@ -174,8 +236,8 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
 
   useEffect(() => {
     if (!prefs.smartUpscale) return;
-    refreshStatus();
-  }, [prefs.smartUpscale, prefs.upscaleQuality, refreshStatus]);
+    refreshStatus(setupQuality);
+  }, [prefs.smartUpscale, setupQuality, refreshStatus]);
 
   // Downloads are long; poll the cheap install route only while one runs. It
   // answers even while ComfyUI restarts, so progress never freezes.
@@ -207,10 +269,10 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     }
     setVerifying(true);
     const started = performance.now();
-    refreshStatus(prefs.upscaleQuality, { fresh: true }).finally(() => {
+    refreshStatus(setupQuality, { fresh: true }).finally(() => {
       window.setTimeout(() => setVerifying(false), Math.max(0, VERIFY_BEAT_MS - (performance.now() - started)));
     });
-  }, [running, install?.status, prefs.upscaleQuality, refreshStatus]);
+  }, [running, install?.status, setupQuality, refreshStatus]);
 
   // A tier running on a fallback weight is ready, but its own download stays one click away.
   const [wantsOwnModel, setWantsOwnModel] = useState(false);
@@ -227,9 +289,9 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
   const watching = setupOpen && (stage === "nodes" || stage === "offline" || stage === "checking");
   useEffect(() => {
     if (!watching) return;
-    const timer = window.setInterval(() => { refreshStatus(prefs.upscaleQuality, { fresh: true }); }, 3000);
+    const timer = window.setInterval(() => { refreshStatus(setupQuality, { fresh: true }); }, 3000);
     return () => window.clearInterval(timer);
-  }, [watching, prefs.upscaleQuality, refreshStatus]);
+  }, [watching, setupQuality, refreshStatus]);
 
   const markBusy = useCallback((id: string, busy: boolean) => {
     setBusyIds((current) => {
@@ -239,12 +301,14 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     });
   }, []);
 
-  const openSetup = useCallback((item: GalleryItem | null = null, options: { download?: boolean } = {}) => {
+  const openSetup = useCallback((item: GalleryItem | null = null, options: { download?: boolean; auto?: AutoUpscale } = {}) => {
     if (item) setPending(item);
+    const auto = options.auto && options.auto !== "none" ? options.auto : null;
+    setSetupAuto(auto);
     setWantsOwnModel(Boolean(options.download));
     setStartError("");
     setSetupOpen(true);
-    refreshStatus(prefs.upscaleQuality, { fresh: true });
+    refreshStatus(autoUpscaleQuality(auto ?? undefined) || prefs.upscaleQuality, { fresh: true });
   }, [prefs.upscaleQuality, refreshStatus]);
 
   // Hiding the dialog mid-download keeps the waiting image; it still upscales when the download lands.
@@ -252,8 +316,12 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
   const closeSetup = useCallback(() => {
     setSetupOpen(false);
     setWantsOwnModel(false);
-    if (!inFlight) setPending(null);
-  }, [inFlight]);
+    if (inFlight) return;
+    setPending(null);
+    // Smart upscale stays on only if it can run; left unfinished, the tab goes back.
+    if (setupAuto && stage !== "ready") setPrefs({ autoUpscale: autoBefore.current });
+    setSetupAuto(null);
+  }, [inFlight, setupAuto, stage, setPrefs]);
 
   /** Nothing downloads without an explicit yes in the setup dialog, which names the files and size. */
   const startDownload = useCallback(async () => {
@@ -264,7 +332,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       const started = await apiJson<{ install: UpscaleInstall }>("/api/upscale/install", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ quality: prefs.upscaleQuality || "balanced" })
+        body: JSON.stringify({ quality: setupQuality })
       });
       setInstall(started.install);
     } catch (error) {
@@ -272,7 +340,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     } finally {
       startingRef.current = false;
     }
-  }, [prefs.upscaleQuality]);
+  }, [setupQuality]);
 
   const cancelInstall = useCallback(async () => {
     try {
@@ -288,8 +356,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
   const startingIds = useRef<Set<string>>(new Set());
 
   /** Shows the upscale running from the click on; if the server says no, it steps back and says why. */
-  const runUpscale = useCallback(async (item: GalleryItem) => {
-    const quality = prefs.upscaleQuality || "balanced";
+  const runUpscale = useCallback(async (item: GalleryItem, quality: UpscaleQuality = prefs.upscaleQuality || "balanced") => {
     const before = item.upscale;
     startingIds.current.add(item.id);
     setNotice(item.id, null);
@@ -347,6 +414,19 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     }
     openSetup(item);
   }, [markBusy, openSetup, prefs.upscaleQuality, refreshStatus, runUpscale, status?.ready]);
+
+  /** A Smart upscale tab: on at once when its effort can run, otherwise through setup for that effort. */
+  const chooseAutoUpscale = useCallback(async (tier: AutoUpscale) => {
+    const before = prefs.autoUpscale || "none";
+    if (tier === before) return;
+    setPrefs({ autoUpscale: tier });
+    const quality = autoUpscaleQuality(tier);
+    if (!quality) return;
+    const current = await refreshStatus(quality);
+    if (current?.ready) return;
+    autoBefore.current = before;
+    openSetup(null, { auto: tier });
+  }, [openSetup, prefs.autoUpscale, refreshStatus, setPrefs]);
 
   const toggleUpscale = useCallback(async (item: GalleryItem, active?: boolean) => {
     if (!item.upscale?.url) return;
@@ -406,8 +486,11 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       downloadOwnModel: () => setWantsOwnModel(true),
       startDownload,
       cancelInstall,
-      recheck: () => refreshStatus(prefs.upscaleQuality, { fresh: true })
+      auto: setupAuto,
+      quality: setupQuality,
+      recheck: () => refreshStatus(setupQuality, { fresh: true })
     },
+    chooseAutoUpscale,
     refreshUpscaleStatus: refreshStatus,
     cancelUpscaleInstall: cancelInstall,
     openUpscaleSetup: openSetup,

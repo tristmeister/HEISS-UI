@@ -120,6 +120,7 @@
 .feedback-tile.is-idea { --tone: var(--ember); }
 .feedback-tile.is-question { --tone: #86abff; }
 
+
 @media (max-width: 720px) {
   .feedback-tiles { grid-template-columns: minmax(0, 1fr); }
   .feedback-tile { grid-template-columns: 30px minmax(0, 1fr); align-items: center; column-gap: 12px; row-gap: 2px; }
@@ -132,7 +133,7 @@
   margin-top: auto;
   display: grid;
   gap: 2px;
-  padding: 12px;
+  padding: 9px 11px 10px;
   border: 0;
   border-radius: var(--r-item);
   background: var(--ember-soft);
@@ -143,10 +144,29 @@
 }
 .set-nav-feedback:hover { background: rgb(255 154 82 / .22); }
 .set-nav-feedback:focus-visible { outline: none; box-shadow: var(--focus-ring); }
-.set-nav-feedback strong { display: flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; }
+.set-nav-feedback strong { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; }
 .set-nav-feedback strong::before { content: ""; width: 6px; height: 6px; background: var(--ember); box-shadow: var(--ember-glow); }
-.set-nav-feedback span { color: hsl(var(--muted-foreground)); font-size: 11.5px; line-height: 1.4; }
-@media (max-width: 720px) { .set-nav-feedback { display: none; } }
+.set-nav-feedback span { color: hsl(var(--muted-foreground)); font-size: 11px; line-height: 1.4; }
+/* The Discord: a single slim line just above it, so the board card stays the main one. */
+.set-nav-discord {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 11px;
+  border-radius: var(--r-item);
+  background: rgb(88 101 242 / .1);
+  color: hsl(var(--foreground) / .85);
+  font-size: 12px;
+  font-weight: 550;
+  text-decoration: none;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.set-nav-discord:hover { background: rgb(88 101 242 / .18); color: hsl(var(--foreground)); }
+.set-nav-discord:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.set-nav-discord svg { flex: none; color: #8c9eff; }
+.set-nav-discord + .set-nav-feedback { margin-top: 4px; }
+@media (max-width: 720px) { .set-nav-feedback, .set-nav-discord { display: none; } }
 
 /* ------------------------------------------------------ Crash screen */
 
@@ -184,5 +204,10 @@
   font: 400 11.5px/1.6 var(--font-mono, ui-monospace, monospace);
   white-space: pre-wrap;
 }
+.crash-culprits { display: grid; gap: 8px; padding: 12px 14px; border-radius: 14px; background: rgb(255 255 255 / .04); box-shadow: inset 0 0 0 1px var(--surface-border); }
+.crash .crash-culprits h2 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -.01em; }
+.crash-culprits ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; color: hsl(var(--muted-foreground)); font-size: 13px; line-height: 1.5; }
+.crash-culprits strong { color: hsl(var(--foreground)); font-weight: 600; }
+.crash-culprits p { font-size: 12.5px; }
 .crash-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 @media (prefers-reduced-motion: reduce) { .crash-mark i:nth-child(2) { animation: none; } }

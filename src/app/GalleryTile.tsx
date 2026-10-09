@@ -9,7 +9,7 @@ import { ElapsedTime } from './ElapsedTime';
 import { GenerationProgress } from './GenerationProgress';
 import { FailureTile } from './GenerationFailure';
 import type { GalleryItem } from './types';
-import { canUpscaleItem, upscaleDisplayUrl } from './useUpscale';
+import { canUpscaleItem, upscaleDisplayUrl, upscaledWithRun, upscaleTooltip, useUpscaleClock } from './useUpscale';
 import { UpscaleArrow } from './UpscaleArrow';
 import { UpscaleNoticePopover } from './UpscaleNotice';
 import { useHiddenActions } from './hiddenContext';
@@ -41,8 +41,6 @@ type GalleryTileProps = {
   cancelJob: (jobId?: string) => void;
   copyPromptAndToast: (item: GalleryItem) => void;
   deleteItem: (item: GalleryItem) => void;
-  gathering?: boolean;
-  gatherIndex?: number;
   smartUpscale?: boolean;
   upscaleBusy?: boolean;
   onUpscale?: (item: GalleryItem) => void;
@@ -62,28 +60,21 @@ export function downloadUrl(item: GalleryItem) {
   return params ? `${url}${url.includes("?") ? "&" : "?"}${params}` : url;
 }
 
-function upscaleTooltip(item: GalleryItem) {
-  const state = item.upscale;
-  if (state?.status === "running") {
-    const step = state.progress?.max ? ` · ${state.progress.value}/${state.progress.max}` : "";
-    return `Upscaling${step} · click to stop`;
-  }
-  if (state?.status === "error") return `${state.error || "Upscale failed"}. Click to try again`;
-  if (state?.url) return item.upscaleActive ? "Showing the upscale · click for the original" : "Showing the original · click for the upscale";
-  return "Smart upscale";
-}
-
 function UpscaleButton({ item, busy, onUpscale, onCancelUpscale, held = false }: { item: GalleryItem; busy: boolean; onUpscale: (item: GalleryItem) => void; onCancelUpscale: (item: GalleryItem) => void; held?: boolean }) {
   const state = item.upscale;
   const running = state?.status === "running";
-  const ratio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
+  // The ring follows the learned time when there is one; SeedVR2's own count jumps in a few big steps.
+  const clock = useUpscaleClock(item);
+  const stepRatio = state?.progress?.max ? Math.min(1, Math.max(0, state.progress.value / state.progress.max)) : 0;
+  const ratio = clock.ratio ?? (clock.leftMs !== null ? 0 : stepRatio);
   const active = Boolean(item.upscaleActive && state?.url);
+  const tooltip = upscaleTooltip(item, clock.leftMs);
   return (
-    <Tip content={upscaleTooltip(item)}>
+    <Tip content={tooltip}>
       <button
         type="button"
-        className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", busy && "is-busy", held && "is-held")}
-        aria-label={upscaleTooltip(item)}
+        className={cn("tile-upscale", active && "is-active", running && "is-running", running && !ratio && "is-indeterminate", running && clock.ratio !== null && "is-timed", busy && "is-busy", held && "is-held")}
+        aria-label={tooltip}
         aria-pressed={state?.url ? active : undefined}
         aria-disabled={busy}
         onClick={() => { if (!busy) (running ? onCancelUpscale(item) : onUpscale(item)); }}
@@ -107,7 +98,7 @@ const tileEnterTransition = {
   mass: 0.86,
 };
 
-function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, gatherIndex = 0, gathering = false, height, item, onUpscale, onCancelUpscale = () => {}, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
+function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, formatElapsed, height, item, onUpscale, onCancelUpscale = () => {}, openItem, smartUpscale = false, titleFromPrompt, upscaleBusy = false, upscaleNotice, onDismissUpscaleNotice, width }: GalleryTileProps) {
   const mountedRef = useRef(false);
   const prefersReducedMotion = useReducedMotion();
   const isEntering = !mountedRef.current && (Date.now() - Date.parse(item.createdAt || "")) < 2000;
@@ -149,8 +140,8 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
   return (
     <motion.div
       data-tile-id={item.id}
-      className={cn("tile-motion-wrap", gathering && "is-gathering")}
-      style={{ width, height, "--gather-delay": `${Math.min(gatherIndex, 6) * 14}ms` } as React.CSSProperties}
+      className="tile-motion-wrap"
+      style={{ width, height }}
       initial={prefersReducedMotion || !isEntering ? false : { opacity: 0, y: -18, scale: 0.965 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{
@@ -189,7 +180,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
         {selecting && selectable ? <span className={cn("tile-check", isSelected && "is-on")} aria-hidden="true">{isSelected ? <Check size={16} strokeWidth={3} /> : null}</span> : null}
         {smartUpscale && onUpscale && canUpscaleItem(item) ? <UpscaleButton item={item} busy={upscaleBusy} onUpscale={onUpscale} onCancelUpscale={onCancelUpscale} held={Boolean(upscaleNotice)} /> : null}
         {upscaleNotice && onDismissUpscaleNotice ? <UpscaleNoticePopover notice={upscaleNotice} placement="tile" onDismiss={() => onDismissUpscaleNotice(item.id)} /> : null}
-        {item.status === "pending" ? <Tip content="Stop generation"><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}
+        {item.status === "pending" ? <Tip content={item.progress?.upscaling ? "Stop the upscale · the picture stays" : "Stop generation"}><button type="button" className="tile-action" onClick={() => cancelJob(item.jobId)}>Stop</button></Tip> : null}
         {item.status !== "pending" ? (
           <>
             <button type="button" className="tile-more" aria-label="More actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((value) => !value)}><MoreHorizontal size={16} /></button>
@@ -197,9 +188,9 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
               {canMove ? (
                 item.privateVault
                   ? <Tip content="Move to gallery" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Move to gallery" onClick={() => act(() => hiddenActions!.unhide([item]))}><Eye size={14} /><span className="tile-menu-label">Move to gallery</span></button></Tip>
-                  : <Tip content="Hide" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Hide" onClick={() => act(() => hiddenActions!.hide([item]))}><EyeOff size={14} /><span className="tile-menu-label">Hide</span></button></Tip>
+                  : <Tip content="Move to Hidden" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Move to Hidden" onClick={() => act(() => hiddenActions!.hide([item]))}><EyeOff size={14} /><span className="tile-menu-label">Hide</span></button></Tip>
               ) : null}
-              {item.url ? <Tip content={item.upscaleActive ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
+              {item.url ? <Tip content={item.upscaleActive && !upscaledWithRun(item) ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
               {item.status === "done" ? <Tip content="Copy prompt" side="left"><button type="button" className="tile-icon" aria-label="Copy prompt" onClick={() => act(() => copyPromptAndToast(item))}><Copy size={14} /><span className="tile-menu-label">Copy prompt</span></button></Tip> : null}
               <Tip content={item.privateVault ? "Delete from Hidden" : item.library ? "Remove from gallery" : "Delete from gallery"} side="left"><button type="button" className="tile-delete" aria-label={item.privateVault ? "Delete from Hidden" : item.library ? "Remove from gallery" : "Delete from gallery"} onClick={() => act(() => deleteItem(item))}><Trash2 size={14} /><span className="tile-menu-label">{item.library ? "Remove" : "Delete"}</span></button></Tip>
             </span>
@@ -220,7 +211,6 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
 
 export const GalleryTile = React.memo(GalleryTileComponent, (previous, next) => {
   if (previous.item !== next.item) return false;
-  if (previous.gathering !== next.gathering) return false;
   if (previous.smartUpscale !== next.smartUpscale) return false;
   if (previous.upscaleBusy !== next.upscaleBusy) return false;
   if (previous.upscaleNotice !== next.upscaleNotice) return false;

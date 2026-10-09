@@ -134,7 +134,7 @@
 .ref-menu-name {
   display: grid;
   gap: 1px;
-  max-width: 160px;
+  max-width: 112px;
   padding: 3px 8px;
   border: 0;
   border-radius: 10px;
@@ -439,47 +439,27 @@
   .drop-badge-icon { animation: none; }
 }
 
-/* A start image's change amount, inside the hover menu next to its thumbnail:
-   one row (label, slim slider, value) so it fits the 42px menu. The global
-   input styles (pill, border, padding) are reset for this slider. */
-.ref-strength {
-  display: flex;
+/* The first reference at the top of the sidebar's Basics: what the composer's
+   chip holds, with how much it may change right under it. */
+.sidebar-reference { display: grid; gap: 8px; }
+.sidebar-reference-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  height: 30px;
-  padding: 0 8px;
+  gap: 10px;
+  padding: 6px 6px 6px 6px;
+  border-radius: 14px;
+  background: var(--well);
+}
+.sidebar-reference-thumb {
+  width: 40px;
+  height: 40px;
+  overflow: hidden;
   border-radius: 10px;
-  cursor: pointer;
+  background: rgb(255 255 255 / .06);
 }
-.ref-strength > span { display: contents; font-size: 11px; color: hsl(var(--muted-foreground)); }
-.ref-strength b { order: 3; min-width: 30px; font-size: 11.5px; font-weight: 600; color: hsl(var(--foreground)); font-variant-numeric: tabular-nums; text-align: right; }
-.ref-strength input[type="range"] {
-  order: 2;
-  -webkit-appearance: none;
-  appearance: none;
-  width: 72px;
-  height: 16px;
-  min-height: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  cursor: pointer;
-}
-.ref-strength input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 99px; background: rgb(255 255 255 / .22); }
-.ref-strength input[type="range"]::-moz-range-track { height: 3px; border-radius: 99px; background: rgb(255 255 255 / .22); }
-.ref-strength input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 12px;
-  height: 12px;
-  margin-top: -4.5px;
-  border: 0;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgb(0 0 0 / .45);
-}
-.ref-strength input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #fff; }
-.ref-strength input[type="range"]:focus-visible { outline: none; box-shadow: none; }
-.ref-strength input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px rgb(255 255 255 / .35); }
+.sidebar-reference-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sidebar-reference-copy { display: grid; gap: 1px; min-width: 0; }
+.sidebar-reference-copy strong { font-size: 12.5px; font-weight: 550; }
+.sidebar-reference-copy small { font-size: 11px; color: hsl(var(--muted-foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-reference-remove { color: hsl(var(--muted-foreground)); }

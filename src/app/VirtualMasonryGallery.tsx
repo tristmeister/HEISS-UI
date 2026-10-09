@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { GalleryTile } from './GalleryTile';
-import { generationIdentity } from './GenerationPreview';
-import { BundleTile, bundleSheetHeight } from './BundleTile';
-import { WIDE_RATIO, firstReaching, packMasonry, type MasonrySlot } from './masonry';
+import { RunShelf, RunStack, MomentHeading } from './RunStack';
+import { itemKey, layoutGallery, placementKey, type LayoutEntry, type RunStackStyle } from './galleryLayout';
+import { cn } from './format';
+import type { MasonrySlot } from './masonry';
 import type { UpscaleNotice } from './useUpscale';
+import type { GalleryGroups, Run } from './runs';
 import type { GalleryItem } from './types';
 
 type VirtualMasonryGalleryProps = {
@@ -18,12 +21,25 @@ type VirtualMasonryGalleryProps = {
   cancelJob: (jobId?: string) => void;
   copyPromptAndToast: (item: GalleryItem) => void;
   deleteItem: (item: GalleryItem) => void;
-  expandedBundles: Set<string>;
-  gatheringIds: Set<string>;
-  settlingBundles: Set<string>;
-  toggleBundle: (bundleId: string) => void;
-  setBundleCover: (domain: "gallery" | "vault", bundleId: string, itemId: string) => void;
-  ungroupBundle: (domain: "gallery" | "vault", bundleId: string) => void;
+  /** Moments and runs; null while grouping is off. */
+  groups?: GalleryGroups | null;
+  /** Headings for each stretch of time. */
+  moments?: boolean;
+  /** Runs fold into stacks. */
+  stackRuns?: boolean;
+  openRuns?: Set<string>;
+  /** A folded run as a photo with edges under it, or a cover flow in one card. */
+  stackStyle?: RunStackStyle;
+  setRunOpen?: (runId: string, open: boolean) => void;
+  /** Changes whenever runs settle into stacks or come loose, out of sight: the view is kept still across it. */
+  settleVersion?: unknown;
+  /** Takes an open run apart for good: its tiles go back to being separate. */
+  onUnstack?: (run: Run) => void;
+  /** On a phone a stack opens as a sheet instead of in place. */
+  onStackPress?: (run: Run) => void;
+  /** Scroll this run into view once it is laid out (opened from zen or the sheet). */
+  focusRun?: string;
+  onFocused?: () => void;
   smartUpscale?: boolean;
   upscaleBusyIds?: Set<string>;
   onUpscale?: (item: GalleryItem) => void;
@@ -31,22 +47,6 @@ type VirtualMasonryGalleryProps = {
   upscaleNotices?: Map<string, UpscaleNotice>;
   onDismissUpscaleNotice?: (id: string) => void;
 };
-
-function estimatedHeight(item: GalleryItem, width: number, expandedBundles?: Set<string>) {
-  if (item.bundle && expandedBundles?.has(item.bundle.id)) return bundleSheetHeight(item.bundle.count, width);
-  const ratio = Number(item.width || 1) / Math.max(1, Number(item.height || 1));
-  return Math.max(120, Math.round(width / Math.max(0.2, ratio)));
-}
-
-/** Bundles stay one column wide: an opened one lays its sheet out to that width. */
-const isWide = (item: GalleryItem) => !item.bundle && Number(item.width || 1) / Math.max(1, Number(item.height || 1)) >= WIDE_RATIO;
-
-/** Which column a tile sits in, kept by run and position so a finished image keeps its pending tile's place. */
-const placementKey = (item: GalleryItem) => item.jobId && Number.isInteger(item.index) ? `${item.jobId}:${item.index}` : item.id;
-
-function itemKey(item: GalleryItem) {
-  return generationIdentity(item) || item.url || item.outputName || item.filename;
-}
 
 /** The nearest ancestor that scrolls vertically: the gallery's stage in every layout. */
 function scrollParent(node: HTMLElement | null) {
@@ -70,30 +70,44 @@ function useElementWidth<T extends HTMLElement>() {
   return [ref, width] as const;
 }
 
+const emptySet = new Set<string>();
+/** Tiles glide to new places (a run opening above them, a column change) on one soft spring. */
+const glide = { type: "spring" as const, stiffness: 420, damping: 42, mass: 0.9 };
+/** How long a run takes to fold back into its stack before the grid closes over it. */
+const FOLD_MS = 300;
+
+type Flight = { runId: string; x: number; y: number; w: number; h: number; at: number };
+
 export function VirtualMasonryGallery({
   cancelJob,
   columns,
   copyPromptAndToast,
   deleteItem,
-  expandedBundles,
-  gatheringIds,
+  focusRun,
   formatElapsed,
+  groups = null,
   items,
+  moments = false,
+  onFocused,
+  onStackPress,
   openItem,
+  openRuns = emptySet,
+  settleVersion,
+  onUnstack,
+  stackStyle = "burst",
   scrollRef,
-  setBundleCover,
-  settlingBundles,
+  setRunOpen,
   smartUpscale = false,
   spanWide = false,
+  stackRuns = false,
   titleFromPrompt,
-  toggleBundle,
-  ungroupBundle,
   upscaleBusyIds,
   onUpscale,
   onCancelUpscale,
   upscaleNotices,
   onDismissUpscaleNotice,
 }: VirtualMasonryGalleryProps) {
+  const reducedMotion = useReducedMotion();
   const [containerRef, containerWidth] = useElementWidth<HTMLElement>();
   // The element that scrolls, found from where the gallery actually sits. The
   // scrollRef passed in is attached by an ancestor after this gallery's own
@@ -106,21 +120,20 @@ export function VirtualMasonryGallery({
   // grid's tracks, where the per-column lists used to sit.
   const [columnGap, setColumnGap] = useState<number | null>(null);
   React.useLayoutEffect(() => {
-    const next = scrollParent(containerRef.current) || scrollRef.current;
+    // Walking up with getComputedStyle forces a style pass, so only when the
+    // element found last time is no longer around the gallery.
+    const container = containerRef.current;
+    if (scrollElement?.isConnected && container && scrollElement.contains(container)) return;
+    const next = scrollParent(container) || scrollRef.current;
     setScrollElement((current) => (current === next ? current : next));
-    const gap = containerRef.current ? parseFloat(getComputedStyle(containerRef.current).columnGap) : NaN;
-    if (Number.isFinite(gap)) setColumnGap((current) => (current === gap ? current : gap));
   });
   const safeColumns = Math.max(1, columns);
+  React.useLayoutEffect(() => {
+    const gap = containerRef.current ? parseFloat(getComputedStyle(containerRef.current).columnGap) : NaN;
+    if (Number.isFinite(gap)) setColumnGap((current) => (current === gap ? current : gap));
+  }, [containerWidth, safeColumns]); // eslint-disable-line react-hooks/exhaustive-deps
   const spacing = containerWidth < 620 ? 4 : 7;
-  const columnWidth = containerWidth ? Math.floor((containerWidth - spacing * (safeColumns - 1)) / safeColumns) : 240;
-  // Columns sit where the grid's tracks start (browsers lay tracks out in
-  // 1/64 px steps), each tile as wide as it always was; a wide tile reaches
-  // the right edge of the tile beside it.
   const gutter = columnGap ?? spacing;
-  const track = containerWidth ? (containerWidth - gutter * (safeColumns - 1)) / safeColumns : columnWidth;
-  const columnLeft = (column: number) => Math.floor(column * track * 64) / 64 + column * gutter;
-  const wideWidth = Math.floor(track + gutter + columnWidth);
   // The grid is newest first, each tile in the shortest column: the newest top
   // left, the same layout a reload gives. That places every tile by the ones
   // before it, so a tile that goes (deleted, hidden, stopped) only moves the
@@ -135,28 +148,124 @@ export function VirtualMasonryGallery({
   const hold = () => { window.clearTimeout(releaseTimer.current); setHolding(true); };
   const release = () => { window.clearTimeout(releaseTimer.current); releaseTimer.current = window.setTimeout(() => setHolding(false), 500); };
   useEffect(() => () => window.clearTimeout(releaseTimer.current), []);
-  const placement = useRef<{ signature: string; slots: Map<string, MasonrySlot> | null }>({ signature: "", slots: null });
+
+  // A run folding shut stays open in the layout until its tiles have flown home.
+  const [folding, setFolding] = useState<string | null>(null);
+  const placement = useRef<{ signature: string; slots: Map<string, Map<string, MasonrySlot>> }>({ signature: "", slots: new Map() });
+  const grouped = Boolean(groups) && (moments || stackRuns);
+  const layoutFor = (open: Set<string>, previous: Map<string, Map<string, MasonrySlot>>, hold: boolean) => layoutGallery({
+    items,
+    groups: grouped ? groups : null,
+    moments: grouped && moments,
+    stackRuns: grouped && stackRuns,
+    stackStyle,
+    open,
+    width: containerWidth,
+    columns: safeColumns,
+    spacing,
+    gutter,
+    spanWide,
+    previous,
+    holding: hold,
+  });
+  // Everything the layout reads, and nothing more: order, sizes, what is
+  // pending, and how moments and runs fall. A generation's progress ticking
+  // along (a new items array every poll) leaves it alone, so the gallery isn't
+  // laid out again for it; tiles pick up the newest item at render instead.
+  const layoutKey = useMemo(() => {
+    const parts = items.map((item) => `${item.id}|${item.width}x${item.height}|${item.status}|${placementKey(item)}|${itemKey(item)}|${item.optimistic ? 1 : 0}`);
+    if (groups) {
+      for (const moment of groups.moments) parts.push(`m|${moment.id}|${moment.title}|${moment.part}|${moment.items.length}|${moment.items[0]?.id}`);
+      for (const run of groups.runs) parts.push(`r|${run.id}|${run.cover?.id}|${run.cover?.width}x${run.cover?.height}|${run.items.map((item) => `${item.id}:${item.status}`).join(",")}`);
+    }
+    return parts.join("\n");
+  }, [items, groups]);
+  const itemById = useMemo(() => {
+    const byId = new Map<string, GalleryItem>();
+    for (const run of groups?.runs || []) for (const item of run.items) byId.set(item.id, item);
+    for (const item of items) byId.set(item.id, item);
+    return byId;
+  }, [items, groups]);
+  const runById = useMemo(() => new Map((groups?.runs || []).map((run) => [run.id, run])), [groups]);
+  const freshItem = (item: GalleryItem) => itemById.get(item.id) || item;
+  const freshRun = (run: Run) => runById.get(run.id) || run;
   const layout = useMemo(() => {
-    const signature = `${safeColumns}:${columnWidth}:${spanWide}`;
-    const previous = placement.current.signature === signature ? placement.current.slots : null;
+    const signature = `${safeColumns}:${containerWidth}:${spanWide}:${moments}:${stackRuns}:${stackStyle}`;
+    const previous = placement.current.signature === signature ? placement.current.slots : new Map();
     // What you just started here lands top left at once, hold or not: you
     // pressed Generate, so the grid moving now is expected. Results from
     // another device or tab still wait for the pointer to leave.
-    const ownLanding = Boolean(previous) && items.some((item) => item.optimistic && !previous!.has(placementKey(item)));
-    const next = packMasonry({
-      count: items.length,
-      columns: safeColumns,
-      columnWidth,
-      gap: spacing,
-      keyOf: (index) => placementKey(items[index]),
-      heightOf: (index, span) => estimatedHeight(items[index], span === 2 ? wideWidth : columnWidth, expandedBundles),
-      wideOf: (index) => spanWide && isWide(items[index]),
-      previous,
-      holding: holding && !ownLanding,
-    });
-    placement.current = { signature, slots: next.placement };
+    const placed = (key: string) => [...previous.values()].some((slots) => slots.has(key));
+    const ownLanding = previous.size > 0 && items.some((item) => item.optimistic && !placed(placementKey(item)));
+    const next = layoutFor(openRuns, previous, holding && !ownLanding);
+    placement.current = { signature, slots: next.placements };
     return next;
-  }, [columnWidth, expandedBundles, holding, items, safeColumns, spacing, spanWide, wideWidth]);
+  }, [containerWidth, gutter, layoutKey, holding, moments, openRuns, safeColumns, stackStyle, spacing, spanWide, stackRuns]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A run opening deals its tiles out where they land, one after another in
+  // the order they were made, while everything below glides down to make room.
+  // (Flying them from the stack looked lost whenever the shelf landed far from
+  // it: tiles streaked across the screen.) If the shelf lands out of sight,
+  // the gallery scrolls it into view.
+  const flight = useRef<Flight | null>(null);
+  const reveal = useRef<string | null>(null);
+  const openStack = (entry: Extract<LayoutEntry, { kind: "stack" }>) => {
+    if (onStackPress) { onStackPress(freshRun(entry.run)); return; }
+    flight.current = { runId: entry.run.id, x: entry.x, y: entry.y, w: entry.w, h: entry.h, at: performance.now() };
+    reveal.current = entry.run.id;
+    setRunOpen?.(entry.run.id, true);
+  };
+  const foldTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(foldTimer.current), []);
+  const closeRun = (run: Run) => {
+    if (folding) return;
+    flight.current = null;
+    if (reducedMotion) { setRunOpen?.(run.id, false); return; }
+    setFolding(run.id);
+    window.clearTimeout(foldTimer.current);
+    foldTimer.current = window.setTimeout(() => {
+      setRunOpen?.(run.id, false);
+      setFolding(null);
+      landed.current = { runId: run.id, at: performance.now() };
+    }, FOLD_MS);
+  };
+  // The stack a run just folded into settles in, and comes into view if the fold scrolled it away.
+  const landed = useRef<{ runId: string; at: number } | null>(null);
+  useEffect(() => {
+    const element = scrollElement;
+    const container = containerRef.current;
+    const just = landed.current;
+    if (!just || !element || !container || performance.now() - just.at > 400) return;
+    const stack = layout.entries.find((entry) => entry.kind === "stack" && entry.run.id === just.runId);
+    if (!stack) return;
+    const offset = container.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+    const top = offset + stack.y;
+    if (top < element.scrollTop + 60) element.scrollTo({ top: Math.max(0, top - 96), behavior: reducedMotion ? "auto" : "smooth" });
+  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const runId = reveal.current;
+    const container = containerRef.current;
+    if (!runId || !scrollElement || !container) return;
+    const shelf = layout.entries.find((entry) => entry.kind === "shelf" && entry.run.id === runId);
+    if (!shelf) return;
+    reveal.current = null;
+    const offset = container.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop;
+    const top = offset + shelf.y;
+    const view = scrollElement.clientHeight;
+    const visible = top > scrollElement.scrollTop + 40 && top < scrollElement.scrollTop + view * 0.55;
+    if (!visible) scrollElement.scrollTo({ top: Math.max(0, top - Math.min(140, view * 0.18)), behavior: reducedMotion ? "auto" : "smooth" });
+  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Opened from somewhere else (zen, a phone sheet): bring the run's shelf into view.
+  useEffect(() => {
+    if (!focusRun || !scrollElement || !containerRef.current) return;
+    const tray = layout.entries.find((entry) => (entry.kind === "shelf" || entry.kind === "stack") && entry.run.id === focusRun);
+    if (!tray) return;
+    const offset = containerRef.current.getBoundingClientRect().top - scrollElement.getBoundingClientRect().top + scrollElement.scrollTop;
+    scrollElement.scrollTo({ top: Math.max(0, offset + tray.y - 96), behavior: reducedMotion ? "auto" : "smooth" });
+    onFocused?.();
+  }, [focusRun, layout, scrollElement]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The stretch of the grid to draw, in the grid's own coordinates: the screen
   // and one more above and below. It moves in steps of half a screen, so
@@ -190,24 +299,69 @@ export function VirtualMasonryGallery({
     };
   }, [containerRef, layout.total, scrollElement, scrollRef]);
 
-  // The tiles in that stretch, column by column and top to bottom, so Tab walks
-  // the masonry as it always has; a spanning tile belongs to its left column.
-  const visible = useMemo(() => {
-    const out: Array<{ index: number; row: number }> = [];
-    layout.lists.forEach((list, column) => {
-      for (let row = firstReaching(list, layout.top, layout.height, range.start); row < list.length; row += 1) {
-        const index = list[row];
-        if (layout.top[index] > range.end) break;
-        if (layout.column[index] === column) out.push({ index, row });
-      }
-    });
-    return out;
-  }, [layout, range]);
+  // Runs folding or coming loose out of sight, and open runs refolding as
+  // they're scrolled past, change heights above the screen. Whatever is on
+  // screen stays where it is: the first tile showing before the change is
+  // found again after it, and the gallery scrolls by however far it moved.
+  // (Near the top that's left alone, so new results still come into view.)
+  const keepView = useRef(false);
+  const lastSettle = useRef(settleVersion);
+  if (lastSettle.current !== settleVersion) { lastSettle.current = settleVersion; keepView.current = true; }
+  const shown = useRef(layout);
+  React.useLayoutEffect(() => {
+    const previous = shown.current;
+    shown.current = layout;
+    if (!keepView.current) return;
+    keepView.current = false;
+    const element = scrollElement;
+    const container = containerRef.current;
+    if (!element || !container || previous === layout) return;
+    const offset = container.getBoundingClientRect().top - element.getBoundingClientRect().top + element.scrollTop;
+    const top = element.scrollTop - offset;
+    if (top < 200) return;
+    const now = new Map(layout.entries.map((entry) => [entry.key, entry.y]));
+    const anchor = previous.entries
+      .filter((entry) => (entry.kind === "tile" || entry.kind === "stack") && entry.y >= top && now.has(entry.key))
+      .sort((a, b) => a.y - b.y)[0];
+    if (!anchor) return;
+    const moved = (now.get(anchor.key) ?? anchor.y) - anchor.y;
+    if (Math.abs(moved) > 0.5) element.scrollTop += moved;
+  }, [layout]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // An open run scrolled well out of view folds back up by itself, so the
+  // gallery doesn't fill with shelves left open and forgotten.
+  useEffect(() => {
+    if (!setRunOpen || folding) return;
+    const recent = flight.current && performance.now() - flight.current.at < 2000;
+    for (const entry of layout.entries) {
+      if (entry.kind !== "shelf" || !openRuns.has(entry.run.id)) continue;
+      if (recent && flight.current?.runId === entry.run.id) continue;
+      if (entry.y + entry.h >= range.start && entry.y <= range.end) continue;
+      keepView.current = true;
+      setRunOpen(entry.run.id, false);
+    }
+  }, [range]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const visible = useMemo(
+    () => layout.entries.filter((entry) => entry.y + entry.h >= range.start && entry.y <= range.end),
+    [layout, range]
+  );
+  // Arrows follow time across whatever is shown: tiles and stacks, newest first.
+  const order = useMemo(() => {
+    const ids: string[] = [];
+    for (const entry of layout.entries) if (entry.kind === "tile" || entry.kind === "stack") ids.push(entry.kind === "tile" ? entry.item.id : entry.run.id);
+    const rank = new Map(items.map((item, index) => [item.id, index]));
+    const at = (id: string) => rank.get(id) ?? rank.get(runById.get(id)?.cover.id || "") ?? 0;
+    return ids.sort((a, b) => at(a) - at(b));
+  }, [groups, items, layout]);
+
+  const now = performance.now();
+  const flying = flight.current && now - flight.current.at < 700 ? flight.current : null;
 
   return (
     <section
       ref={containerRef}
-      className="gallery virtual-gallery"
+      className={grouped ? "gallery virtual-gallery is-grouped" : "gallery virtual-gallery"}
       aria-label="Gallery"
       onPointerEnter={hold}
       onPointerLeave={release}
@@ -217,9 +371,9 @@ export function VirtualMasonryGallery({
         if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(event.key)) return;
         const tile = (event.target as HTMLElement).closest<HTMLElement>("[data-tile-id]");
         if (!tile || (event.target as HTMLElement).closest(".tile-overlay")) return;
-        const index = items.findIndex((item) => item.id === tile.dataset.tileId);
-        const next = items[index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1)];
-        const target = next ? document.querySelector<HTMLElement>(`[data-tile-id="${CSS.escape(next.id)}"] .tile`) : null;
+        const index = order.indexOf(tile.dataset.tileId || "");
+        const next = order[index + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1)];
+        const target = next ? document.querySelector<HTMLElement>(`[data-tile-id="${CSS.escape(next)}"] .tile, [data-tile-id="${CSS.escape(next)}"] .run-stack`) : null;
         if (!target) return;
         event.preventDefault();
         target.focus();
@@ -228,52 +382,87 @@ export function VirtualMasonryGallery({
       style={{ "--gallery-columns": safeColumns, "--gallery-gap": `${spacing}px` } as React.CSSProperties}
     >
       <div className="virtual-gallery-spacer" style={{ height: layout.total }}>
-        {visible.map(({ index, row }) => {
-          const item = items[index];
-          const wide = layout.span[index] === 2;
-          const width = wide ? wideWidth : columnWidth;
-          const height = layout.height[index];
+        {visible.map((entry) => {
+          if (entry.kind === "moment") {
+            return (
+              <div key={entry.key} className={entry.first ? "virtual-gallery-moment is-first" : "virtual-gallery-moment"} style={{ width: entry.w, height: entry.h, transform: `translateY(${entry.y}px)` }}>
+                <MomentHeading moment={entry.moment} />
+              </div>
+            );
+          }
+          if (entry.kind === "shelf") {
+            return (
+              <RunShelf
+                key={entry.key}
+                run={freshRun(entry.run)}
+                y={entry.y}
+                width={entry.w}
+                height={entry.h}
+                folding={folding === entry.run.id}
+                arriving={Boolean(flying && flying.runId === entry.run.id)}
+                onClose={() => closeRun(entry.run)}
+                onUnstack={onUnstack ? () => onUnstack(freshRun(entry.run)) : undefined}
+              />
+            );
+          }
+          const ofRun = entry.kind === "stack" || !entry.run ? undefined : freshRun(entry.run);
+          const inFold = Boolean(ofRun && folding && ofRun.id === folding);
+          const dealing = Boolean(ofRun && flying && ofRun.id === flying.runId);
+          // Tiles deal out in the order they were made, and fold back the other way.
+          const order = ofRun && entry.kind === "tile" ? Math.max(0, ofRun.items.findIndex((item) => item.id === entry.item.id)) : 0;
+          const step = Math.min(order, 12) * 0.028;
           return (
-            <div
-              key={itemKey(item) || `tile-${index}`}
-              className={wide ? "virtual-gallery-cell is-wide" : "virtual-gallery-cell"}
-              style={{ left: columnLeft(layout.column[index]), width, height: height + spacing, transform: `translateY(${layout.top[index]}px)` }}
+            <motion.div
+              key={entry.key}
+              className={cn(
+                "virtual-gallery-cell",
+                entry.kind === "stack" && "is-stack",
+                entry.kind === "tile" && !ofRun && entry.w > (containerWidth / safeColumns) * 1.5 && "is-wide",
+                ofRun && "in-run"
+              )}
+              style={{ left: 0, top: 0, width: entry.w, height: entry.h + spacing, transformOrigin: "50% 60%" }}
+              initial={dealing && !reducedMotion
+                ? { x: entry.x, y: entry.y + 22, scale: 0.94, opacity: 0 }
+                : false}
+              animate={inFold
+                ? { x: entry.x, y: entry.y + 14, scale: 0.95, opacity: 0 }
+                : { x: entry.x, y: entry.y, scale: 1, opacity: 1 }}
+              transition={inFold
+                ? { duration: 0.22, ease: [0.4, 0, 1, 1], delay: Math.max(0, 0.08 - step / 3) }
+                : dealing
+                  ? { type: "spring", stiffness: 300, damping: 30, mass: 0.9, delay: 0.06 + step, opacity: { duration: 0.32, ease: [0.16, 1, 0.3, 1], delay: 0.06 + step } }
+                  : glide}
             >
-              {item.bundle ? (
-                <BundleTile
-                  expanded={expandedBundles.has(item.bundle.id)}
-                  height={height}
-                  item={item}
-                  onSetCover={setBundleCover}
-                  onToggle={toggleBundle}
-                  onUngroup={ungroupBundle}
-                  settling={settlingBundles.has(item.bundle.id)}
-                  openItem={openItem}
+              {entry.kind === "stack" ? (
+                <RunStack
+                  variant={stackStyle}
+                  run={freshRun(entry.run)}
+                  width={entry.w}
+                  height={entry.h}
+                  arriving={Boolean(landed.current && landed.current.runId === entry.run.id && now - landed.current.at < 400)}
+                  onOpen={() => openStack(entry)}
                   titleFromPrompt={titleFromPrompt}
-                  width={width}
                 />
               ) : (
-              <GalleryTile
-                cancelJob={cancelJob}
-                gathering={gatheringIds.has(item.id)}
-                gatherIndex={row}
-                copyPromptAndToast={copyPromptAndToast}
-                deleteItem={deleteItem}
-                formatElapsed={formatElapsed}
-                height={height}
-                item={item}
-                openItem={openItem}
-                smartUpscale={smartUpscale}
-                upscaleBusy={Boolean(upscaleBusyIds?.has(item.id))}
-                onUpscale={onUpscale}
-                onCancelUpscale={onCancelUpscale}
-                upscaleNotice={upscaleNotices?.get(item.id)}
-                onDismissUpscaleNotice={onDismissUpscaleNotice}
-                titleFromPrompt={titleFromPrompt}
-                width={width}
-              />
+                <GalleryTile
+                  cancelJob={cancelJob}
+                  copyPromptAndToast={copyPromptAndToast}
+                  deleteItem={deleteItem}
+                  formatElapsed={formatElapsed}
+                  height={entry.h}
+                  item={freshItem(entry.item)}
+                  openItem={openItem}
+                  smartUpscale={smartUpscale}
+                  upscaleBusy={Boolean(upscaleBusyIds?.has(entry.item.id))}
+                  onUpscale={onUpscale}
+                  onCancelUpscale={onCancelUpscale}
+                  upscaleNotice={upscaleNotices?.get(entry.item.id)}
+                  onDismissUpscaleNotice={onDismissUpscaleNotice}
+                  titleFromPrompt={titleFromPrompt}
+                  width={entry.w}
+                />
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>

@@ -80,6 +80,27 @@
 }
 .viewer-canvas.is-zoomed img, .viewer-canvas.is-zoomed video { cursor: grab; transition: none; }
 .viewer-canvas.is-dragging img, .viewer-canvas.is-dragging video { transition: none; }
+/* Touch paints the transform itself (viewerGesture.ts): nothing eases while a
+   finger leads, then the picture springs to rest, or slides off for the next. */
+.viewer-canvas[data-gesture] img, .viewer-canvas[data-gesture] video,
+.viewer-canvas[data-gesture] .generation-surface,
+.zen-output[data-gesture] img, .zen-output[data-gesture] video,
+.zen-output[data-gesture] .generation-surface { transition: none; }
+.viewer-canvas[data-settle] img, .viewer-canvas[data-settle] video,
+.viewer-canvas[data-settle] .generation-surface,
+.zen-output[data-settle] img, .zen-output[data-settle] video,
+.zen-output[data-settle] .generation-surface { transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1); }
+.viewer-canvas[data-settle="slide"] .generation-surface,
+.viewer-canvas[data-settle="slide"] img, .viewer-canvas[data-settle="slide"] video,
+.zen-output[data-settle="slide"] .generation-surface,
+.zen-output[data-settle="slide"] img, .zen-output[data-settle="slide"] video { transition: transform 160ms cubic-bezier(0.4, 0, 1, 1); }
+/* Inside the surface the picture itself stays put; only the surface moves. */
+.viewer-canvas[data-settle] .generation-surface img, .viewer-canvas[data-settle] .generation-surface video,
+.zen-output[data-settle] .generation-surface img, .zen-output[data-settle] .generation-surface video { transition: none; }
+@media (prefers-reduced-motion: reduce) {
+  .viewer-canvas[data-settle] .generation-surface, .zen-output[data-settle] .generation-surface,
+  .viewer-canvas[data-settle] img, .zen-output[data-settle] img { transition-duration: 1ms; }
+}
 
 .viewer-side {
   min-width: 0; min-height: 0;

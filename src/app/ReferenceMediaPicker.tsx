@@ -289,8 +289,10 @@ function DropBadge({ text }: { text: string }) {
 
 /* ------------------------------------------------------------------ Slot */
 
-/** How much a start image may change (the sampler's denoise), 0-1. */
-export type ReferenceStrength = { value: number; onChange: (value: number) => void; meta?: { min?: number; max?: number; step?: number } };
+/** A reference's name as shown: its file name without the extension. */
+export function referenceName(name: string) {
+  return name.replace(/\.[a-z0-9]{2,5}$/i, "") || name;
+}
 
 // The menu opens a beat after the pointer arrives and stays a moment after it
 // leaves, so passing over the chip or wobbling off its edge never flickers it.
@@ -307,9 +309,8 @@ const rememberInpaintIntro = () => { try { localStorage.setItem(inpaintIntroKey,
  * image-to-image) and settles into a round +. With an
  * image it becomes a squircle thumbnail that opens into a small menu on hover.
  */
-function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh, paint, onOpen, onRemove }: {
+function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, onOpen, onRemove }: {
   input: MediaInput;
-  strength?: ReferenceStrength | null;
   selected: ReferenceAsset | null;
   open: boolean;
   busy: boolean;
@@ -378,25 +379,9 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
           nothing reflows and the thumbnail never moves. */}
       <div className="ref-menu">
         <button type="button" className="ref-menu-name" onClick={onOpen} tabIndex={-1}>
-          <strong>{selected.name}</strong>
-          <small>{isStart ? "Start image" : selected.source === "generation" ? "Generation" : selected.source === "vault" ? "Hidden" : "Upload"} · change</small>
+          <strong>{isStart ? "Start image" : label}</strong>
+          <small>{referenceName(selected.name)}</small>
         </button>
-        {isStart && strength && !paint?.masked ? (
-          <Tip content="How much the image can change. Low stays close; high keeps only its layout and colors.">
-            <label className="ref-strength">
-              <span>Change<b>{Math.round(strength.value * 100)}%</b></span>
-              <input
-                type="range"
-                min={strength.meta?.min ?? 0}
-                max={strength.meta?.max ?? 1}
-                step={Math.max(0.05, strength.meta?.step ?? 0.05)}
-                value={strength.value}
-                aria-label="How much to change the start image"
-                onChange={(event) => strength.onChange(Number(event.target.value))}
-              />
-            </label>
-          </Tip>
-        ) : null}
         <Tip content={`Remove ${label.toLowerCase()}`}>
           <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
         </Tip>
@@ -426,9 +411,8 @@ function ReferenceSlot({ input, strength, selected, open, busy, progress, fresh,
  * Every reference input of the workflow, top right of the composer, plus the
  * picker popover and drop-and-paste uploads on the whole prompt bar.
  */
-export function ReferenceSlots({ inputs, strength = null, inpaint = null, selected, onSelect, onRemove, confirmDelete, onError }: {
+export function ReferenceSlots({ inputs, inpaint = null, selected, onSelect, onRemove, confirmDelete, onError }: {
   inputs: MediaInput[];
-  strength?: ReferenceStrength | null;
   inpaint?: ReferenceInpaint | null;
   selected: SelectedReferenceAsset[];
   onSelect: (slot: string, asset: ReferenceAsset) => void;
@@ -608,7 +592,6 @@ export function ReferenceSlots({ inputs, strength = null, inpaint = null, select
           <ReferenceSlot
             key={input.id}
             input={input}
-            strength={strength}
             selected={assetFor(input.id)}
             open={openSlot === input.id}
             busy={uploadSlot === input.id}
