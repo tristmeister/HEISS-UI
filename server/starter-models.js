@@ -12,7 +12,8 @@ import { existingCopy } from "./model-downloads.js";
  * hardware ComfyUI runs on. The files are ordinary catalog downloads, so they
  * go through the same queue, resume and progress as the setup panel's "Get
  * all". The model file comes last: the studio lists the model only once every
- * part it needs is in place, so it is ready the moment it appears.
+ * part it needs is in place, so it is ready the moment it appears. `pick` is
+ * the version a card selects first: the best fit, else one this device loads.
  */
 export function starterPlan({ hardware = null, info = null, onDisk = existingCopy } = {}) {
   const encoders = info ? optionsFor(info, "CLIPLoader", "clip_name").map(classifyEncoder) : [];
@@ -60,8 +61,16 @@ export function starterPlan({ hardware = null, info = null, onDisk = existingCop
         fits: hardware?.unified && model.fp8 ? false : fitsHardware(hardware, { memoryGB, ramGB: version.ram || 0 })
       };
     });
-    return { family: card.family, title: card.title, blurb: card.blurb, versions, best: bestVersion(versions) };
+    // A Mac cannot load a quantized fp8 file, so there those versions go last.
+    const ordered = device.apple ? [...versions.filter((item) => !item.fp8), ...versions.filter((item) => item.fp8)] : versions;
+    const best = bestVersion(ordered);
+    return { family: card.family, title: card.title, blurb: card.blurb, versions: ordered, best, pick: best || firstLoadable(ordered, device) };
   });
+}
+
+/** What the card selects when nothing fits (or the hardware is unknown): the first version this device can load at all. */
+function firstLoadable(versions, device) {
+  return (versions.find((version) => !(device.apple && version.fp8)) || versions[0])?.id || null;
 }
 
 /** The largest version that fits; on a tie, the one listed first. */

@@ -15,6 +15,8 @@
   text-align: left;
 }
 .starter-models.is-compact { width: 100%; margin: 0 0 20px; }
+/* The empty gallery sets line-height 0 for its tiles; text here needs its own. */
+.starter-models { line-height: 1.4; }
 .starter-models.is-loading { min-height: 280px; }
 .starter-note {
   margin: 0;
@@ -103,12 +105,15 @@
   white-space: nowrap;
 }
 .starter-version-memory {
+  display: grid;
+  justify-items: end;
   flex: none;
   color: hsl(var(--muted-foreground));
   font-size: 12px;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
 }
+.starter-version-memory small { font-size: 10.5px; font-weight: 450; color: hsl(var(--muted-foreground)); }
 .starter-version.is-selected .starter-version-memory { color: hsl(var(--foreground)); }
 /* The version that suits this computer: the one warm note, small. */
 .starter-best-dot {
