@@ -888,7 +888,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                     ) : (
                       <InpaintSuggestions onGetModels={onGetModels} />
                     )}
-                    <Row label="Strength and edge softness" description={`While a painted image is in the prompt bar, both are in ${phoneDevice ? 'the Advanced sheet' : 'the sidebar’s Advanced tab'}. Strength is there for models that take a start image.`} />
+                    <Row label="Strength and edge softness" description={`While a painted image is in the prompt bar, both are in ${phoneDevice ? 'the Advanced sheet' : 'the sidebar’s Basics, under the image'}. Strength is there for models that take a start image.`} />
                     <InpaintDemo />
                   </>
                 ) : null}

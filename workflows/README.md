@@ -35,6 +35,8 @@ The controls it can map are `prompt`, `negative`, `seed`, `steps`, `cfg`, `sampl
 
 Importing without a `heissUi` block works too: HEISS UI guesses the mapping from node types and order (the first text encoder is the prompt, the second the negative, the first sampler gets seed and steps). The import review marks those guesses and lists what follows the studio and what stays as saved. Its **Copy for an agent** button copies a prompt, with the workflow, that asks an AI agent to write the `heissUi` block for you; the prompt lives in `src/app/workflowAgentGuide.ts`.
 
+Smart upscale's 2K and 4K picks work with imported workflows too: the upscale runs in the same ComfyUI job, after the workflow's own output. Inpainting doesn't: an imported workflow gets reference and start images, not the brush.
+
 ## Image-to-image inputs
 
 Declare image editing explicitly rather than relying only on a `LoadImage`

@@ -205,8 +205,8 @@ kbd {
   color: var(--ms-text-2); font: 500 11px/1.2 var(--mono, monospace); letter-spacing: 0.03em;
 }
 .tags { display: flex; align-items: center; gap: 6px; flex: none; }
-.tag.refs { display: inline-grid; place-items: center; width: 24px; height: 22px; padding: 0; background: rgb(255 154 82 / 0.12); color: var(--ms-ember); }
-.tag.refs svg { width: 14px; height: 14px; stroke-width: 1.75; }
+.tag.refs, .tag.inpaint { display: inline-grid; place-items: center; width: 24px; height: 22px; padding: 0; background: rgb(255 154 82 / 0.12); color: var(--ms-ember); }
+.tag.refs svg, .tag.inpaint svg { width: 14px; height: 14px; stroke-width: 1.75; }
 .tag.works { display: inline-flex; align-items: center; gap: 4px; background: rgb(52 211 153 / 0.12); color: #4ade80; font-family: var(--sans, system-ui, sans-serif); font-size: 12px; font-weight: 550; letter-spacing: -0.005em; }
 .tag.works svg { width: 11px; height: 11px; stroke-width: 2.5; }
 .go { display: grid; place-items: center; flex: none; width: 28px; height: 28px; color: var(--ms-text-3); transition: color 200ms var(--ms-ease-ui), translate 320ms var(--ms-ease), rotate 320ms var(--ms-ease); }

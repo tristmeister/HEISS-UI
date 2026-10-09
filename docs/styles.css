@@ -1365,7 +1365,7 @@ kbd {
 .stage.in-view .is-active .v-btn { animation: press 7s var(--ease-ui) infinite both; }
 @keyframes press { 0%, 38% { transform: none; } 40% { transform: scale(0.92); } 44%, 100% { transform: none; } }
 
-/* 07 · upscale compare */
+/* 05 · smart upscale: compare, and the run's 2K/4K pick */
 .u-split { transform-box: fill-box; transform-origin: left center; transform: scaleX(0.5); }
 .u-handle { transform: translateX(200px); }
 .u-line { stroke: #fff; stroke-width: 2; }
@@ -1374,6 +1374,82 @@ kbd {
 .stage.in-view .is-active .u-handle { animation: handle 5.5s ease-in-out infinite alternate both; }
 @keyframes split { from { transform: scaleX(0.22); } to { transform: scaleX(0.78); } }
 @keyframes handle { from { transform: translateX(88px); } to { transform: translateX(312px); } }
+
+/* 03 · inpainting: a recording from the app, played only while it's the active scene */
+.art-clip { overflow: hidden; background: #0a0a0a; }
+.art-video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 52%;
+}
+
+/* 04 · auto-grouping: four takes fold into one stack, the rest reflow, then the stack is skimmed.
+   Resting style is the grouped gallery, so reduced motion shows the finished stack. */
+.g-frame { fill: none; stroke: rgb(255 255 255 / 0.08); }
+.g-glass { fill: none; stroke: #8c8c8c; stroke-width: 1.5; stroke-linecap: round; }
+.g-btn { fill: rgb(255 154 82 / 0.16); }
+.g-btn-glyph rect, .g-btn-glyph path { fill: none; stroke: var(--ember); stroke-width: 1.5; stroke-linecap: round; }
+.g-edge { stroke: rgb(255 255 255 / 0.08); }
+.g-edge-b { fill: #3a3a3a; }
+.g-edge-c { fill: #2a2a2a; }
+/* The other takes: same idea, a tweak each (warmer, cooler, later light). */
+.g-tint-warm { fill: #ff9a52; opacity: 0.22; }
+.g-tint-cool { fill: #3d6bff; opacity: 0.2; }
+.g-tint-dusk { fill: #4a1f5c; opacity: 0.38; }
+.g-merge { opacity: 0; transform: translate(var(--dx), var(--dy)); }
+.g-flow { transform: translate(var(--fx), var(--fy)); }
+.g-v { opacity: 0; }
+.g-badge { transform-box: fill-box; transform-origin: center; }
+.g-skim { opacity: 0; }
+.g-track { fill: rgb(255 255 255 / 0.28); }
+.g-cursor { fill: #f4f4f4; stroke: #0a0a0a; stroke-width: 1.2; stroke-linejoin: round; }
+
+.stage.in-view .is-active .g-btn { animation: g-btn 10s var(--ease-ui) infinite both; }
+.stage.in-view .is-active .g-btn-glyph rect,
+.stage.in-view .is-active .g-btn-glyph path { animation: g-glyph 10s var(--ease-ui) infinite both; }
+.stage.in-view .is-active .g-merge { animation: g-merge 10s var(--ease) infinite both; }
+.stage.in-view .is-active .g-flow { animation: g-flow 10s var(--ease) infinite both; }
+.stage.in-view .is-active .g-edge { animation: g-edge 10s var(--ease-ui) infinite both; }
+.stage.in-view .is-active .g-badge { animation: g-badge 10s var(--ease) infinite both; }
+.stage.in-view .is-active .g-note { animation: g-edge 10s var(--ease-ui) infinite both; }
+.stage.in-view .is-active .g-skim { animation: g-skim 10s var(--ease-ui) infinite both; }
+.stage.in-view .is-active .g-knob,
+.stage.in-view .is-active .g-cursor { animation: g-knob 10s var(--ease) infinite both; }
+.stage.in-view .is-active .g-v1 { animation: g-v1 10s steps(1) infinite both; }
+.stage.in-view .is-active .g-v2 { animation: g-v2 10s steps(1) infinite both; }
+.stage.in-view .is-active .g-v3 { animation: g-v3 10s steps(1) infinite both; }
+
+@keyframes g-btn { 0%, 12% { fill: #252525; } 16%, 88% { fill: rgb(255 154 82 / 0.16); } 93%, 100% { fill: #252525; } }
+@keyframes g-glyph { 0%, 12% { stroke: #8c8c8c; } 16%, 88% { stroke: var(--ember); } 93%, 100% { stroke: #8c8c8c; } }
+@keyframes g-merge {
+  0%, 15% { opacity: 1; transform: none; }
+  28% { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(0.98); }
+  31%, 89% { opacity: 0; transform: translate(var(--dx), var(--dy)); }
+  90% { opacity: 0; transform: none; }
+  97%, 100% { opacity: 1; transform: none; }
+}
+@keyframes g-flow {
+  0%, 30% { opacity: 1; transform: none; }
+  42%, 88% { opacity: 1; transform: translate(var(--fx), var(--fy)); }
+  90% { opacity: 0; transform: translate(var(--fx), var(--fy)); }
+  91% { opacity: 0; transform: none; }
+  97%, 100% { opacity: 1; transform: none; }
+}
+@keyframes g-edge { 0%, 25% { opacity: 0; } 31%, 88% { opacity: 1; } 92%, 100% { opacity: 0; } }
+@keyframes g-badge { 0%, 28% { opacity: 0; transform: scale(0.6); } 33%, 88% { opacity: 1; transform: none; } 92%, 100% { opacity: 0; transform: scale(0.8); } }
+@keyframes g-skim { 0%, 45% { opacity: 0; } 48%, 80% { opacity: 1; } 84%, 100% { opacity: 0; } }
+@keyframes g-knob {
+  0%, 48% { transform: none; }
+  52%, 56% { transform: translateX(18.5px); }
+  60%, 64% { transform: translateX(37px); }
+  68%, 80% { transform: translateX(55.5px); }
+  84%, 100% { transform: none; }
+}
+@keyframes g-v1 { 0% { opacity: 0; } 50% { opacity: 1; } 58%, 100% { opacity: 0; } }
+@keyframes g-v2 { 0% { opacity: 0; } 58% { opacity: 1; } 66%, 100% { opacity: 0; } }
+@keyframes g-v3 { 0% { opacity: 0; } 66% { opacity: 1; } 82%, 100% { opacity: 0; } }
 
 /* ── Sections ─────────────────────────────────────────────────────────── */
 

@@ -30,7 +30,7 @@
       "headline": "Krita AI Diffusion vs HEISS UI",
       "description": "Krita AI Diffusion and HEISS UI both run on ComfyUI. One is a painting plugin with inpainting and control layers, one a prompt-first studio. Which is yours.",
       "url": "https://heiss-ui.vercel.app/compare/krita-ai-diffusion/",
-      "dateModified": "2026-09-29",
+      "dateModified": "2026-10-09",
       "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
       "author": {
         "@type": "Organization",
@@ -90,7 +90,7 @@
           "name": "Does HEISS UI do inpainting?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. It has start images, reference images for Flux.2 and Qwen-Image 2.1, and SeedVR2 upscaling. For inpainting, Krita AI Diffusion or InvokeAI are the better tools."
+            "text": "Yes, quick brush inpainting, in beta. Hover a start or reference image, paint over the part to change and say what it becomes. Only that part is redrawn, on 18 of its 21 image families, with no extra nodes. For selections, layers, outpainting and control layers, Krita AI Diffusion or InvokeAI are still the better tools."
           }
         },
         {
@@ -175,7 +175,7 @@
 <p class="label">Compare</p>
 <h1>Krita AI Diffusion vs HEISS UI.</h1>
 <p class="g-lead">Both run on ComfyUI and both are free. HEISS UI is a prompt box and gallery for making many images quickly across many models. Krita AI Diffusion puts generation inside a painting app: selections, inpainting, live painting and control layers. If you paint or fix details by hand, pick Krita.</p>
-<p class="g-meta"><span>Checked 29 Sep 2026</span><span>Krita AI Diffusion 1.53.0</span><span>HEISS UI 0.13.0</span></p>
+<p class="g-meta"><span>Checked 29 Sep 2026</span><span>Krita AI Diffusion 1.53.0</span><span>HEISS UI 0.17.0</span></p>
 <dl class="g-spec"><div><dt>Made by</dt><dd>Acly<small>a plugin for Krita 5.2 or newer</small></dd></div><div><dt>Licence</dt><dd>GPL-3.0</dd></div><div><dt>Latest</dt><dd>1.53.0<small>22 Aug 2026</small></dd></div><div><dt>Backend</dt><dd>ComfyUI<small>managed, your own, or a paid cloud</small></dd></div></dl>
 </div>
 
@@ -195,7 +195,7 @@
 <p>Everything about Krita AI Diffusion here comes from its own docs and repository, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
 </aside>
 <div class="g-picks">
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You mostly write prompts, compare results and keep the good ones.</li><li>You switch between many model families, including Krea 2, Qwen-Image and Chroma.</li><li>You want video too: Wan 2.2, HunyuanVideo 1.5 and MiniMax H3, in beta.</li><li>You’d rather not add node packs to your ComfyUI before you start.</li><li>You want a gallery, a phone studio and a locked Hidden space.</li></ul></div>
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You mostly write prompts, compare results and keep the good ones.</li><li>You switch between many model families, including Krea 2, Qwen-Image and Chroma.</li><li>You want video too: Wan 2.2, HunyuanVideo 1.5 and MiniMax H3, in beta.</li><li>You’d rather not add node packs to your ComfyUI before you start. Even inpainting runs on core nodes.</li><li>You want a gallery, a phone studio and a locked Hidden space.</li></ul></div>
 <div class="g-pick"><h3>Pick Krita AI Diffusion if</h3><ul><li>You draw or paint, and want AI inside a real painting app.</li><li>You inpaint and outpaint with selections, or turn sketches and line art into images.</li><li>You use control layers, reference images, IP-Adapter and regions per layer.</li><li>You like live painting, where the image follows your brush.</li></ul></div>
 </div>
 <h2 id="glance">At a glance.</h2>
@@ -206,23 +206,23 @@
 <tr><th scope="row">Your ComfyUI</th><td class="is-us"><span class="g-mark" data-v="yes">As it is</span><small>nothing added up front</small></td><td><span class="g-mark" data-v="part">Needs four node packs</span><small>or its managed install or paid cloud</small></td></tr>
 <tr><th scope="row">Image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span><small>each set up for you</small></td><td><span class="g-mark" data-v="part">Main families</span><small>Flux 2, Z-Image, SD 1.5, SDXL, Anima</small></td></tr>
 <tr><th scope="row">Video</th><td class="is-us"><span class="g-mark" data-v="part">Beta</span><small>7 families</small></td><td>Not in its docs</td></tr>
-<tr><th scope="row">Gallery</th><td class="is-us"><span class="g-mark" data-v="yes">One for everything</span><small>search, stars, trash, old folders</small></td><td><span class="g-mark" data-v="part">History</span><small>in the plugin</small></td></tr>
+<tr><th scope="row">Gallery</th><td class="is-us"><span class="g-mark" data-v="yes">One for everything</span><small>search, stars, trash, old folders, optional stacks of similar prompts</small></td><td><span class="g-mark" data-v="part">History</span><small>in the plugin</small></td></tr>
 <tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td><span class="g-mark" data-v="no">Desktop app</span></td></tr>
 <tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted</small></td><td><span class="g-mark" data-v="no">No</span></td></tr>
 <tr><th scope="row">Custom workflows</th><td class="is-us"><span class="g-mark" data-v="yes">Drop in the JSON</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
-<tr><th scope="row">Upscale</th><td class="is-us"><span class="g-mark" data-v="yes">One click</span><small>with a compare slider</small></td><td><span class="g-mark" data-v="yes">To 4k and beyond</span><small>tiled</small></td></tr>
+<tr><th scope="row">Upscale</th><td class="is-us"><span class="g-mark" data-v="yes">2K or 4K in the run</span><small>SeedVR2, up to 3×; any image later, with a compare slider</small></td><td><span class="g-mark" data-v="yes">To 4k and beyond</span><small>tiled</small></td></tr>
 <tr><th scope="row">Interface</th><td class="is-us">Prompt box and gallery in the browser</td><td>A docker panel in Krita’s canvas</td></tr>
-<tr><th scope="row">Inpaint, outpaint</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span><small>with selections</small></td></tr>
+<tr><th scope="row">Inpaint, outpaint</th><td class="is-us"><span class="g-mark" data-v="part">Inpaint, beta</span><small>a brush on a start or reference image; no outpainting</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>with selections</small></td></tr>
 <tr><th scope="row">Control, regions</th><td class="is-us"><span class="g-mark" data-v="part">In imported workflows</span></td><td><span class="g-mark" data-v="yes">Yes</span><small>ControlNet, IP-Adapter, regions</small></td></tr>
 <tr><th scope="row">Live painting</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td><span class="g-nowrap">GPL-3.0</span></td></tr>
 </tbody>
 </table>
 </div>
-<p class="g-table-note">Checked 29 September 2026 against the plugin’s README, release notes and docs.interstice.cloud.</p>
+<p class="g-table-note">Checked 29 September 2026 against the plugin’s README, release notes and docs.interstice.cloud. HEISS UI as of 0.17.0, 9 October 2026.</p>
 <h2 id="job">Painting or prompting.</h2>
 <p>Krita AI Diffusion’s goal, in its own README, is precision and control inside an image-editing workflow. You select an area and fill it, expand the canvas, refine at a chosen strength, guide the result with sketches, line art, depth or pose, and give each layer its own description. Live painting redraws as you paint. It’s the tool for people who already think in layers and brushes.</p>
-<p>HEISS UI has no brushes. You write a prompt, previews stream in, and the gallery fills up. To change an image you give it a start image with a <strong>Change</strong> slider, or reference images for the edit models Flux.2 and Qwen-Image 2.1, and upscale the keepers with SeedVR2. If you need a precise fix in one corner of a picture, Krita is the better tool.</p>
+<p>HEISS UI is built around the prompt. You write one, previews stream in, and the gallery fills up. To change an image you give it a start image with a <strong>Change from the reference</strong> slider, or reference images for the edit models Flux.2 and Qwen-Image 2.1. For a quick fix there’s one brush (beta): paint over the part to change, say what it becomes, and only that part is redrawn. Upscaling with SeedVR2 runs right in the job, at 2K or 4K. For selections, layers and painting by hand, Krita is the better tool.</p>
 <h2 id="comfy">Same ComfyUI, two front ends.</h2>
 <p>Both send their work to ComfyUI. Krita’s plugin can install and manage a ComfyUI for you, connect to one you already run, or use its paid cloud service. HEISS UI always uses yours. If a ComfyUI is already running on this computer, both find it: the plugin tries to connect to a local server by itself, and HEISS UI checks ports 8188 and 8000.</p>
 <p>Model coverage differs. The plugin’s model lists centre on SDXL, Flux 2, Z-Image and SD 1.5, with Anima added in 2026. HEISS UI runs 21 image families, from SD 1.5 to <a href="../../models/krea-2/">Krea 2</a>, <a href="../../models/chroma/">Chroma</a>, <a href="../../models/qwen-image/">Qwen-Image</a> and <a href="../../models/ideogram-4/">Ideogram 4</a>, plus video in beta.</p>
@@ -237,7 +237,7 @@
 <p>Selections, inpainting, outpainting, sketch and line art to image, control layers, regions and live painting. For finishing a picture by hand, Krita is the tool.</p>
 <aside class="g-callout" data-kind="limit">
 <p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
-<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
+<ul><li>No canvas, layers or outpainting. Inpainting (beta) is a quick brush on a start or reference image, not a full editor.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
 </aside>
 <h2 id="both">Using both on one ComfyUI.</h2>
 <ol class="steps">
@@ -258,7 +258,7 @@
 </details>
 <details name="faq">
 <summary>Does HEISS UI do inpainting?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-<div class="answer"><p>No. It has start images, reference images for Flux.2 and Qwen-Image 2.1, and SeedVR2 upscaling. For inpainting, Krita AI Diffusion or InvokeAI are the better tools.</p></div>
+<div class="answer"><p>Yes, quick brush inpainting, in beta. Hover a start or reference image, paint over the part to change and say what it becomes. Only that part is redrawn, on 18 of its 21 image families, with no extra nodes. For selections, layers, outpainting and control layers, Krita AI Diffusion or InvokeAI are still the better tools.</p></div>
 </details>
 <details name="faq">
 <summary>Which models does Krita AI Diffusion support?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
@@ -282,7 +282,7 @@
 <h2 id="pitch-title">Find the image first.</h2>
 <p class="g-pitch-text">HEISS UI is where you try prompts and models quickly, and keep the results worth finishing.</p>
 <ul class="g-pitch-list">
-<li><span><strong>Drop in any model.</strong> It recognises the file and it runs.</span></li><li><span><strong>A gallery that remembers.</strong> Search by prompt, model or LoRA, star the keepers.</span></li><li><span><strong>Upscale and compare.</strong> One click, then drag across to see what changed.</span></li><li><span><strong>Your phone, too.</strong> Prompt and browse from the couch.</span></li><li><span><strong>Same ComfyUI as Krita.</strong> Nothing to add to it before you start.</span></li>
+<li><span><strong>Drop in any model.</strong> It recognises the file and it runs.</span></li><li><span><strong>A gallery that remembers.</strong> Search by prompt, model or LoRA, star the keepers.</span></li><li><span><strong>Upscale and compare.</strong> 2K or 4K right in the run, or one click later, then drag across to see what changed.</span></li><li><span><strong>Your phone, too.</strong> Prompt and browse from the couch.</span></li><li><span><strong>Same ComfyUI as Krita.</strong> Nothing to add to it before you start.</span></li>
 </ul>
 <div class="g-pitch-actions">
 <a class="g-btn" href="../../#install"><svg class="icon" aria-hidden="true"><use href="#i-download" /></svg>Download HEISS UI</a>

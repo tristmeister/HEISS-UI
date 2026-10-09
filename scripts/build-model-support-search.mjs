@@ -338,12 +338,19 @@ for (const item of merged.values()) {
   checkpointGroups.set(familyId, list);
 }
 
+// Mirrors canInpaint in server/family-profiles.js, minus the ComfyUI node check:
+// an image family on the shared graph that takes an image in (an edit model's
+// reference or img2img's start image) can inpaint.
+const ownGraphs = new Set(["ideogram4", "mage", "h3", "sana", "pair"]);
+const familyCanInpaint = (family) => family.kind === "image" && !ownGraphs.has(family.sampling) && !family.ownLoaders && Boolean(family.references || family.img2img);
+
 const catalogFamilies = Object.entries(runtimeFamilies).map(([id, family]) => ({
   id,
   label: family.label,
   kind: family.kind,
   aliases: familyAliases[id] || [],
   ...(family.references ? { references: family.references } : {}),
+  ...(familyCanInpaint(family) ? { inpaint: true } : {}),
   checkpoints: checkpointGroups.get(id) || [],
 }));
 

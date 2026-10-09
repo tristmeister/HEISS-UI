@@ -20,7 +20,7 @@
 </p>
 
 <p align="center">
-  <b><a href="#quick-start">Quick start</a> &nbsp;·&nbsp; <a href="#supported-models">Models</a> &nbsp;·&nbsp; <a href="#bring-your-own-workflow">Workflows</a> &nbsp;·&nbsp; <a href="#troubleshooting">Help</a> &nbsp;·&nbsp; <a href="#faq">FAQ</a></b>
+  <b><a href="#quick-start">Quick start</a> &nbsp;·&nbsp; <a href="#supported-models">Models</a> &nbsp;·&nbsp; <a href="#inpainting">Inpainting</a> &nbsp;·&nbsp; <a href="#bring-your-own-workflow">Workflows</a> &nbsp;·&nbsp; <a href="#troubleshooting">Help</a> &nbsp;·&nbsp; <a href="#faq">FAQ</a></b>
 </p>
 
 <p align="center">
@@ -40,6 +40,9 @@ The node graph is great for building workflows and less great for the everyday l
 ## Features
 
 - **28 model families out of the box.** 21 for images and 7 for video (beta), from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2, Wan 2.2 and MiniMax H3, each with the settings from its makers' own templates. [The full list ↓](#supported-models)
+- **Inpainting (beta).** Paint over the part of a picture that should change and say what it becomes. Only that part is redrawn; every other pixel stays exactly as it was. Works with 18 image families and needs no extra nodes. [How it works ↓](#inpainting)
+- **Smart upscale, built in.** Pick **2K** or **4K** next to the size menu and every new picture comes out upscaled with SeedVR2, in the same run, with the time left on the clock. Any older picture upscales with one click. [More ↓](#smart-upscale)
+- **Auto-grouping.** Pictures from similar prompts stack themselves into one tile once you're done with them, so a gallery of hundreds stays easy to scan. [More ↓](#auto-grouping)
 - **Missing parts are a click away.** Pick a model to see what it still needs. Each part gets a Download or Install button, and **Get all** fetches the lot. With no model yet, the studio offers [a first one](#your-first-model). [What's covered ↓](#auto-downloads)
 - **A phone studio.** On a phone the studio switches to a layout made for one thumb. Prompt, browse, share and upscale from the couch while the computer renders. [Set it up ↓](#on-your-phone)
 - **Your studio over LAN.** Open HEISS UI from a laptop, tablet, phone or another desktop on your local network. The PC renders; every device uses the same models and gallery. Works over Wi-Fi or wired LAN. [Connect another device ↓](#connect-over-lan)
@@ -49,11 +52,10 @@ The node graph is great for building workflows and less great for the everyday l
 <details>
 <summary><b>More features</b></summary>
 
-- **Reference and start images.** Edit models like Flux.2 and Qwen-Image 2.1 take reference images. Every other image model takes a start image, with a slider for how much it may change. [More ↓](#reference-and-start-images)
-- **LoRA stacks.** LoRAs grouped by folder, stacked per run and saved per model family, right below Basics in the sidebar. LoRAs made for the selected model sort first and show their trigger words.
-- **Upscale and compare.** Upscale any image with SeedVR2, with an optional face detail pass, then drag a slider across it to see what changed.
-  <!-- MEDIA: GIF · upscale compare: open an image → Upscale → drag the compare slider across it · ~6 s loop · 1100 px wide · save as docs/screenshots/upscale-compare.gif -->
+- **Reference and start images.** Edit models like Flux.2 and Qwen-Image 2.1 take reference images. Every other image model takes a start image, with a slider for how much it may change. Either one can be painted on for [inpainting](#inpainting). [More ↓](#reference-and-start-images)
+- **LoRA stacks.** LoRAs grouped by folder, stacked per run and saved per model family, right below Basics in the sidebar. LoRAs made for the selected model sort first and show their trigger words, and a small note above the prompt bar says when an active LoRA was made for a different model.
 - **Live previews.** Each image resolves from a pixel mosaic into the final result while ComfyUI works, with a countdown to done. Queue the next one or cancel any time.
+- **Videos in the gallery.** Video tiles play a silent preview, and opening one plays it with sound, seeking and full screen.
 - **Controls that fit the model.** Models, samplers, schedulers, size and prompt limits, text encoders and VAEs come from ComfyUI. Only what the selected model uses shows up.
 - **Zen mode.** A fullscreen prompt and output view without the panels.
 - **Find it again.** Press ↑ in an empty prompt for recent prompts (star the ones to keep), `/` to search the gallery by prompt, model or LoRA, and star images to keep them close. Earlier images from other folders (old ComfyUI outputs, AUTOMATIC1111, Forge) join the gallery where they are, from Settings › Library. Recent prompts can be turned off in Settings › Generation, and prompts from Hidden aren't saved.
@@ -180,7 +182,7 @@ Model files are recognised from their weights, so a renamed file still works. Ea
 
 | | Families |
 | --- | --- |
-| **Image** | Krea 2 (Turbo, Raw), Qwen-Image 2.1,, Anima, Z-Image (Turbo, Base), Flux.2 Dev, Flux.2 Klein 4B and 9B, SDXL (NoobAI, Illustrious, Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), Pony V7, Chroma, Qwen-Image (including 2512) and Qwen-Image 2.1, Ideogram 4, MageFlow, ERNIE-Image, Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana (1.5, Sprint, 2K/4K) HiDream I1, SD 3.5, Flux.1 (Dev, Schnell, de-distilled), Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), SD 2.x and SD 1.5 |
+| **Image** | Krea 2 (Turbo, Raw), Anima, Z-Image (Turbo, Base), Flux.2 Dev, Flux.2 Klein 4B and 9B, SDXL (NoobAI, Illustrious, Pony, v-prediction, DMD2, Hyper, Lightning, Turbo), Pony V7, Chroma, Qwen-Image (including 2512) and Qwen-Image 2.1, Ideogram 4, MageFlow, ERNIE-Image, Lumina Image 2.0 (including Neta Lumina and NetaYume), Sana (1.5, Sprint, 2K/4K), HiDream I1, SD 3.5, Flux.1 (Dev, Schnell, de-distilled), SD 2.x and SD 1.5 |
 | **Video** (beta) | MiniMax H3, HunyuanVideo 1.5 (text and image to video), Wan 2.2 5B, Wan 2.2 14B (high and low-noise pair, text and image to video) and Wan 2.1 |
 
 Both all-in-one checkpoints and model-only files work. Parts a file doesn't carry come from compatible files already installed, or get a Download button. A file that isn't recognised can be given a type under **Settings › Models › Model types**.
@@ -261,7 +263,8 @@ Getting a new model running in ComfyUI usually means hunting for the right text 
 ## Reference and start images
 
 - **Reference images for edit models.** Flux.2 (Klein 4B, Klein 9B and Dev) and Qwen-Image 2.1 edit from reference images the way ComfyUI's own edit templates do.
-- **Start images for everything else.** Every other built-in image model (Krea 2, SDXL, Flux, Z-Image and the rest) offers **Add start image**, with a Change slider for how far the result may move from it.
+- **Start images for everything else.** Every other built-in image model (Krea 2, SDXL, Flux, Z-Image and the rest) offers **Add start image**. The image then sits in the sidebar's Basics with **Change from the reference** right under it, for how far the result may move from it.
+- **Paint on either one.** Hover a reference or start image and press the brush to [inpaint](#inpainting) just part of it.
 
 <!-- MEDIA: PNG · reference images: the composer with two reference slots filled and the reference library open · still · 1100 px wide · save as docs/screenshots/reference-images.png -->
 
@@ -274,6 +277,65 @@ Getting a new model running in ComfyUI usually means hunting for the right text 
 
 </details>
 
+## Inpainting
+
+Change one part of a picture and keep the rest. Hover a reference or start image in the prompt bar and press the brush. The studio rises out of the prompt bar: paint over what should change, then write what it becomes. Only the painted part is redrawn.
+
+<p align="center">
+  <a href="./docs/screenshots/inpainting.mp4"><img src="./docs/screenshots/inpainting.webp" alt="Inpainting in HEISS UI: a picture is dropped into the prompt bar as a reference, the brush opens the inpaint studio over the gallery, and a stroke is painted over the part to change" width="100%" /></a>
+</p>
+
+- **The rest stays pixel-exact.** HEISS UI renders a crop around what you painted, at the model's full working size, and lays it back onto the original. The untouched part is never re-encoded, so it doesn't soften or shift in color, and a small fix gets the model's full detail.
+- **Your models, no extra nodes.** 18 of the 21 image families inpaint with ComfyUI's own nodes, no inpainting checkpoint or node pack needed. Edit models (Flux.2 Dev, Klein 4B and 9B, Qwen-Image 2.1) paint on a reference image; SDXL, Krea 2, Z-Image, Flux.1, Qwen-Image, Chroma and the others on a start image. The model menu marks which models can.
+- **A real brush.** Brush, eraser and hand, undo and redo, zoom and a brush size. It works with a finger on the phone too.
+- **Two dials.** While a painted image is in the prompt bar, **Inpaint strength** (from touching it up to painting it anew, for models that take a start image) and **Edge softness** sit in the sidebar's Basics, under the image. On the phone they're in the Advanced sheet.
+
+<details>
+<summary><b>What it doesn't do (yet), and turning it off</b></summary>
+
+Ideogram 4, MageFlow and Sana run their own graphs and can't inpaint, and neither can video models or imported workflows. There's no outpainting, layers or masking by selection; for that, [bring a workflow](#bring-your-own-workflow) or use a canvas tool next to HEISS UI on the same ComfyUI.
+
+Inpainting is in beta and on by default. **Settings › Features › Inpainting** lists which of your models can inpaint and turns the brush off everywhere.
+
+</details>
+
+## Smart upscale
+
+Bigger, sharper pictures with [SeedVR2](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler), without leaving the studio.
+
+- **2K or 4K for every new picture.** Pick **None**, **2K** or **4K** next to the size menu (on the phone, in the create sheet). The upscale runs inside the picture's own ComfyUI job, so you can close the page and it still finishes. The next run waits for it, and if you stop it or it fails, you keep the picture at its generated size.
+- **Any picture, one click.** The upscale arrow on a tile or in the viewer upscales anything already in the gallery, Hidden included. The upscale is saved next to the original, and a slider drags across both to show what changed.
+- **Time left, not a spinner.** Upscale times are learned per model and size, so the ring, the buttons and the queue count down the seconds that are left.
+- **Set up when you need it.** Picking 2K or 4K without the SeedVR2 nodes or model offers to install them, with sizes shown before anything downloads.
+
+<!-- MEDIA: GIF · smart upscale: pick 4K next to the size menu → generate → ring counts down → drag the compare slider · ~8 s loop · 1100 px wide · save as docs/screenshots/smart-upscale.gif -->
+
+<details>
+<summary><b>Effort, faces and when it's skipped</b></summary>
+
+| | Scale | Model |
+| --- | --- | --- |
+| **Fast** | 1.5× | SeedVR2 3B, the least graphics memory |
+| **Balanced** (and **2K**) | 2× | SeedVR2 7B fp8 |
+| **High** (and **4K**) | 3× | SeedVR2 7B fp16, the slowest and the most memory |
+
+The effort for the upscale arrow is set under **Settings › Features › Smart upscale**, where it can also be turned off. A **face detail pass** (beta) redraws small faces before the upscale; it needs the Impact Pack and Impact Subpack nodes. Imported workflows get 2K and 4K too. A run whose size is decided by a reference image (edit models) or by a painted mask skips the 2K/4K pick.
+
+</details>
+
+## Auto-grouping
+
+Making ten takes of one idea fills a gallery fast. With auto-grouping on, pictures from similar prompts, even ones you tweak as you go, fold into one tile once you stop working on them.
+
+- **Stacks with a count.** A stack shows as a photo with two edges under it, or as a cover flow, with the number of pictures in the corner.
+- **Skim without opening.** Slide the pointer along the bottom of a stack to flip through it. Open it to spread the pictures out, or **Unstack** to keep them apart.
+- **It knows what changed.** Prompts are compared by the words that matter: the subject weighs a lot, shared boilerplate like "masterpiece, 8k" very little. Coming back to a prompt the next day starts a new stack.
+- **Nothing moves.** Grouping is only a way of looking at the gallery. No files are touched, and switching it off shows everything exactly as before.
+
+Turn it on with the stack button next to gallery search, or under **Settings › Library › Auto-grouping**, where you also pick the photo or cover-flow look.
+
+<!-- MEDIA: GIF · auto-grouping: turn on the stack button → similar takes fold into one tile with a count → skim along its bottom → open → Unstack · ~8 s loop · 1100 px wide · save as docs/screenshots/auto-grouping.gif -->
+
 ## On your phone
 
 On a phone the studio switches to its own layout, made for one thumb. Prompt, browse, share and upscale while your PC renders.
@@ -285,7 +347,7 @@ On the PC running HEISS UI, open **Settings › Connection** and turn on **Open 
 <details>
 <summary><b>The phone layout</b></summary>
 
-The gallery runs edge to edge, and one **Describe…** pill opens the prompt, reference image, workflow, shape and number of images, with Advanced one link away. Long press a tile to Share, Upscale, Star, Use these settings, Hide or Delete. Share hands the file to the phone's share sheet. Added to the home screen, it opens full screen, with haptics where the phone supports them. A ring around Generate shows progress while you browse.
+The gallery runs edge to edge, all the way under Safari's toolbar, and one **Describe…** pill opens the prompt, reference image, workflow, shape, number of images and Smart upscale's None, 2K or 4K, with Advanced one link away. The brush on a reference opens the inpaint studio for your finger. Long press a tile to Share, Upscale, Star, Use these settings, Hide or Delete. In the viewer, pinch to zoom and swipe or flick to the next picture. Share hands the file to the phone's share sheet. Added to the home screen, it opens full screen, with haptics where the phone supports them. A ring around Generate shows progress while you browse.
 
 **Use the full studio** under More switches a phone to the complete layout, and `?phone=1` shows the phone studio on any screen.
 
@@ -424,6 +486,7 @@ Start-Process "http://localhost:8787/"
 
 - **No models showing up?** Make sure ComfyUI is running. On this computer it connects on port 8188 or 8000; anywhere else, set its address in Settings › Connection. After adding files, use **Settings › Models › Rescan**. With no model at all, the studio offers [a first one](#your-first-model).
 - **A generation fails?** Open the card. It says what went wrong and offers a fix. **Copy report** includes versions and GPU for an issue.
+- **No brush on a reference image?** The selected model can't inpaint (Ideogram 4, MageFlow, Sana, video models and imported workflows), or inpainting is off in **Settings › Features**.
 - **A GGUF won't load?** See [ComfyUI-GGUF can't load this model yet](./docs/guides/TROUBLESHOOTING.md#comfyui-gguf-cant-load-this-model-yet).
 - **Looking for video?** Switch the sidebar from Image to **Video** (beta). Wan 2.1, Wan 2.2 5B and 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, and the model's setup lists anything missing.
 - **Asking for help?** **Settings › About › Copy diagnostics** copies versions, system and GPU, without prompts or images. Paste it on the [board](https://heiss-ui.vercel.app/board/) or in the [Discord](https://discord.gg/Hf7ysvDeGa).
@@ -436,7 +499,7 @@ Found a bug, want a feature, or not sure how something works? Post it on the **[
 
 Rather talk it through? **[Join the Discord](https://discord.gg/Hf7ysvDeGa)** for app ideas, bugs and general AI generation talk: workflows, models, settings and what you made with them.
 
-From the app, **Settings › About** sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
+From the app, **Idea or bug?** at the bottom of the Settings sidebar sends a bug, idea or question straight to the board, and a failed generation has **Report bug** on its card with the error filled in. The dialog shows everything that goes with a post, and nothing is sent until you press Send. Setup lines (versions, system, GPU) are included only if you leave them on. GitHub issues work as well.
 
 When `DISCORD_BOARD_WEBHOOK_URL` is set as a server-only Vercel env var, the board doubles as an update channel in Discord. When the maintainer moves a post (planned, in progress, done or shipped in a version), replies to one or adds one, that goes in as its own message with a link to the post. The roadmap (in progress, up next, recently done) is always the newest message: it's posted again below each update. Votes and community comments stay on the board, and a Discord outage never blocks it.
 
@@ -453,6 +516,13 @@ Yes. ComfyUI runs every job, and the controls come from what it has installed. Y
 <summary><b>Which models work?</b></summary>
 
 28 families out of the box, 21 for images and 7 for video (beta). See [Supported models](#supported-models). Anything else runs as [your own workflow](#bring-your-own-workflow).
+
+</details>
+
+<details>
+<summary><b>Can it inpaint and upscale?</b></summary>
+
+Yes, both built in. [Inpainting](#inpainting) redraws only the part you paint, with 18 image families and no extra nodes. [Smart upscale](#smart-upscale) takes new pictures to 2K or 4K with SeedVR2 in the same run, or upscales any picture with one click.
 
 </details>
 

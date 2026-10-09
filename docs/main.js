@@ -126,7 +126,7 @@ if (location.hostname === "tristmeister.github.io") {
 
   /* ── Download: the zip for this system ────────────────────────────── */
 
-  // The HTML links the v0.13.0 zips, so it works without JS or the API.
+  // The HTML links the v0.17.0 zips, so it works without JS or the API.
   // The latest release's asset names carry its version, so the API fills in
   // the current links, version and sizes when it answers.
   const dl = $("[data-dl]");
@@ -368,7 +368,7 @@ if (location.hostname === "tristmeister.github.io") {
     }
   }
 
-  /* ── Scene art: "Upscale and compare" (smooth vs. low-res) ────────── */
+  /* ── Scene art: "Smart upscale" (smooth vs. low-res) ───────────────── */
 
   const smoothLayer = $("[data-u-smooth]");
   const pixelLayer = $("[data-u-pixels]");
@@ -456,7 +456,23 @@ if (location.hostname === "tristmeister.github.io") {
     const ticks = $$("[data-stage-ticks] i");
     const names = features.map((f) => $("h3", f).textContent);
     let current = 0;
+    let inView = false;
     ticks[0]?.classList.add("on");
+
+    // A scene can be a recording from the app. It loads when first shown and
+    // plays only while it's the active scene on screen; reduced motion keeps its poster.
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+    const syncVideos = () =>
+      arts.forEach((a, k) => {
+        const video = $("video", a);
+        if (!video) return;
+        if (k === current && inView && !still.matches) {
+          if (video.preload === "none") video.preload = "auto";
+          video.play().catch(() => {});
+        } else if (!video.paused) {
+          video.pause();
+        }
+      });
 
     const activate = (i) => {
       if (i === current) return;
@@ -469,6 +485,7 @@ if (location.hostname === "tristmeister.github.io") {
       bar.classList.add("swap");
       idx.textContent = String(i + 1).padStart(2, "0");
       name.textContent = names[i];
+      syncVideos();
     };
 
     // The feature crossing the reading line wins. On phones the stage is
@@ -487,7 +504,12 @@ if (location.hostname === "tristmeister.github.io") {
     matchMedia("(max-width: 880px)").addEventListener("change", watch);
 
     // Only animate the stage while it's on screen.
-    new IntersectionObserver(([e]) => stage.classList.toggle("in-view", e.isIntersecting), { threshold: 0.2 }).observe(stage);
+    new IntersectionObserver(([e]) => {
+      inView = e.isIntersecting;
+      stage.classList.toggle("in-view", inView);
+      syncVideos();
+    }, { threshold: 0.2 }).observe(stage);
+    still.addEventListener("change", syncVideos);
 
     features.forEach((f) =>
       f.addEventListener("click", (e) => {
