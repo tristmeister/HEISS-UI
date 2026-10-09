@@ -21,7 +21,7 @@ version opens with a `> ` summary line, which the update pill shows.
   extra nodes to install. The model menu marks which ones can. It's in beta and
   on by default; Settings › Features turns it off if you don't want it.
 
-<img width="660" height="488" alt="image" src="https://github.com/user-attachments/assets/1be54903-e7ad-470d-8c6c-8270e09853af" />
+<img width="600" height="488" alt="image" src="https://github.com/user-attachments/assets/1be54903-e7ad-470d-8c6c-8270e09853af" />
 
 - **Auto-grouping.** Pictures from similar prompts, even ones you tweak as you
   go, now stack themselves once you stop working on them, as a photo stack or a
