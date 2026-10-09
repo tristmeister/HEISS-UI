@@ -14,64 +14,63 @@ version opens with a `> ` summary line, which the update pill shows.
 > Inpainting, smart upscale in every run, and run stacks
 
 ### Added
-- **Inpainting.** Hover a reference image and press the brush, paint over the
-  part that should change, and describe what it becomes. Only that part is
-  redrawn. It works with the edit models (Flux.2, Klein, Qwen-Image 2.1) and
-  with every model that can start from an image (Z-Image, SDXL, Flux.1 and
-  more), with no extra nodes to install. The model menu marks which models can
-  inpaint. It's in beta and on by default; Settings › Features turns it off.
-- **Smart upscale.** None, 2K or 4K on top of the size menu (and in the phone's
-  create sheet) upscales new pictures with SeedVR2 as part of the run, so you
-  can close the page. The next run waits for it. If you stop it or it fails,
-  you keep the picture at its generated size. If a tier needs models or nodes
-  you don't have, picking it offers to set them up.
-- **Upscales say how long they have left.** Times are learned per model and
-  picture size. Queue estimates include the upscale, and the ring and buttons
-  count down.
-- **Runs stack.** Pictures from similar prompts, including ones you tweak as
-  you go, are found as a run and fold into one tile once you've stopped working
-  on them: a photo stack or a cover flow, with the count in the corner. Move
-  along the bottom of a tile to skim through it. Opening one spreads its images
-  out in the gallery, and Unstack keeps a run apart for good. Grouping changes
-  nothing in your gallery or on disk, and the switch by search turns it off.
-- A note above the prompt bar when an active LoRA was made for another model
-  family.
-- A crash log in `data/logs/`, kept a week. The crash screen now names browser
-  extensions or translators that may have interfered with the page.
+- **Inpainting.** Hover a reference image, press the brush, paint over what
+  should change and say what it becomes. Only the painted part is redrawn. It
+  works with the edit models (Flux.2, Klein, Qwen-Image 2.1) and any model that
+  can start from an image, with no extra nodes to install. The model menu marks
+  which ones can. It's in beta and on by default; Settings › Features turns it
+  off.
+- **Smart upscale in every run.** Pick None, 2K or 4K next to the size menu
+  (or in the phone's create sheet) and each new picture is upscaled with SeedVR2
+  as part of its run, so you can close the page. The next run waits for it, and
+  if you stop it or it fails, you keep the picture at its generated size. If a
+  tier needs models or nodes you don't have, picking it offers to set them up.
+- **Upscales count down.** Times are learned per model and size, queue
+  estimates include them, and the ring and buttons show the seconds left.
+- **Run stacks.** Pictures from similar prompts, even ones you tweak as you go,
+  fold into one tile once you stop working on them: a photo stack or a cover
+  flow with the count in the corner. Slide along the bottom of a tile to skim
+  it, open it to spread the images out, or Unstack to keep them apart. Nothing
+  about your files changes, and the button by search turns it off.
+- **LoRA mismatch note.** A note above the prompt bar when an active LoRA was
+  made for another model family.
+- **Crash log** in `data/logs/`, kept for a week. The crash screen now names
+  browser extensions or translators that may have interfered.
 
 ### Changed
-- **Phone viewer.** Pinch zooms about the picture and follows your fingers,
-  gives past its limits and springs back below 100%. A swipe or quick flick
-  slides in the next picture in gallery order, and the ones beside it load
-  ahead. Upscale shows its progress ring and time left there too.
-- **Phone layout reaches the bottom of the screen**, under Safari's toolbar and
-  in the Home Screen app, instead of stopping on a black band. Sheets no longer
-  flash the page behind as they close.
-- **Settings in eight sections** with one restart button. Smart upscale and
-  inpainting each have a drawer under Features, run stacks are under Library,
-  the connection status comes first, and feedback and Discord are under About.
-- The model menu names each model's family once, under its name, with icons
-  for what it can do (edit from references, inpaint).
-- The start image sits in the sidebar's Basics with its change amount under it.
-- On windows 761–1040 px wide, the controls sit in columns beside the prompt
+- **The phone viewer now zooms with your fingers.** Pinch follows them and
+  gives a little past its limits before springing back, and a swipe or flick
+  slides in the next picture while its neighbours load ahead. Upscale shows its
+  ring and time left there too.
+- **The phone layout now reaches the bottom of the screen**, under Safari's
+  toolbar and in the Home Screen app, instead of stopping at a black band.
+  Sheets no longer flash the page behind as they close.
+- **Settings are regrouped into eight sections** with one restart button. Smart
+  upscale and inpainting have drawers under Features, run stacks are under
+  Library, and feedback and Discord moved to About.
+- **The model menu now names a model's family once**, under its name, with icons
+  for what it can do.
+- **The start image moved into the sidebar's Basics**, with its change amount
+  right under it.
+- **At 761–1040 px wide**, the controls now sit in columns beside the prompt
   bar.
-- The Images picker stops at 8 for built-in models, the most one run renders.
-- Gallery tiles that are still loading show a soft surface with one slow light
-  sweep instead of a flickering checkerboard.
+- **The Images picker now stops at 8** for built-in models, the most one run
+  renders, instead of letting you go far past it.
+- **Loading tiles are calmer**: a soft surface with one slow light sweep instead
+  of a flickering checkerboard.
 
 ### Fixed
-- **Gallery export of any size.** Past 4 GB or 65,535 files it writes a ZIP64
-  archive, and it streams each file once instead of holding the whole export
-  in memory.
-- A large gallery scrolls more smoothly, and at most four thumbnails are built
-  at once instead of dozens.
-- Inpainting with Qwen-Image 2.1 no longer turns the painted part into noise,
-  and edit models no longer leave a ghost band around it.
-- Smart upscale no longer applies when a reference sets the framing or you
-  paint a mask. The size tabs are hidden there, and a 2K or 4K pick made
-  earlier is dropped.
-- Prompts are capped at 100,000 characters, and an oversized or malformed
-  request gets a short error.
+- **Gallery export now works at any size.** Past 4 GB or 65,535 files it writes
+  a ZIP64 archive and reads each file once instead of holding everything in
+  memory.
+- **Large galleries scroll more smoothly**, and at most four thumbnails are
+  built at once instead of dozens.
+- **Inpainting with Qwen-Image 2.1 no longer turns the painted part into
+  noise**, and edit models no longer leave a ghost band around it.
+- **Smart upscale no longer sneaks in when a reference sets the framing or you
+  paint a mask.** A 2K or 4K pick made earlier is dropped there.
+- **Prompts are capped at 100,000 characters**, and an oversized or malformed
+  request now gets a short error.
 
 ## [0.16.0] - 2026-10-04
 
