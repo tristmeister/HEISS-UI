@@ -721,6 +721,7 @@ code {
 /* A peek at the board: its three columns and what's in progress right now. */
 .fb-peek {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   padding: 20px;
   border-radius: 22px;
@@ -757,7 +758,8 @@ code {
 .fb-cols b:empty { display: none; }
 .fb-cols > span:has(b:empty) { padding-right: 12px; }
 
-.fb-now { display: grid; gap: 10px; }
+/* minmax(0, 1fr) all the way down, or a long post title widens the auto tracks past the phone instead of ellipsizing. */
+.fb-now { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .fb-now-label {
   display: inline-flex;
   align-items: center;
@@ -767,7 +769,7 @@ code {
   letter-spacing: 0.02em;
 }
 .fb-now-label i { width: 6px; height: 6px; background: var(--ember); box-shadow: 0 0 8px rgb(255 154 82 / 0.8); animation: blink 1.1s steps(2) infinite; }
-.fb-rows { display: grid; gap: 6px; }
+.fb-rows { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
 .fb-row {
   display: flex;
   align-items: center;
