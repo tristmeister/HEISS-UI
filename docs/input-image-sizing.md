@@ -44,7 +44,7 @@ The policy is an engineering inference from those implementations, not a univers
 
 ## Implementation
 
-Settings → Generation → Input images contains one switch: **Automatically resize input images**, on by default. An explicit Original choice from the earlier preference migrates to off.
+Settings › Generation › Input images contains one switch: **Automatically resize input images**, on by default. An explicit Original choice from the earlier preference migrates to off.
 
 `prepareInputImage` reads oriented dimensions and calculates:
 

@@ -29,7 +29,7 @@ function findCulprits(error: Error): Culprit[] {
   const injected = [...document.querySelectorAll('body > *, #root *')].filter((el) => /^(grammarly|lastpass|bitwarden|deepl|loom|honey|kaspersky|dark-?reader|immersive|nord)/i.test(el.tagName) || /grammarly|lastpass|bitwarden|1password|dashlane|deepl|darkreader|kaspersky|immersive-translate/i.test(`${el.id} ${el.className && typeof el.className === 'string' ? el.className : ''}`)).length > 0
     || [...root.attributes, ...document.body.attributes].some((a) => /^(data-(gr-|new-gr-|darkreader|lastpass|bitwarden|dashlane|immersive|kaspersky)|cz-shortcut|data-gptw|data-lt-installed)/i.test(a.name));
   if (injected) found.push({ id: 'extension', title: 'A browser extension', hint: 'An extension added to or restyled this page. Grammarly, dark-mode, password-manager, translator and ad-block extensions do this. Pause them for this site, or open the studio in a private window.' });
-  if (!found.length) found.push({ id: 'unknown', title: 'Translation or an extension', hint: 'This error usually means the browser or an extension edited the page while the studio was running. Turn off page translation and pause extensions for this site, then reload. If it still happens, report it and we will look at our side.' });
+  if (!found.length) found.push({ id: 'unknown', title: 'Translation or an extension', hint: 'This error usually means the browser or an extension edited the page while the studio was running. Turn off page translation and pause extensions for this site, then reload. If it still happens, report it.' });
   return found;
 }
 
@@ -50,7 +50,7 @@ function CrashScreen({ error, componentStack }: { error: Error; componentStack: 
             <ul>
               {culprits.map((c) => <li key={c.id}><strong>{c.title}.</strong> {c.hint}</li>)}
             </ul>
-            <p>Try those first, then reload. Reporting is still welcome if it keeps happening.</p>
+            <p>Try those, then reload. If it keeps happening, report it.</p>
           </div>
         ) : null}
         <div className="crash-actions">

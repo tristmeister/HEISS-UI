@@ -294,7 +294,7 @@ export function ItemActionSheet({ item, onClose, actions, onSelect }: { item: Ga
           {done && !item.library ? (
             item.privateVault
               ? <button type="button" className="phone-row" onClick={() => run(() => actions.unhide(item))}><Eye size={20} /><span>Move to gallery</span></button>
-              : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Hide</span></button>
+              : <button type="button" className="phone-row" onClick={() => run(() => actions.hide(item))}><EyeOff size={20} /><span>Move to Hidden</span></button>
           ) : null}
           {onSelect && (item.status === 'done' || item.status === 'error') ? <button type="button" className="phone-row" onClick={() => run(() => onSelect(item))}><CheckCircle2 size={20} /><span>Select several<small>Then save, hide or delete them together</small></span><HapticTarget /></button> : null}
           <button type="button" className="phone-row is-danger" onClick={() => run(() => { haptic('warning'); actions.remove(item); })}><Trash2 size={20} /><span>Delete</span><HapticTarget /></button>
@@ -657,7 +657,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
               <button key={tier.value} type="button" role="radio" aria-checked={autoUpscale === tier.value} className={cn(autoUpscale === tier.value && 'active')} onClick={() => chooseAutoUpscale(tier.value)}>{tier.label}</button>
             ))}
           </div>
-          <p className="phone-control-note">Upscales each new image with SeedVR2 when it’s done, rebuilding fine detail. Takes a little longer; the original is kept.</p>
+          <p className="phone-control-note">Upscales each new image with SeedVR2, rebuilding fine detail. Takes a little longer.</p>
         </div>
       ) : null}
 

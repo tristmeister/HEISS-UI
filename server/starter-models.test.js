@@ -114,3 +114,13 @@ test("on a Mac an fp8 version says it is not for Macs", () => {
   assert.equal(version(onMac, "flux2_klein_4b", "klein").fp8, false);
   assert.equal(version(plan(card(12)), "flux2_klein_4b", "klein-fp8").detail, "4 steps · compact");
 });
+
+test("on a Mac fp8 versions go last, and a card with nothing that fits still selects one the Mac can load", () => {
+  const small = plan(mac(24));
+  assert.deepEqual(byFamily(small, "krea2").versions.map((item) => item.id), ["turbo", "raw", "turbo-fp8"]);
+  assert.deepEqual(byFamily(small, "flux2_klein_4b").versions.map((item) => item.id), ["klein", "klein-fp8", "dev"]);
+  assert.equal(byFamily(small, "krea2").pick, "turbo");
+  assert.equal(byFamily(small, "flux2_klein_4b").pick, "klein");
+  assert.deepEqual(byFamily(plan(card(8)), "krea2").versions.map((item) => item.id), ["turbo-fp8", "turbo", "raw"], "a graphics card keeps small to large");
+  assert.equal(byFamily(plan(card(8)), "krea2").pick, "turbo-fp8");
+});
