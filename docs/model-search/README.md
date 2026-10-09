@@ -24,7 +24,7 @@ The component uses Shadow DOM to scope its styles. It inherits HEISS tokens `--s
 - Index built once, after the catalog loads. No search API, tracking, AI requests, or dependencies.
 - Unicode/accent normalization, punctuation/underscore tolerance, joined names, family aliases, creator/title/version terms, token prefixes, one-edit typos and adjacent transpositions. Exact names and aliases rank first.
 - The empty state is just the field. Results appear as you type; a family name lists that family's checkpoints.
-- Results are one grouped list that scrolls inline and loads 30 more as you near the end. Rows link straight to Civitai. NSFW checkpoints carry a small tag; clicking one opens a short heads-up under the row with the link.
+- Results are one grouped list that scrolls inline and loads 30 more as you near the end. Rows link straight to Civitai. NSFW checkpoints carry a small tag; clicking one opens a short heads-up under the row with the link. Two icon tags come from the family: an image for families that take reference images (`references`) and a brush for families that can inpaint (`inpaint: true`, set by `scripts/build-model-support-search.mjs` with the same rule as the server's `canInpaint`).
 - `/` focuses search, Enter opens the first result, arrows move through results, Escape clears.
 - Motion: keyed rows (kept rows slide to their new place, new ones fade in with a short stagger), animated result height and a clear-button pop. All off under reduced motion.
 - External URLs restricted to HTTPS Civitai model pages, opened with `noopener noreferrer`.

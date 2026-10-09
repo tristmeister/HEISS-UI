@@ -120,6 +120,12 @@ catalog, so a family that is described correctly needs no UI work.
    `referenceVia: "encoder"` hands them to an encoder that reads images itself
    (Qwen-Image 2.1's `TextEncodeQwenImage21`).
 
+   Inpainting needs no field of its own. An image family that takes a picture
+   in through the shared graph (`img2img` or `references`) can inpaint;
+   one with its own sampling style (Ideogram 4, MageFlow, Sana, H3, Wan's
+   pair) or `ownLoaders` cannot. `canInpaint` in `server/family-profiles.js`
+   decides, and the model menu shows the result.
+
 9. **Tests** in `server/model-families.test.js`. Cover detection from a
    header, each variant's defaults, what a missing part or pack reports, and
    the graph's nodes and inputs. The fixtures write tiny fake safetensors

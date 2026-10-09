@@ -11,6 +11,10 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Fixed
+- **Settings › Features › Inpainting says where its two dials are:** in the
+  sidebar's Basics, under the image, not under Advanced.
+
 ## [0.17.0] - 2026-10-09
 
 > Inpainting, auto-grouping and smart upscale built in

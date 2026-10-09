@@ -29,7 +29,7 @@
             "headline": "What runs on a gaming laptop",
             "description": "What runs in ComfyUI on a gaming laptop: RTX 4060, 5060 and 5070 laptops have 8 GB, the 5070 Ti 12, the 5080 16. Setup, power, RAM and measured times.",
             "url": "https://heiss-ui.vercel.app/hardware/laptop-gpus/",
-            "dateModified": "2026-09-29",
+            "dateModified": "2026-10-09",
             "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
             "author": {
               "@type": "Organization",
@@ -174,7 +174,7 @@
         <p class="label">Hardware guide</p>
         <h1>What runs on a gaming laptop.</h1>
         <p class="g-lead">A laptop GPU runs the same models as the desktop card with the same memory, only slower. RTX 4060, 4070, 5060 and 5070 laptops have 8 GB, the 5070 Ti and 4080 laptops 12 GB, the 5080 and 4090 laptops 16 GB, and the 5090 laptop 24 GB. Plug it in, make sure ComfyUI uses the NVIDIA GPU, and give it a pagefile.</p>
-        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>5 min read</span></p>
+        <p class="g-meta"><span>Updated 9 Oct 2026</span><span>5 min read</span></p>
         <dl class="g-spec"><div><dt>Most common</dt><dd>8 GB<small>RTX 4060, 5060, 5070 Laptop</small></dd></div><div><dt>On Steam</dt><dd>#2 GPU<small>RTX 4060 Laptop, Aug 2026</small></dd></div><div><dt>Usual RAM</dt><dd>16 GB<small>32 GB for models that offload</small></dd></div><div><dt>Watch for</dt><dd>Power mode<small>and the integrated GPU</small></dd></div></dl>
         
       </div>
@@ -196,6 +196,7 @@
 <h2 id="fit">What runs on a laptop.</h2>
 <p>Match the memory to the desktop guides above. For the common 8 GB laptop:</p>
 <ul class="g-fit is-models"><li><span class="g-fit-name"><a href="../../models/sdxl/">SDXL</a><small>fp16 · 6.9 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>Peaked at 5.6 GB on an RTX 4060 Laptop, without any flags.</p></li><li><span class="g-fit-name"><a href="../../models/flux-2-klein/">Flux.2 Klein 4B</a><small>fp8 · 4.1 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>4 steps.</p></li><li><span class="g-fit-name"><a href="../../models/z-image/">Z-Image Turbo</a><small>int8 · 6.2 GB</small></span><span class="g-status" data-s="fits">Fits</span><p>nvfp4 (4.5 GB) on RTX 50 laptops.</p></li><li><span class="g-fit-name"><a href="../../models/wan-2-2/">Wan 2.2 5B</a><small>GGUF Q5 to Q8 · 3.8 to 5.4 GB</small></span><span class="g-status" data-s="tight">Tight</span><p>Short clips at around 480p.</p></li><li><span class="g-fit-name"><a href="../../models/krea-2/">Krea 2</a>, <a href="../../models/flux-1/">Flux.1 Dev</a><small>fp8 · 12 to 13 GB</small></span><span class="g-status" data-s="offloads">Offloads</span><p>Needs 32 GB of system RAM; most laptops have 16.</p></li><li><span class="g-fit-name"><a href="../../models/wan-2-2/">Wan 2.2 14B</a><small>fp8 · 2 × 14.3 GB</small></span><span class="g-status" data-s="offloads">Offloads</span><p>32 GB of RAM or more.</p></li></ul>
+<p><strong>Inpainting and upscaling in HEISS UI.</strong> Inpainting redraws only a crop around the part you paint, at the model’s working size, so it needs about as much memory as a normal run of that model. Smart upscale runs SeedVR2: Fast (the 3B model, a 3.9 GB download) needs the least graphics memory, 2K and Balanced (7B fp8, 9 GB) more, and 4K and High (7B fp16, 17 GB) the most. On a laptop with 8 GB or less, start with Fast.</p>
 
 <h2 id="speed">How long it takes.</h2>
 <div class="g-table" role="region" aria-label="Generation times on laptop GPUs" tabindex="0"><table><thead><tr><th scope="col">Laptop GPU</th><th scope="col">Model and settings</th><th scope="col">Time</th></tr></thead><tbody><tr><th scope="row">RTX 4060 Laptop</th><td>SDXL (WAI-Illustrious), 1024 px, 20 steps</td><td><span class="g-time">15.8 s</span><a class="g-ref" href="#src-2">[2]</a></td></tr><tr><th scope="row">RTX 3070 Laptop</th><td>SDXL, 1024 px, 20 steps</td><td><span class="g-time">15.4 s</span><a class="g-ref" href="#src-3">[3]</a></td></tr><tr><th scope="row">RTX 4060 Laptop, 16 GB RAM</th><td>Flux.1 Dev, 20 steps<small>August 2024, before ComfyUI’s current memory handling.</small></td><td><span class="g-time">400+ s</span><a class="g-ref" href="#src-4">[4]</a></td></tr></tbody></table></div>

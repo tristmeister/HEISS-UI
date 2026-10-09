@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>HEISS UI · A simple ComfyUI frontend that just works</title>
-    <meta name="description" content="A free, open source frontend for the ComfyUI you already run. 28 image and video model families just work, and anything missing downloads in one click." />
+    <meta name="description" content="A free, open source frontend for the ComfyUI you already run. 28 image and video model families just work, anything missing downloads in one click, and inpainting and 2K/4K upscaling are built in." />
     <link rel="canonical" href="https://heiss-ui.vercel.app/" />
     <meta name="theme-color" content="#0a0a0a" />
     <meta property="og:type" content="website" />
@@ -53,7 +53,7 @@
             "@type": "SoftwareApplication",
             "@id": "https://heiss-ui.vercel.app/#app",
             "name": "HEISS UI",
-            "description": "A simple, free and open source frontend for ComfyUI. 28 image and video model families work out of the box, and missing parts download with one click.",
+            "description": "A simple, free and open source frontend for ComfyUI. 28 image and video model families work out of the box, missing parts download with one click, and inpainting, 2K/4K upscaling and auto-grouping are built in.",
             "applicationCategory": "MultimediaApplication",
             "applicationSubCategory": "AI image and video generation",
             "operatingSystem": "macOS, Windows, Linux",
@@ -103,10 +103,18 @@
               },
               {
                 "@type": "Question",
+                "name": "Can it inpaint and upscale?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, both built in. Inpainting redraws only the part you paint over, with 18 of the 21 image families and ComfyUI’s own nodes, and the rest of the picture keeps its exact pixels. Smart upscale takes new pictures to 2K or 4K with SeedVR2 in the same run, or upscales any picture later with one click."
+                }
+              },
+              {
+                "@type": "Question",
                 "name": "Does it do video?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "Yes, marked Beta for now. Wan 2.1, Wan 2.2 5B, Wan 2.2 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, no workflow needed, and Wan 2.2 14B and HunyuanVideo 1.5 also start from an image. Videos get their own gallery."
+                  "text": "Yes, marked Beta for now. Wan 2.1, Wan 2.2 5B, Wan 2.2 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, no workflow needed, and Wan 2.2 14B and HunyuanVideo 1.5 also start from an image. Videos play right in the gallery."
                 }
               },
               {
@@ -146,7 +154,7 @@
                 "name": "Can I use it from my phone?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": "On your own network, yes. On the PC running HEISS UI, open Settings › Connection and turn on “Open on other devices”. Set a studio password under “Signing in”, then scan the QR code with your phone and sign in. Laptops, tablets and other desktops can open the network address in their browser too. The phone gets a studio for your thumb: prompt, browse, share and upscale. Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust."
+                  "text": "On your own network, yes. On the PC running HEISS UI, open Settings › Connection and turn on “Open on other devices”. Set a studio password under “Signing in”, then scan the QR code with your phone and sign in. Laptops, tablets and other desktops can open the network address in their browser too. The phone gets a studio for your thumb: prompt, paint, browse, share and upscale. Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust."
                 }
               },
               {
@@ -438,7 +446,144 @@
                   </g>
                 </svg>
 
-                <!-- 03 · Phone studio -->
+                <!-- 03 · Inpainting: the real thing, recorded in the app -->
+                <div class="art art-clip" data-art>
+                  <video class="art-video" muted loop playsinline preload="none" poster="./screenshots/inpainting-poster.webp" data-art-video>
+                    <source src="./screenshots/inpainting.webm" type="video/webm" />
+                    <source src="./screenshots/inpainting.mp4" type="video/mp4" />
+                  </video>
+                </div>
+
+                <!-- 04 · Auto-grouping: four takes fold into one stack, then skim it -->
+                <svg class="art art-group" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <clipPath id="g-c00"><rect x="36" y="80" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c01"><rect x="36" y="214" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c10"><rect x="140" y="80" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c11"><rect x="140" y="214" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c20"><rect x="244" y="80" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c21"><rect x="244" y="214" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c30"><rect x="348" y="80" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-c31"><rect x="348" y="214" width="94" height="124" rx="12" /></clipPath>
+                    <clipPath id="g-cover"><rect x="36" y="80" width="94" height="124" rx="12" /></clipPath>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="36" y="28" width="408" height="36" rx="12" class="f-raised" />
+                    <circle cx="57" cy="45" r="5.5" class="g-glass" />
+                    <path d="M61 49l4 4" class="g-glass" />
+                    <text x="74" y="50" class="f-lo" font-size="11.5">Search prompts, models, LoRAs</text>
+                    <rect x="404" y="34" width="32" height="24" rx="8" class="g-btn" />
+                    <g class="g-btn-glyph">
+                      <rect x="413" y="40" width="14" height="10" rx="2.5" />
+                      <path d="M415 53h10" />
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="40" y="84" width="86" height="124" rx="12" class="g-edge g-edge-b" />
+                    <rect x="44" y="88" width="78" height="124" rx="12" class="g-edge g-edge-c" />
+                    <g clip-path="url(#g-cover)">
+                      <image href="./images/features/glass-portrait.webp" x="36" y="80" width="94" height="124" preserveAspectRatio="xMidYMid slice" />
+                      <g class="g-v g-v1"><image href="./images/features/glass-portrait.webp" x="22" y="66" width="122" height="152" preserveAspectRatio="xMidYMid slice" /><rect x="36" y="80" width="94" height="124" class="g-tint-warm" /></g>
+                      <g class="g-v g-v2"><image href="./images/features/glass-portrait.webp" x="36" y="80" width="94" height="124" preserveAspectRatio="xMidYMid slice" transform="matrix(-1 0 0 1 166 0)" /><rect x="36" y="80" width="94" height="124" class="g-tint-cool" /></g>
+                      <g class="g-v g-v3"><image href="./images/features/glass-portrait.webp" x="28" y="60" width="110" height="140" preserveAspectRatio="xMidYMin slice" /><rect x="36" y="80" width="94" height="124" class="g-tint-dusk" /></g>
+                    </g>
+                    <rect x="36" y="80" width="94" height="124" rx="12" class="g-frame" />
+                    <g class="g-badge">
+                      <rect x="102" y="88" width="20" height="18" rx="6" class="u-tag" />
+                      <text x="112" y="101.5" class="f-pixel f-hi" font-size="13" text-anchor="middle">4</text>
+                    </g>
+                    <g class="g-skim">
+                      <rect x="46" y="192" width="74" height="3" rx="1.5" class="g-track" />
+                      <rect x="46" y="192" width="18.5" height="3" rx="1.5" class="f-white g-knob" />
+                      <path class="g-cursor" d="M58 184v14l3.6-3.4 2.6 5.6 2.4-1.1-2.6-5.5h5z" />
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 2">
+                    <g class="g-merge" style="--dx: -208px; --dy: 0px">
+                      <g clip-path="url(#g-c20)"><image href="./images/features/glass-portrait.webp" x="230" y="66" width="122" height="152" preserveAspectRatio="xMidYMid slice" /><rect x="244" y="80" width="94" height="124" class="g-tint-warm" /></g>
+                      <rect x="244" y="80" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                    <g class="g-merge" style="--dx: 0px; --dy: -134px">
+                      <g clip-path="url(#g-c01)"><image href="./images/features/glass-portrait.webp" x="36" y="214" width="94" height="124" preserveAspectRatio="xMidYMid slice" transform="matrix(-1 0 0 1 166 0)" /><rect x="36" y="214" width="94" height="124" class="g-tint-cool" /></g>
+                      <rect x="36" y="214" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                    <g class="g-merge" style="--dx: -208px; --dy: -134px">
+                      <g clip-path="url(#g-c21)"><image href="./images/features/glass-portrait.webp" x="236" y="194" width="110" height="140" preserveAspectRatio="xMidYMin slice" /><rect x="244" y="214" width="94" height="124" class="g-tint-dusk" /></g>
+                      <rect x="244" y="214" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                  </g>
+
+                  <g class="ai" style="--s: 3">
+                    <g class="g-stay" style="">
+                      <g clip-path="url(#g-c10)"><image href="./images/features/forest-lake.webp" x="140" y="80" width="94" height="124" preserveAspectRatio="xMidYMid slice" /></g>
+                      <rect x="140" y="80" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                    <g class="g-flow" style="--fx: -104px; --fy: 0px">
+                      <g clip-path="url(#g-c30)"><image href="./images/features/misty-hills.webp" x="348" y="80" width="94" height="124" preserveAspectRatio="xMidYMid slice" /></g>
+                      <rect x="348" y="80" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                    <g class="g-flow" style="--fx: 208px; --fy: -134px">
+                      <g clip-path="url(#g-c11)"><image href="./images/features/modern-house.webp" x="140" y="214" width="94" height="124" preserveAspectRatio="xMidYMid slice" /></g>
+                      <rect x="140" y="214" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                    <g class="g-flow" style="--fx: -312px; --fy: 0px">
+                      <g clip-path="url(#g-c31)"><image href="./images/features/subway-portrait.webp" x="348" y="214" width="94" height="124" preserveAspectRatio="xMidYMid slice" /></g>
+                      <rect x="348" y="214" width="94" height="124" rx="12" class="g-frame" />
+                    </g>
+                  </g>
+
+                  <g class="ai g-note" style="--s: 4">
+                    <rect x="300" y="350" width="144" height="34" rx="11" class="f-card" />
+                    <rect x="314" y="363" width="8" height="8" rx="1.5" class="f-ember" />
+                    <text x="330" y="371.5" class="f-hi" font-size="11">4 takes, one tile</text>
+                  </g>
+                </svg>
+
+                <!-- 05 · Smart upscale -->
+                <svg class="art art-upscale" viewBox="0 0 480 400" data-art>
+                  <defs>
+                    <clipPath id="u-frame"><rect x="40" y="36" width="400" height="260" rx="18" /></clipPath>
+                    <clipPath id="u-split"><rect class="u-split" x="40" y="36" width="400" height="260" /></clipPath>
+                    <linearGradient id="u-sky" x1="0" y1="0" x2="0" y2="1" data-u-sky></linearGradient>
+                  </defs>
+
+                  <g class="ai" style="--s: 0">
+                    <rect x="36" y="32" width="408" height="268" rx="22" class="f-card" />
+                    <g clip-path="url(#u-frame)">
+                      <g data-u-smooth>
+                        <image href="./images/features/tennis-player.webp" x="40" y="36" width="400" height="260" preserveAspectRatio="xMidYMid slice" />
+                      </g>
+                      <g clip-path="url(#u-split)"><g data-u-pixels>
+                        <image href="./images/features/tennis-player-preview.webp" x="40" y="36" width="400" height="260" preserveAspectRatio="xMidYMid slice" image-rendering="pixelated" />
+                      </g></g>
+                    </g>
+                    <g class="u-handle">
+                      <path d="M40 36v260" class="u-line" />
+                      <rect x="26" y="152" width="28" height="28" rx="8" class="f-white" />
+                      <path d="M36 161l-4 5 4 5M44 161l4 5-4 5" class="f-ink-stroke" />
+                    </g>
+                    <rect x="52" y="48" width="64" height="22" rx="7" class="u-tag" />
+                    <text x="84" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">1024 px</text>
+                    <rect x="364" y="48" width="64" height="22" rx="7" class="u-tag" />
+                    <text x="396" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">3072 px</text>
+                  </g>
+
+                  <g class="ai" style="--s: 1">
+                    <rect x="102" y="318" width="276" height="48" rx="15" class="f-card" />
+                    <rect x="114" y="328" width="126" height="28" rx="9" class="f-pill" />
+                    <text x="135" y="346" class="f-lo" font-size="11" text-anchor="middle">None</text>
+                    <text x="177" y="346" class="f-lo" font-size="11" text-anchor="middle">2K</text>
+                    <rect x="199" y="331" width="38" height="22" rx="7" class="f-white" />
+                    <text x="218" y="346" class="f-ink f-strong" font-size="11" text-anchor="middle">4K</text>
+                    <rect x="256" y="338" width="8" height="8" rx="1.5" class="f-ember" />
+                    <text x="272" y="346.5" class="f-hi" font-size="11.5">In the same run</text>
+                  </g>
+                </svg>
+
+                <!-- 06 · Phone studio -->
                 <svg class="art art-phone" viewBox="0 0 480 400" data-art>
                   <defs>
                     <linearGradient id="p-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d5b7a" /><stop offset="1" stop-color="#d7a86e" /></linearGradient>
@@ -522,7 +667,7 @@
                   </g>
                 </svg>
 
-                <!-- 04 · Your studio, over LAN -->
+                <!-- 07 · Your studio, over LAN -->
                 <svg class="art art-lan" viewBox="0 0 480 400" data-art>
                   <defs>
                     <clipPath id="lan-laptop-image"><rect x="56" y="102" width="120" height="72" rx="6" /></clipPath>
@@ -589,7 +734,7 @@
                   </g>
                 </svg>
 
-                <!-- 05 · Find it again -->
+                <!-- 08 · Find it again -->
                 <svg class="art art-find" viewBox="0 0 480 400" data-art>
                   <defs>
                     <linearGradient id="s-g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1c2550" /><stop offset=".6" stop-color="#6a4a8c" /><stop offset="1" stop-color="#f4a36b" /></linearGradient>
@@ -653,7 +798,7 @@
                   </g>
                 </svg>
 
-                <!-- 06 · Hidden -->
+                <!-- 09 · Hidden -->
                 <svg class="art art-vault" viewBox="0 0 480 400" data-art>
                   <defs>
                     <linearGradient id="v-g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2d5b7a" /><stop offset="1" stop-color="#d7a86e" /></linearGradient>
@@ -721,44 +866,7 @@
                   </g>
                 </svg>
 
-                <!-- 07 · Upscale and compare -->
-                <svg class="art art-upscale" viewBox="0 0 480 400" data-art>
-                  <defs>
-                    <clipPath id="u-frame"><rect x="40" y="36" width="400" height="260" rx="18" /></clipPath>
-                    <clipPath id="u-split"><rect class="u-split" x="40" y="36" width="400" height="260" /></clipPath>
-                    <linearGradient id="u-sky" x1="0" y1="0" x2="0" y2="1" data-u-sky></linearGradient>
-                  </defs>
-
-                  <g class="ai" style="--s: 0">
-                    <rect x="36" y="32" width="408" height="268" rx="22" class="f-card" />
-                    <g clip-path="url(#u-frame)">
-                      <g data-u-smooth>
-                        <image href="./images/features/tennis-player.webp" x="40" y="36" width="400" height="260" preserveAspectRatio="xMidYMid slice" />
-                      </g>
-                      <g clip-path="url(#u-split)"><g data-u-pixels>
-                        <image href="./images/features/tennis-player-preview.webp" x="40" y="36" width="400" height="260" preserveAspectRatio="xMidYMid slice" image-rendering="pixelated" />
-                      </g></g>
-                    </g>
-                    <g class="u-handle">
-                      <path d="M40 36v260" class="u-line" />
-                      <rect x="26" y="152" width="28" height="28" rx="8" class="f-white" />
-                      <path d="M36 161l-4 5 4 5M44 161l4 5-4 5" class="f-ink-stroke" />
-                    </g>
-                    <rect x="52" y="48" width="64" height="22" rx="7" class="u-tag" />
-                    <text x="84" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">1024 px</text>
-                    <rect x="364" y="48" width="64" height="22" rx="7" class="u-tag" />
-                    <text x="396" y="63" class="f-pixel f-hi" font-size="13" text-anchor="middle">4096 px</text>
-                  </g>
-
-                  <g class="ai" style="--s: 1">
-                    <rect x="146" y="320" width="188" height="44" rx="14" class="f-card" />
-                    <rect x="164" y="338" width="8" height="8" rx="1.5" class="f-ember" />
-                    <text x="182" y="346.5" class="f-hi" font-size="11.5">4× upscale</text>
-                    <text x="316" y="346.5" class="f-mono f-lo" font-size="10.5" text-anchor="end">compare</text>
-                  </g>
-                </svg>
-
-                <!-- 08 · Bring your own workflow -->
+                <!-- 10 · Bring your own workflow -->
                 <svg class="art art-flow" viewBox="0 0 480 400" data-art>
                   <g class="ai" style="--s: 0">
                     <rect x="24" y="28" width="184" height="34" rx="10" class="f-raised" />
@@ -854,7 +962,7 @@
                 </svg>
               </div>
 
-              <div class="stage-ticks" data-stage-ticks><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <div class="stage-ticks" data-stage-ticks><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
               <span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
             </div>
           </div>
@@ -874,36 +982,52 @@
             </li>
             <li class="feature">
               <span class="feature-idx">03</span>
+              <h3>Inpainting</h3>
+              <p>Paint over the part that should change and say what it becomes. Only that part is redrawn, at the model’s full detail, and every other pixel stays exactly as it was.</p>
+              <p>Works with 18 image families, from SDXL and Flux to Krea 2 and Qwen-Image, on ComfyUI’s own nodes. No inpainting model, no extra installs. <span class="tag">Beta</span></p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#inpainting">How inpainting works <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            </li>
+            <li class="feature">
+              <span class="feature-idx">04</span>
+              <h3>Auto-grouping</h3>
+              <p>Ten takes of one idea become one tile. Pictures from similar prompts, even ones you tweak as you go, stack themselves once you move on, with the count in the corner.</p>
+              <p>Slide along the bottom of a stack to skim it, or open it to spread the pictures out. Nothing is moved or renamed, and one button by search turns it on or off.</p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#auto-grouping">More on auto-grouping <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            </li>
+            <li class="feature">
+              <span class="feature-idx">05</span>
+              <h3>Smart upscale</h3>
+              <p>Pick 2K or 4K next to the size menu and every new picture comes out upscaled with SeedVR2, in the same run. Close the page if you like, and the ring counts down the time left.</p>
+              <p>Any older picture upscales with one click, and a slider drags across it to show what changed. An optional face detail pass (beta) redraws small faces first.</p>
+              <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#smart-upscale">Smart upscale <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
+            </li>
+            <li class="feature">
+              <span class="feature-idx">06</span>
               <h3>Phone studio</h3>
               <p>On a phone, the studio is laid out for your thumb. Prompt, browse, share and upscale from the couch while the computer renders.</p>
               <p>On your PC, open Settings › Connection and turn on “Open on other devices”. Set a studio password under “Signing in”, then scan the QR code with your phone and sign in. Both devices need to be on the same trusted network.</p>
               <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#on-your-phone">Phone setup <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </li>
             <li class="feature">
-              <span class="feature-idx">04</span>
+              <span class="feature-idx">07</span>
               <h3>Your studio, over LAN</h3>
               <p>Open HEISS UI in a browser on any other device on your local network: a laptop, tablet, phone or another desktop. Prompt, browse and upscale while your PC does the rendering, with the same models and gallery.</p>
               <p>On your PC, enable “Open on other devices” in Settings › Connection and set a studio password. Open the network address shown there on your other device, then sign in. Works over Wi-Fi or wired LAN on a network you trust.</p>
               <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI#connect-over-lan">LAN setup <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
             </li>
             <li class="feature">
-              <span class="feature-idx">05</span>
+              <span class="feature-idx">08</span>
               <h3>Find it again</h3>
               <p>Press <kbd>↑</kbd> in an empty prompt for recent prompts, or <kbd>/</kbd> to search the gallery by prompt, model or LoRA. Star the prompts and images worth keeping.</p>
               <p>Older ComfyUI, AUTOMATIC1111 or Forge folders can join the gallery where they are.</p>
             </li>
             <li class="feature">
-              <span class="feature-idx">06</span>
+              <span class="feature-idx">09</span>
               <h3>Hidden</h3>
               <p>A locked place for images you keep to yourself. Generate into it or hide anything later, and unlock it with Touch ID, Windows Hello or a password. While it’s locked, nothing shows.</p>
             </li>
             <li class="feature">
-              <span class="feature-idx">07</span>
-              <h3>Upscale and compare</h3>
-              <p>Upscale any image in one click with SeedVR2, then drag across it to see what changed. An optional face detail pass (beta) redraws small faces first.</p>
-            </li>
-            <li class="feature">
-              <span class="feature-idx">08</span>
+              <span class="feature-idx">10</span>
               <h3>Bring your own workflow</h3>
               <p>Built something good in ComfyUI? Import its JSON and it turns into a clean set of controls, with your graph running underneath. The import review shows what each control is connected to, and you can change any of them.</p>
               <a class="feature-link" href="https://github.com/tristmeister/HEISS-UI/blob/main/workflows/README.md">Workflow guide <svg class="icon" aria-hidden="true"><use href="#i-arrow" /></svg></a>
@@ -920,7 +1044,11 @@
             </li>
             <li>
               <h3>Reference and start images</h3>
-              <p>Flux.2 and Qwen-Image 2.1 edit from reference images. Other image models start from an image, with a slider for how much may change.</p>
+              <p>Flux.2 and Qwen-Image 2.1 edit from reference images. Other image models start from an image, with a slider for how much may change. Either one can be painted on.</p>
+            </li>
+            <li>
+              <h3>Videos in the gallery</h3>
+              <p>Video tiles play a silent preview, and opening one plays it with sound, seeking and full screen.</p>
             </li>
             <li>
               <h3>Zen mode</h3>
@@ -950,30 +1078,30 @@
           <div class="dl" data-dl data-os="all">
             <div class="dl-main" data-dl-main></div>
             <div class="dl-opts" data-dl-opts>
-              <a class="dl-opt" data-platform="macos-arm64" data-bytes="59527327" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.13.0/heiss-ui-0.13.0-macos-arm64.zip">
+              <a class="dl-opt" data-platform="macos-arm64" data-bytes="79541904" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.17.0/heiss-ui-0.17.0-macos-arm64.zip">
                 <span class="dl-icon" aria-hidden="true"><svg class="icon"><use href="#i-download" /></svg></span>
                 <span class="dl-text">
                   <span class="dl-name"><span class="dl-verb">Download for </span>macOS</span>
-                  <span class="dl-sub">Apple Silicon · <span data-dl-size>60 MB</span></span>
+                  <span class="dl-sub">Apple Silicon · <span data-dl-size>80 MB</span></span>
                 </span>
               </a>
-              <a class="dl-opt" data-platform="windows-x64" data-bytes="55152678" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.13.0/heiss-ui-0.13.0-windows-x64.zip">
+              <a class="dl-opt" data-platform="windows-x64" data-bytes="85602442" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.17.0/heiss-ui-0.17.0-windows-x64.zip">
                 <span class="dl-icon" aria-hidden="true"><svg class="icon"><use href="#i-download" /></svg></span>
                 <span class="dl-text">
                   <span class="dl-name"><span class="dl-verb">Download for </span>Windows</span>
-                  <span class="dl-sub">x64 · <span data-dl-size>55 MB</span></span>
+                  <span class="dl-sub">x64 · <span data-dl-size>86 MB</span></span>
                 </span>
               </a>
-              <a class="dl-opt" data-platform="linux-x64" data-bytes="73045635" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.13.0/heiss-ui-0.13.0-linux-x64.zip">
+              <a class="dl-opt" data-platform="linux-x64" data-bytes="103283977" href="https://github.com/tristmeister/HEISS-UI/releases/download/v0.17.0/heiss-ui-0.17.0-linux-x64.zip">
                 <span class="dl-icon" aria-hidden="true"><svg class="icon"><use href="#i-download" /></svg></span>
                 <span class="dl-text">
                   <span class="dl-name"><span class="dl-verb">Download for </span>Linux</span>
-                  <span class="dl-sub">x64 · <span data-dl-size>73 MB</span></span>
+                  <span class="dl-sub">x64 · <span data-dl-size>103 MB</span></span>
                 </span>
               </a>
             </div>
             <div class="dl-meta">
-              <p class="dl-version"><span data-dl-version>0.13.0</span><span class="dl-main-size"> · <span data-dl-main-size></span></span></p>
+              <p class="dl-version"><span data-dl-version>0.17.0</span><span class="dl-main-size"> · <span data-dl-main-size></span></span></p>
               <p class="dl-others" data-dl-others>Also for</p>
             </div>
             <p class="dl-intel">The macOS download is for Apple Silicon. Intel Macs can <a class="inline" href="#install-more" data-open-source>run it from source</a>.</p>
@@ -1102,8 +1230,12 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
             <div class="answer"><p>28 families out of the box, 21 for images and 7 for video, from SD 1.5 and SDXL to Flux.2, Qwen-Image, Krea 2 and Wan 2.2. Missing text encoders, VAEs and nodes download with one click. GGUF files run through the ComfyUI-GGUF nodes, which install with one click too, though that pack doesn’t load every family yet. Anything else runs as your own workflow. See the <a class="inline" href="https://github.com/tristmeister/HEISS-UI#supported-models">full list</a>.</p></div>
           </details>
           <details name="faq">
+            <summary>Can it inpaint and upscale?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
+            <div class="answer"><p>Yes, both built in. <a class="inline" href="https://github.com/tristmeister/HEISS-UI#inpainting">Inpainting</a> redraws only the part you paint over, with 18 of the 21 image families and ComfyUI’s own nodes, and the rest of the picture keeps its exact pixels. <a class="inline" href="https://github.com/tristmeister/HEISS-UI#smart-upscale">Smart upscale</a> takes new pictures to 2K or 4K with SeedVR2 in the same run, or upscales any picture later with one click.</p></div>
+          </details>
+          <details name="faq">
             <summary>Does it do video?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>Yes, marked Beta for now. Wan 2.1, Wan 2.2 5B, Wan 2.2 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, no workflow needed, and Wan 2.2 14B and HunyuanVideo 1.5 also start from an image. Videos get their own gallery.</p></div>
+            <div class="answer"><p>Yes, marked Beta for now. Wan 2.1, Wan 2.2 5B, Wan 2.2 14B, HunyuanVideo 1.5 and MiniMax H3 run built in, no workflow needed, and Wan 2.2 14B and HunyuanVideo 1.5 also start from an image. Videos play right in the gallery.</p></div>
           </details>
           <details name="faq">
             <summary>Can I bring my own workflows?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
@@ -1123,7 +1255,7 @@ Don't download models unless I ask. Keep it on this computer: opening it to a ph
           </details>
           <details name="faq">
             <summary>Can I use it from my phone?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-            <div class="answer"><p>On your own network, yes. On the PC running HEISS UI, open <strong>Settings › Connection</strong> and turn on <strong>Open on other devices</strong>. Set a studio password under <strong>Signing in</strong>, then scan the QR code with your phone and sign in. Laptops, tablets and other desktops can open the network address in their browser too. The phone gets a studio for your thumb: prompt, browse, share and upscale.</p><p>Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust.</p></div>
+            <div class="answer"><p>On your own network, yes. On the PC running HEISS UI, open <strong>Settings › Connection</strong> and turn on <strong>Open on other devices</strong>. Set a studio password under <strong>Signing in</strong>, then scan the QR code with your phone and sign in. Laptops, tablets and other desktops can open the network address in their browser too. The phone gets a studio for your thumb: prompt, paint, browse, share and upscale.</p><p>Updates, installs and other admin stay at the computer unless you allow them for signed-in devices. For HTTPS, add your own certificate in the same place. Only open it on a network you trust.</p></div>
           </details>
           <details name="faq">
             <summary>Where does HEISS UI come from?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>

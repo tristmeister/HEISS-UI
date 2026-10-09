@@ -29,7 +29,7 @@
             "headline": "ComfyUI on an AMD Radeon card",
             "description": "How to run ComfyUI on an AMD Radeon card in 2026: ComfyUI Desktop and ROCm on Windows, ROCm 7.2 on Linux, RX 6000 workarounds, what fits and measured times.",
             "url": "https://heiss-ui.vercel.app/hardware/amd-radeon/",
-            "dateModified": "2026-09-29",
+            "dateModified": "2026-10-09",
             "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
             "author": {
               "@type": "Organization",
@@ -174,7 +174,7 @@
         <p class="label">Hardware guide</p>
         <h1>ComfyUI on an AMD Radeon card.</h1>
         <p class="g-lead">Radeon RX 7000 and RX 9000 cards run ComfyUI on Windows through ComfyUI Desktop or the AMD portable build, both on AMD’s ROCm, and on Linux with ROCm 7.2. RX 6000 cards work through community builds. What fits depends on memory, as on NVIDIA. Intel Arc is at the end.</p>
-        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>4 min read</span></p>
+        <p class="g-meta"><span>Updated 9 Oct 2026</span><span>4 min read</span></p>
         <dl class="g-spec"><div><dt>Windows</dt><dd>Desktop or portable<small>ROCm, RX 7000 and 9000</small></dd></div><div><dt>Linux</dt><dd>ROCm 7.2<small>PyTorch wheels</small></dd></div><div><dt>RX 6000</dt><dd>Community builds<small>or an override on Linux</small></dd></div><div><dt>fp8 compute</dt><dd>None<small>fp8 files save memory only</small></dd></div></dl>
         
       </div>
@@ -213,6 +213,7 @@
 <h2 id="fit">What fits.</h2>
 <p>Memory decides the model list the same way as on NVIDIA. Match your card to the NVIDIA guide with the same memory:</p>
 <div class="g-table" role="region" aria-label="AMD cards by memory" tabindex="0"><table><thead><tr><th scope="col">Memory</th><th scope="col">Cards</th><th scope="col">Guide</th></tr></thead><tbody><tr><th scope="row">8 GB</th><td>RX 7600, 9060 XT 8 GB, 6600 family</td><td><a href="../../hardware/8gb-vram/">8 GB</a></td></tr><tr><th scope="row">12 GB</th><td>RX 7700 XT, 6700 XT, 6750 XT</td><td><a href="../../hardware/12gb-vram/">12 GB</a></td></tr><tr><th scope="row">16 GB</th><td>RX 9070 XT, 9070, 9060 XT 16 GB, 7900 GRE, 7800 XT, 7600 XT, 6800 to 6950 XT</td><td><a href="../../hardware/16gb-vram/">16 GB</a></td></tr><tr><th scope="row">20 to 24 GB</th><td>RX 7900 XT, 7900 XTX</td><td><a href="../../hardware/24gb-vram/">24 GB</a></td></tr><tr><th scope="row">32 GB</th><td>Radeon AI PRO R9700</td><td><a href="../../hardware/rtx-5090/">32 GB</a></td></tr></tbody></table></div><p class="g-table-note">Two differences: nvfp4 files are NVIDIA-only, and without ComfyUI’s dynamic memory handling a model that just fits on NVIDIA may need a size down on AMD.</p>
+<p><strong>Inpainting and upscaling in HEISS UI.</strong> Inpainting redraws only a crop around the part you paint, at the model’s working size, so it needs about as much memory as a normal run of that model. Smart upscale runs SeedVR2: Fast (the 3B model, a 3.9 GB download) needs the least graphics memory, 2K and Balanced (7B fp8, 9 GB) more, and 4K and High (7B fp16, 17 GB) the most.</p>
 
 <h2 id="speed">How long it takes.</h2>
 <div class="g-table" role="region" aria-label="Generation times on AMD and Intel cards" tabindex="0"><table><thead><tr><th scope="col">Card</th><th scope="col">Setup</th><th scope="col">Time</th></tr></thead><tbody><tr><th scope="row">Radeon AI PRO R9700</th><td>SDXL, 1024 px, 20 steps, ROCm 7.1, Linux</td><td><span class="g-time">5.2 s</span><a class="g-ref" href="#src-4">[4]</a></td></tr><tr><th scope="row">RX 9070</th><td>SDXL, 1024 px, 20 steps, ROCm 7.0</td><td><span class="g-time">1.8 to 2.1 it/s</span><a class="g-ref" href="#src-5">[5]</a></td></tr><tr><th scope="row">RX 6800 XT</th><td>SDXL, 1024 px, 20 steps, ROCm 6.3, Linux</td><td><span class="g-time">12 to 16 s</span><a class="g-ref" href="#src-5">[5]</a></td></tr><tr><th scope="row">RX 7600 XT</th><td>SDXL, 1024 px, 20 steps, ZLUDA</td><td><span class="g-time">20.5 s</span><a class="g-ref" href="#src-5">[5]</a></td></tr><tr><th scope="row">RX 6700 XT</th><td>SDXL, 1024 px, 20 steps, ZLUDA</td><td><span class="g-time">23.5 s</span><a class="g-ref" href="#src-5">[5]</a></td></tr><tr><th scope="row">RX 6600</th><td>Anima, per step, before and after the fp16 fix</td><td><span class="g-time">13.4 s / 6.8 s</span><a class="g-ref" href="#src-7">[7]</a></td></tr><tr><th scope="row">Intel Arc A770</th><td>Flux.1 Dev fp8, 20 steps</td><td><span class="g-time">47 to 53 s</span><a class="g-ref" href="#src-6">[6]</a></td></tr></tbody></table></div>

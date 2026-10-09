@@ -29,7 +29,7 @@
             "headline": "What runs on a Mac with Apple Silicon",
             "description": "What runs in ComfyUI on an Apple Silicon Mac, by unified memory: 16 GB for SDXL, 24 GB for Flux.2 Klein, 48 GB for Krea 2. Why fp8 doesn’t help, and real times.",
             "url": "https://heiss-ui.vercel.app/hardware/mac-apple-silicon/",
-            "dateModified": "2026-09-29",
+            "dateModified": "2026-10-09",
             "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
             "author": {
               "@type": "Organization",
@@ -182,7 +182,7 @@
         <p class="label">Hardware guide</p>
         <h1>What runs on a Mac with Apple Silicon.</h1>
         <p class="g-lead">On a Mac, count the unified memory and take about 70%: that’s what the GPU can use. 16 GB runs SDXL, 18 to 24 GB adds Flux.2 Klein and Z-Image, 48 GB runs Krea 2 at full precision. This page covers the memory math, which files to pick, and how long it takes.</p>
-        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>4 min read</span></p>
+        <p class="g-meta"><span>Updated 9 Oct 2026</span><span>4 min read</span></p>
         <dl class="g-spec"><div><dt>GPU share</dt><dd>about 70%<small>Metal’s own limit is 74 to 78%</small></dd></div><div><dt>fp8 files</dt><dd>no saving<small>they load at full precision</small></dd></div><div><dt>Smaller files</dt><dd>GGUF<small>Q4_K_M to Q8_0</small></dd></div><div><dt>Install</dt><dd>ComfyUI Desktop<small>M1 or later, macOS 13+</small></dd></div></dl>
         
       </div>
@@ -197,6 +197,7 @@
 <h2 id="memory">How much memory the GPU gets.</h2>
 <p>A Mac shares one memory between CPU and GPU, and macOS lets the GPU use part of it. Metal calls that part the recommended working set: on a 24 GB M4 Pro it’s 19.07 GB, about 74%, and reports elsewhere put it at 75 to 78% <a class="g-ref" href="#src-1">[1]</a>. ComfyUI itself reports the whole memory, so it can’t tell you. Plan with about 70%, which leaves macOS and your other apps some room.</p>
 <div class="g-table" role="region" aria-label="What runs on a Mac, by memory" tabindex="0"><table><thead><tr><th scope="col">Memory</th><th scope="col">About 70% for the GPU</th><th scope="col">Runs well</th><th scope="col">HEISS UI marks</th></tr></thead><tbody><tr><th scope="row">8 GB</th><td>5.6 GB</td><td>SD 1.5, SDXL Lightning at a squeeze</td><td>Nothing</td></tr><tr><th scope="row">16 GB</th><td>11.2 GB</td><td>SDXL, Z-Image as a GGUF, Flux.2 Klein 4B tightly</td><td>SDXL</td></tr><tr><th scope="row">18 to 24 GB</th><td>12.6 to 16.8 GB</td><td>Flux.2 Klein 4B, Z-Image, Flux.1 Dev as a GGUF Q4 to Q6</td><td>Flux.2 Klein 4B, SDXL</td></tr><tr><th scope="row">32 to 36 GB</th><td>22 to 25 GB</td><td>Qwen-Image 2.1, Flux.1 Dev GGUF Q8, Wan 2.2 5B, HunyuanVideo 1.5</td><td>Flux.2 Klein 4B, SDXL</td></tr><tr><th scope="row">48 to 64 GB</th><td>34 to 45 GB</td><td>Krea 2 at full precision, Qwen-Image, Wan 2.2 14B in GGUF halves</td><td>Krea 2 Turbo, Flux.2 Klein 4B, SDXL</td></tr><tr><th scope="row">96 to 128 GB</th><td>67 to 90 GB</td><td>Flux.2 Dev, MiniMax H3, Wan 2.2 14B at full precision</td><td>Krea 2 Turbo; Flux.2 Dev at 128 GB</td></tr></tbody></table></div>
+<p><strong>Inpainting and upscaling in HEISS UI.</strong> Inpainting redraws only a crop around the part you paint, at the model’s working size, so it needs about as much memory as a normal run of that model. Smart upscale runs SeedVR2: Fast (the 3B model, a 3.9 GB download) needs the least graphics memory, 2K and Balanced (7B fp8, 9 GB) more, and 4K and High (7B fp16, 17 GB) the most.</p>
 
 <h3>Raising the limit.</h3>
 <p>On macOS 14 and later, <code>iogpu.wired_limit_mb</code> sets how much the GPU may use. It resets at restart. Leave several GB for macOS: the example gives a 32 GB Mac 26 GB for the GPU.</p>

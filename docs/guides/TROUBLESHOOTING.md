@@ -2,10 +2,11 @@
 
 Common problems and how to get past them. A failed generation's card links to its section below.
 
-Still stuck? **Settings › About › Copy diagnostics** copies the HEISS UI, Node.js and ComfyUI versions, the system and the GPU, without prompts, images or file names. Paste it into [an issue](https://github.com/tristmeister/HEISS-UI/issues) with what you did and what happened. **Copy report** on a failed card adds the error itself. Or skip the pasting: **Report bug** on a failed card and **Settings › About** send it to the [feedback board](https://heiss-ui.vercel.app/board/), with the setup lines if you want them. For a quick hand, ask in the [Discord](https://discord.gg/Hf7ysvDeGa).
+Still stuck? **Settings › About › Copy diagnostics** copies the HEISS UI, Node.js and ComfyUI versions, the system and the GPU, without prompts, images or file names. Paste it into [an issue](https://github.com/tristmeister/HEISS-UI/issues) with what you did and what happened. **Copy report** on a failed card adds the error itself. Or skip the pasting: **Report bug** on a failed card, **Idea or bug?** at the bottom of the Settings sidebar send it to the [feedback board](https://heiss-ui.vercel.app/board/), with the setup lines if you want them. For a quick hand, ask in the [Discord](https://discord.gg/Hf7ysvDeGa).
 
 - [Starting HEISS UI](#starting-heiss-ui)
 - [When a generation fails](#when-a-generation-fails)
+- [Inpainting, upscaling and stacks](#inpainting-upscaling-and-stacks)
 - [Downloads and node packs](#downloads-and-node-packs)
 - [Updates](#updates)
 - [Phones and other devices](#phones-and-other-devices)
@@ -105,6 +106,20 @@ A checkpoint that looked all-in-one has no text encoder or VAE built in. From th
 ### Generation failed
 
 Anything else. **Show details** on the card has ComfyUI's own message and traceback. Check that the model runs in ComfyUI itself and that the custom nodes it needs are installed. If it works there but not here, [open an issue](https://github.com/tristmeister/HEISS-UI/issues) with the copied report.
+
+## Inpainting, upscaling and stacks
+
+### The inpainting brush is missing
+
+The brush sits in a reference or start image's menu. When it isn't there, **Inpainting** is turned off in **Settings › Features**, or the current model can't inpaint. Ideogram 4, MageFlow, Sana, video models and imported workflows can't. The model menu marks which models can, and **Settings › Features › Inpainting** lists yours.
+
+### Smart upscale 2K or 4K was skipped
+
+2K and 4K need the ComfyUI-SeedVR2 nodes and a SeedVR2 model. If they're missing, picking a tier offers to set them up first. A run also skips the pick when a reference image decides the framing (edit models) or part of the picture is painted for inpainting. Then the original decides the size. If an upscale stops or fails, the picture stays at its generated size, and the upscale arrow on it tries again.
+
+### Auto-grouping doesn't stack anything
+
+Auto-grouping is off by default. Turn it on with the stack button next to the gallery search, or in **Settings › Library › Auto-grouping**. A stack needs at least 3 pictures from similar prompts, and it forms about 5 minutes after you stop working on that prompt. While you're still generating, the pictures stay ordinary tiles. Coming back to a prompt after 6 hours or more starts a new stack.
 
 ## Downloads and node packs
 

@@ -46,7 +46,7 @@ Until the public 1.0 release, versions stay at `0.x.y`:
 Before every release, on a real ComfyUI with GPU:
 
 1. Generate with three or four model families, including one all-in-one checkpoint and one model-only file.
-2. Run one smart upscale.
+2. Run one Smart upscale (a 2K run and one from the upscale arrow) and one inpaint.
 3. Unpack the release zip (`npm run package` builds it) in a fresh folder and start it with its launcher.
 4. Check that **Settings › About** shows the version and the update check answers.
 
@@ -88,7 +88,7 @@ Between releases a source checkout shows how far it is past its tag in **Setting
 
 ## Found a bug?
 
-Post it on the [feedback board](https://heiss-ui.vercel.app/board/), from the website or from the app (**Settings › About**, or **Report bug** on a failed card), or [open an issue](https://github.com/tristmeister/HEISS-UI/issues). Say what you did, what you expected and what happened. Your ComfyUI version and the model or workflow you used help a lot. Ideas and questions go on the same board. To talk something through first, there's the [Discord](https://discord.gg/Hf7ysvDeGa).
+Post it on the [feedback board](https://heiss-ui.vercel.app/board/), from the website or from the app (**Idea or bug?** at the bottom of the Settings sidebar, **Settings › About**, or **Report bug** on a failed card), or [open an issue](https://github.com/tristmeister/HEISS-UI/issues). Say what you did, what you expected and what happened. Your ComfyUI version and the model or workflow you used help a lot. Ideas and questions go on the same board. To talk something through first, there's the [Discord](https://discord.gg/Hf7ysvDeGa).
 
 ## The feedback board
 

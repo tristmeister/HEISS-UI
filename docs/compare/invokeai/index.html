@@ -30,7 +30,7 @@
       "headline": "InvokeAI vs ComfyUI vs HEISS UI",
       "description": "InvokeAI’s canvas, ComfyUI’s node graph and HEISS UI’s prompt-first studio compared: models, video, inpainting, installs, and who each one suits in 2026.",
       "url": "https://heiss-ui.vercel.app/compare/invokeai/",
-      "dateModified": "2026-09-29",
+      "dateModified": "2026-10-09",
       "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
       "author": {
         "@type": "Organization",
@@ -98,7 +98,7 @@
           "name": "Does HEISS UI have inpainting like Invoke?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. HEISS UI has start images, reference images for Flux.2 and Qwen-Image 2.1, and SeedVR2 upscaling, but no masks or canvas. For inpainting, InvokeAI or Krita AI Diffusion are the better tools."
+            "text": "Yes, a quick kind, in beta. Hover a start or reference image, paint over the part to change and say what it becomes. Only that part is redrawn and the rest keeps its exact pixels. For a full canvas with layers, outpainting and control layers, InvokeAI or Krita AI Diffusion are still the tools."
           }
         },
         {
@@ -175,7 +175,7 @@
 <p class="label">Compare</p>
 <h1>InvokeAI vs ComfyUI vs HEISS UI.</h1>
 <p class="g-lead">InvokeAI is a canvas: layers, inpainting, regional prompts and control layers, on its own engine. HEISS UI is a prompt box and gallery on the ComfyUI you already run. For the prompt, look, keep loop across many models and video, HEISS UI is quicker. If you edit images by hand, Invoke is the better pick.</p>
-<p class="g-meta"><span>Checked 29 Sep 2026</span><span>InvokeAI 6.14.2</span><span>ComfyUI 0.37.0</span><span>HEISS UI 0.13.0</span></p>
+<p class="g-meta"><span>Checked 29 Sep 2026</span><span>InvokeAI 6.14.2</span><span>ComfyUI 0.37.0</span><span>HEISS UI 0.17.0</span></p>
 <dl class="g-spec"><div><dt>Maintained by</dt><dd>Its community<small>led by lstein and blessedcoolant</small></dd></div><div><dt>Licence</dt><dd>Apache-2.0</dd></div><div><dt>Latest</dt><dd>6.14.2<small>27 Sep 2026</small></dd></div><div><dt>Install</dt><dd>Invoke Launcher<small>Windows, macOS, Linux</small></dd></div></dl>
 </div>
 
@@ -188,14 +188,14 @@
 <div class="g-verdict" id="verdict">
 <p class="label">Short answer</p>
 <p>For the everyday loop of prompt, look and keep, HEISS UI is quicker. It runs many models and video on the ComfyUI you already have, sets each one up for you, and adds a phone studio and an encrypted Hidden space.</p>
-<p>If you work on one image at a time, selecting regions, inpainting and painting control layers, InvokeAI’s canvas is the better tool. Nothing here matches it. For building pipelines, there’s ComfyUI’s graph.</p>
+<p>If you work on one image at a time, selecting regions, inpainting and painting control layers, InvokeAI’s canvas is the better tool. HEISS UI’s brush handles quick fixes, but nothing here matches a full canvas. For building pipelines, there’s ComfyUI’s graph.</p>
 </div>
 <aside class="g-callout" data-kind="note">
 <p class="g-callout-title">We make HEISS UI</p>
 <p>Everything about InvokeAI here comes from its own docs and repository, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
 </aside>
 <div class="g-picks">
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You mostly write prompts, compare results and keep the good ones.</li><li>You already run ComfyUI and want to use the models and node packs you have.</li><li>You want each model ready to prompt, and its missing pieces in one click.</li><li>You want more video in the same studio: Wan 2.2, HunyuanVideo 1.5 and MiniMax H3, in beta.</li><li>Your own ComfyUI workflows should work as simple controls.</li><li>You want a phone studio and a locked, encrypted place for private images.</li></ul></div>
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You mostly write prompts, compare results and keep the good ones.</li><li>You already run ComfyUI and want to use the models and node packs you have.</li><li>You want each model ready to prompt, and its missing pieces in one click.</li><li>You want more video in the same studio: Wan 2.2, HunyuanVideo 1.5 and MiniMax H3, in beta.</li><li>Your own ComfyUI workflows should work as simple controls.</li><li>You want quick fixes: paint over a part, say what it becomes, and keep everything else exactly as it was.</li><li>You want a phone studio and a locked, encrypted place for private images.</li></ul></div>
 <div class="g-pick"><h3>Pick InvokeAI if</h3><ul><li>You inpaint, outpaint and paint over results on a canvas with layers.</li><li>You use regional prompts, control layers and reference images while you edit.</li><li>You want one app with its own engine, without running ComfyUI.</li><li>Several people share one install. Invoke has a multi-user mode.</li></ul></div>
 </div>
 <div class="g-picks g-only">
@@ -214,17 +214,17 @@
 <tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td>Not covered in its docs</td><td><span class="g-mark" data-v="part">App Mode</span></td></tr>
 <tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted</small></td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="no">No</span></td></tr>
 <tr><th scope="row">Image models</th><td class="is-us"><span class="g-mark" data-v="yes">21 families</span></td><td><span class="g-mark" data-v="yes">Many</span><small>Flux.2, Krea 2, Z-Image, Qwen-Image, Ideogram 4</small></td><td><span class="g-mark" data-v="yes">All</span><small>usually on release day</small></td></tr>
-<tr><th scope="row">Inpaint, outpaint</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span><small>on the canvas</small></td><td><span class="g-mark" data-v="yes">With nodes</span></td></tr>
+<tr><th scope="row">Inpaint, outpaint</th><td class="is-us"><span class="g-mark" data-v="part">Inpaint, beta</span><small>a brush on a start or reference image; no outpainting</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>on the canvas</small></td><td><span class="g-mark" data-v="yes">With nodes</span></td></tr>
 <tr><th scope="row">Regions, control layers</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="yes">With nodes</span></td></tr>
 <tr><th scope="row">Multiple users</th><td class="is-us"><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="yes">Yes</span></td><td><span class="g-mark" data-v="no">No</span></td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td><span class="g-nowrap">Apache-2.0</span></td><td><span class="g-nowrap">GPL-3.0</span></td></tr>
 </tbody>
 </table>
 </div>
-<p class="g-table-note">Checked 29 September 2026 against the InvokeAI README, its 6.14 release notes and invoke.ai.</p>
+<p class="g-table-note">Checked 29 September 2026 against the InvokeAI README, its 6.14 release notes and invoke.ai. HEISS UI as of 0.17.0, 9 October 2026.</p>
 <h2 id="canvas">Canvas or prompt box.</h2>
 <p>InvokeAI’s Unified Canvas is the heart of it. You generate into layers, mask a region and inpaint it, extend the image outwards, draw a sketch for a control layer, and give one part of the picture its own prompt. It has SAM segmentation for picking objects and a gallery organised in boards. If your work is making one image right, this is a very good way to do it.</p>
-<p>HEISS UI is for the other way of working: many images, quickly, and keeping the good ones. You write a prompt, previews stream in, you queue the next one, and the gallery keeps prompts, models and LoRAs searchable. For changing an image it has a start image with a <strong>Change</strong> slider, reference images for Flux.2 and Qwen-Image 2.1, and SeedVR2 upscaling with a compare slider. No brushes, no masks.</p>
+<p>HEISS UI is for the other way of working: many images, quickly, and keeping the good ones. You write a prompt, previews stream in, you queue the next one, and the gallery keeps prompts, models and LoRAs searchable. Turn on auto-grouping and pictures from similar prompts stack into one tile. For changing an image it has a start image with a <strong>Change from the reference</strong> slider, reference images for Flux.2 and Qwen-Image 2.1, a brush for quick inpainting (beta) that redraws only the painted part, and SeedVR2 upscaling to 2K or 4K right in the run. No layers, no outpainting, no regions.</p>
 <h2 id="adobe">Invoke after Adobe.</h2>
 <p>Invoke’s founding team joined Adobe, and the hosted Invoke platform shut down. The open-source app carries on: stewardship passed to Lincoln Stein and Vic (blessedcoolant), core maintainers since the start, and it’s funded through GitHub Sponsors. It’s actively developed. Version 6.14 in August 2026 added Wan 2.2 video, Krea 2, Flux.2 Dev, ERNIE Turbo, Ideogram 4, multi-GPU and Intel XPU support, and 6.14.2 followed on 27 September.</p>
 <div class="g-heards">
@@ -235,10 +235,10 @@
 <p>Invoke supports a long list: SD 1.5 to SDXL and SD 3.5, the Flux.1 family, Flux.2 Dev and Klein, Z-Image, Krea 2, Anima, Qwen-Image and its edit model, Ideogram 4 and ERNIE-Image. Its release notes say which features each new model has on the canvas. Video arrived in 6.14 with Wan 2.2, through the workflow editor and its templates.</p>
 <p>HEISS UI runs 21 image families and 7 video families (beta) through ComfyUI, from SD 1.5 to Flux.2, Qwen-Image 2.1, Krea 2 and Ideogram 4, and Wan 2.1, Wan 2.2, HunyuanVideo 1.5 and MiniMax H3 for video. Guides: <a href="../../models/qwen-image/">Qwen-Image</a>, <a href="../../models/flux-2-dev/">Flux.2 Dev</a>, <a href="../../models/wan-2-2/">Wan 2.2</a>.</p>
 <h2 id="better">Where InvokeAI is the better pick.</h2>
-<p>Inpainting, outpainting, regional prompts, control layers, and several people on one install. If your work is making one image exactly right, Invoke’s canvas is the tool for it.</p>
+<p>Inpainting on a canvas with layers, outpainting, regional prompts, control layers, and several people on one install. If your work is making one image exactly right, Invoke’s canvas is the tool for it.</p>
 <aside class="g-callout" data-kind="limit">
 <p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
-<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li><li>No multi-user accounts.</li></ul>
+<ul><li>No canvas, layers or outpainting. Inpainting (beta) is a quick brush on a start or reference image, not a full editor.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li><li>No multi-user accounts.</li></ul>
 </aside>
 <h2 id="both">Running both on one computer.</h2>
 <p>They don’t share an engine, so each loads its own copy of a model into memory. Run one at a time on a single graphics card. Model files can be shared on disk: Invoke’s Model Manager installs from a local path, and ComfyUI reads extra folders from <code>extra_model_paths.yaml</code>.</p>
@@ -259,7 +259,7 @@
 </details>
 <details name="faq">
 <summary>Does HEISS UI have inpainting like Invoke?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>
-<div class="answer"><p>No. HEISS UI has start images, reference images for Flux.2 and Qwen-Image 2.1, and SeedVR2 upscaling, but no masks or canvas. For inpainting, InvokeAI or Krita AI Diffusion are the better tools.</p></div>
+<div class="answer"><p>Yes, a quick kind, in beta. Hover a start or reference image, paint over the part to change and say what it becomes. Only that part is redrawn and the rest keeps its exact pixels. For a full canvas with layers, outpainting and control layers, InvokeAI or Krita AI Diffusion are still the tools.</p></div>
 </details>
 <details name="faq">
 <summary>Can InvokeAI make video?<span class="faq-icon" aria-hidden="true"><svg class="icon"><use href="#i-plus" /></svg></span></summary>

@@ -7,6 +7,7 @@ const icons = {
   close: '<path d="m7 7 10 10M17 7 7 17"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   image: '<rect x="3.5" y="4.5" width="17" height="15" rx="3.5"/><circle cx="9" cy="10" r="1.3"/><path d="m4 17 5-4.5 3.5 3 2.5-2L20 17"/>',
+  brush: '<path d="m11 10 3 3"/><path d="M6.5 21A3.5 3.5 0 1 0 3 17.5a2.62 2.62 0 0 1-.7 1.8A1 1 0 0 0 3 21z"/><path d="M10 17 21.4 5.6a1 1 0 0 0-3-3L7 14"/>',
   out: '<path d="M8 16 16 8m-7 0h7v7"/>',
   chevron: '<path d="m7 10 5 5 5-5"/>',
 };
@@ -119,7 +120,7 @@ export class HeissModelSearch extends HTMLElement {
     const li = document.createElement('li');
     li.dataset.key = entry.key;
     const meta = `${esc(c.creator || 'Unknown creator')}<span class="fam"><span class="dot">·</span>${esc(entry.family.label)}</span>`;
-    const body = `<span class="row-text"><span class="name">${esc(c.name)}</span><span class="meta">${meta}</span></span><span class="tags">${entry.family.references ? `<span class="tag refs" role="img" aria-label="Takes reference images" title="Takes reference images">${icon('image')}</span>` : ''}${c.nsfw ? '<span class="tag">NSFW</span>' : ''}<span class="tag works">${icon('check')}Works</span></span>`;
+    const body = `<span class="row-text"><span class="name">${esc(c.name)}</span><span class="meta">${meta}</span></span><span class="tags">${entry.family.references ? `<span class="tag refs" role="img" aria-label="Takes reference images" title="Takes reference images">${icon('image')}</span>` : ''}${entry.family.inpaint ? `<span class="tag inpaint" role="img" aria-label="Can inpaint" title="Can inpaint">${icon('brush')}</span>` : ''}${c.nsfw ? '<span class="tag">NSFW</span>' : ''}<span class="tag works">${icon('check')}Works</span></span>`;
     if (!href) li.innerHTML = `<div class="row is-static">${body}</div>`;
     else if (!c.nsfw) li.innerHTML = `<a class="row" href="${esc(href)}" target="_blank" rel="noopener noreferrer">${body}<span class="go" aria-label="Opens Civitai">${icon('out')}</span></a>`;
     else li.innerHTML = `<button type="button" class="row" aria-expanded="false">${body}<span class="go">${icon('chevron')}</span></button><div class="note"><div><p>Heads up, this page on Civitai shows NSFW images.</p><a class="open" href="${esc(href)}" target="_blank" rel="noopener noreferrer">Open Civitai ${icon('out')}</a></div></div>`;

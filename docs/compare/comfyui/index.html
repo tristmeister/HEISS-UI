@@ -30,7 +30,7 @@
       "headline": "HEISS UI vs ComfyUI’s node graph and App Mode",
       "description": "ComfyUI’s node graph, its App Mode and HEISS UI compared: when the graph is the right tool, what App Mode covers, and what a prompt-first front end adds on top.",
       "url": "https://heiss-ui.vercel.app/compare/comfyui/",
-      "dateModified": "2026-09-29",
+      "dateModified": "2026-10-09",
       "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
       "author": {
         "@type": "Organization",
@@ -175,7 +175,7 @@
 <p class="label">Compare</p>
 <h1>HEISS UI vs ComfyUI’s node graph and App Mode.</h1>
 <p class="g-lead">HEISS UI runs on ComfyUI, so you keep it either way. Use HEISS UI for the everyday loop across many models, with any model ready to prompt and missing pieces a click away. Build workflows in the graph, and use App Mode for one workflow you run all day.</p>
-<p class="g-meta"><span>Checked 29 Sep 2026</span><span>ComfyUI 0.37.0</span><span>HEISS UI 0.13.0</span></p>
+<p class="g-meta"><span>Checked 29 Sep 2026</span><span>ComfyUI 0.37.0</span><span>HEISS UI 0.17.0</span></p>
 <dl class="g-spec"><div><dt>Made by</dt><dd>Comfy Org</dd></div><div><dt>Licence</dt><dd>GPL-3.0</dd></div><div><dt>Latest</dt><dd>0.37.0<small>21 Sep 2026, weekly releases</small></dd></div><div><dt>Runs on</dt><dd>Windows, macOS, Linux<small>Desktop app, portable or manual</small></dd></div></dl>
 </div>
 
@@ -195,11 +195,11 @@
 <p>Everything about ComfyUI here comes from its own docs and repository, checked on 29 September 2026. Spot something out of date? <a href="https://github.com/tristmeister/HEISS-UI/issues">Open an issue</a> and we’ll fix it.</p>
 </aside>
 <div class="g-picks">
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You switch between models and want each one ready to prompt, with settings that fit it, without touching a graph.</li><li>You want missing pieces listed with their sizes before anything downloads, then fetched in one click.</li><li>You’d like a first model picked to fit your graphics card or Mac.</li><li>You want to prompt and browse from your phone while the computer renders.</li><li>You want one gallery for everything, with search, stars, a trash and a locked, encrypted Hidden space.</li></ul></div>
-<div class="g-pick"><h3>Pick ComfyUI’s graph if</h3><ul><li>You build or debug workflows, or want to see every step between prompt and pixels.</li><li>A model came out this week. ComfyUI supports new models first, often on release day.</li><li>You run one workflow over and over. App Mode turns it into a form, with nothing else to install.</li><li>You rely on custom nodes, ControlNet, masks or inpainting.</li></ul></div>
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Pick HEISS UI if</h3><ul><li>You switch between models and want each one ready to prompt, with settings that fit it, without touching a graph.</li><li>You want missing pieces listed with their sizes before anything downloads, then fetched in one click.</li><li>You’d like a first model picked to fit your graphics card or Mac.</li><li>You want to prompt and browse from your phone while the computer renders.</li><li>You want one gallery for everything, with search, stars, a trash, stacks for similar prompts and a locked, encrypted Hidden space.</li><li>You want to fix one part of a picture with a brush and a sentence, without wiring an inpainting graph.</li></ul></div>
+<div class="g-pick"><h3>Pick ComfyUI’s graph if</h3><ul><li>You build or debug workflows, or want to see every step between prompt and pixels.</li><li>A model came out this week. ComfyUI supports new models first, often on release day.</li><li>You run one workflow over and over. App Mode turns it into a form, with nothing else to install.</li><li>You rely on custom nodes, ControlNet, outpainting or inpainting pipelines beyond a quick brush.</li></ul></div>
 </div>
 <div class="g-picks g-only">
-<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Only in HEISS UI</h3><ul><li><strong>Starts from any model file.</strong> It recognises the model and sets it up. No workflow needed.</li><li><strong>Missing pieces, shown first.</strong> Each one with its size and a button, fetched in one click.</li><li><strong>A first model for your computer.</strong> Three sizes each of Krea 2, Flux.2 and SDXL, the one that fits marked.</li><li><strong>A phone studio.</strong> Made for one thumb, with its own sign-in.</li><li><strong>One gallery for everything.</strong> Every model and workflow, searchable, with your old folders in it.</li><li><strong>Hidden.</strong> An encrypted place for private images, opened with Touch ID, Windows Hello or a password.</li></ul></div>
+<div class="g-pick is-us"><span class="handles" aria-hidden="true"><i></i><i></i><i></i><i></i></span><h3>Only in HEISS UI</h3><ul><li><strong>Starts from any model file.</strong> It recognises the model and sets it up. No workflow needed.</li><li><strong>Missing pieces, shown first.</strong> Each one with its size and a button, fetched in one click.</li><li><strong>A first model for your computer.</strong> Three sizes each of Krea 2, Flux.2 and SDXL, the one that fits marked.</li><li><strong>A phone studio.</strong> Made for one thumb, with its own sign-in.</li><li><strong>Inpainting without a graph.</strong> Paint over a part, say what it becomes, and the rest keeps its exact pixels. Beta, on 18 of 21 image families, with only core nodes.</li><li><strong>One gallery for everything.</strong> Every model and workflow, searchable, with your old folders in it. Auto-grouping can stack pictures from similar prompts.</li><li><strong>Hidden.</strong> An encrypted place for private images, opened with Touch ID, Windows Hello or a password.</li></ul></div>
 </div>
 <aside class="g-callout" data-kind="tip">
 <p class="g-callout-title">Or run both</p>
@@ -216,16 +216,17 @@
 <tr><th scope="row">First model</th><td class="is-us"><span class="g-mark" data-v="yes">Picked for your computer</span></td><td>You choose</td><td>n/a</td></tr>
 <tr><th scope="row">On a phone</th><td class="is-us"><span class="g-mark" data-v="yes">Phone studio</span><small>made for one thumb</small></td><td><span class="g-mark" data-v="no">Not made for touch</span></td><td><span class="g-mark" data-v="yes">Tab layout</span><small>on narrow screens</small></td></tr>
 <tr><th scope="row">Private images</th><td class="is-us"><span class="g-mark" data-v="yes">Hidden</span><small>encrypted, Touch ID or password</small></td><td><span class="g-mark" data-v="no">No</span></td><td><span class="g-mark" data-v="no">No</span></td></tr>
-<tr><th scope="row">Gallery</th><td class="is-us"><span class="g-mark" data-v="yes">One for everything</span><small>search, stars, trash, old folders</small></td><td><span class="g-mark" data-v="part">Queue and assets</span></td><td><span class="g-mark" data-v="part">Assets panel</span></td></tr>
-<tr><th scope="row">Upscale, compare</th><td class="is-us"><span class="g-mark" data-v="yes">One click</span><small>with a compare slider</small></td><td>With nodes</td><td>If the workflow has it</td></tr>
+<tr><th scope="row">Gallery</th><td class="is-us"><span class="g-mark" data-v="yes">One for everything</span><small>search, stars, trash, old folders, optional stacks of similar prompts</small></td><td><span class="g-mark" data-v="part">Queue and assets</span></td><td><span class="g-mark" data-v="part">Assets panel</span></td></tr>
+<tr><th scope="row">Upscale, compare</th><td class="is-us"><span class="g-mark" data-v="yes">Built into runs</span><small>None, 2K or 4K per run with SeedVR2, or any image later, with a compare slider</small></td><td>With nodes</td><td>If the workflow has it</td></tr>
 <tr><th scope="row">Node packs</th><td class="is-us"><span class="g-mark" data-v="yes">Beta</span><small>installed when a model needs one</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>Manager installs missing nodes</small></td><td><span class="g-mark" data-v="yes">Same as the graph</span></td></tr>
 <tr><th scope="row">Models</th><td class="is-us"><span class="g-mark" data-v="yes">28 families</span><small>anything else as your own workflow</small></td><td><span class="g-mark" data-v="yes">All</span><small>usually on release day</small></td><td>Whatever the workflow runs</td></tr>
-<tr><th scope="row">Inpainting, ControlNet</th><td class="is-us"><span class="g-mark" data-v="no">No</span><small>only inside an imported workflow</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>with nodes</small></td><td>If the workflow has it</td></tr>
+<tr><th scope="row">Inpainting</th><td class="is-us"><span class="g-mark" data-v="yes">Beta</span><small>a brush on a start or reference image, no extra nodes</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>with nodes</small></td><td>If the workflow has it</td></tr>
+<tr><th scope="row">ControlNet, outpainting</th><td class="is-us"><span class="g-mark" data-v="no">No</span><small>ControlNet only inside an imported workflow</small></td><td><span class="g-mark" data-v="yes">Yes</span><small>with nodes</small></td><td>If the workflow has it</td></tr>
 <tr><th scope="row">Licence</th><td class="is-us">MIT</td><td><span class="g-nowrap">GPL-3.0</span></td><td><span class="g-nowrap">GPL-3.0</span>, part of ComfyUI</td></tr>
 </tbody>
 </table>
 </div>
-<p class="g-table-note">Checked 29 September 2026 against ComfyUI’s docs and repository. App Mode is marked beta by Comfy Org.</p>
+<p class="g-table-note">Checked 29 September 2026 against ComfyUI’s docs and repository. App Mode is marked beta by Comfy Org. HEISS UI as of 0.17.0, 9 October 2026.</p>
 <h2 id="loop">The graph is for building. The loop is for making.</h2>
 <p>ComfyUI’s graph shows every step: which loader reads the model, which encoder reads the prompt, which sampler runs, what happens to the latent. That’s why new models work there first, and why people build remarkable pipelines in it.</p>
 <p>For everyday use it asks more of you. Each model family wants its own loader, text encoder, VAE, sampler, steps and CFG, and a template only covers the model it was made for. HEISS UI reads the model file itself. It recognises the family from the weights, so a renamed file still works, and starts it with a sampler, scheduler, steps, CFG, shift and size drawn from the official ComfyUI templates and model cards. Krea 2 Turbo starts at 8 steps and CFG 1, Flux.2 Klein at 4 steps, SDXL at 25 steps and CFG 7. Only the controls that model uses show up.</p>
@@ -247,10 +248,10 @@
 <p>The graph is made for a mouse. App Mode adapts to a narrow screen with tabs for inputs, outputs and assets. HEISS UI has a studio laid out for one thumb: the gallery edge to edge, one <strong>Describe…</strong> pill for the prompt, and a long press on any image to share, upscale, star or hide it.</p>
 <p>Turn on <strong>Settings › Connection › Open on other devices</strong>, set a studio password and scan the code. Updates, installs and other admin stay at the computer unless you allow them.</p>
 <h2 id="better">Where the graph is the better pick.</h2>
-<p>Custom pipelines, masks and inpainting, ControlNet, and any model on the day it comes out. That’s what the graph is for, and HEISS UI keeps it one export away.</p>
+<p>Custom pipelines, ControlNet, outpainting, inpainting setups beyond a quick brush, and any model on the day it comes out. That’s what the graph is for, and HEISS UI keeps it one export away.</p>
 <aside class="g-callout" data-kind="limit">
 <p class="g-callout-title">What HEISS UI doesn’t do (yet)</p>
-<ul><li>No inpainting, masks or canvas.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
+<ul><li>No canvas, layers or outpainting. Inpainting (beta) is a quick brush on a start or reference image, not a full editor.</li><li>No ControlNet or IP-Adapter controls, except inside a ComfyUI workflow you import.</li><li>No hires fix and no X/Y/Z grids.</li><li>No LTX-2 video yet. HEISS UI recognises the files but doesn’t run them built in.</li><li>No engine of its own. On a Mac it runs ComfyUI through PyTorch’s Metal backend, where fp8 files load at full precision and save no memory.</li></ul>
 </aside>
 <h2 id="both">Use both.</h2>
 <ol class="steps">

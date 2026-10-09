@@ -29,7 +29,7 @@
             "headline": "What runs on your GPU",
             "description": "Which image and video models run on your graphics card or Mac in ComfyUI, from 6 GB to 32 GB: what fits, what needs system RAM, and a guide per card.",
             "url": "https://heiss-ui.vercel.app/hardware/",
-            "dateModified": "2026-09-29",
+            "dateModified": "2026-10-09",
             "image": "https://heiss-ui.vercel.app/screenshots/hero.jpg",
             "author": {
               "@type": "Organization",
@@ -168,7 +168,7 @@
         <p class="label">Hardware</p>
         <h1>What runs on your GPU.</h1>
         <p class="g-lead">8 GB runs SDXL, Flux.2 Klein and Wan 2.2 5B. 12 to 16 GB adds Krea 2, Flux.1 Dev and Qwen-Image 2.1, and 24 GB or more runs nearly everything. Pick your card for the setup, the files, measured times and what to do when a model doesn’t fit.</p>
-        <p class="g-meta"><span>Updated 29 Sep 2026</span><span>3 min read</span></p>
+        <p class="g-meta"><span>Updated 9 Oct 2026</span><span>3 min read</span></p>
         
         <ul class="g-chips"><li><a href="../hardware/rtx-3060-ti/">RTX 3060 Ti</a></li><li><a href="../hardware/rtx-3060-12gb/">RTX 3060 12 GB</a></li><li><a href="../hardware/8gb-vram/">RTX 4060</a></li><li><a href="../hardware/8gb-vram/">RTX 5060</a></li><li><a href="../hardware/8gb-vram/">RTX 3070</a></li><li><a href="../hardware/12gb-vram/">RTX 4070</a></li><li><a href="../hardware/12gb-vram/">RTX 5070</a></li><li><a href="../hardware/12gb-vram/">RTX 3080</a></li><li><a href="../hardware/rtx-5060-ti-16gb/">RTX 5060 Ti 16 GB</a></li><li><a href="../hardware/rtx-5060-ti-16gb/">RTX 4060 Ti 16 GB</a></li><li><a href="../hardware/16gb-vram/">RTX 5070 Ti</a></li><li><a href="../hardware/16gb-vram/">RTX 5080</a></li><li><a href="../hardware/16gb-vram/">RTX 4080</a></li><li><a href="../hardware/24gb-vram/">RTX 3090</a></li><li><a href="../hardware/24gb-vram/">RTX 4090</a></li><li><a href="../hardware/rtx-5090/">RTX 5090</a></li><li><a href="../hardware/mac-apple-silicon/">Mac</a></li><li><a href="../hardware/amd-radeon/">RX 9070 XT</a></li><li><a href="../hardware/amd-radeon/">RX 7900 XTX</a></li><li><a href="../hardware/amd-radeon/#intel">Intel Arc</a></li><li><a href="../hardware/laptop-gpus/">Gaming laptop</a></li></ul>
       </div>
@@ -181,6 +181,7 @@
 <h2 id="tiers">What runs at each size.</h2>
 <p>Memory decides what runs; speed decides how long it takes. <strong>From the card</strong> means the model fits in graphics memory. <strong>With system RAM</strong> means ComfyUI keeps part of it in RAM and streams it in, which works, slower, with 32 GB or more.</p>
 <div class="g-table" role="region" aria-label="What runs by graphics memory" tabindex="0"><table><thead><tr><th scope="col">Memory</th><th scope="col">From the card</th><th scope="col">With system RAM</th><th scope="col">Guide</th></tr></thead><tbody><tr><th scope="row">6 GB</th><td>SD 1.5, SDXL Lightning, Z-Image as a GGUF</td><td>Flux.2 Klein 4B, Wan 2.2 5B</td><td><a href="../hardware/laptop-gpus/">Laptops</a></td></tr><tr><th scope="row">8 GB</th><td>SDXL, Flux.2 Klein 4B, Z-Image, MageFlow, Wan 2.2 5B</td><td>Krea 2, Flux.1 Dev, Qwen-Image 2.1, Wan 2.2 14B</td><td><a href="../hardware/8gb-vram/">8 GB</a>, <a href="../hardware/rtx-3060-ti/">3060 Ti</a></td></tr><tr><th scope="row">12 GB</th><td>Adds Flux.2 Klein at full precision, Qwen-Image 2.1, Chroma, Krea 2 just about</td><td>Wan 2.2 14B, Qwen-Image, HiDream, MiniMax H3</td><td><a href="../hardware/12gb-vram/">12 GB</a>, <a href="../hardware/rtx-3060-12gb/">3060 12 GB</a></td></tr><tr><th scope="row">16 GB</th><td>Adds Krea 2, Flux.1 Dev, SD 3.5 Large, 720p video</td><td>Qwen-Image fp8, HiDream, Wan 2.2 14B, Flux.2 Dev</td><td><a href="../hardware/16gb-vram/">16 GB</a>, <a href="../hardware/rtx-5060-ti-16gb/">5060 Ti</a></td></tr><tr><th scope="row">24 GB</th><td>Adds Qwen-Image, HiDream, MiniMax H3 pruned, Wan 2.2 14B</td><td>Flux.2 Dev, Krea 2 at full precision</td><td><a href="../hardware/24gb-vram/">3090 and 4090</a></td></tr><tr><th scope="row">32 GB</th><td>Nearly everything at full precision</td><td>Flux.2 Dev in fp8, a little</td><td><a href="../hardware/rtx-5090/">5090</a></td></tr></tbody></table></div><p class="g-table-note">Steam, August 2026: 25.7% of users have 8 GB, 13.0% have 12 GB, 26.9% have 16 GB and 5.4% have 24 GB.</p>
+<p><strong>Inpainting and upscaling in HEISS UI.</strong> Inpainting redraws only a crop around the part you paint, at the model’s working size, so it needs about as much memory as a normal run of that model. Smart upscale runs SeedVR2: Fast (the 3B model, a 3.9 GB download) needs the least graphics memory, 2K and Balanced (7B fp8, 9 GB) more, and 4K and High (7B fp16, 17 GB) the most.</p>
 
 <h2 id="ram">System memory matters too.</h2>
 <p>Once a model doesn’t fit the card, RAM decides whether it runs well. 41% of Steam users have 16 GB <a class="g-ref" href="#src-1">[1]</a>, and that’s the most common reason a big model takes minutes to load: one RTX 3060 owner with 16 GB waited 10 to 20 minutes for Flux.1 Dev <a class="g-ref" href="#src-6">[6]</a>.</p>
