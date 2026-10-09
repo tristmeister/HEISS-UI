@@ -74,7 +74,7 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
     settledRef.current = next;
     setSettled(next);
     if (!folded.length) return;
-    showToast(folded.length === 1 ? "Folded a run" : `Folded ${folded.length} runs`, "default", {
+    showToast(folded.length === 1 ? "Stacked similar images" : `Stacked ${folded.length} groups of similar images`, "default", {
       description: folded.length === 1 ? runTitle(folded[0]) : folded.map(runTitle).slice(0, 3).join(" · "),
       action: {
         label: "Undo",

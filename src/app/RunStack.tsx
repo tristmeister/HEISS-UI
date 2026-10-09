@@ -111,7 +111,7 @@ function BurstStack({ run, width, height, arriving = false, onOpen, titleFromPro
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 420, damping: 30 }}
     >
-      <button type="button" className="run-stack run-burst" aria-label={`${title}. ${runKind(run)}. Open the run`} onClick={onOpen}>
+      <button type="button" className="run-stack run-burst" aria-label={`${title}. ${runKind(run)}. Open the stack`} onClick={onOpen}>
         <span className="run-burst-edge is-2" aria-hidden="true" />
         <span className="run-burst-edge is-1" aria-hidden="true" />
         <span className="run-stack-cover run-burst-cover" style={{ top: 0, bottom: BURST_EDGE }}>
@@ -206,7 +206,7 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 420, damping: 30 }}
     >
-      <button type="button" className="run-stack run-flow" aria-label={`${title}. ${runKind(run)}. Open the run`} onClick={onOpen}>
+      <button type="button" className="run-stack run-flow" aria-label={`${title}. ${runKind(run)}. Open the stack`} onClick={onOpen}>
         {frontReady ? <span className="run-flow-ambient" aria-hidden="true"><Still item={run.cover} /></span> : null}
         <span className="run-flow-stage" style={{ "--face-w": `${faceW}px`, "--face-h": `${faceH}px`, "--face-x": `${Math.round((width - faceW) / 2)}px`, "--face-y": `${Math.round((height - faceH) / 2)}px` } as React.CSSProperties}>
           {leaves.map(({ item, offset }) => {

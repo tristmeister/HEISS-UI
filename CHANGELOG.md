@@ -11,7 +11,7 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> Inpainting, run stacks and native smart upscale
+> Inpainting, smart grouping and native smart upscale
 
 ### Added
 - **Inpainting.** Hover a reference image, press the brush, paint over what
@@ -20,9 +20,9 @@ version opens with a `> ` summary line, which the update pill shows.
   can start from an image, with no extra nodes to install. The model menu marks
   which ones can. It's in beta and on by default; Settings › Features turns it
   off.
-- **Run stacks.** Pictures from similar prompts, even ones you tweak as you go,
-  fold into one tile once you stop working on them: a photo stack or a cover
-  flow with the count in the corner. Slide along the bottom of a tile to skim
+- **Smart grouping.** Pictures from similar prompts, even ones you tweak as you
+  go, group themselves into a stack once you stop working on them: a photo
+  stack or a cover flow with the count in the corner. Slide along the bottom of a tile to skim
   it, open it to spread the images out, or Unstack to keep them apart. Nothing
   about your files changes, and the button by search turns it off.
 - **Native smart upscale.** Pick None, 2K or 4K next to the size menu (or in
@@ -46,7 +46,7 @@ version opens with a `> ` summary line, which the update pill shows.
   toolbar and in the Home Screen app, instead of stopping at a black band.
   Sheets no longer flash the page behind as they close.
 - **Settings are regrouped into eight sections** with one restart button. Smart
-  upscale and inpainting have drawers under Features, run stacks are under
+  upscale and inpainting have drawers under Features, smart grouping is under
   Library, and feedback and Discord moved to About.
 - **The model menu now names a model's family once**, under its name, with icons
   for what it can do.

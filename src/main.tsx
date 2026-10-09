@@ -221,7 +221,7 @@ function App() {
       next.delete(run.id);
       return next;
     });
-    showToast("Run unstacked", "default", { description: runTitle(run), action: { label: "Undo", onClick: () => { unstack(run, false); setOpenRuns((current) => new Set([...current, run.id])); } } });
+    showToast("Unstacked", "default", { description: runTitle(run), action: { label: "Undo", onClick: () => { unstack(run, false); setOpenRuns((current) => new Set([...current, run.id])); } } });
   }, [unstack]); // eslint-disable-line react-hooks/exhaustive-deps
   // Zen steps over a stacked run as one thing, and shows it as a run.
   const zenGallery = useMemo(() => {
