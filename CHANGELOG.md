@@ -20,6 +20,9 @@ version opens with a `> ` summary line, which the update pill shows.
   Qwen-Image 2.1) and any model that can start from an image, and there are no
   extra nodes to install. The model menu marks which ones can. It's in beta and
   on by default; Settings › Features turns it off if you don't want it.
+
+<img width="1061" height="896" alt="image" src="https://github.com/user-attachments/assets/1be54903-e7ad-470d-8c6c-8270e09853af" />
+
 - **Auto-grouping.** Pictures from similar prompts, even ones you tweak as you
   go, now stack themselves once you stop working on them, as a photo stack or a
   cover flow with the count in the corner. Slide along the bottom of a tile to
