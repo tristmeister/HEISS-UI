@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-10-09
+
 > Inpainting, auto-grouping and smart upscale built in
 
 ### Added
@@ -1099,7 +1101,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.14.0...v0.15.0
 [0.14.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.13.0...v0.14.0
