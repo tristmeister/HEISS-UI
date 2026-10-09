@@ -11,72 +11,73 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> Inpainting, auto-grouping and native smart upscale
+> Inpainting, auto-grouping and smart upscale built in
 
 ### Added
-- **Inpainting.** Hover a reference image, press the brush, paint over what
-  should change and say what it becomes. Only the painted part is redrawn. It
-  works with the edit models (Flux.2, Klein, Qwen-Image 2.1) and any model that
-  can start from an image, with no extra nodes to install. The model menu marks
-  which ones can. It's in beta and on by default; Settings › Features turns it
-  off.
+- **Inpainting.** Hover a reference image, hit the brush, paint over the part
+  you want changed and say what it becomes. Only the painted part gets redrawn,
+  the rest keeps its pixels. Works with the edit models (Flux.2, Klein,
+  Qwen-Image 2.1) and any model that can start from an image, and there are no
+  extra nodes to install. The model menu marks which ones can. It's in beta and
+  on by default; Settings › Features turns it off if you don't want it.
 - **Auto-grouping.** Pictures from similar prompts, even ones you tweak as you
-  go, group themselves into a stack once you stop working on them: a photo
-  stack or a cover flow with the count in the corner. Slide along the bottom of a tile to skim
-  it, open it to spread the images out, or Unstack to keep them apart. Nothing
-  about your files changes, and the button by search turns it off.
-- **Native smart upscale.** Pick None, 2K or 4K next to the size menu (or in
-  the phone's create sheet) and each new picture is upscaled with SeedVR2
-  inside its own run, so you can close the page. The next run waits for it, and
-  if you stop it or it fails, you keep the picture at its generated size. If a
-  tier needs models or nodes you don't have, picking it offers to set them up.
-- **Upscales count down.** Times are learned per model and size, queue
-  estimates include them, and the ring and buttons show the seconds left.
-- **LoRA mismatch note.** A note above the prompt bar when an active LoRA was
-  made for another model family.
-- **Crash log** in `data/logs/`, kept for a week. The crash screen now names
-  browser extensions or translators that may have interfered.
+  go, now stack themselves once you stop working on them, as a photo stack or a
+  cover flow with the count in the corner. Slide along the bottom of a tile to
+  skim it, open it to spread the images out, or hit Unstack to keep them apart.
+  Your files aren't touched, and the button by search turns it off.
+- **Smart upscale is built in.** Pick None, 2K or 4K next to the size menu (or
+  in the phone's create sheet) and every new picture gets upscaled with SeedVR2
+  as part of its own run, so you can close the page. The next run waits for it,
+  and if you stop it or it fails you still keep the picture at its generated
+  size. If a tier needs models or nodes you don't have, picking it offers to set
+  them up.
+- **Upscales show the time left.** Times are learned per model and size, queue
+  estimates count them, and the ring and buttons show the seconds remaining.
+- **LoRA mismatch note.** A small note above the prompt bar when an active LoRA
+  was made for a different model family.
+- **A crash log** in `data/logs/`, kept for a week. The crash screen also names
+  browser extensions or translators that might have gotten in the way.
 
 ### Changed
-- **The phone viewer now zooms with your fingers.** Pinch follows them and
+- **The phone viewer zooms with your fingers now.** The pinch follows them and
   gives a little past its limits before springing back, and a swipe or flick
   slides in the next picture while its neighbours load ahead. Upscale shows its
   ring and time left there too.
-- **The phone layout now reaches the bottom of the screen**, under Safari's
-  toolbar and in the Home Screen app, instead of stopping at a black band.
-  Sheets no longer flash the page behind as they close.
-- **Settings are regrouped into eight sections** with one restart button. Smart
-  upscale and inpainting have drawers under Features, auto-grouping is under
-  Library, and feedback and Discord moved to About.
-- **The model menu now names a model's family once**, under its name, with icons
-  for what it can do.
+- **The phone layout goes all the way to the bottom**, under Safari's toolbar
+  and in the Home Screen app, instead of stopping at a black band. Sheets also
+  stop flashing the page behind them as they close.
+- **Settings are regrouped into eight sections** with a single restart button.
+  Smart upscale and inpainting get drawers under Features, auto-grouping lives
+  under Library, and feedback and Discord moved to About.
+- **The model menu names a model's family once**, under its name, with icons for
+  what it can do.
 - **The start image moved into the sidebar's Basics**, with its change amount
   right under it.
-- **At 761–1040 px wide**, the controls now sit in columns beside the prompt
-  bar.
-- **The Images picker now stops at 8** for built-in models, the most one run
-  renders, instead of letting you go far past it.
-- **Loading tiles are calmer**: a soft surface with one slow light sweep instead
+- **Between 761 and 1040 px wide**, the controls now sit in columns beside the
+  prompt bar.
+- **The Images picker stops at 8** for built-in models, which is the most one
+  run renders, instead of letting you go way past it.
+- **Loading tiles are calmer.** A soft surface with one slow light sweep instead
   of a flickering checkerboard.
 
 ### Fixed
-- **Gallery export now works at any size.** Past 4 GB or 65,535 files it writes
-  a ZIP64 archive and reads each file once instead of holding everything in
-  memory.
-- **Large galleries scroll more smoothly and find thumbnails faster**, and at
-  most four thumbnails are built at once instead of dozens.
-- **Translating the page no longer takes the studio down.** Chrome's and
-  Edge's translator rewrote the sidebar and viewer details and could crash
-  it; both are now left alone.
-- **Lifting one finger after a pinch no longer flings the picture.** The
-  other finger used to pan or glide it off.
-- **Prompts are capped at 100,000 characters**, and an oversized or malformed
-  request now gets a short error.
+- **Gallery export works at any size.** Past 4 GB or 65,535 files it writes a
+  ZIP64 archive and reads each file once, so it no longer holds the whole
+  export in memory.
+- **Big galleries scroll smoother and find thumbnails faster**, and at most four
+  thumbnails get built at once instead of dozens.
+- **Translating the page no longer takes the studio down.** Chrome's and Edge's
+  translator rewrote the sidebar and viewer details and could crash everything.
+  Both are left alone now.
+- **Lifting one finger after a pinch no longer flings the picture.** The other
+  finger used to pan it or send it gliding off.
+- **Prompts are capped at 100,000 characters**, and an oversized or broken
+  request now gets a short error instead of a wall of HTML.
 
 **Come hang out: the HEISS UI Discord is open.** Ask questions, share what you
-make, and watch the feedback board move: every idea and bug report gets a post
-when it's planned, started and fixed, and a live roadmap sits at the bottom.
-Join at https://discord.gg/Hf7ysvDeGa, or from Settings and the website.
+make, and watch the feedback board move. Every idea and bug report gets a post
+when it's planned, started and fixed, with a live roadmap at the bottom. Join at
+https://discord.gg/Hf7ysvDeGa, or from Settings and the website.
 
 ## [0.16.0] - 2026-10-04
 
