@@ -919,8 +919,8 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
               <SwitchRow label="Wide images take two columns" description="Landscape images span two columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
               <SwitchRow label="Show failed items" description="Interrupted and failed generations stay in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
             </Group>
-            <Group title="Smart grouping" note="Similar generations group themselves into a stack, found by prompt, model and time. The button next to search switches this too.">
-              <SwitchRow label="Smart grouping" description="Pictures from similar prompts fold into one tile that opens to show all of them." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
+            <Group title="Auto-grouping" note="Similar generations group themselves into a stack, found by prompt, model and time. The button next to search switches this too.">
+              <SwitchRow label="Auto-grouping" description="Pictures from similar prompts fold into one tile that opens to show all of them." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
               {prefs.stackRuns ? (
                 <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
                   <Segmented
