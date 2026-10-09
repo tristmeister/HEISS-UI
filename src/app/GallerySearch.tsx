@@ -123,17 +123,17 @@ export function GallerySearchBar({ search, setSearch, count, open, setOpen, hidd
               <AnimatedNumber value={count} />
             </span>
           ) : null}
-          <Tip content={search.favorites ? 'Show everything' : 'Only favourites'}>
+          <Tip content={search.favorites ? 'Show everything' : 'Only favorites'}>
             <button
               type="button"
               className={cn('gallery-search-fav', search.favorites && 'is-on')}
               aria-pressed={search.favorites}
-              aria-label="Only favourites"
+              aria-label="Only favorites"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => setSearch({ ...search, favorites: !search.favorites })}
             >
               <Star size={14} fill={search.favorites ? 'currentColor' : 'none'} />
-              <span>Favourites</span>
+              <span>Favorites</span>
             </button>
           </Tip>
           <Tip content={active ? 'Clear search (Esc)' : 'Close (Esc)'}>
@@ -156,7 +156,7 @@ export function SearchEmpty({ search, onClear, hiddenSpace = false }: { search: 
       <div className="empty stage-empty search-empty" aria-live="polite">
         <div className="stage-mark"><SearchMark className="stage-layer" star={onlyStars} /></div>
         <div className="stage-copy">
-          <h2>{onlyStars ? 'No favourites yet' : <>Nothing matches “{words}”{search.favorites ? ' in favourites' : ''}</>}</h2>
+          <h2>{onlyStars ? 'No favorites yet' : <>Nothing matches “{words}”{search.favorites ? ' in favorites' : ''}</>}</h2>
           <p>{onlyStars
             ? `Star an image${hiddenSpace ? ' in Hidden' : ''} and it shows up here.`
             : 'Search covers prompts, models and LoRAs. Try fewer words.'}</p>
@@ -194,7 +194,7 @@ export function PhoneSearchBar({ search, setSearch, open, setOpen, hiddenSpace =
           enterKeyHint="search"
         />
       </label>
-      <button type="button" className={cn('phone-icon phone-search-fav', search.favorites && 'is-on')} aria-pressed={search.favorites} aria-label="Only favourites" onClick={() => { haptic('tap'); setSearch({ ...search, favorites: !search.favorites }); }}>
+      <button type="button" className={cn('phone-icon phone-search-fav', search.favorites && 'is-on')} aria-pressed={search.favorites} aria-label="Only favorites" onClick={() => { haptic('tap'); setSearch({ ...search, favorites: !search.favorites }); }}>
         <Star size={20} fill={search.favorites ? 'currentColor' : 'none'} />
       </button>
       <button type="button" className="phone-pill" onClick={() => { setSearch(emptySearch); setOpen(false); }}>Cancel</button>

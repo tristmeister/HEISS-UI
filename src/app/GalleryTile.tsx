@@ -188,7 +188,7 @@ function GalleryTileComponent({ cancelJob, copyPromptAndToast, deleteItem, forma
               {canMove ? (
                 item.privateVault
                   ? <Tip content="Move to gallery" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Move to gallery" onClick={() => act(() => hiddenActions!.unhide([item]))}><Eye size={14} /><span className="tile-menu-label">Move to gallery</span></button></Tip>
-                  : <Tip content="Hide" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Hide" onClick={() => act(() => hiddenActions!.hide([item]))}><EyeOff size={14} /><span className="tile-menu-label">Hide</span></button></Tip>
+                  : <Tip content="Move to Hidden" side="left"><button type="button" className="tile-icon tile-hide" aria-label="Move to Hidden" onClick={() => act(() => hiddenActions!.hide([item]))}><EyeOff size={14} /><span className="tile-menu-label">Hide</span></button></Tip>
               ) : null}
               {item.url ? <Tip content={item.upscaleActive && !upscaledWithRun(item) ? "Download the upscale" : "Download"} side="left"><a className="tile-icon" aria-label="Download" href={downloadUrl(item)} download onClick={() => setMenuOpen(false)}><Download size={13} /><span className="tile-menu-label">Download</span></a></Tip> : null}
               {item.status === "done" ? <Tip content="Copy prompt" side="left"><button type="button" className="tile-icon" aria-label="Copy prompt" onClick={() => act(() => copyPromptAndToast(item))}><Copy size={14} /><span className="tile-menu-label">Copy prompt</span></button></Tip> : null}

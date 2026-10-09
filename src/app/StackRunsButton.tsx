@@ -13,7 +13,7 @@ export function StackRunsButton({ on, onToggle, disabled = false, phone = false 
   const rects = on
     ? [{ x: 6.5, y: 2.25, width: 7, height: 0.01 }, { x: 4.5, y: 4.75, width: 11, height: 0.01 }, { x: 2.5, y: 7.5, width: 15, height: 10 }]
     : [{ x: 2.5, y: 2.5, width: 6.5, height: 15 }, { x: 11, y: 2.5, width: 6.5, height: 6.5 }, { x: 11, y: 11, width: 6.5, height: 6.5 }];
-  const label = disabled ? "Runs don’t stack in search results" : on ? "Spread runs out" : "Stack runs";
+  const label = disabled ? "Runs don’t stack in search results" : on ? "Unstack runs" : "Stack runs";
   return (
     <Tip content={label}>
       <button

@@ -78,7 +78,7 @@ The plain `heiss-ui-*.zip` (no system in its name) is for in-app updates; you ca
 
 **2. Unpack it and double-click Start HEISS UI** (`.bat` on Windows, `.command` on macOS, `.desktop` on Linux), or run `npm start` in the folder. Node.js and the packages are inside, so there's nothing else to install, and the studio opens in the browser.
 
-**3. Have ComfyUI running.** ComfyUI on this computer connects on its own, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000. On another machine or port, set its address in **Settings › Connection**. [No ComfyUI yet?](#no-comfyui-yet)
+**3. Have ComfyUI running.** ComfyUI on this computer connects automatically, at `http://127.0.0.1:8188` or ComfyUI Desktop's port 8000. On another machine or port, set its address in **Settings › Connection**. [No ComfyUI yet?](#no-comfyui-yet)
 
 <details>
 <summary><b>Windows: first launch</b></summary>

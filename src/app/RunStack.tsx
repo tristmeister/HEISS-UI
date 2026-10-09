@@ -278,9 +278,9 @@ export function RunShelf({ run, y, width, height, folding, arriving, onClose, on
         <strong>{title}</strong>
         <small>{meta.map((part, index) => <React.Fragment key={part}>{index ? <i aria-hidden="true">·</i> : null}{part}</React.Fragment>)}</small>
         <span className="run-shelf-actions">
-          <button type="button" className="run-shelf-action" aria-label={`Fold ${title} back into a stack`} onClick={onClose}>
+          <button type="button" className="run-shelf-action" aria-label={`Stack ${title}`} onClick={onClose}>
             <ChevronsDownUp size={13} strokeWidth={2.2} />
-            <span>Fold</span>
+            <span>Stack</span>
           </button>
           {onUnstack ? (
             <Tip content="Keep these as separate images">

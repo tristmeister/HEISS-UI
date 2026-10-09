@@ -313,7 +313,7 @@ function OtherVersions({ downloads, current, onPick }: { downloads: PartDownload
           {others.map((entry) => (
             <li key={entry.id}>
               <span><strong>{breakable(entry.file)}</strong><small>{sourceLine(entry)}{entry.onDisk ? ' · already downloaded' : ''}</small></span>
-              <button type="button" className="btn is-ghost" onClick={() => { setOpen(false); onPick(entry); }}><Download size={13} /> Get this</button>
+              <button type="button" className="btn is-ghost" onClick={() => { setOpen(false); onPick(entry); }}><Download size={13} /> Download</button>
             </li>
           ))}
         </ul>

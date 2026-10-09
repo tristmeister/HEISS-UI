@@ -173,7 +173,7 @@ function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsCha
         <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? 'Add' : 'Search'}</button>
       </Row>
       <SwitchRow
-        label="Point out found models"
+        label="Notify about unread model folders"
         description="Shows a note in the sidebar and model menu when models are in a folder ComfyUI doesn’t read."
         checked={hints}
         onChange={onHintsChange}
@@ -915,12 +915,12 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
             </Group> : null}
             <Group title="Gallery">
               <SwitchRow label="Follow the latest output" description="Shows each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
-              {features.moments ? <SwitchRow label="Group by time" description="Headings like “This evening” split the gallery into the stretches you spent making things." checked={prefs.showMoments !== false} onChange={(next) => setPrefs({ showMoments: next })} /> : null}
+              {features.moments ? <SwitchRow label="Group by time" description="Headings like “This evening” split the gallery by when you made things." checked={prefs.showMoments !== false} onChange={(next) => setPrefs({ showMoments: next })} /> : null}
               <SwitchRow label="Wide images take two columns" description="Landscape images span two columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
               <SwitchRow label="Show failed items" description="Interrupted and failed generations stay in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
             </Group>
             <Group title="Runs" note="A run is the takes and variations of one idea, found by prompt, model and time. The stack button over the gallery switches this too.">
-              <SwitchRow label="Stack runs" description="Each run folds into one tile that opens into a shelf of its takes." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
+              <SwitchRow label="Stack runs" description="Each run becomes one tile that opens to show all its images." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
               {prefs.stackRuns ? (
                 <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
                   <Segmented
@@ -1104,7 +1104,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
             <section className="feedback-hero">
               <strong>Found a bug? Have an idea?</strong>
-              <p>Send it to the feedback board. It’s public: others can upvote it, and you can follow along as it gets worked on.</p>
+              <p>Send it to the feedback board. It’s public: others can upvote it, and you can follow its status.</p>
               <div className="feedback-tiles">
                 <button type="button" className="feedback-tile is-bug" onClick={() => openFeedback({ kind: 'bug', from: 'settings' })}>
                   <span className="feedback-tile-icon"><Bug size={15} /></span>
@@ -1122,7 +1122,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                   <span>Not sure how something works?</span>
                 </button>
               </div>
-              <p className="set-note">Nothing is sent on its own. A post carries what you write, plus the setup lines (versions, system, GPU) if you leave them on. No prompts, images or file names.</p>
+              <p className="set-note">A post has what you write, plus versions, system and GPU if you leave them on. No prompts, images or file names.</p>
             </section>
 
             <HelpGroup copyToClipboard={copyToClipboard} />

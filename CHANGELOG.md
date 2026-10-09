@@ -61,6 +61,9 @@ version opens with a `> ` summary line, which the update pill shows.
 - The start image sits in the sidebar's Basics with its change amount under it.
 - Between 761 and 1040 px wide the deck stands in columns beside the composer.
 - The Images picker stops at 8 for built-in models, the most one run renders.
+- Shorter, more consistent wording in a few places: run stacks say Stack and
+  Unstack, "favorites" and "license" are spelled the American way, and the
+  crash screen and feedback notes lose their filler.
 
 ### Fixed
 - **Gallery export of any size.** Past 4 GB or 65,535 files it writes a ZIP64

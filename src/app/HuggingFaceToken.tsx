@@ -38,7 +38,7 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
 
   if (!status) return null;
   const description = note || (status.source === 'environment'
-    ? `Set by ${status.key || 'HF_TOKEN'} in your environment (${status.hint}). Gated models download after you accept their licence on Hugging Face.`
+    ? `Set by ${status.key || 'HF_TOKEN'} in your environment (${status.hint}). Gated models download after you accept their license on Hugging Face.`
     : status.set
       ? `Saved on this computer (${status.hint}). Only sent to huggingface.co.`
       : 'For gated models on Hugging Face. Create a read token there under Settings › Access Tokens; it’s only sent to huggingface.co.');

@@ -353,7 +353,7 @@ async function fetchInto(entry, signal) {
   if (!response.ok || !response.body) {
     await response.body?.cancel().catch(() => {});
     if (response.status === 401 || response.status === 403) {
-      throw finalError(`${entry.file} needs a Hugging Face sign-in or an accepted licence (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
+      throw finalError(`${entry.file} needs a Hugging Face sign-in or an accepted license (HTTP ${response.status}). Download it in your browser and put it in ComfyUI’s ${entry.folder} folder.`, { browser: true });
     }
     if (response.status === 404) {
       // The catalog in this version is out of date; a newer one usually knows where the file went.
