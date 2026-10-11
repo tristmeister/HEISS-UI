@@ -1,0 +1,28 @@
+# Git and CI
+.git
+.github
+
+# Secrets and local state — never bake these into an image
+.env
+.env.*
+data/
+
+# Build outputs (the Dockerfile builds its own)
+dist
+node_modules
+
+# Not needed inside the image
+docs
+*.md
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Test-only fixtures (a multi-MB ComfyUI object_info snapshot and fakes)
+server/fixtures
+
+# Docker's own files
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -97,6 +97,13 @@ ComfyUI on another machine or port? Set its address in **Settings › Connection
 
 </details>
 
+<details>
+<summary><b>Run in Docker</b></summary>
+
+`docker compose up --build` starts the studio in a container next to your running ComfyUI, with its data on a volume and the gallery served from ComfyUI's output folder. Point `COMFY_OUTPUT_HOST` at that folder before starting; the why and a plain `docker run` are in [DOCKER.md](./docs/guides/DOCKER.md).
+
+</details>
+
 ## Supported models
 
 28 families run out of the box with their makers' recommended settings, and a renamed file is still recognized.

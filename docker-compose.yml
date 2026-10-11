@@ -1,0 +1,45 @@
+# HEISS UI in a container: the studio talks to browsers, ComfyUI keeps running
+# where the GPU is and is reached over the network.
+#
+# What you hand it before starting:
+#
+#   export COMFY_OUTPUT_HOST=/path/to/ComfyUI/output
+#   docker compose up --build
+#
+# Any of these settings (or new ones from .env.example) can also live in a
+# .env file next to this file; compose reads one from the project directory.
+#
+# The studio answers at http://localhost:8787, same as a plain install.
+
+name: heiss-ui
+
+services:
+  heiss:
+    build: .
+    image: heiss-ui:latest
+    container_name: heiss-ui
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      # Where the server finds ComfyUI. host.docker.internal names the machine
+      # Docker runs on (extra_hosts below adds that name on plain Linux; Docker
+      # Desktop has it already). ComfyUI elsewhere? Override with COMFY_URL.
+      # ComfyUI must be listening beyond 127.0.0.1 (--listen) to accept this.
+      COMFY_URL: ${COMFY_URL:-http://host.docker.internal:8188}
+      # HEISS reads the images ComfyUI writes straight from ComfyUI's output
+      # folder, so that folder is mounted into the container at a path of our
+      # own and set as the output folder.
+      COMFY_OUTPUT_DIR: /comfy-output
+    volumes:
+      # Gallery, vault and other data, kept across rebuilds. Point HEISS_DATA_DIR
+      # elsewhere if you prefer a bind mount here too.
+      - heiss-data:/data
+      # ComfyUI's output folder on the machine it runs on. Compose stops with a
+      # clear message rather than start without it (see the header above).
+      - "${COMFY_OUTPUT_HOST:?point COMFY_OUTPUT_HOST at ComfyUI's output folder (see file header)}:/comfy-output"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  heiss-data:

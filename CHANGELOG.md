@@ -11,6 +11,13 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Added
+- **Docker support.** `docker compose up --build` runs the studio in a
+  container next to your ComfyUI, keeping its data on a volume and serving
+  the gallery from ComfyUI's output folder. A plain Dockerfile (multi-stage,
+  non-root, for `docker run` without compose) and the how-to are in
+  [DOCKER.md](./docs/guides/DOCKER.md).
+
 ### Fixed
 - **Settings › Features › Inpainting says where its two dials are:** in the
   sidebar's Basics, under the image, not under Advanced.
