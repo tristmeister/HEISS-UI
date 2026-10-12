@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { comfy, comfyModelsDir, comfyOutputDir, optionsFor } from "./comfy.js";
+import { comfy, comfyModelsDir, comfyOutputDir, modelFolders, optionsFor } from "./comfy.js";
 import { families } from "./family-catalog.js";
 import { classifyModel } from "./model-families.js";
 import { comfyPython, comfyRootDir, packInstallPlan } from "./node-install.js";
@@ -148,8 +148,12 @@ function available(info, dir) {
   const vaeOptions = optionsFor(info, "SeedVR2LoadVAEModel", "model").map(String);
   if (!dir) return { dit: ditOptions.filter((name) => /seedvr2/i.test(name)), vae: vaeOptions, remote: true };
   const discovered = (options) => options.filter((name) => !nodeRegistryNames.has(path.basename(name)));
-  const dit = [...new Set([...diskDitFiles(dir), ...discovered(ditOptions).filter((name) => /seedvr2/i.test(name))])];
-  const vae = [...new Set([...(onDisk(dir, vaeFile) ? [vaeFile] : []), ...discovered(vaeOptions)])];
+  // Every folder ComfyUI reads for SeedVR2 (extra_model_paths.yaml included), not just ComfyUI/models/SEEDVR2.
+  const dirs = [...new Set([dir, ...modelFolders("seedvr2", ["SEEDVR2"])])];
+  const dit = [...new Set([...dirs.flatMap(diskDitFiles), ...discovered(ditOptions).filter((name) => /seedvr2/i.test(name))])]
+    // The node can't load int8 builds (ConvRot and the like): "Only Tensors of floating point ... require gradients".
+    .filter((name) => !/int8|convrot/i.test(name));
+  const vae = [...new Set([...(dirs.some((folder) => onDisk(folder, vaeFile)) ? [vaeFile] : []), ...discovered(vaeOptions)])];
   return { dit, vae, remote: false };
 }
 

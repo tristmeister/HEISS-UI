@@ -35,3 +35,12 @@ test("the status poll searches at most every few seconds", async () => {
   await findComfyNow("http://127.0.0.1:8188", { now: 1_010_000, probe });
   assert.equal(probes, 2);
 });
+
+test("HEISS_COMFY_SEARCH=0 keeps HEISS on its own address", async () => {
+  process.env.HEISS_COMFY_SEARCH = "0";
+  try {
+    assert.equal(await findComfyNow("http://127.0.0.1:8189", { now: Date.now() + 60_000, probe: async () => true }), "");
+  } finally {
+    delete process.env.HEISS_COMFY_SEARCH;
+  }
+});

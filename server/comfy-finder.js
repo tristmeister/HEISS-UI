@@ -60,6 +60,8 @@ export async function findComfy({ current, candidates = usualComfyAddresses, pro
 let lastSearch = 0;
 let running = null;
 export function findComfyNow(current, { now = Date.now(), probe } = {}) {
+  // HEISS_COMFY_SEARCH=0 keeps HEISS on its own ComfyUI, e.g. next to another one on 8188 that it must not adopt.
+  if (process.env.HEISS_COMFY_SEARCH === "0") return Promise.resolve("");
   if (running) return running;
   if (now - lastSearch < SEARCH_EVERY_MS) return Promise.resolve("");
   lastSearch = now;

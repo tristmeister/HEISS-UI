@@ -104,6 +104,8 @@ export function encoderKindFromHeader(header) {
   if (keys.has("model.layers.0.post_attention_layernorm.weight")) {
     const width = shape(header, "model.layers.0.post_attention_layernorm.weight")[0];
     if (keys.has("model.layers.0.self_attn.q_norm.weight")) {
+      // Qwen3 keeps separate q/k/v; a fused qkv_proj (MiniMax Music's encoder) only looks like one.
+      if (!keys.has("model.layers.0.self_attn.k_proj.weight")) return "other";
       return { 2560: "qwen3_4b", 4096: "qwen3_8b", 1024: "qwen3_06b" }[width] || "other";
     }
     if (width === 5120) return "mistral3_24b";

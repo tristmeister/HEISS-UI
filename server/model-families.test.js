@@ -52,7 +52,7 @@ const encoders = {
   clip_g: { "text_model.encoder.layers.30.mlp.fc1.weight": t([5120, 1280]) },
   t5xxl: { "encoder.block.23.layer.1.DenseReluDense.wi_1.weight": t([10240, 4096]), "shared.weight": t([32128, 4096]) },
   umt5: { "encoder.block.23.layer.1.DenseReluDense.wi_1.weight": t([10240, 4096]), "encoder.block.1.layer.0.SelfAttention.relative_attention_bias.weight": t([32, 64]) },
-  qwen3_4b: { "model.layers.0.post_attention_layernorm.weight": t([2560]), "model.layers.0.self_attn.q_norm.weight": t([128]) },
+  qwen3_4b: { "model.layers.0.post_attention_layernorm.weight": t([2560]), "model.layers.0.self_attn.q_norm.weight": t([128]), "model.layers.0.self_attn.k_proj.weight": t([1024, 2560]) },
   qwen3vl_4b: { "model.visual.deepstack_merger_list.0.norm.weight": t([1]), "model.visual.merger.linear_fc2.weight": t([2560, 1]) },
   qwen25vl: { "model.layers.0.self_attn.k_proj.bias": t([512]) }
 };
@@ -136,6 +136,8 @@ test("text encoders and VAEs are told apart by shape", () => {
   assert.equal(encoderKindFromHeader(encoders.qwen3_4b), "qwen3_4b");
   assert.equal(encoderKindFromHeader(encoders.qwen3vl_4b), "qwen3vl_4b");
   assert.equal(encoderKindFromHeader(encoders.qwen25vl), "qwen25vl_7b");
+  // MiniMax Music's encoder: Qwen3 8B's width and q_norm, but one fused qkv_proj. It can't run Flux 2 Klein 9B.
+  assert.equal(encoderKindFromHeader({ "model.layers.0.post_attention_layernorm.weight": t([4096]), "model.layers.0.self_attn.q_norm.weight": t([128]), "model.layers.0.self_attn.qkv_proj.weight": t([6144, 4096]) }), "other");
   assert.equal(vaeLayoutFromHeader(vaes.kl4), "kl4");
   assert.equal(vaeLayoutFromHeader(vaes.kl16), "kl16");
   assert.equal(vaeLayoutFromHeader(vaes.flux2), "flux2");

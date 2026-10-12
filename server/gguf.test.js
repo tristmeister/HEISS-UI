@@ -74,7 +74,8 @@ const t5Encoder = gguf([
 const qwen3Encoder = gguf([["general.architecture", value.string("qwen3")]], [
   ["blk.0.ffn_norm.weight", [2560], 0],
   ["blk.0.attn_q_norm.weight", [128], 0],
-  ["blk.0.attn_q.weight", [4096, 2560], 12]
+  ["blk.0.attn_q.weight", [4096, 2560], 12],
+  ["blk.0.attn_k.weight", [1024, 2560], 12]
 ]);
 
 const list = (values) => ({ input: { required: values } });

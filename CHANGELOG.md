@@ -11,7 +11,20 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Added
+- **`HEISS_COMFY_SEARCH=0` keeps HEISS on its own ComfyUI.** With a second
+  ComfyUI just for HEISS next to your main one on 8188, HEISS no longer
+  switches to the main one while its own is starting or restarting.
+
 ### Fixed
+- **Flux.2 Klein 9B picks a Qwen3 8B text encoder that runs it.** MiniMax
+  Music's encoder looks like Qwen3 8B from outside and could become the
+  default, failing every run with "mat1 and mat2 shapes cannot be
+  multiplied". A text encoder saved with the draft that no longer fits
+  falls back to the default instead of failing the run.
+- **Smart upscale finds SeedVR2 weights kept outside ComfyUI/models**, on any
+  folder from `extra_model_paths.yaml`. 4K no longer falls back to an int8
+  build the SeedVR2 node can't load.
 - **Settings › Features › Inpainting says where its two dials are:** in the
   sidebar's Basics, under the image, not under Advanced.
 

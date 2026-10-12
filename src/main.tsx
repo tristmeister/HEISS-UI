@@ -1124,6 +1124,15 @@ function App() {
   }, [mode, models, workflowPreferences]);
 
   const currentProfile = useMemo(() => models?.profiles.find((profile) => profile.id === model) || null, [model, models]);
+  /* A text encoder saved with the draft can stop fitting its slot (a rescan, a sharper
+     file check): fall back to the slot's default instead of sending a pick the server rejects. */
+  useEffect(() => {
+    const slots = currentProfile?.encoderSlots || [];
+    if (!slots.length) return;
+    const fitting = slots.map((slot, index) => slot.options.includes(textEncoders[index]) ? textEncoders[index] : slot.default);
+    if (fitting.some((name, index) => name !== textEncoders[index])) setTextEncoders(fitting);
+    if (textEncoder && !slots[0].options.includes(textEncoder)) setTextEncoder(slots[0].default);
+  }, [currentProfile, textEncoders, textEncoder]);
   const toggleModelFavoriteRef = useRef<(id: string) => void>(() => undefined);
   const modelMenu = useMemo(() => ({
     favorites: workflowPreferences.favorites || [],
