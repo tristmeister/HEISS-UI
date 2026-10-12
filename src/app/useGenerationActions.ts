@@ -6,7 +6,7 @@ import { dedupeGalleryItems } from './gallery';
 import { clearLoraLibrary } from './lora-storage';
 import { retryRequest, type RetryOptions, type RetryRequest } from './retry';
 import { downloadActions } from './useModelDownloads';
-import { autoUpscaleQuality } from './useUpscale';
+import { autoUpscaleQuality, nativeUpscaleSize } from './useUpscale';
 import type { GalleryItem, Job } from './types';
 
 type GalleryPayload = { items?: GalleryItem[]; outputs?: GalleryItem[] };
@@ -133,6 +133,11 @@ export function useGenerationActions(view: any) {
         : "Started video";
       setStatus(startMessage);
 
+      // A reference frames the output only when it is the image being edited (a painted mask always is).
+      const framedByReference = Boolean(currentProfile?.aspectPolicy === "reference" && (referenceAssets || []).length && (inpaint || prefs.referenceRole !== "reference"));
+      // Native 2K/4K: the same aspect, sampled at that size instead of upscaled after (same conditions as Smart upscale).
+      const native = mode === "image" && !inpaint && !framedByReference
+        ? nativeUpscaleSize(prefs.autoUpscale, Number(width), Number(height)) : null;
       const requestBody: Record<string, any> = retry ? retry.body : {
         kind: mode,
         prompt,
@@ -145,8 +150,8 @@ export function useGenerationActions(view: any) {
         vae,
         clipType,
         weightDtype,
-        width,
-        height,
+        width: native ? native.width : width,
+        height: native ? native.height : height,
         steps,
         cfg,
         denoise,
@@ -159,6 +164,9 @@ export function useGenerationActions(view: any) {
         autoResizeInputs: prefs.autoResizeInputs !== false,
         loras,
         referenceAssets: (referenceAssets || []).map(({ slot, asset }: any) => ({ slot, assetId: asset.id })),
+        referenceRole: framedByReference ? "edit" : "reference",
+        // Native 2K/4K: a whole-frame decode at that size can outgrow VRAM and crawl in shared memory without failing; tiles stay on the GPU.
+        ...(native ? { tiledDecode: true } : {}),
         // A painted mask on the first reference: change only that part.
         ...(inpaint ? { inpaint } : {}),
         startImageId: canUseStartImage ? startImageId : "",
@@ -169,7 +177,7 @@ export function useGenerationActions(view: any) {
         // that dictates the framing (aspectPolicy "reference"), or a painted mask,
         // which keeps the original image's size. The size tabs hide in both cases,
         // but a persisted 2K/4K choice from before must not sneak an upscale in too.
-        autoUpscale: mode === "image" && !inpaint && !(currentProfile?.aspectPolicy === "reference" && (referenceAssets || []).length) && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
+        autoUpscale: mode === "image" && !inpaint && !framedByReference && prefs.smartUpscale !== false && autoUpscaleQuality(prefs.autoUpscale)
           ? { quality: autoUpscaleQuality(prefs.autoUpscale), faceDetail: Boolean(prefs.upscaleFaceDetail) }
           : null
       };

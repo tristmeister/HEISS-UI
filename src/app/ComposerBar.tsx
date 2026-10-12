@@ -6,7 +6,7 @@ import { cn } from './format';
 import { AspectPicker, ModelPicker, NumberPicker, Skeleton, Tip, type ControlDensity, type ModelMenuState } from './components';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ReferenceSlots } from './ReferenceMediaPicker';
-import type { AspectPreset, AutoUpscale, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from './types';
+import type { AspectPreset, AutoUpscale, MediaInput, Profile, ReferenceAsset, ReferenceInpaint, ReferenceRoleControl, SelectedReferenceAsset } from './types';
 import { estimatePhrase, formatAbout, type GenerationEstimate } from './useGenerationEstimate';
 
 /* ---------------------------------------------------------------------------
@@ -249,6 +249,7 @@ export type ComposerBarProps = {
   comfyRetrying?: boolean;
   referenceInputs?: MediaInput[];
   referenceInpaint?: ReferenceInpaint | null;
+  referenceRole?: ReferenceRoleControl | null;
   loraMismatch?: LoraMismatch | null;
   onDismissLoraMismatch?: (key: string) => void;
   referenceAssets?: SelectedReferenceAsset[];
@@ -277,7 +278,7 @@ export function ComposerBar(props: ComposerBarProps) {
     hiddenSpace, onOpenLoras,
     showNegativePrompt, setShowNegativePrompt, canUseNegativePrompt,
     runningCount, generateDisabled, generateDisabledReason, generate, refreshComfyStatus, comfyRetrying,
-    referenceInputs = [], referenceInpaint = null, loraMismatch = null, onDismissLoraMismatch, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
+    referenceInputs = [], referenceInpaint = null, referenceRole = null, loraMismatch = null, onDismissLoraMismatch, referenceAssets = [], onReferenceSelect, onReferenceRemove, onReferenceDeleteRequest, onReferenceError,
     pinnedSeed = "", onRandomSeed, generationEstimate = null, generateKey = "", onToggleHistory, historyOpen = false
   } = props;
 
@@ -354,7 +355,7 @@ export function ComposerBar(props: ComposerBarProps) {
   return (
     <>
       <LoraMismatchChip mismatch={loraMismatch} onOpenLoras={onOpenLoras} onDismiss={(key) => onDismissLoraMismatch?.(key)} />
-      <ReferenceSlots inputs={referenceInputs} inpaint={referenceInpaint} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
+      <ReferenceSlots inputs={referenceInputs} inpaint={referenceInpaint} role={referenceRole} selected={referenceAssets} onSelect={onReferenceSelect} onRemove={onReferenceRemove} confirmDelete={onReferenceDeleteRequest} onError={onReferenceError} />
       <AnimatePresence initial={false}>
         {drawerOpen && tucked.length ? (
         <motion.div

@@ -532,7 +532,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
   const {
     prompt, setPrompt, promptLimit, clampText, negative, setNegative, negativeLimit, currentProfile, hiddenSpace,
     aspectOptions, aspectPickerValue, aspectLocked, defaultAspectSize, mode, count, countMeta, setCount, steps, stepsMeta, setSteps,
-    referenceInputs, referenceInpaint, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
+    referenceInputs, referenceInpaint, referenceRole, referenceAssets, selectReferenceAsset, removeReferenceAsset, confirmAction, showToast,
     generate, generateDisabled, generateDisabledReason, comfyStatus, retryComfyStatus, comfyRetrying, seed, setSeed, loraActiveCount, phoneAdvancedControls, generationEstimate,
     prefs, chooseAutoUpscale
   } = view;
@@ -590,6 +590,7 @@ function CreateSheet({ view, open, onClose, canUseNegativePrompt, comfyOffline }
         <ReferenceSlots
           inputs={referenceInputs || []}
           inpaint={referenceInpaint}
+          role={referenceRole}
           selected={referenceAssets || []}
           onSelect={selectReferenceAsset}
           onRemove={removeReferenceAsset}

@@ -95,6 +95,20 @@ export function autoUpscaleQuality(tier: AutoUpscale | undefined) {
   return autoUpscaleTiers.find((item) => item.value === tier)?.quality || null;
 }
 
+/**
+ * A "-native" tier's size: the picked aspect scaled up so its long side is
+ * 2048 (2K) or 4096 (4K), in steps of 64, never past the model's max and never
+ * smaller than picked. Null for any other tier.
+ */
+export function nativeUpscaleSize(tier: AutoUpscale | undefined, width: number, height: number, max = 8192) {
+  const target = tier === "2k-native" ? 2048 : tier === "4k-native" ? 4096 : 0;
+  const long = Math.max(width, height);
+  if (!target || !long || long >= target) return null;
+  const scale = Math.min(target, max) / long;
+  const snap = (value: number) => Math.max(64, Math.min(max, Math.round((value * scale) / 64) * 64));
+  return { width: snap(width), height: snap(height) };
+}
+
 export function upscaleQualityLabel(quality = "balanced") {
   return upscaleEfforts.find((effort) => effort.value === quality)?.label || "Balanced";
 }
@@ -424,6 +438,11 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
     if (!quality) return;
     const current = await refreshStatus(quality);
     if (current?.ready) return;
+    // Without SeedVR2 a size tab samples natively; setup opens only for an explicit "SeedVR2" pick.
+    if (before !== `${tier}-native`) {
+      setPrefs({ autoUpscale: `${tier}-native` as AutoUpscale });
+      return;
+    }
     autoBefore.current = before;
     openSetup(null, { auto: tier });
   }, [openSetup, prefs.autoUpscale, refreshStatus, setPrefs]);

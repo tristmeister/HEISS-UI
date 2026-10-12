@@ -189,11 +189,14 @@ export function familyGraph(body) {
     const references = family.references ? (body.referenceImages || []).slice(0, family.references) : [];
     // Its growable "images" input takes images.image_1, images.image_2, …; the picked size sets the pixel count.
     const images = Object.fromEntries(references.map((name, index) => [`images.image_${index + 1}`, [add("LoadImage", { image: name }), 0]]));
-    const resolution = references.length ? Math.max(256, Math.round(Math.sqrt(width * height) / 32) * 32) : 1024;
+    // An edit frames the output on the first reference, so references come at the output's size. One that
+    // only guides needs no more than ComfyUI's templates give it (1024), however large the output.
+    const outputSide = Math.max(256, Math.round(Math.sqrt(width * height) / 32) * 32);
+    const resolution = !references.length ? 1024 : body.referenceRole === "reference" ? Math.min(1024, outputSide) : outputSide;
     const encoded = add("TextEncodeQwenImage21", { clip, prompt: body.prompt || "", negative_prompt: body.negative || "", vae, resolution, ...images });
     positive = [encoded, 0];
     negative = [encoded, 1];
-    if (references.length) editLatent = [encoded, 2];
+    if (references.length && body.referenceRole !== "reference") editLatent = [encoded, 2];
   } else {
     positive = [add("CLIPTextEncode", { text: promptText, clip }), 0];
     if (variant.guidance) positive = [add("FluxGuidance", { conditioning: positive, guidance: variant.guidance }), 0];
@@ -208,10 +211,12 @@ export function familyGraph(body) {
   let firstReference = null;
   if (family.references && family.referenceVia !== "encoder") {
     const references = (body.referenceImages || []).slice(0, family.references);
-    const megapixels = Math.max(0.01, Math.round(width * height / 10_000) / 100);
+    // As with Qwen above: an edit's references come at the output's size, guiding ones at most 1 MP.
+    const outputMegapixels = Math.max(0.01, Math.round(width * height / 10_000) / 100);
+    const megapixels = body.referenceRole === "reference" ? Math.min(1.05, outputMegapixels) : outputMegapixels;
     references.forEach((name, index) => {
       const scaled = [add("ImageScaleToTotalPixels", { image: [add("LoadImage", { image: name }), 0], upscale_method: "lanczos", megapixels, resolution_steps: 1 }), 0];
-      if (index === 0) editSize = add("GetImageSize", { image: scaled });
+      if (index === 0 && body.referenceRole !== "reference") editSize = add("GetImageSize", { image: scaled });
       const encoded = [add("VAEEncode", { pixels: scaled, vae }), 0];
       if (index === 0) firstReference = encoded;
       positive = [add("ReferenceLatent", { conditioning: positive, latent: encoded }), 0];

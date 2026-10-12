@@ -38,11 +38,15 @@ export type SelectedReferenceAsset = { slot: string; asset: ReferenceAsset };
 export type InpaintMask = { assetId: string; dataUrl: string };
 /** The composer's painting on its first reference slot: the current mask, and how to change it. */
 export type ReferenceInpaint = { slot: string; mask: string | null; onChange: (dataUrl: string | null) => void };
+/** What the framing reference is: the image being edited (its size is the output's) or only a reference (the picked size is). */
+export type ReferenceRole = "edit" | "reference";
+export type ReferenceRoleControl = { slot: string; value: ReferenceRole; onChange: (value: ReferenceRole) => void };
 export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
 export type UpscaleQuality = "fast" | "balanced" | "high";
 /** Smart upscale in the size menu: every new image comes out at this size, upscaled as part of its run. */
-export type AutoUpscale = "none" | "2k" | "4k";
+/** The "-native" tiers skip SeedVR2 and sample at that size directly (useUpscale nativeUpscaleSize). */
+export type AutoUpscale = "none" | "2k" | "4k" | "2k-native" | "4k-native";
 export type UpscaleState = {
   status: "running" | "done" | "error" | "canceled";
   jobId?: string;
@@ -276,6 +280,8 @@ export type Preferences = {
   inpainting: boolean;
   upscaleQuality: UpscaleQuality;
   autoUpscale: AutoUpscale;
+  /** Models whose first reference frames the output: edit that image, or only take it as a reference. */
+  referenceRole?: ReferenceRole;
   upscaleFaceDetail: boolean;
   /** Minutes untouched before Hidden locks itself; 0 leaves it to the session. */
   hiddenAutoLockMinutes: number;

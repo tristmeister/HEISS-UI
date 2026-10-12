@@ -309,13 +309,17 @@ const upscaleTabs: { value: AutoUpscale; label: string }[] = [
 ];
 
 /** Smart upscale's tabs, on top of the size menu: what every new image becomes once it finishes. */
-function SmartUpscaleTabs({ value, onChange }: { value: AutoUpscale; onChange: (value: AutoUpscale) => void }) {
+function SmartUpscaleTabs({ value: picked, onChange: pick }: { value: AutoUpscale; onChange: (value: AutoUpscale) => void }) {
+  // The tabs pick the size; the row under them picks how: SeedVR2 after the run, or sampled at that size.
+  const native = picked.endsWith("-native");
+  const value = picked.replace("-native", "") as AutoUpscale;
+  const onChange = (tier: AutoUpscale) => pick(native && tier !== "none" ? `${tier}-native` as AutoUpscale : tier);
   const index = Math.max(0, upscaleTabs.findIndex((tab) => tab.value === value));
   return (
     <div className="aspect-upscale">
       <div className="aspect-upscale-head">
         <span id="aspect-upscale-label">Smart upscale</span>
-        <InfoTip side="top" content="Upscales every new image with SeedVR2 as it finishes, rebuilding fine detail instead of stretching pixels. Takes a little longer; the original is kept." />
+        <InfoTip side="top" content="2K or 4K for every new image. SeedVR2 upscales each one as it finishes, rebuilding fine detail; Native has the model sample at that size directly, which suits models made for it." />
       </div>
       <div className="aspect-upscale-tabs" role="radiogroup" aria-labelledby="aspect-upscale-label" style={{ "--tab-index": index } as React.CSSProperties} onKeyDown={(event) => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -339,6 +343,12 @@ function SmartUpscaleTabs({ value, onChange }: { value: AutoUpscale; onChange: (
           >{tab.label}</button>
         ))}
       </div>
+      {value !== "none" ? (
+        <div className="aspect-upscale-how" role="radiogroup" aria-label="How to reach this size">
+          <button type="button" role="radio" aria-checked={!native} className={cn(!native && "is-active")} onClick={() => pick(value)}>SeedVR2</button>
+          <button type="button" role="radio" aria-checked={native} className={cn(native && "is-active")} onClick={() => pick(`${value}-native` as AutoUpscale)}>Native</button>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -351,7 +361,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   const close = useCallback(() => setOpen(false), []);
   useDismiss(pickerRef, open, close);
   const label = selected ? selected.label : isDefault ? "Default" : "Free";
-  const upscaleLabel = onUpscaleChange && upscale !== "none" ? upscale.toUpperCase() : "";
+  const upscaleLabel = onUpscaleChange && upscale !== "none" ? upscale.replace("-native", "").toUpperCase() : "";
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const wasOpen = useRef(false);
   useEffect(() => {
@@ -363,7 +373,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   }, [open]);
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={`${density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}${upscaleLabel ? `, smart upscale to ${upscaleLabel}` : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
+      <Tip content={`${density === "full" ? "Aspect ratio" : `Aspect ratio: ${label}`}${upscaleLabel ? `, ${upscale.endsWith("-native") ? "native" : "smart upscale to"} ${upscaleLabel}` : ""}`}><button ref={triggerRef} type="button" data-open-trigger className="aspect-trigger" aria-label={`Aspect ratio: ${label}${upscaleLabel ? `, ${upscale.endsWith("-native") ? "native" : "smart upscale to"} ${upscaleLabel}` : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
           {/* The tag sits on the icon's corner, so turning Smart upscale on never changes the button's width. */}
           <span className="aspect-shape-slot">
             {selected ? <span className="aspect-shape" style={aspectIconStyle(selected)} /> : <span className={cn("aspect-shape", isDefault ? "default" : "custom")} />}

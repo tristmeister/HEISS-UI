@@ -105,3 +105,24 @@
   line-height: 1.4;
   text-wrap: pretty;
 }
+
+/* SeedVR2 or Native under a 2K/4K tab: how the run reaches that size. */
+.aspect-upscale-how {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 0 3px;
+}
+.aspect-upscale-how button {
+  min-height: 24px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.aspect-upscale-how button:hover { color: hsl(var(--foreground)); }
+.aspect-upscale-how button.is-active { color: var(--ember); border-color: currentColor; }
+.aspect-upscale-how button:focus-visible { outline: none; box-shadow: var(--focus-ring); }

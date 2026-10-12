@@ -4,7 +4,7 @@ import { showToastTone as showToast, toast } from "./app/toast";
 import "./styles.css";
 
 import { useModelFolders } from './app/useModelFolders';
-import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, Profile, InpaintMask, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset, TouchGesture, UpdatePrefs, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
+import type { ComfyStatus, GalleryItem, Health, LoraSelection, MediaInput, Mode, Models, OutputFolderReport, Paths, Preferences, Profile, InpaintMask, ReferenceAsset, ReferenceInpaint, ReferenceRole, ReferenceRoleControl, SelectedReferenceAsset, TouchGesture, UpdatePrefs, UpdateStatus, WorkflowPreferences, WorkflowSummary } from './app/types';
 import { fallbackAspectPresets } from './app/constants';
 import { apiJson, copyImage, copyText, loadDraft, loadPrefs, referenceAssetFromGallery } from './app/api';
 import { characterMeta, clampText, formatElapsed, generationDetailEntries, settingMax, textLength, titleFromPrompt } from './app/format';
@@ -1176,12 +1176,27 @@ function App() {
   /* Workflows may declare that a reference image dictates the output framing
      (aspectPolicy: "reference"). When one is selected we hide the manual aspect
      and size controls and let the reference's own dimensions drive generation. */
-  const referenceForAspect = currentProfile?.aspectPolicy === "reference"
+  const framingReference = currentProfile?.aspectPolicy === "reference"
     ? composerReferenceAssets.find((item) => item.slot === referenceInput?.id)?.asset || null
     : null;
+  // Only an image being edited frames the output; a painted mask always edits it.
+  const referenceRole: ReferenceRole = activeInpaintMask ? "edit" : prefs.referenceRole === "reference" ? "reference" : "edit";
+  const referenceForAspect = referenceRole === "edit" ? framingReference : null;
   const aspectLocked = Boolean(referenceForAspect && referenceForAspect.width > 0 && referenceForAspect.height > 0);
+  // The size picked before a reference took over, put back when it lets go (same model only).
+  const sizeBeforeLock = useRef<{ model: string; width: number; height: number; customSize: boolean } | null>(null);
   useEffect(() => {
-    if (!aspectLocked || !referenceForAspect) return;
+    if (!aspectLocked || !referenceForAspect) {
+      const before = sizeBeforeLock.current;
+      sizeBeforeLock.current = null;
+      if (before && before.model === model) {
+        setWidth(before.width);
+        setHeight(before.height);
+        setCustomSize(before.customSize);
+      }
+      return;
+    }
+    if (!sizeBeforeLock.current || sizeBeforeLock.current.model !== model) sizeBeforeLock.current = { model, width, height, customSize: Boolean(customSize) };
     setCustomSize(false);
     const pixels = Number(currentProfile?.defaults.width || 1024) * Number(currentProfile?.defaults.height || 1024);
     const scale = prefs.autoResizeInputs === false ? 1 : Math.min(1, Math.sqrt(pixels / (referenceForAspect.width * referenceForAspect.height)));
@@ -1190,12 +1205,8 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectLocked, referenceForAspect?.id, model, prefs.autoResizeInputs]);
   /* A reference that dictates the framing, or a painted mask, takes the size
-     tabs (and Smart upscale with them) off the composer: the reference's own
-     size is what gets made. The saved 2K/4K pick has to go with them, not
-     just hide, so taking the reference off again doesn't bring it back. */
-  useEffect(() => {
-    if ((aspectLocked || activeInpaintMask) && prefs.autoUpscale && prefs.autoUpscale !== "none") setPrefs({ autoUpscale: "none" });
-  }, [aspectLocked, activeInpaintMask, prefs.autoUpscale]);
+     tabs off the composer and the run skips 2K/4K (useGenerationActions). The
+     saved pick stays, so it is back once the reference is gone or only guides. */
   const frameMeta = currentProfile?.constraints?.frames || {};
   const countMeta = currentProfile?.constraints?.count || {};
   const stepsMeta = currentProfile?.constraints?.steps || {};
@@ -1552,7 +1563,13 @@ function App() {
     mask: activeInpaintMask?.dataUrl || null,
     onChange: (dataUrl: string | null) => setInpaintMask(dataUrl ? { assetId: referenceAsset.id, dataUrl } : null)
   } : null;
-  const view = { ...baseView, loraMismatch, dismissLoraMismatch, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceInpaint };
+  // The switch shows on the framing reference, once one is there; a painted mask settles it as an edit.
+  const referenceRoleControl: ReferenceRoleControl | null = currentProfile?.aspectPolicy === "reference" && referenceInput && framingReference && !activeInpaintMask ? {
+    slot: referenceInput.id,
+    value: referenceRole,
+    onChange: (value: ReferenceRole) => setPrefs({ referenceRole: value })
+  } : null;
+  const view = { ...baseView, loraMismatch, dismissLoraMismatch, referenceAssets: composerReferenceAssets, referenceInputs: visibleReferenceInputs, referenceInpaint, referenceRole: referenceRoleControl };
   return (
     <>
       <StudioView view={view} />

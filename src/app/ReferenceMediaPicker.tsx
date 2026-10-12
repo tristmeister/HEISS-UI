@@ -7,7 +7,7 @@ import { Tip } from "./components";
 import { useDismiss } from "./useDismiss";
 import { useHiddenActions } from "./hiddenContext";
 import { deleteReferenceAsset, listReferenceAssets, referenceAssetFromGallery, uploadReferenceAsset } from "./api";
-import type { MediaInput, ReferenceAsset, ReferenceInpaint, SelectedReferenceAsset } from "./types";
+import type { MediaInput, ReferenceAsset, ReferenceInpaint, ReferenceRoleControl, SelectedReferenceAsset } from "./types";
 import { InpaintStudio } from "./InpaintStudio";
 import { SafeImg } from './SafeImg';
 
@@ -309,7 +309,7 @@ const rememberInpaintIntro = () => { try { localStorage.setItem(inpaintIntroKey,
  * image-to-image) and settles into a round +. With an
  * image it becomes a squircle thumbnail that opens into a small menu on hover.
  */
-function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, onOpen, onRemove }: {
+function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, role = null, onOpen, onRemove }: {
   input: MediaInput;
   selected: ReferenceAsset | null;
   open: boolean;
@@ -318,6 +318,8 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, on
   fresh: boolean;
   /** Painting on this image, for a model that can inpaint: the studio's state and how to open it. */
   paint?: { masked: boolean; open: boolean; intro: boolean; onOpen: () => void } | null;
+  /** For a reference that can frame the output: edit this image, or only use it as a reference. */
+  role?: ReferenceRoleControl | null;
   onOpen: () => void;
   onRemove: () => void;
 }) {
@@ -385,6 +387,19 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, on
         <Tip content={`Remove ${label.toLowerCase()}`}>
           <button type="button" className="ref-menu-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={13} /></button>
         </Tip>
+        {role ? (
+          <>
+            <span className="ref-menu-divider" aria-hidden="true" />
+            <div className="ref-menu-role" role="radiogroup" aria-label="What this image is">
+              <Tip content="Edit this image: the result keeps its size and framing">
+                <button type="button" role="radio" aria-checked={role.value === "edit"} className={cn(role.value === "edit" && "is-active")} onClick={() => role.onChange("edit")}>Edit</button>
+              </Tip>
+              <Tip content="Use as a reference: the result takes the size you picked">
+                <button type="button" role="radio" aria-checked={role.value === "reference"} className={cn(role.value === "reference" && "is-active")} onClick={() => role.onChange("reference")}>Ref</button>
+              </Tip>
+            </div>
+          </>
+        ) : null}
         {paint ? (
           <>
             <span className="ref-menu-divider" aria-hidden="true" />
@@ -401,6 +416,7 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, on
         {image && !broken ? <img src={image} alt="" draggable={false} onError={() => setBroken(true)} /> : selected.source === "vault" ? <LockKeyhole size={14} /> : <ImageIcon size={15} />}
       </button>
       {paint?.masked ? <i className="ref-mask-badge" aria-hidden="true"><Brush size={9} strokeWidth={2.6} /></i> : null}
+      {role?.value === "reference" ? <i className="ref-role-badge" aria-hidden="true">REF</i> : null}
     </div>
   );
 }
@@ -411,9 +427,10 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, on
  * Every reference input of the workflow, top right of the composer, plus the
  * picker popover and drop-and-paste uploads on the whole prompt bar.
  */
-export function ReferenceSlots({ inputs, inpaint = null, selected, onSelect, onRemove, confirmDelete, onError }: {
+export function ReferenceSlots({ inputs, inpaint = null, role = null, selected, onSelect, onRemove, confirmDelete, onError }: {
   inputs: MediaInput[];
   inpaint?: ReferenceInpaint | null;
+  role?: ReferenceRoleControl | null;
   selected: SelectedReferenceAsset[];
   onSelect: (slot: string, asset: ReferenceAsset) => void;
   onRemove: (slots: string | string[]) => void;
@@ -603,6 +620,7 @@ export function ReferenceSlots({ inputs, inpaint = null, selected, onSelect, onR
               intro: introSlot === input.id,
               onOpen: () => { setOpenSlot(""); setIntroSlot(""); rememberInpaintIntro(); setPainting((current) => !current); }
             } : null}
+            role={role && role.slot === input.id && assetFor(input.id) ? role : null}
             onOpen={() => { setPainting(false); setOpenSlot((current) => current === input.id ? "" : input.id); }}
             onRemove={() => onRemove(input.id)}
           />

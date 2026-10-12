@@ -463,3 +463,43 @@
 .sidebar-reference-copy strong { font-size: 12.5px; font-weight: 550; }
 .sidebar-reference-copy small { font-size: 11px; color: hsl(var(--muted-foreground)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar-reference-remove { color: hsl(var(--muted-foreground)); }
+
+/* Edit or Ref on the framing reference: what decides the output's size. */
+.ref-menu-role {
+  flex: none;
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: var(--control-fill);
+}
+.ref-menu-role button {
+  height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+.ref-menu-role button:hover { color: hsl(var(--foreground)); }
+.ref-menu-role button.is-active { background: var(--selected); color: hsl(var(--foreground)); }
+.ref-menu-role button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.ref-role-badge {
+  position: absolute;
+  z-index: 3;
+  left: -4px;
+  bottom: -4px;
+  padding: 1px 4px;
+  border-radius: 6px;
+  background: var(--action);
+  color: var(--action-ink);
+  font-size: 8.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: .04em;
+  pointer-events: none;
+}

@@ -615,6 +615,28 @@ test("Flux 2 edits chain each reference onto both conditionings, framed by the f
   assert.equal(Object.values(plain).find((node) => node.class_type === "EmptyFlux2LatentImage").inputs.width, 1024);
 });
 
+test("a reference used as a reference, not edited, leaves the framing to the picked size", () => {
+  const flux = { family: "flux2_klein_9b", variant: "distilled", source: "unet", model: "real-dream-klein9b-1-fp8.safetensors", encoders: ["qwen_3_8b_fp8mixed.safetensors"], vae: "flux2-vae.safetensors", prompt: "hold the bag", width: 2048, height: 1152, steps: 4, cfg: 1, seed: 1, referenceImages: ["woman.png"], referenceRole: "reference" };
+  const graph = familyGraph(flux);
+  const of = (type) => Object.values(graph).filter((node) => node.class_type === type);
+  assert.equal(of("ReferenceLatent").length, 2, "the reference still guides both conditionings");
+  assert.equal(of("GetImageSize").length, 0);
+  assert.deepEqual([of("EmptyFlux2LatentImage")[0].inputs.width, of("EmptyFlux2LatentImage")[0].inputs.height], [2048, 1152]);
+  assert.deepEqual([of("Flux2Scheduler")[0].inputs.width, of("Flux2Scheduler")[0].inputs.height], [2048, 1152]);
+  assert.equal(of("ImageScaleToTotalPixels")[0].inputs.megapixels, 1.05, "a guiding reference stays at about 1 MP");
+
+  const qwen = familyGraph({ family: "qwen_image_21", variant: "standard", source: "unet", model: "qwen_image_2.1_int8_convrot.safetensors", encoders: ["qwen3vl_8b_int8_convrot.safetensors"], vae: "qwen_image_2.1_vae_bf16.safetensors", prompt: "make it night", width: 1344, height: 768, steps: 25, cfg: 1, seed: 1, referenceImages: ["street.png"], referenceRole: "reference" });
+  const sampler = Object.values(qwen).find((node) => node.class_type === "KSampler");
+  const latent = qwen[sampler.inputs.latent_image[0]];
+  assert.notEqual(latent.class_type, "TextEncodeQwenImage21", "the encoder's edit latent isn't the canvas");
+  assert.deepEqual([latent.inputs.width, latent.inputs.height], [1344, 768]);
+  const qwenEncoder = Object.values(qwen).find((node) => node.class_type === "TextEncodeQwenImage21");
+  assert.ok(qwenEncoder.inputs["images.image_1"], "the reference still goes to the encoder");
+  assert.equal(qwenEncoder.inputs.resolution, 1024, "a guiding reference stays at the template's 1024");
+  const edit = familyGraph({ family: "qwen_image_21", variant: "standard", source: "unet", model: "q.safetensors", encoders: ["e.safetensors"], vae: "v.safetensors", prompt: "x", width: 1152, height: 2048, steps: 25, cfg: 1, seed: 1, referenceImages: ["street.png"] });
+  assert.equal(Object.values(edit).find((node) => node.class_type === "TextEncodeQwenImage21").inputs.resolution, 1536, "an edit's reference comes at the output's size");
+});
+
 test("reference slots show only where this ComfyUI has the nodes to wire them", () => {
   put("diffusion_models", "klein_refs_4b.safetensors", headers.klein4b);
   const setup = { unets: ["klein_refs_4b.safetensors"], clips: ["qwen_3_4b.safetensors"], vaeFiles: ["flux2-vae.safetensors"] };
