@@ -19,6 +19,10 @@
 .heiss-desktop-video .media-airplay-button { display: none !important; }
 .heiss-desktop-video .video-controls-content,
 .heiss-desktop-video .video-controls-backdrop { display: none !important; }
+/* The skin's own error dialog ("Something went wrong" and the browser's error):
+   the viewer shows its own message with Try again, so the two never stack. */
+.heiss-desktop-video .media-dialog-backdrop,
+.heiss-desktop-video .media-dialog-popup { display: none !important; }
 .heiss-video-viewer { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; touch-action: auto; color: #fff; }
 .heiss-desktop-video {
   --media-accent-color: #fff;
