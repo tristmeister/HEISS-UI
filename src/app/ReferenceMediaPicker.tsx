@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -73,6 +75,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
   onError?: (message: string) => void;
   upload: { busy: boolean; progress: number; start: (file: File | undefined) => Promise<ReferenceAsset | null> };
 }) {
+  useLanguage();
   // Hidden images sit on their own shelf, behind the same lock as Hidden itself.
   // It opens first when the picked image came from there, or when making in Hidden.
   const hidden = useHiddenActions();
@@ -185,7 +188,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       className={cn("reference-popover", dropActive && "is-drop-target", asSheet && "is-sheet")}
       style={asSheet ? undefined : { left: box.left, width: box.width, bottom: box.bottom }}
       role="dialog"
-      aria-label={`Choose ${label}`}
+      aria-label={t("Choose {0}", { "0": (label) })}
       aria-busy={upload.busy || Boolean(selectingId) || undefined}
       data-open-surface
       initial={{ opacity: 0, y: 10, scale: 0.97, filter: "blur(4px)" }}
@@ -194,44 +197,44 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
       transition={spring}
     >
       <header className="reference-popover-head">
-        <div className="reference-tabs" role="tablist" aria-label="Reference image sources">
-          <button role="tab" aria-selected={tab === "generation"} className={cn(tab === "generation" && "active")} onClick={() => setTab("generation")}><Images size={14} /> Generations</button>
-          {hiddenShelf ? <button role="tab" aria-selected={tab === "hidden"} className={cn(tab === "hidden" && "active")} onClick={() => setTab("hidden")}><LockKeyhole size={14} /> Hidden</button> : null}
-          <button role="tab" aria-selected={tab === "upload"} className={cn(tab === "upload" && "active")} onClick={() => setTab("upload")}><ImageIcon size={14} /> Uploads</button>
+        <div className="reference-tabs" role="tablist" aria-label={t("Reference image sources")}>
+          <button role="tab" aria-selected={tab === "generation"} className={cn(tab === "generation" && "active")} onClick={() => setTab("generation")}><Images size={14} />{t("Generations")}</button>
+          {hiddenShelf ? <button role="tab" aria-selected={tab === "hidden"} className={cn(tab === "hidden" && "active")} onClick={() => setTab("hidden")}><LockKeyhole size={14} />{t("Hidden")}</button> : null}
+          <button role="tab" aria-selected={tab === "upload"} className={cn(tab === "upload" && "active")} onClick={() => setTab("upload")}><ImageIcon size={14} />{t("Uploads")}</button>
         </div>
-        <span className="reference-popover-hint">Drop or paste an image anywhere on the prompt</span>
+        <span className="reference-popover-hint">{t("Drop or paste an image anywhere on the prompt")}</span>
         <button type="button" className="btn is-primary reference-upload" onClick={() => uploadInput.current?.click()} disabled={upload.busy}>
           {upload.busy ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}
-          <span>{upload.busy ? `${upload.progress || 0}%` : "Upload"}</span>
+          <span>{upload.busy ? `${upload.progress || 0}%` : t("Upload")}</span>
         </button>
         <input ref={uploadInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => { uploadAndUse(event.target.files?.[0]); event.currentTarget.value = ""; }} />
-        <Tip content="Close (Esc)"><button type="button" className="reference-popover-close" aria-label="Close" onClick={onClose}><X size={15} /></button></Tip>
+        <Tip content={t("Close (Esc)")}><button type="button" className="reference-popover-close" aria-label={t("Close")} onClick={onClose}><X size={15} /></button></Tip>
       </header>
 
       <div className="reference-popover-body" role="tabpanel">
         {tab === "hidden" && !hiddenOpen ? (
           <div className="reference-empty">
             <LockKeyhole size={22} />
-            <strong>Hidden is locked</strong>
-            <p>Unlock it to use a hidden image. The image stays in Hidden.</p>
-            <button className="btn is-primary" onClick={() => hidden?.unlock()}><LockKeyhole size={14} /> Unlock</button>
+            <strong>{t("Hidden is locked")}</strong>
+            <p>{t("Unlock it to use a hidden image. The image stays in Hidden.")}</p>
+            <button className="btn is-primary" onClick={() => hidden?.unlock()}><LockKeyhole size={14} />{t("Unlock")}</button>
           </div>
         ) : page.loading && !page.items.length ? (
-          <div className="reference-grid is-loading" aria-label="Loading images">
+          <div className="reference-grid is-loading" aria-label={t("Loading images")}>
             {Array.from({ length: 12 }, (_, index) => <div className="reference-skeleton" key={index} />)}
           </div>
         ) : page.error && !page.items.length ? (
-          <div className="reference-empty"><ImageIcon size={22} /><strong>Images unavailable</strong><p>{page.error}</p><button className="btn" onClick={() => load(tab)}>Try again</button></div>
+          <div className="reference-empty"><ImageIcon size={22} /><strong>{t("Images unavailable")}</strong><p>{page.error}</p><button className="btn" onClick={() => load(tab)}>{t("Try again")}</button></div>
         ) : !page.items.length ? (
           <div className="reference-empty">
             <ImageIcon size={22} />
-            <strong>{tab === "generation" ? "No generations yet" : tab === "hidden" ? "Nothing in Hidden yet" : "No uploads yet"}</strong>
-            <p>{tab === "generation" ? "Finished images show up here." : tab === "hidden" ? "Images you hide show up here." : "Upload one, or drop it on the prompt."}</p>
-            {tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}><Upload size={14} /> Upload image</button> : null}
+            <strong>{tab === "generation" ? t("No generations yet") : tab === "hidden" ? t("Nothing in Hidden yet") : t("No uploads yet")}</strong>
+            <p>{tab === "generation" ? t("Finished images show up here.") : tab === "hidden" ? t("Images you hide show up here.") : t("Upload one, or drop it on the prompt.")}</p>
+            {tab === "upload" ? <button className="btn" onClick={() => uploadInput.current?.click()}><Upload size={14} />{t("Upload image")}</button> : null}
           </div>
         ) : (
           <>
-            {tab === "hidden" && hidden?.space !== "hidden" ? <p className="reference-shelf-note"><LockKeyhole size={12} /> What you make from a hidden image goes to Hidden too.</p> : null}
+            {tab === "hidden" && hidden?.space !== "hidden" ? <p className="reference-shelf-note"><LockKeyhole size={12} />{t("What you make from a hidden image goes to Hidden too.")}</p> : null}
             <div className="reference-grid" data-reference-grid>
               {page.items.map((asset, index) => {
                 const isSelected = selected?.id === asset.id;
@@ -256,13 +259,13 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
                       <SafeImg src={assetImage(asset)} loading="lazy" draggable={false} fallback={<ImageIcon size={16} />} />
                       {isSelected ? <i className="reference-tile-check"><Check size={12} strokeWidth={3} /></i> : null}
                     </button>
-                    {asset.source === "upload" ? <button type="button" className="reference-tile-delete" aria-label={`Delete ${asset.name}`} onClick={(event) => removeUpload(event, asset)}><Trash2 size={13} /></button> : null}
+                    {asset.source === "upload" ? <button type="button" className="reference-tile-delete" aria-label={t("Delete {0}", { "0": (asset.name) })} onClick={(event) => removeUpload(event, asset)}><Trash2 size={13} /></button> : null}
                     {selectingId === asset.id ? <span className="reference-tile-busy"><LoaderCircle className="spin" size={16} /></span> : null}
                   </motion.div>
                 );
               })}
             </div>
-            {page.hasMore ? <button className="btn is-ghost reference-more" onClick={() => load(tab, page.cursor)} disabled={page.loading}>{page.loading ? "Loading…" : "Load more"}</button> : null}
+            {page.hasMore ? <button className="btn is-ghost reference-more" onClick={() => load(tab, page.cursor)} disabled={page.loading}>{page.loading ? t("Loading…") : t("Load more")}</button> : null}
           </>
         )}
       </div>
@@ -280,6 +283,7 @@ function ReferencePopover({ input, selected, anchor, popRef, dropActive, dropped
 
 /** The shared drop affordance: an icon that lifts toward the pointer and a label. */
 function DropBadge({ text }: { text: string }) {
+  useLanguage();
   return (
     <div className="drop-badge">
       <span className="drop-badge-icon"><Upload size={18} /></span>
@@ -343,6 +347,7 @@ const foldEase = "cubic-bezier(.16, 1, .3, 1)";
  * instead of jumping. Folded, it can't be reached by pointer, keyboard or screen reader.
  */
 function Fold({ shown, children, gap = 6 }: { shown: boolean; children: React.ReactNode; gap?: number }) {
+  useLanguage();
   const ref = React.useRef<HTMLSpanElement>(null);
   const was = React.useRef(shown);
   // Its width while shown, kept up to date: once folded (width 0) its content can be squeezed.
@@ -378,14 +383,15 @@ const fullMessage = (max: number) => `Up to ${max} references. Remove one to add
 
 /** The + for another reference: greyed, with why, once every slot is used. */
 function AddMore({ max, add, className, size = 15 }: { max: number; add: ReferenceStack["add"]; className: string; size?: number }) {
+  useLanguage();
   if (add?.busy) return <span className={cn(className, "is-busy")} aria-live="polite"><LoaderCircle className="spin" size={size} /></span>;
   return (
-    <Tip content={add ? "Add another reference, or drop one on the prompt" : fullMessage(max)}>
+    <Tip content={add ? t("Add another reference, or drop one on the prompt") : fullMessage(max)}>
       <button
         type="button"
         data-open-trigger={add ? true : undefined}
         className={cn(className, add?.open && "is-open", !add && "is-full")}
-        aria-label={add ? "Add another reference" : fullMessage(max)}
+        aria-label={add ? t("Add another reference") : fullMessage(max)}
         aria-disabled={!add || undefined}
         aria-expanded={add ? add.open : undefined}
         onClick={() => add ? add.onOpen() : showToastTone(fullMessage(max), "default")}
@@ -420,6 +426,7 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, ro
   onOpen: () => void;
   onRemove: () => void;
 }) {
+  useLanguage();
   const image = selected ? assetImage(selected) : "";
   const [broken, setBroken] = React.useState(false);
   React.useEffect(() => { setBroken(false); }, [image]);
@@ -460,7 +467,7 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, ro
   if (busy) {
     return (
       <div className="ref-chip is-busy" aria-live="polite">
-        <LoaderCircle className="spin" size={15} /><span>{progress ? `${progress}%` : "Uploading"}</span>
+        <LoaderCircle className="spin" size={15} /><span>{progress ? `${progress}%` : t("Uploading")}</span>
       </div>
     );
   }
@@ -469,17 +476,17 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, ro
     // The label is always rendered; a grid track animates it open and shut.
     const expanded = !introduced || required || open;
     return (
-      <Tip content={expanded ? `Choose a ${label.toLowerCase()}, or drop one on the prompt` : `Add ${label.toLowerCase()}`}>
+      <Tip content={expanded ? t("Choose a {0}, or drop one on the prompt", { "0": (label.toLowerCase()) }) : t("Add {0}", { "0": (label.toLowerCase()) })}>
         <button
           type="button"
           data-open-trigger
           className={cn("ref-chip ref-add", expanded && "is-expanded", required && "is-required", open && "is-open")}
-          aria-label={`Add ${label.toLowerCase()}${required ? ", required" : ""}`}
+          aria-label={t("Add {0}{1}", { "0": (label.toLowerCase()), "1": (required ? t(", required") : t("")) })}
           aria-expanded={open}
           onClick={onOpen}
         >
           <Plus size={15} strokeWidth={2.2} />
-          <span className="ref-add-label"><span>{isStart ? "Add start image" : "Add reference"}{required ? <em>Required</em> : null}</span></span>
+          <span className="ref-add-label"><span>{isStart ? t("Add start image") : t("Add reference")}{required ? <em>{t("Required")}</em> : null}</span></span>
         </button>
       </Tip>
     );
@@ -507,10 +514,10 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, ro
           // Folds away (rather than vanishing) while the image is a Ref, so the menu glides to its new width.
           <span ref={paintSlot} className={cn("ref-menu-paint-slot", paint.hidden && "is-hidden")} aria-hidden={paint.hidden || undefined}>
             {role ? <span className="ref-menu-divider" aria-hidden="true" /> : null}
-            <Tip content={paint.masked ? "Change the painted part" : "Paint over a part to change only that"}>
-              <button type="button" className={cn("ref-menu-paint", paint.masked && "is-masked", paint.open && "is-active")} aria-label={paint.masked ? "Edit the painted part" : "Paint the part to change"} aria-pressed={paint.open} tabIndex={paint.hidden ? -1 : undefined} onClick={paint.onOpen}>
+            <Tip content={paint.masked ? t("Change the painted part") : t("Paint over a part to change only that")}>
+              <button type="button" className={cn("ref-menu-paint", paint.masked && "is-masked", paint.open && "is-active")} aria-label={paint.masked ? t("Edit the painted part") : t("Paint the part to change")} aria-pressed={paint.open} tabIndex={paint.hidden ? -1 : undefined} onClick={paint.onOpen}>
                 <Brush size={17} />
-                <span className="ref-menu-paint-label"><span>{coarsePointer() ? "Tap" : "Click"} to inpaint</span></span>
+                <span className="ref-menu-paint-label"><span>{coarsePointer() ? t("Tap") : t("Click")}{t("to inpaint")}</span></span>
               </button>
             </Tip>
           </span>
@@ -529,32 +536,33 @@ function ReferenceSlot({ input, selected, open, busy, progress, fresh, paint, ro
         const src = assetImage(item.asset);
         return <i key={item.input.id} className={cn("ref-deck-card", `is-${index + 1}`)} aria-hidden="true" style={src ? { backgroundImage: `url("${src.replace(/"/g, "%22")}")` } : undefined} />;
       })}
-      <Tip content={`${name} · Click to change`}>
-        <button type="button" data-open-trigger className="ref-thumb" onClick={onOpen} aria-label={`Change ${label.toLowerCase()}, currently ${selected.name}`} aria-expanded={open}>
+      <Tip content={t("{0} · Click to change", { "0": (name) })}>
+        <button type="button" data-open-trigger className="ref-thumb" onClick={onOpen} aria-label={t("Change {0}, currently {1}", { "0": (label.toLowerCase()), "1": (selected.name) })} aria-expanded={open}>
           {image && !broken ? <img src={image} alt="" draggable={false} onError={() => setBroken(true)} /> : selected.source === "vault" ? <LockKeyhole size={14} /> : <ImageIcon size={15} />}
         </button>
       </Tip>
       {/* Remove on the thumbnail's corner, where it's expected and far from Edit | Reference; Undo is in its toast. */}
-      <Tip content={`Remove ${label.toLowerCase()}`}>
-        <button type="button" className="ref-thumb-remove" aria-label={`Remove ${label.toLowerCase()}`} onClick={onRemove}><X size={10} strokeWidth={2.8} /></button>
+      <Tip content={t("Remove {0}", { "0": (label.toLowerCase()) })}>
+        <button type="button" className="ref-thumb-remove" aria-label={t("Remove {0}", { "0": (label.toLowerCase()) })} onClick={onRemove}><X size={10} strokeWidth={2.8} /></button>
       </Tip>
       {paint?.masked ? <i className="ref-mask-badge" aria-hidden="true"><Brush size={9} strokeWidth={2.6} /></i> : null}
       {/* The picture being edited is the one that's different from the rest: Ref leaves every image a plain reference. */}
-      {role ? <i className={cn("ref-role-badge", editing && "is-on")} aria-hidden="true">EDIT</i> : null}
+      {role ? <i className={cn("ref-role-badge", editing && "is-on")} aria-hidden="true">{t("EDIT")}</i> : null}
     </div>
   );
 }
 
 /** Edit | Reference: one thumb slides between the two, like the size menu's tabs. */
 export function RoleSwitch({ role, many, className }: { role: ReferenceRoleControl; many: boolean; className?: string }) {
+  useLanguage();
   return (
-    <div className={cn("ref-menu-role", role.value === "reference" && "is-ref", role.locked && "is-locked", className)} role="radiogroup" aria-label="What this image is">
+    <div className={cn("ref-menu-role", role.value === "reference" && "is-ref", role.locked && "is-locked", className)} role="radiogroup" aria-label={t("What this image is")}>
       <i aria-hidden="true" />
-      <Tip content={many ? "Change the first picture, at its size and framing. The others are what it can draw from" : "Change this picture: the result keeps its size and framing"}>
-        <button type="button" role="radio" aria-checked={role.value === "edit"} className={cn(role.value === "edit" && "is-active")} onClick={() => role.onChange("edit")}>Edit</button>
+      <Tip content={many ? t("Change the first picture, at its size and framing. The others are what it can draw from") : t("Change this picture: the result keeps its size and framing")}>
+        <button type="button" role="radio" aria-checked={role.value === "edit"} className={cn(role.value === "edit" && "is-active")} onClick={() => role.onChange("edit")}>{t("Edit")}</button>
       </Tip>
-      <Tip content={role.locked ? "The painted part is changed in this picture. Clear the paint to use it as a reference" : many ? "Let them all guide a new picture, at the size you picked" : "Let it guide a new picture, at the size you picked"}>
-        <button type="button" role="radio" aria-checked={role.value === "reference"} aria-disabled={role.locked || undefined} className={cn(role.value === "reference" && "is-active")} onClick={() => { if (!role.locked) role.onChange("reference"); }}>Reference</button>
+      <Tip content={role.locked ? t("The painted part is changed in this picture. Clear the paint to use it as a reference") : many ? t("Let them all guide a new picture, at the size you picked") : t("Let it guide a new picture, at the size you picked")}>
+        <button type="button" role="radio" aria-checked={role.value === "reference"} aria-disabled={role.locked || undefined} className={cn(role.value === "reference" && "is-active")} onClick={() => { if (!role.locked) role.onChange("reference"); }}>{t("Reference")}</button>
       </Tip>
     </div>
   );
@@ -562,18 +570,19 @@ export function RoleSwitch({ role, many, className }: { role: ReferenceRoleContr
 
 /** Another reference in the stack's strip: click to change it, × to take it off. */
 function StackThumb({ item, number, guide }: { item: StackItem; number: number; /** Edit: it isn't changed, only drawn from. */ guide: boolean }) {
+  useLanguage();
   const src = assetImage(item.asset);
   const [broken, setBroken] = React.useState(false);
   React.useEffect(() => { setBroken(false); }, [src]);
   return (
     <span className={cn("ref-stack-item", item.open && "is-open", item.fresh && "is-new")}>
-      <Tip content={`Reference ${number}: ${referenceName(item.asset.name)}${guide ? " · Not edited, only drawn from" : ""} · Click to change`}>
-        <button type="button" data-open-trigger className="ref-stack-thumb" aria-label={`Change reference ${number}, currently ${item.asset.name}`} aria-expanded={item.open} onClick={item.onOpen}>
+      <Tip content={t("Reference {0}: {1}{2} · Click to change", { "0": (number), "1": (referenceName(item.asset.name)), "2": (guide ? t(" · Not edited, only drawn from") : t("")) })}>
+        <button type="button" data-open-trigger className="ref-stack-thumb" aria-label={t("Change reference {0}, currently {1}", { "0": (number), "1": (item.asset.name) })} aria-expanded={item.open} onClick={item.onOpen}>
           {item.busy ? <LoaderCircle className="spin" size={14} /> : src && !broken ? <img src={src} alt="" draggable={false} onError={() => setBroken(true)} /> : item.asset.source === "vault" ? <LockKeyhole size={13} /> : <ImageIcon size={14} />}
         </button>
       </Tip>
-      <Tip content={`Remove reference ${number}`}>
-        <button type="button" className="ref-stack-remove" aria-label={`Remove reference ${number}`} onClick={item.onRemove}><X size={9} strokeWidth={2.8} /></button>
+      <Tip content={t("Remove reference {0}", { "0": (number) })}>
+        <button type="button" className="ref-stack-remove" aria-label={t("Remove reference {0}", { "0": (number) })} onClick={item.onRemove}><X size={9} strokeWidth={2.8} /></button>
       </Tip>
     </span>
   );
@@ -595,6 +604,7 @@ export function ReferenceSlots({ inputs, inpaint = null, role = null, selected, 
   confirmDelete?: (asset: ReferenceAsset) => Promise<boolean>;
   onError?: (message: string) => void;
 }) {
+  useLanguage();
   const [openSlot, setOpenSlot] = React.useState("");
   const noHover = useNoHover();
   const [uploadSlot, setUploadSlot] = React.useState("");
@@ -813,8 +823,8 @@ export function ReferenceSlots({ inputs, inpaint = null, role = null, selected, 
     const before = selected.slice();
     const left = ids(before.filter((item) => item.slot !== input.id));
     onRemove(input.id);
-    if (asset) showToastTone(`Removed ${(input.label || "reference image").toLowerCase()}`, "removed", { action: { label: "Undo", onClick: () => {
-      if (ids(selectedNow.current) !== left) { showToastTone("The references changed since, so there’s nothing to undo", "default"); return; }
+    if (asset) showToastTone(t("Removed {0}", { "0": ((input.label || "reference image").toLowerCase()) }), "removed", { action: { label: t("Undo"), onClick: () => {
+      if (ids(selectedNow.current) !== left) { showToastTone(t("The references changed since, so there’s nothing to undo"), "default"); return; }
       before.forEach((item) => onSelect(item.slot, item.asset));
     } } });
   };

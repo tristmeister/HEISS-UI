@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { TriangleAlert, X } from 'lucide-react';
@@ -19,6 +21,7 @@ export function UpscaleNoticePopover({ notice, onDismiss, placement }: {
   onDismiss: () => void;
   placement: 'tile' | 'viewer';
 }) {
+  useLanguage();
   const ref = useRef<HTMLSpanElement>(null);
   const reduced = useReducedMotion();
   const dismiss = useRef(onDismiss);
@@ -68,7 +71,7 @@ export function UpscaleNoticePopover({ notice, onDismiss, placement }: {
         className="upscale-notice-close"
         role="button"
         tabIndex={0}
-        aria-label="Dismiss"
+        aria-label={t("Dismiss")}
         onClick={(event) => { event.stopPropagation(); onDismiss(); }}
         onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); onDismiss(); } }}
       >

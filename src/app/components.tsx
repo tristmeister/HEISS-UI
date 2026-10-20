@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { lazy, Suspense, memo, useCallback, useEffect, useRef, useState } from 'react';
 import { VideoPreview } from './VideoPreview';
 import { mediaUrl } from './mediaUrl';
@@ -20,6 +22,7 @@ export type ControlDensity = "full" | "compact" | "mini";
 const VideoViewer = lazy(() => import('./VideoViewer'));
 
 export function Field({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+  useLanguage();
   return (
     <label className="field">
       <span>{label}</span>
@@ -29,6 +32,7 @@ export function Field({ label, children }: { label: React.ReactNode; children: R
 }
 
 function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl?: string }; muted?: boolean }) {
+  useLanguage();
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
   const [useFullImage, setUseFullImage] = useState(false);
@@ -49,10 +53,10 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
   useEffect(() => () => cancelAnimationFrame(rafRef.current), []);
   const isThumbnail = muted && Boolean(item.thumbnailUrl) && !useFullImage;
   const source = mediaUrl(isThumbnail ? item.thumbnailUrl : item.url, item as { id?: string; createdAt?: string });
-  if (!source || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || "Output unavailable"}</span></div>;
+  if (!source || failed) return <div className="media-fallback"><span>{titleFromPrompt(item.prompt || item.filename) || t("Output unavailable")}</span></div>;
   if (item.type === "video") {
     return muted ? <VideoPreview key={source} source={source} /> : (
-      <Suspense fallback={<div className="video-viewer-loading" role="status">Loading video…</div>}>
+      <Suspense fallback={<div className="video-viewer-loading" role="status">{t("Loading video…")}</div>}>
         <VideoViewer key={item.url} item={item} />
       </Suspense>
     );
@@ -75,6 +79,7 @@ function MediaComponent({ item, muted = false }: { item: Output & { thumbnailUrl
 export const Media = memo(MediaComponent, (previous, next) => previous.item === next.item && previous.muted === next.muted);
 
 export function Skeleton({ className = "" }: { className?: string }) {
+  useLanguage();
   return <span className={cn("skeleton", className)} aria-hidden="true" />;
 }
 
@@ -94,11 +99,12 @@ export function GallerySkeleton({ columns }: { columns: number }) {
   ));
 }
 
-export function StudioSelect({ value, onChange, options }: { value: string; onChange: (value: string) => void; options: Array<string | { label: string; value: string }> }) {
+export function StudioSelect({ value, onChange, options, label }: { value: string; onChange: (value: string) => void; options: Array<string | { label: string; value: string }>; label?: string }) {
+  useLanguage();
   const normalized = options.map((option) => typeof option === "string" ? { label: option, value: option } : option);
   return (
     <FluidSelect value={value} onValueChange={onChange}>
-      <FluidSelectTrigger className="fluid-select-trigger" placeholder="Select" />
+      <FluidSelectTrigger className="fluid-select-trigger" placeholder={t("Select")} aria-label={label} />
       <FluidSelectContent className="fluid-select-content">
         {normalized.map((item, index) => (
           <FluidSelectItem key={item.value} index={index} value={item.value}>
@@ -111,6 +117,7 @@ export function StudioSelect({ value, onChange, options }: { value: string; onCh
 }
 
 export function Tip({ content, side = "bottom", forceOpen, children }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left"; /** false keeps it shut, e.g. while a tooltip inside it speaks instead. */ forceOpen?: boolean; children: React.ReactElement }) {
+  useLanguage();
   return (
     <FluidTooltip content={content} side={side} sideOffset={10} forceOpen={forceOpen} className="heiss-tooltip bg-transparent text-foreground px-2.5 py-1.5 rounded-[12px]">
       {children}
@@ -123,15 +130,17 @@ export function Tip({ content, side = "bottom", forceOpen, children }: { content
  * still change. Sits after a label, inside the same line.
  */
 export function BetaTag({ className }: { className?: string }) {
+  useLanguage();
   // The hidden comma keeps a screen reader from reading "VideoBeta" as one word.
-  return <span className={cn("beta-tag", className)}><span className="sr-only">, </span>Beta</span>;
+  return <span className={cn("beta-tag", className)}><span className="sr-only">, </span>{t("Beta")}</span>;
 }
 
 /** Small "i" affordance for the one explanation a control genuinely needs. */
 export function InfoTip({ content, side = "top" }: { content: React.ReactNode; side?: "top" | "right" | "bottom" | "left" }) {
+  useLanguage();
   return (
     <Tip content={content} side={side}>
-      <button type="button" className="info-tip" aria-label="More information">
+      <button type="button" className="info-tip" aria-label={t("More information")}>
         <Info size={12} strokeWidth={2.6} />
       </button>
     </Tip>
@@ -164,6 +173,7 @@ export function NumberPicker({
   density?: ControlDensity;
   icon?: React.ReactNode;
 }) {
+  useLanguage();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -255,10 +265,10 @@ export function NumberPicker({
       ) : (
         <Tip content={label}><span className="number-picker-icon" aria-hidden="true">{icon}</span></Tip>
       )}
-      {showSteppers ? <Tip content={`Decrease ${labelLower}`}><button
+      {showSteppers ? <Tip content={t("Decrease {0}", { "0": (labelLower) })}><button
         type="button"
         className="number-picker-btn"
-        aria-label={`Decrease ${labelLower}`}
+        aria-label={t("Decrease {0}", { "0": (labelLower) })}
         disabled={value <= min}
         onPointerDown={(event) => { event.preventDefault(); startHold(-1); }}
         // Enter or Space from the keyboard: a click with no pointer behind it (detail 0).
@@ -286,14 +296,14 @@ export function NumberPicker({
           }}
         />
       ) : density === "full" ? (
-        <button type="button" className="number-picker-value" onClick={beginEdit} aria-label={`${label}: ${formatValue(value)}, click to edit`}><AnimatedNumber value={formatValue(value)} /></button>
+        <button type="button" className="number-picker-value" onClick={beginEdit} aria-label={t("{0}: {1}, click to edit", { "0": (label), "1": (formatValue(value)) })}><AnimatedNumber value={formatValue(value)} /></button>
       ) : (
-        <Tip content={`${label}: ${formatValue(value)} - click to edit`}><button type="button" className="number-picker-value" onClick={beginEdit} aria-label={`${label}: ${formatValue(value)}, click to edit`}><AnimatedNumber value={formatValue(value)} /></button></Tip>
+        <Tip content={t("{0}: {1} - click to edit", { "0": (label), "1": (formatValue(value)) })}><button type="button" className="number-picker-value" onClick={beginEdit} aria-label={t("{0}: {1}, click to edit", { "0": (label), "1": (formatValue(value)) })}><AnimatedNumber value={formatValue(value)} /></button></Tip>
       )}
-      {showSteppers ? <Tip content={`Increase ${labelLower}`}><button
+      {showSteppers ? <Tip content={t("Increase {0}", { "0": (labelLower) })}><button
         type="button"
         className="number-picker-btn"
-        aria-label={`Increase ${labelLower}`}
+        aria-label={t("Increase {0}", { "0": (labelLower) })}
         disabled={value >= max}
         onPointerDown={(event) => { event.preventDefault(); startHold(1); }}
         // Enter or Space from the keyboard: a click with no pointer behind it (detail 0).
@@ -348,6 +358,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
   targetArea?: number;
   megapixel?: MegapixelControl | null;
 }) {
+  useLanguage();
   const [open, setOpen] = useState(false);
   const presence = usePresence(open);
   const pickerRef = useRef<HTMLDivElement | null>(null);
@@ -402,7 +413,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
 
   return (
     <div className={cn("aspect-picker", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={density === "full" ? `Size: ${what}` : `Size: ${what}`}><button ref={triggerRef} type="button" data-open-trigger className={cn("aspect-trigger", heldWidth !== null && "is-held")} style={heldWidth ? { width: heldWidth } : undefined} aria-label={`Size: ${what}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
+      <Tip content={density === "full" ? t("Size: {0}", { "0": (what) }) : t("Size: {0}", { "0": (what) })}><button ref={triggerRef} type="button" data-open-trigger className={cn("aspect-trigger", heldWidth !== null && "is-held")} style={heldWidth ? { width: heldWidth } : undefined} aria-label={t("Size: {0}", { "0": (what) })} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen((next) => !next)}>
           {/* The shape drawn to fit an 18 × 14 box, so every ratio sits in the same slot. */}
           <span className="aspect-shape-slot">
             <span className="aspect-shape" style={triggerShapeStyle(face.width, face.height)} />
@@ -418,7 +429,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
           className={cn("aspect-menu size-menu", presence.closing && "is-closing")}
           data-open-surface
           role="dialog"
-          aria-label="Size"
+          aria-label={t("Size")}
           onPointerEnter={(event) => { if (event.pointerType !== "touch") setPeek(true); }}
           onFocusCapture={(event) => { if ((event.target as HTMLElement).matches(":focus-visible, input")) setPeek(true); }}
         >
@@ -426,7 +437,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
           <div className="size-menu-side">
             <div className="aspect-upscale">
               <div className="aspect-upscale-head">
-                <span>Resolution</span>
+                <span>{t("Resolution")}</span>
               </div>
               {onTierChange ? <SizeTabs tiers={tiers} value={tier} onChange={onTierChange} /> : null}
               {/* Its space above is its own padding, so it folds with it and closing ends without a jump. */}
@@ -439,7 +450,7 @@ export function AspectPicker({ value, options, onChange, currentSize, defaultSiz
               </AnimatePresence>
               {note ? <p className="size-menu-note">{note}</p> : null}
             </div>
-            <div ref={listRef} className="aspect-list" role="listbox" aria-label={custom ? "Shape, at this size" : "Shape"} onPointerLeave={() => setHovered(null)} onKeyDown={(event) => {
+            <div ref={listRef} className="aspect-list" role="listbox" aria-label={custom ? t("Shape, at this size") : t("Shape")} onPointerLeave={() => setHovered(null)} onKeyDown={(event) => {
               // Up and down move between shapes, previewing each on the way.
               if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
               event.preventDefault();
@@ -544,6 +555,7 @@ function sizeNote(profile: Profile, hardware: ReturnType<typeof useHardware>) {
  * of a reference to change only that).
  */
 function ModelAbilities({ profile, showInpaint = true, onHover }: { profile: Profile; showInpaint?: boolean; onHover?: (hovering: boolean) => void }) {
+  useLanguage();
   // An edit model takes references without a start-image strength; img2img models have one.
   const edits = Boolean(profile.mediaInputs?.length && !profile.capabilities.denoise);
   const inpaints = showInpaint && Boolean(profile.capabilities.inpaint);
@@ -551,13 +563,14 @@ function ModelAbilities({ profile, showInpaint = true, onHover }: { profile: Pro
   return (
     // While one of these speaks, the row's own name tooltip stays shut.
     <span className="model-abilities" onPointerEnter={() => onHover?.(true)} onPointerLeave={() => onHover?.(false)}>
-      {edits ? <Tip content="Edits from reference images" side="top"><span className="model-ability" aria-label="Edits from reference images"><ImagePlus size={13} strokeWidth={1.75} /></span></Tip> : null}
-      {inpaints ? <Tip content="Inpainting: paint over part of an image to change only that" side="top"><span className="model-ability" aria-label="Inpainting"><Brush size={13} strokeWidth={1.75} /></span></Tip> : null}
+      {edits ? <Tip content={t("Edits from reference images")} side="top"><span className="model-ability" aria-label={t("Edits from reference images")}><ImagePlus size={13} strokeWidth={1.75} /></span></Tip> : null}
+      {inpaints ? <Tip content={t("Inpainting: paint over part of an image to change only that")} side="top"><span className="model-ability" aria-label={t("Inpainting")}><Brush size={13} strokeWidth={1.75} /></span></Tip> : null}
     </span>
   );
 }
 
 export function ModelPicker({ value, profiles, showInpaint = true, onChange, compact = false, badges = {}, density = "full", emptyHint = "", onFindModels, onGetModels, strayCount = 0, menu }: { value: string; profiles: Profile[]; showInpaint?: boolean; onChange: (value: string) => void; compact?: boolean; badges?: Record<string, string>; density?: ControlDensity; emptyHint?: string; onFindModels?: () => void; onGetModels?: () => void; strayCount?: number; menu?: ModelMenuState }) {
+  useLanguage();
   const hardware = useHardware();
   const [abilityRow, setAbilityRow] = React.useState("");
   const [open, setOpen] = useState(false);
@@ -594,10 +607,10 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
     const models = rest.filter((profile) => !profile.id.startsWith("custom:"));
     const workflows = rest.filter((profile) => profile.id.startsWith("custom:"));
     return [
-      { id: "favorites", label: "Favorites", rows: starred },
-      { id: "recent", label: "Recent", rows: recent },
+      { id: "favorites", label: t("Favorites"), rows: starred },
+      { id: "recent", label: t("Recent"), rows: recent },
       { id: "all", label: starred.length || recent.length ? "All models" : "", rows: models },
-      { id: "workflows", label: "Your workflows", rows: workflows }
+      { id: "workflows", label: t("Your workflows"), rows: workflows }
     ].filter((section) => section.rows.length);
   }, [menu, profiles, query]);
   const flat = React.useMemo(() => sections.flatMap((section) => section.rows), [sections]);
@@ -649,14 +662,14 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
   let rowIndex = -1;
   return (
     <div className={cn("model-picker", compact && "is-compact", density !== "full" && `is-density-${density}`)} ref={pickerRef} data-open-surface={open || undefined}>
-      <Tip content={selected ? `${selected.displayName || selected.label}${setupNote(selected) ? ` · ${setupNote(selected)}` : ""} · choose a model` : "Choose a model"}><button ref={triggerRef} type="button" data-open-trigger className={cn("model-trigger", setupNote(selected) && "needs-setup")} aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
+      <Tip content={selected ? t("{0}{1} · choose a model", { "0": (selected.displayName || selected.label), "1": (setupNote(selected) ? ` · ${setupNote(selected)}` : t("")) }) : t("Choose a model")}><button ref={triggerRef} type="button" data-open-trigger className={cn("model-trigger", setupNote(selected) && "needs-setup")} aria-haspopup="listbox" aria-expanded={open} onClick={() => (open ? close() : setOpen(true))}>
           {setupNote(selected) ? <span className="model-setup-flag" aria-label={setupNote(selected)} /> : null}
           {compact ? (
-            <span className="model-copy"><strong>{selected?.displayName || selected?.label || "No model"}</strong></span>
+            <span className="model-copy"><strong>{selected?.displayName || selected?.label || t("No model")}</strong></span>
           ) : (
             <span className="model-copy">
-              <strong>{selected?.displayName || selected?.label || "No model"}</strong>
-              <em>{selected ? familyLabel(selected) : "No model yet"}</em>
+              <strong>{selected?.displayName || selected?.label || t("No model")}</strong>
+              <em>{selected ? familyLabel(selected) : t("No model yet")}</em>
             </span>
           )}
           <ChevronDown size={14} className={cn(open && "flip")} />
@@ -665,21 +678,21 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
         <div className={cn("model-menu", searchable && "has-search", presence.closing && "is-closing")} data-open-surface onKeyDown={onMenuKey}>
           {profiles.length ? null : (
             <div className="model-menu-empty">
-              <strong>No models yet</strong>
-              <span>{emptyHint || "No usable models in ComfyUI yet."}</span>
-              {onGetModels && !strayCount ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onGetModels(); }}>Get a model</button>
-                : onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onFindModels(); }}>{strayCount ? `Add ${strayCount} model${strayCount === 1 ? "" : "s"}` : "Find models"}</button> : null}
+              <strong>{t("No models yet")}</strong>
+              <span>{emptyHint || t("No usable models in ComfyUI yet.")}</span>
+              {onGetModels && !strayCount ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onGetModels(); }}>{t("Get a model")}</button>
+                : onFindModels ? <button type="button" className="btn is-primary model-menu-find-cta" onClick={() => { close(); onFindModels(); }}>{strayCount ? t("Add {0} model{1}", { "0": (strayCount), "1": (strayCount === 1 ? t("") : t("s")) }) : t("Find models")}</button> : null}
             </div>
           )}
           {searchable ? (
             <label className="model-menu-search">
               <Search size={14} aria-hidden="true" />
-              <input ref={searchRef} className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${profiles.length} models`} aria-label="Search models" aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined} spellCheck={false} autoComplete="off" />
-              {query ? <button type="button" className="model-menu-clear" aria-label="Clear search" onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={12} /></button> : null}
+              <input ref={searchRef} className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search {0} models", { "0": (profiles.length) })} aria-label={t("Search models")} aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined} spellCheck={false} autoComplete="off" />
+              {query ? <button type="button" className="model-menu-clear" aria-label={t("Clear search")} onClick={() => { setQuery(""); searchRef.current?.focus(); }}><X size={12} /></button> : null}
             </label>
           ) : null}
           {profiles.length ? (
-            <div className="model-menu-list" ref={listRef} role="listbox" aria-label="Models" tabIndex={-1} aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined}>
+            <div className="model-menu-list" ref={listRef} role="listbox" aria-label={t("Models")} tabIndex={-1} aria-activedescendant={cursor >= 0 ? `${menuId}-row-${cursor}` : undefined}>
               {sections.map((section) => (
                 <div key={section.id} className="model-menu-section" role="group" aria-label={section.label || undefined}>
                   {section.label ? <div className="model-menu-label">{section.label}</div> : null}
@@ -710,7 +723,7 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
                             <span className="model-tags"><ModelAbilities profile={profile} showInpaint={showInpaint} onHover={(hovering) => setAbilityRow(hovering ? `${section.id}:${profile.id}` : "")} />{badge ? <span className="model-badge">{badge}</span> : null}</span>
                           </button></Tip>
                         {menu ? (
-                          <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? `Remove ${profile.displayName || profile.label} from favorites` : `Add ${profile.displayName || profile.label} to favorites`} onClick={() => menu.toggleFavorite(profile.id)}>
+                          <button type="button" className="model-star" aria-pressed={starred} aria-label={starred ? t("Remove {0} from favorites", { "0": (profile.displayName || profile.label) }) : t("Add {0} to favorites", { "0": (profile.displayName || profile.label) })} onClick={() => menu.toggleFavorite(profile.id)}>
                             <Star size={13} fill={starred ? "currentColor" : "none"} />
                           </button>
                         ) : null}
@@ -719,14 +732,14 @@ export function ModelPicker({ value, profiles, showInpaint = true, onChange, com
                   })}
                 </div>
               ))}
-              {query && !flat.length ? <div className="model-menu-none">Nothing matches “{query.trim()}”.</div> : null}
+              {query && !flat.length ? <div className="model-menu-none">{t("Nothing matches “")}{query.trim()}”.</div> : null}
             </div>
           ) : null}
           {onFindModels && profiles.length ? (
             // Always one tap from where people notice a model is missing.
             <button type="button" className={cn("model-menu-find", strayCount > 0 && "has-found")} onClick={() => { close(); onFindModels(); }}>
-              <span>{strayCount ? `${strayCount} model${strayCount === 1 ? "" : "s"} found` : "Find more models"}</span>
-              <em>{strayCount ? "Add" : "Search"}</em>
+              <span>{strayCount ? t("{0} model{1} found", { "0": (strayCount), "1": (strayCount === 1 ? t("") : t("s")) }) : t("Find more models")}</span>
+              <em>{strayCount ? t("Add") : t("Search")}</em>
             </button>
           ) : null}
 

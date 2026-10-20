@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Check, FolderOpen, FolderPlus, RefreshCw } from 'lucide-react';
@@ -45,15 +47,16 @@ const STEPS = [
 ] as const;
 
 function Steps({ stage }: { stage: ModelFolderStage }) {
+  useLanguage();
   const current = stage === 'done' ? STEPS.length : Math.max(0, STEPS.findIndex((step) => (step.stages as readonly string[]).includes(stage)));
   return (
-    <ol className="upscale-stepper" aria-label="Setup steps">
+    <ol className="upscale-stepper" aria-label={t("Setup steps")}>
       {STEPS.map((step, index) => {
         const state = index < current ? 'done' : index === current && stage !== 'error' ? 'active' : 'todo';
         return (
           <li key={step.label} className={`is-${state}`} aria-current={state === 'active' ? 'step' : undefined}>
             <i aria-hidden="true">{state === 'done' ? <Check size={10} strokeWidth={3} /> : null}</i>
-            <span>{step.label}</span>
+            <span>{t(step.label)}</span>
           </li>
         );
       })}
@@ -64,34 +67,35 @@ function Steps({ stage }: { stage: ModelFolderStage }) {
 function copyFor(stage: ModelFolderStage, folders: StrayModelFolder[], added: ModelFolders['added'], saved = false, comfyRestarting = false): { title: string; description: string } {
   const count = folders.reduce((sum, folder) => sum + folder.count, 0);
   switch (stage) {
-    case 'scanning': return { title: 'Searching for models', description: 'Checking your folders, other ComfyUI installs and connected drives.' };
+    case 'scanning': return { title: t("Searching for models"), description: t("Checking your folders, other ComfyUI installs and connected drives.") };
     case 'found': return {
-      title: `Add ${plural(count, 'model')}`,
+      title: t("Add {0}", { "0": (plural(count, 'model')) }),
       description: folders.length === 1
         ? folders[0].partlyRead
           ? `ComfyUI reads ${folders[0].name}’s models folder, but not ${folders[0].kinds.length === 1 ? `its ${folders[0].kinds[0].name} subfolder` : 'these subfolders'}.`
           : `They’re in ${folders[0].name}, which ComfyUI doesn’t read.`
         : `They’re in ${plural(folders.length, 'folder')} ComfyUI doesn’t fully read.`
     };
-    case 'none': return { title: 'No models found outside ComfyUI', description: 'If models are somewhere else, choose the folder.' };
-    case 'remote': return { title: 'ComfyUI runs on another computer', description: 'Only folders on the computer running HEISS UI can be searched.' };
+    case 'none': return { title: t("No models found outside ComfyUI"), description: t("If models are somewhere else, choose the folder.") };
+    case 'remote': return { title: t("ComfyUI runs on another computer"), description: t("Only folders on the computer running HEISS UI can be searched.") };
     case 'offline': return comfyRestarting
-      ? { title: 'ComfyUI is restarting', description: 'The search continues when it’s back, usually in a few seconds.' }
-      : { title: 'Waiting for ComfyUI', description: 'Start ComfyUI to continue.' };
-    case 'adding': return { title: 'Adding folders', description: 'ComfyUI’s previous settings are saved as a backup.' };
-    case 'restarting': return { title: 'Restarting ComfyUI', description: 'ComfyUI reads its model folders when it starts. This takes a few seconds.' };
-    case 'waiting': return { title: 'Restart ComfyUI to finish', description: 'ComfyUI reads its model folders when it starts. Quit ComfyUI and open it again.' };
+      ? { title: t("ComfyUI is restarting"), description: t("The search continues when it’s back, usually in a few seconds.") }
+      : { title: t("Waiting for ComfyUI"), description: t("Start ComfyUI to continue.") };
+    case 'adding': return { title: t("Adding folders"), description: t("ComfyUI’s previous settings are saved as a backup.") };
+    case 'restarting': return { title: t("Restarting ComfyUI"), description: t("ComfyUI reads its model folders when it starts. This takes a few seconds.") };
+    case 'waiting': return { title: t("Restart ComfyUI to finish"), description: t("ComfyUI reads its model folders when it starts. Quit ComfyUI and open it again.") };
     case 'done': return {
       title: added.count ? `${plural(added.count, 'model')} ready` : 'Folder added',
-      description: 'New files in it show up after a rescan.'
+      description: t("New files in it show up after a rescan.")
     };
     case 'error': return saved
-      ? { title: 'Folders saved, waiting for ComfyUI', description: 'ComfyUI reads them the next time it starts.' }
-      : { title: 'Couldn’t add the folder', description: 'ComfyUI’s settings weren’t changed.' };
+      ? { title: t("Folders saved, waiting for ComfyUI"), description: t("ComfyUI reads them the next time it starts.") }
+      : { title: t("Couldn’t add the folder"), description: t("ComfyUI’s settings weren’t changed.") };
   }
 }
 
 function FolderCard({ folder, checked, onToggle, index, selectable }: { folder: StrayModelFolder; checked: boolean; onToggle: () => void; index: number; selectable: boolean }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const examples = folder.kinds.flatMap((item) => item.examples).slice(0, 2);
   const more = folder.count - examples.length;
@@ -112,7 +116,7 @@ function FolderCard({ folder, checked, onToggle, index, selectable }: { folder: 
           <span className="mf-kinds">{folderSummary(folder)}</span>
           {examples.length ? (
             <small title={folder.kinds.flatMap((item) => item.examples).join('\n')}>
-              {examples.join(', ')}{more > 0 ? ` and ${more} more` : ''}
+              {examples.join(', ')}{more > 0 ? t(" and {0} more", { "0": (more) }) : ''}
             </small>
           ) : null}
         </span>
@@ -126,6 +130,7 @@ function FolderCard({ folder, checked, onToggle, index, selectable }: { folder: 
 }
 
 export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folders: ModelFolders; runningCount?: number }) {
+  useLanguage();
   const { report, stage, open, error, selected, added } = state;
   const folders = report?.folders || [];
   const chosen = folders.filter((folder) => selected.includes(folder.path));
@@ -134,14 +139,14 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
   const comfyRestarting = useComfyRestarting();
   const { title, description } = copyFor(stage, folders, added, state.saved, comfyRestarting);
   const toggle = (path: string) => state.setSelected(selected.includes(path) ? selected.filter((item) => item !== path) : [...selected, path]);
-  const later = <button className="btn is-ghost" onClick={state.close}>Not now</button>;
-  const choose = <button className="btn" onClick={state.pick}><FolderOpen size={14} /> Choose a folder…</button>;
+  const later = <button className="btn is-ghost" onClick={state.close}>{t("Not now")}</button>;
+  const choose = <button className="btn" onClick={state.pick}><FolderOpen size={14} />{t("Choose a folder…")}</button>;
 
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
 
   if (stage === 'scanning') {
-    body = <Watcher>Searching…</Watcher>;
+    body = <Watcher>{t("Searching…")}</Watcher>;
   } else if (stage === 'found') {
     body = (
       <>
@@ -150,42 +155,41 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
             <FolderCard key={folder.path} folder={folder} index={index} checked={selected.includes(folder.path)} onToggle={() => toggle(folder.path)} selectable={folders.length > 1 || !selected.includes(folder.path)} />
           ))}
         </ul>
-        <p className="upscale-fine">
-          Adds {chosen.length === 1 ? 'it' : 'them'} to <code title={report?.configPath}>extra_model_paths.yaml</code>.
-          {runningCount ? <> ComfyUI restarts once, stopping {plural(runningCount, 'running generation')}.</> : <> ComfyUI restarts once.</>}
+        <p className="upscale-fine">{t("Adds")}{" "}{chosen.length === 1 ? t("it") : t("them")}{t("to")}{" "}<code title={report?.configPath}>extra_model_paths.yaml</code>.
+          {runningCount ? <>{t("ComfyUI restarts once, stopping")}{" "}{plural(runningCount, 'running generation')}.</> : <>{t("ComfyUI restarts once.")}</>}
         </p>
-        {report?.writable === false ? <p className="upscale-fine is-warn">Can’t write to {report.configLabel}. Check its permissions, or add the folder in ComfyUI yourself.</p> : null}
+        {report?.writable === false ? <p className="upscale-fine is-warn">{t("Can’t write to")}{" "}{report.configLabel}{t(". Check its permissions, or add the folder in ComfyUI yourself.")}</p> : null}
       </>
     );
     footer = (
       <>
-        <button className="btn is-ghost mf-other" onClick={state.pick}>Choose another folder…</button>
+        <button className="btn is-ghost mf-other" onClick={state.pick}>{t("Choose another folder…")}</button>
         {later}
         <button className="btn is-primary" onClick={() => state.add()} disabled={!chosen.length}>
-          <FolderPlus size={14} /> Add {plural(chosenCount, 'model')}
+          <FolderPlus size={14} />{t("Add")}{" "}{plural(chosenCount, 'model')}
         </button>
       </>
     );
   } else if (stage === 'none') {
     body = report?.linked?.length ? (
       <ul className="mf-linked">
-        {report.linked.map((item) => <li key={item.path}><Check size={12} strokeWidth={3} /><code title={item.path}>{item.label}</code><span>{item.read ? 'Read by ComfyUI' : 'Restart ComfyUI to read it'}</span></li>)}
+        {report.linked.map((item) => <li key={item.path}><Check size={12} strokeWidth={3} /><code title={item.path}>{item.label}</code><span>{item.read ? t("Read by ComfyUI") : t("Restart ComfyUI to read it")}</span></li>)}
       </ul>
     ) : null;
-    footer = <>{choose}<button className="btn is-primary" onClick={state.close}>Done</button></>;
+    footer = <>{choose}<button className="btn is-primary" onClick={state.close}>{t("Done")}</button></>;
   } else if (stage === 'remote') {
     body = (
       <div className="upscale-callout">
-        <strong>Add the folder on that computer.</strong>
-        <span>In ComfyUI’s folder there, copy <code>extra_model_paths.yaml.example</code> to <code>extra_model_paths.yaml</code>, set <code>base_path</code> to your models folder, and restart ComfyUI.</span>
+        <strong>{t("Add the folder on that computer.")}</strong>
+        <span>{t("In ComfyUI’s folder there, copy")}{" "}<code>extra_model_paths.yaml.example</code>{t("to")}{" "}<code>extra_model_paths.yaml</code>{t(", set")}{" "}<code>{t("base_path")}</code>{t("to your models folder, and restart ComfyUI.")}</span>
       </div>
     );
-    footer = <button className="btn is-primary" onClick={state.close}>Done</button>;
+    footer = <button className="btn is-primary" onClick={state.close}>{t("Done")}</button>;
   } else if (stage === 'offline') {
-    body = <Watcher>Waiting for ComfyUI…</Watcher>;
-    footer = <>{later}<button className="btn" onClick={() => state.scan()}><RefreshCw size={13} /> Check again</button></>;
+    body = <Watcher>{t("Waiting for ComfyUI…")}</Watcher>;
+    footer = <>{later}<button className="btn" onClick={() => state.scan()}><RefreshCw size={13} />{t("Check again")}</button></>;
   } else if (stage === 'adding') {
-    body = <Watcher>Adding folders…</Watcher>;
+    body = <Watcher>{t("Adding folders…")}</Watcher>;
   } else if (stage === 'restarting' || stage === 'waiting') {
     body = (
       <>
@@ -198,11 +202,11 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
             </li>
           ))}
         </ul>
-        <Watcher>{stage === 'restarting' ? 'Waiting for ComfyUI…' : 'Waiting for ComfyUI to restart…'}</Watcher>
+        <Watcher>{stage === 'restarting' ? t("Waiting for ComfyUI…") : t("Waiting for ComfyUI to restart…")}</Watcher>
         {stage === 'waiting' ? <ComfyRestart compact className="upscale-restart" /> : null}
       </>
     );
-    footer = stage === 'waiting' ? <button className="btn is-ghost" onClick={state.close}>Finish later</button> : null;
+    footer = stage === 'waiting' ? <button className="btn is-ghost" onClick={state.close}>{t("Finish later")}</button> : null;
   } else if (stage === 'done') {
     body = (
       <>
@@ -210,8 +214,8 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
           <div className="upscale-meter mf-meter">
             <strong><AnimatedNumber value={added.count} /></strong>
             <div>
-              <span>From {added.folders.map((folder) => folder.name).join(', ')}</span>
-              <span>Pick them in the model menu</span>
+              <span>{t("From")}{" "}{added.folders.map((folder) => folder.name).join(', ')}</span>
+              <span>{t("Pick them in the model menu")}</span>
             </div>
           </div>
         ) : null}
@@ -223,20 +227,20 @@ export function ModelFoldersDialog({ folders: state, runningCount = 0 }: { folde
                 <span className="mf-done-kinds">{folderSummary(folder)}</span>
                 <code title={folder.path}>{folder.label}</code>
               </div>
-              <span><Check size={12} strokeWidth={3} /> Added</span>
+              <span><Check size={12} strokeWidth={3} />{t("Added")}</span>
             </li>
           ))}
         </ul>
       </>
     );
-    footer = <button className="btn is-primary" onClick={state.close}>Done</button>;
+    footer = <button className="btn is-primary" onClick={state.close}>{t("Done")}</button>;
   } else if (stage === 'error') {
     body = state.saved
       ? <><div className="upscale-callout"><strong>{error}</strong></div><ComfyRestart compact className="upscale-restart" onBack={() => state.scan()} /></>
-      : <div className="upscale-callout is-danger"><strong>{error || 'Try again, or add the folder in ComfyUI yourself.'}</strong></div>;
+      : <div className="upscale-callout is-danger"><strong>{error || t("Try again, or add the folder in ComfyUI yourself.")}</strong></div>;
     footer = state.saved
-      ? <button className="btn is-ghost" onClick={state.close}>Finish later</button>
-      : <>{later}<button className="btn is-primary" onClick={() => state.scan()}>Try again</button></>;
+      ? <button className="btn is-ghost" onClick={state.close}>{t("Finish later")}</button>
+      : <>{later}<button className="btn is-primary" onClick={() => state.scan()}>{t("Try again")}</button></>;
   }
 
   const busy = stage === 'adding' || stage === 'restarting';

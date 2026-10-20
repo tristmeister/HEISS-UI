@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ArrowUpRight, Bug, Check, ChevronDown, HelpCircle, Lightbulb } from 'lucide-react';
 import { Modal } from './Modal';
@@ -9,9 +11,9 @@ import { cn } from './format';
 const NAME_KEY = 'heiss-feedback-name';
 
 const KINDS: Array<{ value: FeedbackKind; label: React.ReactNode }> = [
-  { value: 'bug', label: <><Bug size={13} /> Bug</> },
-  { value: 'idea', label: <><Lightbulb size={13} /> Idea</> },
-  { value: 'question', label: <><HelpCircle size={13} /> Question</> }
+  { value: 'bug', label: <><Bug size={13} />{t("Bug")}</> },
+  { value: 'idea', label: <><Lightbulb size={13} />{t("Idea")}</> },
+  { value: 'question', label: <><HelpCircle size={13} />{t("Question")}</> }
 ];
 
 const COPY: Record<FeedbackKind, { title: string; heading: string; body: string; send: string }> = {
@@ -28,12 +30,14 @@ const saveName = (name: string) => { try { if (name) localStorage.setItem(NAME_K
  * next to the studio (and on the crash screen); `openFeedback()` opens it.
  */
 export function FeedbackHost({ initial }: { initial?: FeedbackDraft | null }) {
+  useLanguage();
   const [draft, setDraft] = React.useState<FeedbackDraft | null>(initial ?? null);
   React.useEffect(() => subscribeFeedback((next) => setDraft({ ...next })), []);
   return <FeedbackDialog draft={draft} onClose={() => setDraft(null)} />;
 }
 
 function FeedbackDialog({ draft, onClose }: { draft: FeedbackDraft | null; onClose: () => void }) {
+  useLanguage();
   const open = Boolean(draft);
   const [kind, setKind] = React.useState<FeedbackKind>('idea');
   const [title, setTitle] = React.useState('');
@@ -73,7 +77,7 @@ function FeedbackDialog({ draft, onClose }: { draft: FeedbackDraft | null; onClo
 
   const send = async () => {
     if (trimmedTitle.length < 4) {
-      setError('Give it a title of a few words.');
+      setError(t("Give it a title of a few words."));
       titleRef.current?.focus();
       return;
     }
@@ -97,12 +101,12 @@ function FeedbackDialog({ draft, onClose }: { draft: FeedbackDraft | null; onClo
         size="form"
         className="feedback-modal"
         icon={<span className="feedback-done-icon"><Check size={18} strokeWidth={2.5} /></span>}
-        title="Sent. Thank you!"
-        description={kind === 'question' ? 'Answers show up on the board, under your question.' : 'It’s on the board. Upvotes, replies and status updates show up there.'}
+        title={t("Sent. Thank you!")}
+        description={kind === 'question' ? t("Answers show up on the board, under your question.") : t("It’s on the board. Upvotes, replies and status updates show up there.")}
         footer={
           <>
-            <button type="button" className="btn is-ghost" onClick={onClose}>Done</button>
-            <a className="btn is-primary" href={sent.url} target="_blank" rel="noreferrer"><ArrowUpRight size={14} /> Open on the board</a>
+            <button type="button" className="btn is-ghost" onClick={onClose}>{t("Done")}</button>
+            <a className="btn is-primary" href={sent.url} target="_blank" rel="noreferrer"><ArrowUpRight size={14} />{t("Open on the board")}</a>
           </>
         }
       />
@@ -117,26 +121,26 @@ function FeedbackDialog({ draft, onClose }: { draft: FeedbackDraft | null; onClo
       busy={busy}
       className="feedback-modal"
       initialFocus={draft?.title ? bodyRef : titleRef}
-      title={draft?.from === 'crash' ? 'Report what broke' : COPY[kind].heading}
-      description={<>Goes to the public <a href={boardUrl} target="_blank" rel="noreferrer">feedback board</a>, where anyone can upvote and reply. No account needed.</>}
+      title={draft?.from === 'crash' ? t("Report what broke") : COPY[kind].heading}
+      description={<>{t("Goes to the public")}{" "}<a href={boardUrl} target="_blank" rel="noreferrer">{t("feedback board")}</a>{t(", where anyone can upvote and reply. No account needed.")}</>}
       footer={
         <>
-          {error ? <a className="btn is-ghost feedback-web" href={boardComposeUrl(post)} target="_blank" rel="noreferrer"><ArrowUpRight size={14} /> Send from the website</a> : null}
-          <button type="button" className="btn is-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="button" className="btn is-primary" onClick={send} disabled={busy}>{busy ? 'Sending…' : error ? 'Try again' : COPY[kind].send}</button>
+          {error ? <a className="btn is-ghost feedback-web" href={boardComposeUrl(post)} target="_blank" rel="noreferrer"><ArrowUpRight size={14} />{t("Send from the website")}</a> : null}
+          <button type="button" className="btn is-ghost" onClick={onClose} disabled={busy}>{t("Cancel")}</button>
+          <button type="button" className="btn is-primary" onClick={send} disabled={busy}>{busy ? t("Sending…") : error ? t("Try again") : COPY[kind].send}</button>
         </>
       }
     >
       <form className="feedback-form" onSubmit={(event) => { event.preventDefault(); void send(); }}>
-        <Segmented label="Kind of post" value={kind} options={KINDS} onChange={setKind} />
+        <Segmented label={t("Kind of post")} value={kind} options={KINDS} onChange={setKind} />
 
         <label className="field">
-          <span>Title</span>
-          <input ref={titleRef} value={title} maxLength={120} placeholder={COPY[kind].title} onChange={(event) => setTitle(event.target.value)} autoComplete="off" />
+          <span>{t("Title")}</span>
+          <input ref={titleRef} value={title} maxLength={120} placeholder={t(COPY[kind].title)} onChange={(event) => setTitle(event.target.value)} autoComplete="off" />
         </label>
 
         <label className="field">
-          <span>Details</span>
+          <span>{t("Details")}</span>
           <textarea ref={bodyRef} value={body} maxLength={4000} placeholder={COPY[kind].body} onChange={(event) => setBody(event.target.value)} className={cn(body.length > 400 && 'is-long')} />
         </label>
 
@@ -144,30 +148,28 @@ function FeedbackDialog({ draft, onClose }: { draft: FeedbackDraft | null; onClo
           <div className="feedback-setup">
             <div className="feedback-setup-row">
               <div>
-                <strong>Include setup</strong>
-                <span>HEISS UI, ComfyUI and Node.js versions, system and GPU.</span>
+                <strong>{t("Include setup")}</strong>
+                <span>{t("HEISS UI, ComfyUI and Node.js versions, system and GPU.")}</span>
               </div>
-              <Switch label="Include setup" checked={withSetup} onChange={setWithSetup} size="sm" />
+              <Switch label={t("Include setup")} checked={withSetup} onChange={setWithSetup} size="sm" />
             </div>
             {withSetup ? (
               <>
                 <button type="button" className="feedback-peek" aria-expanded={showSetup} onClick={() => setShowSetup((value) => !value)}>
-                  {showSetup ? 'Hide what’s included' : 'See what’s included'} <ChevronDown size={12} />
+                  {showSetup ? t("Hide what’s included") : t("See what’s included")} <ChevronDown size={12} />
                 </button>
-                {showSetup ? <pre className="feedback-setup-text">{setup || (setupRead ? 'The setup couldn’t be read here, so none is sent.' : 'Reading the setup…')}</pre> : null}
+                {showSetup ? <pre className="feedback-setup-text">{setup || (setupRead ? t("The setup couldn’t be read here, so none is sent.") : t("Reading the setup…"))}</pre> : null}
               </>
             ) : null}
           </div>
         ) : null}
 
         <label className="field">
-          <span>Your name <em>optional, shown on the post</em></span>
-          <input value={name} maxLength={40} onChange={(event) => setName(event.target.value)} autoComplete="nickname" placeholder="Anonymous" />
+          <span>{t("Your name")}{" "}<em>{t("optional, shown on the post")}</em></span>
+          <input value={name} maxLength={40} onChange={(event) => setName(event.target.value)} autoComplete="nickname" placeholder={t("Anonymous")} />
         </label>
 
-        <p className="feedback-note">
-          Only what’s above is sent, and only when you press {COPY[kind].send}. It’s public, so check the details for anything private, like names in file paths.
-        </p>
+        <p className="feedback-note">{t("Only what’s above is sent, and only when you press")}{" "}{COPY[kind].send}{t(". It’s public, so check the details for anything private, like names in file paths.")}</p>
         {error ? <p className="feedback-error" role="alert">{error}</p> : null}
         <button type="submit" hidden />
       </form>

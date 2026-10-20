@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
 import { useAtComputer } from './device';
@@ -216,7 +217,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
     try {
       const result = await apiJson<{ moved: number; ids: string[]; hiddenIds?: string[]; failed: Array<{ id: string; error: string }>; leftBehind: number }>("/api/hidden/hide", json({ ids }));
       if (result.failed?.length && !result.moved) showToast(result.failed[0].error || "Couldn’t hide the image", "error");
-      else if (result.leftBehind) showToast(`Hidden, but ${result.leftBehind === 1 ? "ComfyUI’s copy" : `${result.leftBehind} ComfyUI copies`} couldn’t be removed.`, "warning");
+      else if (result.leftBehind) showToast(t("Hidden, but {0} couldn’t be removed.", { "0": (result.leftBehind === 1 ? t("ComfyUI’s copy") : `${result.leftBehind} ComfyUI copies`) }), "warning");
       return result;
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
@@ -250,7 +251,7 @@ export function useHidden({ autoLockMinutes, showToast }: { autoLockMinutes: num
   const ensureReady = useCallback((next: HiddenIntent) => {
     if (!enabled) {
       if (!atComputer) {
-        showToast("Hidden isn’t set up. Set it up on the computer running HEISS UI.", "warning");
+        showToast(t("Hidden isn’t set up. Set it up on the computer running HEISS UI."), "warning");
         return false;
       }
       setIntent(next);

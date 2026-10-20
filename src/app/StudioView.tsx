@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { useNeighborPrefetch } from './useNeighborPrefetch';
 import { GridAutoplayButton } from './GridAutoplayButton';
@@ -96,17 +98,18 @@ const ZenStrip = memoLatest(function ZenStrip({ items, activeId, stripRef, onPoi
 });
 
 function comfyStatusLabel(status: any) {
-  if (status?.restarting) return "ComfyUI is restarting…";
-  if (status?.checking) return "Checking ComfyUI…";
-  if (status?.busy) return `ComfyUI is busy${status.device ? ` · ${status.device}` : ""} · slow to answer, runs carry on`;
+  if (status?.restarting) return t('ComfyUI is restarting…');
+  if (status?.checking) return t('Checking ComfyUI…');
+  if (status?.busy) return `${t('ComfyUI is busy')}${status.device ? ` · ${status.device}` : ''} · ${t('slow to answer, runs carry on')}`;
   if (status?.connected) {
-    const detail = [status.device, status.latencyMs ? `${status.latencyMs}ms` : "", status.version ? `v${status.version}` : ""].filter(Boolean).join(" · ");
-    return `ComfyUI connected${detail ? ` · ${detail}` : ""}`;
+    const detail = [status.device, status.latencyMs ? t('{0}ms', { 0: status.latencyMs }) : '', status.version ? `v${status.version}` : ''].filter(Boolean).join(' · ');
+    return `${t('ComfyUI connected')}${detail ? ` · ${detail}` : ''}`;
   }
-  return `ComfyUI offline${status?.url ? ` · ${status.url}` : ""}${status?.error ? ` · ${status.error}` : ""}`;
+  return `${t('ComfyUI offline')}${status?.url ? ` · ${status.url}` : ''}${status?.error ? ` · ${status.error}` : ''}`;
 }
 
 function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retrying: boolean; onClick: () => void }) {
+  useLanguage();
   const state = status?.restarting ? "restarting" : status?.checking || retrying ? "checking" : status?.connected ? "connected" : "disconnected";
   return (
     <Tip content={comfyStatusLabel(status)}>
@@ -118,6 +121,7 @@ function ComfyConnectionDot({ status, retrying, onClick }: { status: any; retryi
 }
 
 export function StudioView({ view }: { view: Record<string, any> }) {
+  useLanguage();
   const { active, applyAllSettings, applyLoras, applyAspect, aspectOptions, aspectPickerValue, aspectValue, aspectLocked, defaultAspectSize, canUseStartImage, cancelJob, cancelQueue, characterMeta, clickViewer, comfyStatus, galleryGroups, stackRuns, openRuns, setRunOpen, unstackRun, copyToClipboard, copyItemToClipboard, count, countMeta, currentProfile, customSize, deleteItem, zenGallery, formatElapsed, galleryColumnCount, galleryLoaded, galleryCrossing, galleryStageRef, generate, generateDisabled, generateDisabledReason, generationDetailEntries, goLatestZen, hasMoreGallery, height, heightMeta, isDraggingViewer, loadMoreGalleryItems, loraActiveCount, mode, model, modelProfiles, models, moveViewer, moveViewerTouch, moveZen, negative, negativeLimit, onGalleryScroll, openItem, prefs, hiddenSpace, hideItems, unhideItems, profileBadges, prompt, promptLimit, refreshComfyStatus, removeReferenceAsset, renderedGallery, resetViewer, runningCount, selectReferenceAsset, setActive, setCount, setHeight, setNegative, setPrompt, setSettings, setShowDetails, setShowGenerationSettings, setShowNegativePrompt, setSteps, setWidth, setWorkflowGalleryOpen, setZenControls, setZenGalleryOpen, setZenMode, showDetails, settings, showGenerationSettings, showNegativePrompt, showToast, sidebarControls, startViewerDrag, startViewerTouch, steps, stepsMeta, stopViewerDrag, submitZenPrompt, useOutputAsStartImage, viewerDragEndRef, viewerDragRef, viewerPan, viewerZoom, wheelViewer, width, widthMeta, workflowGalleryOpen, zenControls, zenDisplayItem, zenGalleryOpen, zenItem, zenPromptRef, zenStripRef, dragViewer, dragZenStrip, endViewerTouch, selectZenItem, startZenStripDrag, stopZenStripDrag, titleFromPrompt, zoomViewer, clampText, promptRemaining, chooseModel, pickModel, modelMenu, visibleGallery, upscaleBusyIds, activateUpscale, cancelUpscale, upscaleDisplayUrl, upscaleSetup, upscaleStatus, upscaleInstall, upscaleUnavailableReason, health, setPrefs, upscaleNotices, dismissUpscaleNotice, refreshModels, refreshWorkflows, modelFolders } = view;
   // Smart upscale works on images, and only while it is on in Settings.
   const strayModelCount = modelFolders?.strayCount || 0;
@@ -188,7 +192,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       field.setSelectionRange(field.value.length, field.value.length);
     });
     // Only a prompt that was really there is worth an undo.
-    if (previous.trim() && previous.trim() !== text.trim()) showToast("Prompt replaced", "default", { group: "prompt-replaced", action: { label: "Undo", onClick: () => setPrompt(previous) } });
+    if (previous.trim() && previous.trim() !== text.trim()) showToast(t("Prompt replaced"), "default", { group: "prompt-replaced", action: { label: t("Undo"), onClick: () => setPrompt(previous) } });
   };
   const promptKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const plain = !event.shiftKey && !event.altKey && !event.metaKey && !event.ctrlKey;
@@ -421,16 +425,16 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <motion.div key="simple" {...dockChip}>
               <button type="button" className="dock-chip" onClick={() => setPrefs({ fullStudioOnPhone: false })}>
                 <Smartphone size={14} />
-                <span>Simple view</span>
+                <span>{t("Simple view")}</span>
               </button>
             </motion.div>
           ) : null}
           {runningCount ? (
             <motion.div key="cancel" {...dockChip}>
-              <Tip content="Stop everything running and queued" side="left">
+              <Tip content={t("Stop everything running and queued")} side="left">
                 <button type="button" className="dock-chip is-cancel" onClick={cancelQueue}>
                   <CircleStop size={14} />
-                  <span>Stop</span>
+                  <span>{t("Stop")}</span>
                   <i className="dock-count"><AnimatedNumber value={runningCount} /></i>
                 </button>
               </Tip>
@@ -439,23 +443,23 @@ export function StudioView({ view }: { view: Record<string, any> }) {
         </AnimatePresence>
       </div>
       <ComfyConnectionDot status={comfyStatus} retrying={Boolean(comfyRetrying)} onClick={retryComfyStatus} />
-      <Tip content={hiddenSpace ? "Back to the gallery" : hidden.enabled ? hidden.unlocked ? "Hidden · unlocked" : "Hidden · locked" : "Hidden"}>
+      <Tip content={hiddenSpace ? t("Back to the gallery") : hidden.enabled ? hidden.unlocked ? t("Hidden · unlocked") : t("Hidden · locked") : t("Hidden")}>
         <button
           data-hidden-dock
           className={cn("icon-button hidden-dock-button", hiddenSpace && "active", hidden.enabled && hidden.unlocked && "is-open")}
-          aria-label={hiddenSpace ? "Leave Hidden" : hidden.enabled && hidden.unlocked ? "Open Hidden, unlocked" : "Open Hidden"}
+          aria-label={hiddenSpace ? t("Leave Hidden") : hidden.enabled && hidden.unlocked ? t("Open Hidden, unlocked") : t("Open Hidden")}
           aria-pressed={hiddenSpace}
           onClick={toggleHiddenSpace}
         >
           <LockKeyhole size={16} />
         </button>
       </Tip>
-      <Tip content="Workflow Gallery"><button className="icon-button" aria-label="Workflow Gallery" onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={16} /></button></Tip>
-      <Tip content="Settings"><button className="icon-button" aria-label="Settings" onClick={() => setSettings(true)}><Settings size={16} /></button></Tip>
+      <Tip content={t("Workflow Gallery")}><button className="icon-button" aria-label={t("Workflow Gallery")} onClick={() => setWorkflowGalleryOpen(true)}><GalleryHorizontalEnd size={16} /></button></Tip>
+      <Tip content={t("Settings")}><button className="icon-button" aria-label={t("Settings")} onClick={() => setSettings(true)}><Settings size={16} /></button></Tip>
       {prefs.zenMode ? (
-        <Tip content="Exit zen (Esc)"><button className="icon-button" aria-label="Exit zen" onClick={() => setZenMode(false)}><Minimize2 size={16} /></button></Tip>
+        <Tip content={t("Exit zen (Esc)")}><button className="icon-button" aria-label={t("Exit zen")} onClick={() => setZenMode(false)}><Minimize2 size={16} /></button></Tip>
       ) : (
-        <Tip content="Zen mode"><button className="icon-button" aria-label="Enter zen mode" onClick={() => setZenMode(true)}><Maximize2 size={16} /></button></Tip>
+        <Tip content={t("Zen mode")}><button className="icon-button" aria-label={t("Enter zen mode")} onClick={() => setZenMode(true)}><Maximize2 size={16} /></button></Tip>
       )}
     </div>
   );
@@ -470,9 +474,9 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           exit={{ opacity: 0, y: -8, scale: 0.97 }}
           transition={{ type: "spring", duration: 0.4, bounce: 0.1 }}
         >
-          <Tip content="Back to the gallery"><button type="button" data-hidden-exit className="hidden-bar-back" aria-label="Back to the gallery" onClick={toggleHiddenSpace}><ArrowLeft size={14} /></button></Tip>
-          <span className="hidden-bar-title"><LockKeyhole size={13} /> Hidden{hiddenCount ? <i><AnimatedNumber value={hiddenCount} /></i> : null}</span>
-          <Tip content="Lock Hidden"><button type="button" className="hidden-bar-lock" onClick={() => hidden.lock(true)}><Lock size={12} /> Lock</button></Tip>
+          <Tip content={t("Back to the gallery")}><button type="button" data-hidden-exit className="hidden-bar-back" aria-label={t("Back to the gallery")} onClick={toggleHiddenSpace}><ArrowLeft size={14} /></button></Tip>
+          <span className="hidden-bar-title"><LockKeyhole size={13} />{t("Hidden")}{hiddenCount ? <i><AnimatedNumber value={hiddenCount} /></i> : null}</span>
+          <Tip content={t("Lock Hidden")}><button type="button" className="hidden-bar-lock" onClick={() => hidden.lock(true)}><Lock size={12} />{t("Lock")}</button></Tip>
         </motion.div>
       ) : null}
     </AnimatePresence>
@@ -516,8 +520,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             <section className="gallery"><div className="empty stage-empty hidden-empty">
               <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
               <div className="stage-copy">
-                <h2>Nothing hidden yet</h2>
-                <p>Generate here, or hide images from the gallery with <EyeOff size={13} className="inline-icon" />.</p>
+                <h2>{t("Nothing hidden yet")}</h2>
+                <p>{t("Generate here, or hide images from the gallery with")}{" "}<EyeOff size={13} className="inline-icon" />.</p>
               </div>
             </div></section>
           ) : (
@@ -540,9 +544,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             {hiddenLockScreen}
           {renderedGallery.length && !hiddenLocked ? <ConnectedCard at={comfyReconnectedAt} device={comfyStatus?.device} /> : null}
             {galleryLoaded && hasMoreGallery && !hiddenSpace ? (
-              <button className="gallery-load-more" onClick={loadMoreGalleryItems}>
-                Load more
-              </button>
+              <button className="gallery-load-more" onClick={loadMoreGalleryItems}>{t("Load more")}</button>
             ) : null}
     </>
   );
@@ -577,7 +579,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               <RunCard key={zenDisplayItem.run.id} run={zenDisplayItem.run} onOpen={() => showRunInGallery(zenDisplayItem.run)} />
             ) : zenDisplayItem ? (
               <button
-                aria-label={zenDisplayItem.status === "pending" ? "Generating" : "Open in the viewer"}
+                aria-label={zenDisplayItem.status === "pending" ? t("Generating") : t("Open in the viewer")}
                 className={cn("zen-output", viewerZoom > 1 && "is-zoomed", isDraggingViewer && "is-dragging", zenDisplayItem.status === "pending" && "is-pending")}
                 onClick={() => {
                   if (zenDisplayItem.status === "pending") return;
@@ -607,11 +609,11 @@ export function StudioView({ view }: { view: Record<string, any> }) {
             ) : hiddenSpace ? (
               <div className="zen-empty hidden-empty">
                 <div className="stage-mark"><LockMark className="stage-layer" stage="open" /></div>
-                <p>Nothing hidden yet</p>
+                <p>{t("Nothing hidden yet")}</p>
               </div>
             ) : (
               <div className="zen-empty">
-                <img src="/heiss-mark-white.svg" alt="HEISS UI" />
+                <img src="/heiss-mark-white.svg" alt={t("HEISS UI")} />
               </div>
             )}
             {hiddenLockScreen}
@@ -620,40 +622,40 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </div>
           {zenGallery.length > 1 ? (
             <div className="zen-arrows">
-              <Tip content="Previous output"><button aria-label="Previous output" onClick={() => moveZen(-1)}><ChevronLeft size={22} /></button></Tip>
-              <Tip content="Next output"><button aria-label="Next output" onClick={() => moveZen(1)}><ChevronRight size={22} /></button></Tip>
+              <Tip content={t("Previous output")}><button aria-label={t("Previous output")} onClick={() => moveZen(-1)}><ChevronLeft size={22} /></button></Tip>
+              <Tip content={t("Next output")}><button aria-label={t("Next output")} onClick={() => moveZen(1)}><ChevronRight size={22} /></button></Tip>
             </div>
           ) : null}
-          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
+          <Tip content={t("Controls")}><button data-open-trigger className="zen-control-button" aria-label={t("Controls")} aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
           {zenItem && !zenItem.run ? (
             <div className={cn("zen-zoom-dock", zenControls && "with-side")}>
-              <Tip content="Zoom out (-)"><button className="icon-button" aria-label="Zoom out" onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
-              <Tip content="Reset zoom (0)"><button className="text-button viewer-zoom" aria-label={`Reset zoom, now ${Math.round(viewerZoom * 100)}%`} onClick={resetViewer}>{viewerZoom !== 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
-              <Tip content="Zoom in (+)"><button className="icon-button" aria-label="Zoom in" onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
+              <Tip content={t("Zoom out (-)")}><button className="icon-button" aria-label={t("Zoom out")} onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
+              <Tip content={t("Reset zoom (0)")}><button className="text-button viewer-zoom" aria-label={t("Reset zoom, now {0}%", { "0": (Math.round(viewerZoom * 100)) })} onClick={resetViewer}>{viewerZoom !== 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
+              <Tip content={t("Zoom in (+)")}><button className="icon-button" aria-label={t("Zoom in")} onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
             </div>
           ) : null}
           {zenGallery.length && !zenGalleryOpen ? (
-            <Tip content="Show gallery"><button data-open-trigger className="zen-gallery-restore" aria-label="Show gallery" onClick={() => setZenGalleryOpen(true)}>
+            <Tip content={t("Show gallery")}><button data-open-trigger className="zen-gallery-restore" aria-label={t("Show gallery")} onClick={() => setZenGalleryOpen(true)}>
               <ChevronDown size={16} />
             </button></Tip>
           ) : null}
           {studioDock}
           {hiddenBar}
-          {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
+          {zenControls ? <button className="sidebar-dismiss" aria-label={t("Close controls")} onClick={() => setZenControls(false)} /> : null}
+          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label={t("Generation controls")}>
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={referenceInpaint?.mask ? "Describe what the painted part becomes…" : hiddenSpace ? "Describe what to make, privately…" : "Describe what to make…"} onKeyDown={promptKeyDown} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? t("Prompt (Hidden)") : t("Prompt")} value={prompt} placeholder={referenceInpaint?.mask ? t("Describe what the painted part becomes…") : hiddenSpace ? t("Describe what to make, privately…") : t("Describe what to make…")} onKeyDown={promptKeyDown} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
-              <label className="negative-drawer-label">Negative prompt</label>
+              <label className="negative-drawer-label">{t("Negative prompt")}</label>
               <div className="negative-unavailable-frame">
-                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This model takes no negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label={t("Negative prompt")} value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? t("What to avoid…") : t("This model takes no negative prompt")} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
-              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this model"}</span>
+              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : t("Unavailable for this model")}</span>
             </div>
             <StableComposerBar
               models={models}
@@ -723,7 +725,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
-              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "It’s removed from uploads.", action: "Delete", destructive: true })}
+              onReferenceDeleteRequest={(asset) => confirmAction({ title: t("Delete {0}?", { "0": (asset.name) }), description: t("It’s removed from uploads."), action: t("Delete"), destructive: true })}
               onReferenceError={(message) => showToast(message, "error")}
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
@@ -737,8 +739,8 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           </section>
           {zenGallery.length && zenGalleryOpen && !hiddenLocked ? (
             <div data-open-surface className="zen-gallery-wrap">
-              <Tip content="Hide gallery"><button className="zen-gallery-toggle" aria-label="Hide gallery" onClick={() => setZenGalleryOpen(false)}><ChevronUp size={16} /></button></Tip>
-              {zenGallery[0]?.id !== zenItem?.id ? <Tip content="Jump to latest output"><button className="zen-latest" onClick={goLatestZen}>Latest</button></Tip> : null}
+              <Tip content={t("Hide gallery")}><button className="zen-gallery-toggle" aria-label={t("Hide gallery")} onClick={() => setZenGalleryOpen(false)}><ChevronUp size={16} /></button></Tip>
+              {zenGallery[0]?.id !== zenItem?.id ? <Tip content={t("Jump to latest output")}><button className="zen-latest" onClick={goLatestZen}>{t("Latest")}</button></Tip> : null}
               <ZenStrip
                 items={zenGallery}
                 activeId={zenItem?.id}
@@ -761,26 +763,26 @@ export function StudioView({ view }: { view: Record<string, any> }) {
           {studioDock}
           {hiddenBar}
           {hiddenLocked ? null : <GallerySearchBar search={gallerySearch} setSearch={setGallerySearch} count={hiddenSpace ? renderedGallery.length : view.galleryTotalApprox} open={searchOpen} setOpen={setSearchOpen} hiddenSpace={Boolean(hiddenSpace)} islandsHeight={islandsHeight} />}
-          <Tip content="Controls"><button data-open-trigger className="zen-control-button" aria-label="Controls" aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
+          <Tip content={t("Controls")}><button data-open-trigger className="zen-control-button" aria-label={t("Controls")} aria-expanded={Boolean(zenControls)} aria-controls="studio-controls" onClick={() => setZenControls((value: boolean) => !value)}>
             <PanelLeft size={16} />
           </button></Tip>
           {hiddenLocked ? null : <GallerySearchButton search={gallerySearch} open={searchOpen} setOpen={setSearchOpen} />}
           {/* Only a grid with videos in it has previews to pause. */}
           {hiddenLocked || !renderedGallery.some((item: GalleryItem) => item.type === 'video') ? null : <GridAutoplayButton />}
           {hiddenLocked ? null : <StackRunsButton on={Boolean(prefs.stackRuns)} disabled={searchOn} onToggle={() => setPrefs({ stackRuns: !prefs.stackRuns })} />}
-          {zenControls ? <button className="sidebar-dismiss" aria-label="Close controls" onClick={() => setZenControls(false)} /> : null}
-          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label="Generation controls">
+          {zenControls ? <button className="sidebar-dismiss" aria-label={t("Close controls")} onClick={() => setZenControls(false)} /> : null}
+          <aside id="studio-controls" translate="no" data-open-surface className={cn("zen-controls", zenControls && "open")} inert={!zenControls} aria-label={t("Generation controls")}>
             {sidebarControls}
           </aside>
           <section className="zen-prompt">
-            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? "Prompt (Hidden)" : "Prompt"} value={prompt} placeholder={referenceInpaint?.mask ? "Describe what the painted part becomes…" : hiddenSpace ? "Describe what to make, privately…" : "Describe what to make…"} onKeyDown={promptKeyDown} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
+            <textarea ref={zenPromptRef} aria-label={hiddenSpace ? t("Prompt (Hidden)") : t("Prompt")} value={prompt} placeholder={referenceInpaint?.mask ? t("Describe what the painted part becomes…") : hiddenSpace ? t("Describe what to make, privately…") : t("Describe what to make…")} onKeyDown={promptKeyDown} onChange={(event) => setPrompt(clampText(event.target.value, promptLimit))} />
             {nearTextLimit(prompt, promptLimit) ? <span className={cn("prompt-count", promptRemaining === 0 && "limit")}>{characterMeta(prompt, promptLimit)}</span> : null}
             <div data-open-surface className={cn("negative-drawer", showNegativePrompt && canUseNegativePrompt && "open", !canUseNegativePrompt && "is-unavailable")}>
-              <label className="negative-drawer-label">Negative prompt</label>
+              <label className="negative-drawer-label">{t("Negative prompt")}</label>
               <div className="negative-unavailable-frame">
-                <textarea aria-label="Negative prompt" value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? "What to avoid…" : "This model takes no negative prompt"} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
+                <textarea aria-label={t("Negative prompt")} value={canUseNegativePrompt ? negative : ""} disabled={!canUseNegativePrompt} placeholder={canUseNegativePrompt ? t("What to avoid…") : t("This model takes no negative prompt")} onChange={(event) => setNegative(clampText(event.target.value, negativeLimit))} />
               </div>
-              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : "Unavailable for this model"}</span>
+              <span>{canUseNegativePrompt ? characterMeta(negative, negativeLimit) : t("Unavailable for this model")}</span>
             </div>
             <StableComposerBar
               models={models}
@@ -850,7 +852,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
               referenceAssets={referenceAssets}
               onReferenceSelect={selectReferenceAsset}
               onReferenceRemove={removeReferenceAsset}
-              onReferenceDeleteRequest={(asset) => confirmAction({ title: `Delete ${asset.name}?`, description: "It’s removed from uploads.", action: "Delete", destructive: true })}
+              onReferenceDeleteRequest={(asset) => confirmAction({ title: t("Delete {0}?", { "0": (asset.name) }), description: t("It’s removed from uploads."), action: t("Delete"), destructive: true })}
               onReferenceError={(message) => showToast(message, "error")}
               pinnedSeed={view.seed}
               onRandomSeed={() => view.setSeed("")}
@@ -899,7 +901,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
       {active ? (() => {
         const hasNeighbors = ((view.viewerGallery || []) as GalleryItem[]).length > 1;
         return (
-          <div className="scrim" role="dialog" aria-modal="true" aria-label="Image viewer" data-focus-trap tabIndex={-1} onClick={(event) => {
+          <div className="scrim" role="dialog" aria-modal="true" aria-label={t("Image viewer")} data-focus-trap tabIndex={-1} onClick={(event) => {
             if (event.target !== event.currentTarget) return;
             if (Date.now() - viewerDragEndRef.current < 200) return;
             setActive(null);
@@ -930,29 +932,29 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                 </div>
                 {hasNeighbors ? (
                   <>
-                    <Tip content="Previous"><button className="viewer-arrow prev" aria-label="Previous output" onClick={() => moveViewer(-1)}><ChevronLeft size={20} /></button></Tip>
-                    <Tip content="Next"><button className="viewer-arrow next" aria-label="Next output" onClick={() => moveViewer(1)}><ChevronRight size={20} /></button></Tip>
+                    <Tip content={t("Previous")}><button className="viewer-arrow prev" aria-label={t("Previous output")} onClick={() => moveViewer(-1)}><ChevronLeft size={20} /></button></Tip>
+                    <Tip content={t("Next")}><button className="viewer-arrow next" aria-label={t("Next output")} onClick={() => moveViewer(1)}><ChevronRight size={20} /></button></Tip>
                   </>
                 ) : null}
                 {showDetails ? (
                   <aside translate="no" data-open-surface className="viewer-side" onWheel={(event) => event.stopPropagation()}>
                     <div className="viewer-side-head">
-                      <h3>Details</h3>
+                      <h3>{t("Details")}</h3>
                     </div>
                     <div className="viewer-side-body">
                       <div className="prompt-readout">
-                        <span>Prompt</span>
+                        <span>{t("Prompt")}</span>
                         <div className="readout-box">
-                          <p>{active.prompt || "No prompt recorded"}</p>
-                          <Tip content="Copy prompt"><button className="readout-copy" aria-label="Copy prompt" onClick={() => viewerCopy.copyWith(() => copyToClipboard(active.prompt || ""), "prompt")}><CopyIcon copied={viewerCopy.copied === "prompt"} size={13} /></button></Tip>
+                          <p>{active.prompt || t("No prompt recorded")}</p>
+                          <Tip content={t("Copy prompt")}><button className="readout-copy" aria-label={t("Copy prompt")} onClick={() => viewerCopy.copyWith(() => copyToClipboard(active.prompt || ""), "prompt")}><CopyIcon copied={viewerCopy.copied === "prompt"} size={13} /></button></Tip>
                         </div>
                       </div>
                       {active.negative ? (
                         <div className="prompt-readout">
-                          <span>Negative</span>
+                          <span>{t("Negative")}</span>
                           <div className="readout-box">
                             <p>{active.negative}</p>
-                            <Tip content="Copy negative prompt"><button className="readout-copy" aria-label="Copy negative prompt" onClick={() => viewerCopy.copyWith(() => copyToClipboard(active.negative || ""), "negative")}><CopyIcon copied={viewerCopy.copied === "negative"} size={13} /></button></Tip>
+                            <Tip content={t("Copy negative prompt")}><button className="readout-copy" aria-label={t("Copy negative prompt")} onClick={() => viewerCopy.copyWith(() => copyToClipboard(active.negative || ""), "negative")}><CopyIcon copied={viewerCopy.copied === "negative"} size={13} /></button></Tip>
                           </div>
                         </div>
                       ) : null}
@@ -966,17 +968,17 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                       {generationDetailEntries(active).length ? (
                         <details className="settings-disclosure" open={showGenerationSettings} onToggle={(event) => setShowGenerationSettings(event.currentTarget.open)}>
                           <summary>
-                            <span>Generation details</span>
+                            <span>{t("Generation details")}</span>
                             {/* Everything here, as text to paste into a note or a chat; it never opens or closes the panel. */}
                             {active.library ? null : (
-                              <Tip content="Copy the prompt, model, LoRAs and settings as text">
+                              <Tip content={t("Copy the prompt, model, LoRAs and settings as text")}>
                                 <button type="button" className={cn("detail-copy", viewerCopy.copied === "settings" && "is-copied")} onClick={(event) => { event.preventDefault(); event.stopPropagation(); viewerCopy.copyWith(() => copyToClipboard(settingsText(active)), "settings"); }}>
                                   <CopyIcon copied={viewerCopy.copied === "settings"} size={13} />
-                                  <span>{viewerCopy.copied === "settings" ? "Copied" : "Copy as text"}</span>
+                                  <span>{viewerCopy.copied === "settings" ? t("Copied") : t("Copy as text")}</span>
                                 </button>
                               </Tip>
                             )}
-                            <span className="sr-only" role="status">{viewerCopy.copied === "settings" ? "Details copied" : ""}</span>
+                            <span className="sr-only" role="status">{viewerCopy.copied === "settings" ? t("Details copied") : ""}</span>
                           </summary>
                           {generationDetailEntries(active).map((section: GenerationDetailSection) => (
                             <div className="detail-section" key={section.title}>
@@ -991,12 +993,12 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                                 </div>
                               ) : null}
                               {section.loras?.length ? (
-                                <ul className="detail-loras" aria-label="LoRAs">
+                                <ul className="detail-loras" aria-label={t("LoRAs")}>
                                   {section.loras.map((lora, index) => (
                                     <li key={`${lora.name}-${index}`} className="detail-lora">
                                       <span className="detail-lora-name" title={lora.name}>{lora.name}</span>
                                       <i aria-hidden="true" />
-                                      <span className="detail-lora-strength" aria-label={`strength ${lora.strength}`}>{lora.strength}</span>
+                                      <span className="detail-lora-strength" aria-label={t("strength {0}", { "0": (lora.strength) })}>{lora.strength}</span>
                                     </li>
                                   ))}
                                 </ul>
@@ -1024,19 +1026,19 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   </>
                 ) : (
                 <div data-open-trigger className={cn("viewer-dock", showDetails && "with-side")}>
-                  <Tip content="Zoom out (-)"><button className="icon-button is-zoom-control" aria-label="Zoom out" onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
-                  <Tip content="Reset zoom (0)"><button className="text-button viewer-zoom is-zoom-control" aria-label={`Reset zoom, now ${Math.round(viewerZoom * 100)}%`} onClick={resetViewer}>{viewerZoom > 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
-                  <Tip content="Zoom in (+)"><button className="icon-button is-zoom-control" aria-label="Zoom in" onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
+                  <Tip content={t("Zoom out (-)")}><button className="icon-button is-zoom-control" aria-label={t("Zoom out")} onClick={() => zoomViewer(viewerZoom - 0.25)} disabled={viewerZoom <= 0.5}><ZoomOut size={15} /></button></Tip>
+                  <Tip content={t("Reset zoom (0)")}><button className="text-button viewer-zoom is-zoom-control" aria-label={t("Reset zoom, now {0}%", { "0": (Math.round(viewerZoom * 100)) })} onClick={resetViewer}>{viewerZoom > 1 ? <RotateCcw size={13} /> : null} {Math.round(viewerZoom * 100)}%</button></Tip>
+                  <Tip content={t("Zoom in (+)")}><button className="icon-button is-zoom-control" aria-label={t("Zoom in")} onClick={() => zoomViewer(viewerZoom + 0.25)} disabled={viewerZoom >= 6}><ZoomIn size={15} /></button></Tip>
                   <span className="viewer-divider is-zoom-control" />
-                  <Tip content={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"}><button className="icon-button" aria-label={active.url ? active.type === "image" ? "Copy image" : "Copy output link" : "Copy generation details"} onClick={() => viewerCopy.copyWith(() => copyItemToClipboard(active), "item")}><CopyIcon copied={viewerCopy.copied === "item"} size={15} /></button></Tip>
+                  <Tip content={active.url ? active.type === "image" ? t("Copy image") : t("Copy output link") : t("Copy generation details")}><button className="icon-button" aria-label={active.url ? active.type === "image" ? t("Copy image") : t("Copy output link") : t("Copy generation details")} onClick={() => viewerCopy.copyWith(() => copyItemToClipboard(active), "item")}><CopyIcon copied={viewerCopy.copied === "item"} size={15} /></button></Tip>
                   {canStar(active) ? (
-                    <Tip content={active.favorite ? "Unstar (F)" : "Star (F)"}>
-                      <button className={cn("icon-button viewer-star", active.favorite && "is-on")} aria-label={active.favorite ? "Unstar" : "Star"} aria-pressed={Boolean(active.favorite)} onClick={() => toggleFavorite([active], !active.favorite)}>
+                    <Tip content={active.favorite ? t("Unstar (F)") : t("Star (F)")}>
+                      <button className={cn("icon-button viewer-star", active.favorite && "is-on")} aria-label={active.favorite ? t("Unstar") : t("Star")} aria-pressed={Boolean(active.favorite)} onClick={() => toggleFavorite([active], !active.favorite)}>
                         <Star size={15} fill={active.favorite ? "currentColor" : "none"} />
                       </button>
                     </Tip>
                   ) : null}
-                  {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? <Tip content="Use as reference image"><button className="icon-button" aria-label="Use as reference image" onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
+                  {canUseStartImage && active.status === "done" && active.type === "image" && active.url && !active.vaultLocked && !active.library ? <Tip content={t("Use as reference image")}><button className="icon-button" aria-label={t("Use as reference image")} onClick={() => useOutputAsStartImage(active)}><ImagePlus size={15} /></button></Tip> : null}
                   {prefs.smartUpscale !== false && canUpscaleItem(active) ? (
                     <span className="upscale-notice-anchor">
                     {upscaleNotices?.get(active.id) ? <UpscaleNoticePopover notice={upscaleNotices.get(active.id)} placement="viewer" onDismiss={() => dismissUpscaleNotice(active.id)} /> : null}
@@ -1044,10 +1046,10 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                     </span>
                   ) : null}
                   {active.upscale?.url && !upscaledWithRun(active) ? (
-                    <Tip content={compareOpen ? "Hide the comparison" : "Compare with the original"}>
+                    <Tip content={compareOpen ? t("Hide the comparison") : t("Compare with the original")}>
                       <button
                         className={cn("icon-button", compareOpen && "active")}
-                        aria-label="Compare with the original"
+                        aria-label={t("Compare with the original")}
                         aria-pressed={compareOpen}
                         onClick={() => { setCompareOpen((value) => !value); if (!compareOpen) resetViewer(); }}
                       >
@@ -1057,18 +1059,18 @@ export function StudioView({ view }: { view: Record<string, any> }) {
                   ) : null}
                   {active.status === "done" && active.url && !active.library ? (
                     active.privateVault
-                      ? <Tip content="Move to gallery"><button className="icon-button" aria-label="Move to gallery" onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
-                      : <Tip content="Move to Hidden"><button className="icon-button" aria-label="Move to Hidden" onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
+                      ? <Tip content={t("Move to gallery")}><button className="icon-button" aria-label={t("Move to gallery")} onClick={() => unhideItems([active])}><Eye size={15} /></button></Tip>
+                      : <Tip content={t("Move to Hidden")}><button className="icon-button" aria-label={t("Move to Hidden")} onClick={() => hideItems([active])}><EyeOff size={15} /></button></Tip>
                   ) : null}
-                  {active.url ? <Tip content={active.upscaleActive && !upscaledWithRun(active) ? "Download the upscale" : "Download"}><a className="icon-button" aria-label={active.upscaleActive && !upscaledWithRun(active) ? "Download the upscale" : "Download"} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
-                  <Tip content="Delete (Del)"><button className="icon-button danger-tone" aria-label={active.privateVault ? "Delete from Hidden" : "Delete from gallery"} onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
+                  {active.url ? <Tip content={active.upscaleActive && !upscaledWithRun(active) ? t("Download the upscale") : t("Download")}><a className="icon-button" aria-label={active.upscaleActive && !upscaledWithRun(active) ? t("Download the upscale") : t("Download")} href={downloadUrl(active)} download><Download size={15} /></a></Tip> : null}
+                  <Tip content={t("Delete (Del)")}><button className="icon-button danger-tone" aria-label={active.privateVault ? t("Delete from Hidden") : t("Delete from gallery")} onClick={() => deleteItem(active)}><Trash2 size={15} /></button></Tip>
                   <span className="viewer-divider" />
-                  <Tip content={showDetails ? "Hide details" : "Show details"}><button className={cn("icon-button", showDetails && "active")} aria-label="Toggle details" aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>
-                  <Tip content="Close (Esc)"><button className="icon-button viewer-dock-close" aria-label="Close" onClick={() => setActive(null)}><X size={16} /></button></Tip>
+                  <Tip content={showDetails ? t("Hide details") : t("Show details")}><button className={cn("icon-button", showDetails && "active")} aria-label={t("Toggle details")} aria-pressed={showDetails} onClick={() => setShowDetails((value: boolean) => !value)}><SlidersHorizontal size={15} /></button></Tip>
+                  <Tip content={t("Close (Esc)")}><button className="icon-button viewer-dock-close" aria-label={t("Close")} onClick={() => setActive(null)}><X size={16} /></button></Tip>
                 </div>
                 )}
                 {/* Phones and tablets: the dock has no room for Close, so it sits in the corner. */}
-                <button className="viewer-close" aria-label="Close viewer" onClick={() => setActive(null)}><X size={18} /></button>
+                <button className="viewer-close" aria-label={t("Close viewer")} onClick={() => setActive(null)}><X size={18} /></button>
               </div>
             </div>
           </div>
@@ -1093,6 +1095,7 @@ export function StudioView({ view }: { view: Record<string, any> }) {
  * the icon say how long is left once the time is known.
  */
 function ViewerUpscaleButton({ item, busy, onCancel, onActivate }: { item: GalleryItem; busy: boolean; onCancel: (item: GalleryItem) => void; onActivate: (item: GalleryItem) => void }) {
+  useLanguage();
   const running = item.upscale?.status === "running";
   const clock = useUpscaleClock(item);
   const tip = upscaleTooltip(item, clock.leftMs);
@@ -1100,7 +1103,7 @@ function ViewerUpscaleButton({ item, busy, onCancel, onActivate }: { item: Galle
     <Tip content={tip}>
       <button
         className={cn("icon-button", item.upscaleActive && item.upscale?.url && "active", running && clock.leftMs !== null && "has-count")}
-        aria-label={running ? tip : "Smart upscale"}
+        aria-label={running ? tip : t("Smart upscale")}
         aria-pressed={item.upscale?.url ? Boolean(item.upscaleActive) : undefined}
         disabled={busy}
         onClick={() => running ? onCancel(item) : onActivate(item)}

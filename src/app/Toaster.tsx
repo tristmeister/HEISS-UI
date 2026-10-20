@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from 'framer-motion';
@@ -53,6 +55,7 @@ function cellStep(glyph: ToastGlyph, x: number, y: number) {
 }
 
 function CellGlyph({ glyph }: { glyph: ToastGlyph }) {
+  useLanguage();
   const rows = GLYPHS[glyph];
   const lidRows = LID_ROWS[glyph] || 0;
   const gap = useCellGap(0.08);
@@ -80,9 +83,10 @@ function numberAt(text: string, number: string) {
 }
 
 function ToastTitle({ toast }: { toast: ToastRecord }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const counted = toast.count > 1 && toast.plural;
-  const text = counted ? toast.plural!(toast.count) : toast.title;
+  const text = t(counted ? toast.plural!(toast.count) : toast.title);
   const digits = String(toast.count);
   const at = counted ? numberAt(text, digits) : -1;
   const before = at >= 0 ? text.slice(0, at) : text;
@@ -102,7 +106,7 @@ function ToastTitle({ toast }: { toast: ToastRecord }) {
         {after}
       </motion.span>
       {!toast.plural && toast.count > 1 ? (
-        <span className="toast-count" aria-label={`${toast.count} times`}>
+        <span className="toast-count" aria-label={t("{0} times", { "0": (toast.count) })}>
           ×<AnimatedNumber value={toast.count} />
         </span>
       ) : null}
@@ -114,6 +118,7 @@ function ToastTitle({ toast }: { toast: ToastRecord }) {
 
 /** `offset`: how far below the top edge the stack starts, so it clears the pills. */
 export function Toaster({ offset = 0 }: { offset?: number }) {
+  useLanguage();
   const toasts = useSyncExternalStore(subscribeToasts, toastSnapshot, toastSnapshot);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -169,7 +174,7 @@ export function Toaster({ offset = 0 }: { offset?: number }) {
     : frontHeight + PEEK * (visibleCount - 1);
 
   return createPortal(
-    <section className="toasts" data-toaster="" aria-label="Notifications" style={{ '--toasts-offset': `${offset}px` } as React.CSSProperties}>
+    <section className="toasts" data-toaster="" aria-label={t("Notifications")} style={{ '--toasts-offset': `${offset}px` } as React.CSSProperties}>
       <ol
         ref={listRef}
         className={cn('toasts-list', expanded && 'is-expanded')}
@@ -213,6 +218,7 @@ function ToastItem({ toast, index, expanded, paused, y, height, onHeight }: {
   height?: number;
   onHeight: (id: string, height: number) => void;
 }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const bodyRef = useRef<HTMLDivElement>(null);
   const [bumpScope, animate] = useAnimate<HTMLDivElement>();
@@ -290,12 +296,12 @@ function ToastItem({ toast, index, expanded, paused, y, height, onHeight }: {
               )}
               <span className="toast-text">
                 <ToastTitle toast={toast} />
-                {toast.description ? <small>{toast.description}</small> : null}
+                {toast.description ? <small>{typeof toast.description === 'string' ? t(toast.description) : toast.description}</small> : null}
               </span>
               {toast.actionLabel ? (
                 <button type="button" className="island-action" onClick={() => runToastAction(toast.id)}>{toast.actionLabel}</button>
               ) : null}
-              <button type="button" className="island-close toast-close" onClick={() => dismissToast(toast.id)} aria-label="Dismiss"><X size={13} /></button>
+              <button type="button" className="island-close toast-close" onClick={() => dismissToast(toast.id)} aria-label={t("Dismiss")}><X size={13} /></button>
             </div>
           </motion.div>
         </div>

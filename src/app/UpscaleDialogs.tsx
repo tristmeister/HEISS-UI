@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useState } from 'react';
 import { Check, ExternalLink, FolderOpen, RefreshCw } from 'lucide-react';
 import { Modal } from './Modal';
@@ -23,15 +25,16 @@ const STEPS = [
 
 /** Three steps joined by a dotted run of cells; the active one smoulders. */
 function SetupSteps({ stage }: { stage: UpscaleSetupStage }) {
+  useLanguage();
   const current = stage === "ready" ? STEPS.length : STEPS.findIndex((step) => (step.stages as readonly string[]).includes(stage));
   return (
-    <ol className="upscale-stepper" aria-label="Setup steps">
+    <ol className="upscale-stepper" aria-label={t("Setup steps")}>
       {STEPS.map((step, index) => {
         const state = index < current ? "done" : index === current ? "active" : "todo";
         return (
           <li key={step.label} className={`is-${state}`} aria-current={state === "active" ? "step" : undefined}>
             <i aria-hidden="true">{state === "done" ? <Check size={10} strokeWidth={3} /> : null}</i>
-            <span>{step.label}</span>
+            <span>{t(step.label)}</span>
           </li>
         );
       })}
@@ -41,6 +44,7 @@ function SetupSteps({ stage }: { stage: UpscaleSetupStage }) {
 
 /** A progress bar cut into cells, so it reads as the same material as the hero. */
 export function CellBar({ value, tone = "ember" }: { value: number; tone?: "ember" | "done" }) {
+  useLanguage();
   return (
     <div className={cn("cell-bar", tone === "done" && "is-done")} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(value * 100)}>
       <div style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
@@ -50,6 +54,7 @@ export function CellBar({ value, tone = "ember" }: { value: number; tone?: "embe
 
 /** "Checked 3s ago" that keeps counting while setup waits on ComfyUI. */
 export function Watcher({ children, lastChecked }: React.PropsWithChildren<{ lastChecked?: number }>) {
+  useLanguage();
   const [, tick] = useState(0);
   useEffect(() => {
     const timer = window.setInterval(() => tick((n) => n + 1), 1000);
@@ -60,7 +65,7 @@ export function Watcher({ children, lastChecked }: React.PropsWithChildren<{ las
     <div className="upscale-watcher" role="status">
       <i aria-hidden="true" />
       <span>{children}</span>
-      {ago !== null ? <em>{ago < 2 ? "just now" : `${ago}s ago`}</em> : null}
+      {ago !== null ? <em>{ago < 2 ? t("just now") : t("{0}s ago", { "0": (ago) })}</em> : null}
     </div>
   );
 }
@@ -87,16 +92,16 @@ function fileLine(file: UpscaleInstallFile) {
 
 const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean, fallback: string): { title: string; description: string } => {
   switch (stage) {
-    case "checking": return { title: "Setting up smart upscale", description: "Checking ComfyUI…" };
-    case "offline": return { title: "Waiting for ComfyUI", description: "Start ComfyUI to continue." };
-    case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale runs on the SeedVR2 nodes. Install them through ComfyUI-Manager or a terminal." };
-    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
-    case "downloading": return { title: "Downloading SeedVR2", description: pending ? "The image upscales when this finishes. The download continues if you close this." : "The download continues if you close this." };
-    case "verifying": return { title: "Checking the download", description: "Making sure the files are complete." };
+    case "checking": return { title: t("Setting up smart upscale"), description: t("Checking ComfyUI…") };
+    case "offline": return { title: t("Waiting for ComfyUI"), description: t("Start ComfyUI to continue.") };
+    case "nodes": return { title: t("Add SeedVR2 to ComfyUI"), description: t("Smart upscale runs on the SeedVR2 nodes. Install them through ComfyUI-Manager or a terminal.") };
+    case "models": return { title: t("Download the upscale model"), description: t("{0} upscaling needs its SeedVR2 weights, a one-time download from Hugging Face.{1}", { "0": (upscaleQualityLabel(quality)), "1": (fallback ? ` Until then it uses ${fallback}.` : t("")) }) };
+    case "downloading": return { title: t("Downloading SeedVR2"), description: pending ? "The image upscales when this finishes. The download continues if you close this." : "The download continues if you close this." };
+    case "verifying": return { title: t("Checking the download"), description: t("Making sure the files are complete.") };
     case "ready": return fallback && !pending
-      ? { title: "Ready with a fallback model", description: `${upscaleQualityLabel(quality)} works, but not with its own model.` }
-      : { title: "Smart upscale is ready", description: pending ? "Starting the upscale." : "Every finished image has an upscale arrow in its corner." };
-    case "error": return { title: "The download stopped", description: "Try again to resume." };
+      ? { title: t("Ready with a fallback model"), description: t("{0} works, but not with its own model.", { "0": (upscaleQualityLabel(quality)) }) }
+      : { title: t("Smart upscale is ready"), description: pending ? "Starting the upscale." : "Every finished image has an upscale arrow in its corner." };
+    case "error": return { title: t("The download stopped"), description: t("Try again to resume.") };
   }
 };
 
@@ -121,6 +126,7 @@ export function UpscaleSetupDialog({
   onOpenLibrary: () => void;
   showToast: ShowToast;
 }) {
+  useLanguage();
   const { stage, pending } = setup;
   // Downloads land on the computer HEISS UI runs on, so only it (or a device trusted with admin) starts them.
   const admin = useThisComputer();
@@ -128,8 +134,8 @@ export function UpscaleSetupDialog({
   const fallback = status?.substituting ? status.fallbackFile || "another installed SeedVR2 weight" : "";
   const { title, description } = copyFor(stage, quality, Boolean(pending), fallback);
   const close = setup.closeSetup;
-  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? "Continue in background" : "Not now"}</button>;
-  const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} /> Check again</button>;
+  const later = <button className="btn is-ghost" onClick={close}>{stage === "downloading" ? t("Continue in background") : t("Not now")}</button>;
+  const recheck = <button className="btn" onClick={() => setup.recheck()}><RefreshCw size={13} />{t("Check again")}</button>;
 
   const missingModels = (status?.models || []).filter((model) => !model.present);
   const remaining = missingModels.reduce((sum, model) => sum + model.bytes - (model.partialBytes || 0), 0);
@@ -141,11 +147,11 @@ export function UpscaleSetupDialog({
   let footer: React.ReactNode = later;
 
   if (stage === "checking") {
-    body = <Watcher>Checking ComfyUI…</Watcher>;
+    body = <Watcher>{t("Checking ComfyUI…")}</Watcher>;
   } else if (stage === "offline") {
     body = (
       <>
-        <Watcher lastChecked={setup.lastChecked}>Waiting for ComfyUI{comfyUrl ? <> at <code>{comfyUrl.replace(/^https?:\/\//, "")}</code></> : null}</Watcher>
+        <Watcher lastChecked={setup.lastChecked}>{t("Waiting for ComfyUI")}{comfyUrl ? <>{t("at")}{" "}<code>{comfyUrl.replace(/^https?:\/\//, "")}</code></> : null}</Watcher>
         {reason && !/offline/i.test(reason) ? <p className="upscale-fine">{reason}</p> : null}
       </>
     );
@@ -161,11 +167,9 @@ export function UpscaleSetupDialog({
           showToast={showToast}
           onRestarted={() => setup.recheck()}
         />
-        <Watcher lastChecked={setup.lastChecked}>Waiting for the SeedVR2 nodes…</Watcher>
+        <Watcher lastChecked={setup.lastChecked}>{t("Waiting for the SeedVR2 nodes…")}</Watcher>
         {status?.detectedNodes?.length ? (
-          <p className="upscale-fine">
-            A different or older SeedVR2 pack is installed ({status.detectedNodes.join(", ")}). Smart upscale needs the one above.
-          </p>
+          <p className="upscale-fine">{t("A different or older SeedVR2 pack is installed (")}{status.detectedNodes.join(", ")}{t("). Smart upscale needs the one above.")}</p>
         ) : null}
       </>
     );
@@ -173,23 +177,23 @@ export function UpscaleSetupDialog({
       <>
         {later}
         {recheck}
-        {comfyUrl ? <a className="btn is-primary" href={comfyUrl} target="_blank" rel="noreferrer">Open ComfyUI <ExternalLink size={13} /></a> : null}
+        {comfyUrl ? <a className="btn is-primary" href={comfyUrl} target="_blank" rel="noreferrer">{t("Open ComfyUI")}{" "}<ExternalLink size={13} /></a> : null}
       </>
     );
   } else if (stage === "models") {
     body = !admin ? (
       <div className="upscale-callout">
-        <strong>The upscale model downloads on the computer running HEISS UI.</strong>
-        <span>Set up smart upscale there, and it works here too.</span>
+        <strong>{t("The upscale model downloads on the computer running HEISS UI.")}</strong>
+        <span>{t("Set up smart upscale there, and it works here too.")}</span>
       </div>
     ) : !status?.canDownload ? (
       <div className="upscale-callout">
-        <strong>The models folder isn’t set yet.</strong>
-        <span>Set ComfyUI’s output folder in Settings › Library, and the models folder next to it is found automatically.</span>
+        <strong>{t("The models folder isn’t set yet.")}</strong>
+        <span>{t("Set ComfyUI’s output folder in Settings › Library, and the models folder next to it is found automatically.")}</span>
       </div>
     ) : (
       <>
-        <div className="upscale-efforts" role="radiogroup" aria-label="Upscale effort">
+        <div className="upscale-efforts" role="radiogroup" aria-label={t("Upscale effort")}>
           {upscaleEfforts.map((effort) => (
             <button
               key={effort.value}
@@ -199,7 +203,7 @@ export function UpscaleSetupDialog({
               className={cn(quality === effort.value && "is-active")}
               onClick={() => onQualityChange(effort.value)}
             >
-              <strong>{effort.label}<em>{effort.scale}</em></strong>
+              <strong>{t(effort.label)}<em>{effort.scale}</em></strong>
               <span>{effort.model}</span>
               <small>{formatBytes(effort.downloadBytes)}</small>
             </button>
@@ -212,16 +216,16 @@ export function UpscaleSetupDialog({
                 <strong>{model.label}{model.detail ? <em>{model.detail}</em> : null}</strong>
                 <code>{model.file}</code>
               </div>
-              <span>{model.partialBytes ? `${formatBytes(model.bytes - model.partialBytes)} left` : formatBytes(model.bytes)}</span>
+              <span>{model.partialBytes ? t("{0} left", { "0": (formatBytes(model.bytes - model.partialBytes)) }) : formatBytes(model.bytes)}</span>
             </li>
           ))}
         </ul>
         <div className={cn("upscale-dest", tooBig && "is-short")}>
           <FolderOpen size={14} aria-hidden="true" />
           <code title={status.modelDir}>{status.modelDir}</code>
-          {freeBytes !== null ? <span>{formatBytes(freeBytes)} free</span> : null}
+          {freeBytes !== null ? <span>{formatBytes(freeBytes)}{t("free")}</span> : null}
         </div>
-        {tooBig ? <p className="upscale-fine is-warn">Free up {formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)} on that drive, or pick a lighter effort.</p> : null}
+        {tooBig ? <p className="upscale-fine is-warn">{t("Free up")}{" "}{formatBytes(remaining + 512 * 1024 ** 2 - freeBytes!)}{t("on that drive, or pick a lighter effort.")}</p> : null}
         {setup.startError ? <p className="upscale-fine is-warn">{setup.startError}</p> : null}
       </>
     );
@@ -229,11 +233,11 @@ export function UpscaleSetupDialog({
       <>
         {later}
         <button className="btn is-primary" onClick={setup.startDownload} disabled={tooBig || !missingModels.length}>
-          {resumable ? `Resume · ${formatBytes(remaining)} left` : `Download ${formatBytes(remaining)}`}
+          {resumable ? t("Resume · {0} left", { "0": (formatBytes(remaining)) }) : t("Download {0}", { "0": (formatBytes(remaining)) })}
         </button>
       </>
     ) : (
-      <>{later}<button className="btn is-primary" onClick={onOpenLibrary}>Open Library settings</button></>
+      <>{later}<button className="btn is-primary" onClick={onOpenLibrary}>{t("Open Library settings")}</button></>
     );
   } else if (stage === "downloading" || stage === "verifying") {
     const files = install?.files || [];
@@ -245,12 +249,12 @@ export function UpscaleSetupDialog({
           <div className="upscale-meter">
             <strong>{Math.floor(progress * 100)}<small>%</small></strong>
             <div>
-              <span>{formatBytes(install?.receivedBytes)} of {formatBytes(install?.totalBytes)}</span>
-              <span>{speed > 0 ? `${formatBytes(speed)}/s · ${formatDuration(eta)} left` : "Connecting to Hugging Face"}</span>
+              <span>{formatBytes(install?.receivedBytes)}{t("of")}{" "}{formatBytes(install?.totalBytes)}</span>
+              <span>{speed > 0 ? t("{0}/s · {1} left", { "0": (formatBytes(speed)), "1": (formatDuration(eta)) }) : t("Connecting to Hugging Face")}</span>
             </div>
           </div>
         ) : (
-          <Watcher>Checking that ComfyUI can load the new weights</Watcher>
+          <Watcher>{t("Checking that ComfyUI can load the new weights")}</Watcher>
         )}
         <ul className="upscale-files is-live">
           {files.map((file) => {
@@ -261,7 +265,7 @@ export function UpscaleSetupDialog({
                   <strong>{file.label}{file.detail ? <em>{file.detail}</em> : null}</strong>
                   <CellBar value={done ? 1 : file.totalBytes ? file.bytes / file.totalBytes : 0} tone={done ? "done" : "ember"} />
                 </div>
-                <span>{done ? <><Check size={12} strokeWidth={3} /> Verified</> : fileLine(file)}</span>
+                <span>{done ? <><Check size={12} strokeWidth={3} />{t("Verified")}</> : fileLine(file)}</span>
               </li>
             );
           })}
@@ -270,8 +274,8 @@ export function UpscaleSetupDialog({
     );
     footer = stage === "downloading" ? (
       <>
-        {admin ? <button className="btn is-ghost" onClick={setup.cancelInstall}>Cancel</button> : null}
-        <button className="btn is-primary" onClick={close}>Continue in background</button>
+        {admin ? <button className="btn is-ghost" onClick={setup.cancelInstall}>{t("Cancel")}</button> : null}
+        <button className="btn is-primary" onClick={close}>{t("Continue in background")}</button>
       </>
     ) : null;
   } else if (stage === "ready") {
@@ -279,25 +283,25 @@ export function UpscaleSetupDialog({
       <div className="upscale-pending">
         <SafeImg src={mediaUrl(pending.thumbnailUrl || pending.url, pending)} draggable={false} />
         <div>
-          <strong>Upscaling with {upscaleQualityLabel(quality)}</strong>
-          <span>It appears on the tile when it’s done.</span>
+          <strong>{t("Upscaling with")}{" "}{upscaleQualityLabel(quality)}</strong>
+          <span>{t("It appears on the tile when it’s done.")}</span>
         </div>
       </div>
     ) : fallback ? (
       <div className="upscale-callout is-warn">
-        <strong>{upscaleQualityLabel(quality)} is using {fallback}</strong>
-        <span>Its own weights aren’t downloaded, so it uses one you already have. Results can look different.</span>
+        <strong>{upscaleQualityLabel(quality)}{t("is using")}{" "}{fallback}</strong>
+        <span>{t("Its own weights aren’t downloaded, so it uses one you already have. Results can look different.")}</span>
       </div>
     ) : null;
     footer = pending ? null : fallback && admin ? (
       <>
-        <button className="btn is-ghost" onClick={close}>Keep the fallback</button>
-        <button className="btn is-primary" onClick={setup.downloadOwnModel}>Download {upscaleQualityLabel(quality)} · {formatBytes(status?.downloadBytes)}</button>
+        <button className="btn is-ghost" onClick={close}>{t("Keep the fallback")}</button>
+        <button className="btn is-primary" onClick={setup.downloadOwnModel}>{t("Download")}{" "}{upscaleQualityLabel(quality)} · {formatBytes(status?.downloadBytes)}</button>
       </>
-    ) : <button className="btn is-primary" onClick={close}>Done</button>;
+    ) : <button className="btn is-primary" onClick={close}>{t("Done")}</button>;
   } else if (stage === "error") {
-    body = <div className="upscale-callout is-danger"><strong>{install?.error || "The download failed."}</strong></div>;
-    footer = admin ? <>{later}<button className="btn is-primary" onClick={setup.startDownload}>Try again</button></> : later;
+    body = <div className="upscale-callout is-danger"><strong>{install?.error || t("The download failed.")}</strong></div>;
+    footer = admin ? <>{later}<button className="btn is-primary" onClick={setup.startDownload}>{t("Try again")}</button></> : later;
   }
 
   return (

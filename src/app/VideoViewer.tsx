@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Container, Controls, PlayButton, Time, TimeSlider, MuteButton, FullscreenButton } from '@videojs/react';
 import { Video, VideoPlayer, VideoSkin } from '@videojs/react/video';
@@ -10,6 +12,7 @@ import { titleFromPrompt } from './format';
 import { mediaUrl } from './mediaUrl';
 
 function PlayerControls({ desktop = false }: { desktop?: boolean }) {
+  useLanguage();
   return (
     <Controls.Root visibility="always">
       <Controls.Content className={`heiss-video-controls${desktop ? ' heiss-video-desktop-controls' : ''}`}>
@@ -29,6 +32,7 @@ function PlayerControls({ desktop = false }: { desktop?: boolean }) {
 }
 
 export default function VideoViewer({ item }: { item: Output & { width?: number; height?: number } }) {
+  useLanguage();
   const phone = usePhone();
   const host = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -66,7 +70,7 @@ export default function VideoViewer({ item }: { item: Output & { width?: number;
   }, [item.url, attempt]);
   const media = <Video src={mediaUrl(item.url, item as { id?: string; createdAt?: string })} playsInline disablePictureInPicture disableRemotePlayback loop preload="auto" onLoadedMetadata={(event) => {
     const v = event.currentTarget; if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
-  }} onError={() => setError('This video couldn’t be played. Try again, or save the original using the viewer actions.')} />;
+  }} onError={() => setError(t("This video couldn’t be played. Try again, or save the original using the viewer actions."))} />;
   return (
     <div ref={host} className="heiss-video-viewer" data-video-viewer
       onPointerDown={(e) => e.stopPropagation()}
@@ -83,7 +87,7 @@ export default function VideoViewer({ item }: { item: Output & { width?: number;
       <VideoPlayer key={`${item.url}:${attempt}`} title={titleFromPrompt(item.prompt || item.filename)}>
         {phone ? <Container className="heiss-phone-video" style={frame}>{media}<PlayerControls /></Container> : <VideoSkin className="heiss-desktop-video" style={frame}>{media}<PlayerControls desktop /></VideoSkin>}
       </VideoPlayer>
-      {error ? <div className="heiss-video-error" role="alert"><p>{error}</p><button type="button" onClick={() => { setError(''); setAttempt((n) => n + 1); }}><RotateCcw size={16} />Try again</button></div> : null}
+      {error ? <div className="heiss-video-error" role="alert"><p>{error}</p><button type="button" onClick={() => { setError(''); setAttempt((n) => n + 1); }}><RotateCcw size={16} />{t("Try again")}</button></div> : null}
     </div>
   );
 }

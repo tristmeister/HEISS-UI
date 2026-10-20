@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ImagePlus, Layers, Wand2 } from 'lucide-react';
 import { Tip } from './components';
@@ -19,6 +21,7 @@ export function ViewerActions({ item, onUseSettings, onUseLoras, onUseAsReferenc
   /** Left out when this output can't be a reference (not an image, locked, from another folder). */
   onUseAsReference?: () => void;
 }) {
+  useLanguage();
   // An earlier image shown from another folder carries a prompt at most: Copy prompt above covers it.
   const canUse = !(item.library && !item.prompt);
   const loraCount = item.library ? 0 : normalizeLoras(item.settings?.loras).length;
@@ -27,26 +30,26 @@ export function ViewerActions({ item, onUseSettings, onUseLoras, onUseAsReferenc
   return (
     <div className="viewer-actions">
       {canUse ? (
-        <Tip content="Load its prompt and settings, keeping your seed. You can undo this.">
-          <button type="button" className="btn is-primary viewer-action-main" onClick={onUseSettings}><Wand2 size={15} /> Use these settings</button>
+        <Tip content={t("Load its prompt and settings, keeping your seed. You can undo this.")}>
+          <button type="button" className="btn is-primary viewer-action-main" onClick={onUseSettings}><Wand2 size={15} />{t("Use these settings")}</button>
         </Tip>
       ) : null}
       {hasSecondary ? (
         <div className="viewer-action-row">
           {loraCount > 0 ? (
-            <Tip content={`Load its ${loraCount === 1 ? 'LoRA' : `${loraCount} LoRAs`} into the composer`}>
+            <Tip content={t("Load its {0} into the composer", { "0": (loraCount === 1 ? t("LoRA") : `${loraCount} LoRAs`) })}>
               <button type="button" className="btn viewer-action" onClick={onUseLoras}>
                 <Layers size={14} />
-                <span className="viewer-action-label"><span className="sr-only">Use its </span>{loraCount === 1 ? 'LoRA' : 'LoRAs'}</span>
+                <span className="viewer-action-label"><span className="sr-only">{t("Use its")}{" "}</span>{loraCount === 1 ? t("LoRA") : t("LoRAs")}</span>
                 {loraCount > 1 ? <span className="viewer-action-count" aria-hidden="true">{loraCount}</span> : null}
               </button>
             </Tip>
           ) : null}
           {onUseAsReference ? (
-            <Tip content="Use as the reference image for the next run">
+            <Tip content={t("Use as the reference image for the next run")}>
               <button type="button" className="btn viewer-action" onClick={onUseAsReference}>
                 <ImagePlus size={14} />
-                <span className="viewer-action-label"><span className="sr-only">Use as </span>Reference</span>
+                <span className="viewer-action-label"><span className="sr-only">{t("Use as")}{" "}</span>{t("Reference")}</span>
               </button>
             </Tip>
           ) : null}

@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatedNumber } from './AnimatedNumber';
 import { formatLeft, progressLine, progressReading, useRunClock } from './GenerationProgress';
@@ -96,15 +98,15 @@ export function useGenerationActivity({ items, enabled, watching, reveal, onJump
       phase: waiting ? 'queued' : 'running',
       state: 'live',
       glyph: <WorkFrame src={reveal(current) ? current.preview : ''} working={!waiting} />,
-      title: waiting ? 'Waiting for ComfyUI' : pending.length > 1 ? <>Generating <AnimatedNumber value={pending.length} /> {kind}s</> : `Generating ${kind === 'video' ? 'a video' : 'an image'}`,
+      title: waiting ? 'Waiting for ComfyUI' : pending.length > 1 ? <>{t("Generating")}{" "}<AnimatedNumber value={pending.length} /> {kind}s</> : `Generating ${kind === 'video' ? 'a video' : 'an image'}`,
       figure: ratio !== null ? <><AnimatedNumber value={Math.floor(ratio * 100)} />%</> : undefined,
       progress: waiting ? undefined : ratio ?? 0,
       meta: [step, left].filter(Boolean).join(' · ') || prompt || 'Starting',
       metaTitle: prompt || undefined,
-      open: { label: 'Show the generation', run: () => onJump(current) },
+      open: { label: t("Show the generation"), run: () => onJump(current) },
       dismiss: {
-        label: 'Hide until the next run',
-        title: 'Hide until the next run',
+        label: t("Hide until the next run"),
+        title: t("Hide until the next run"),
         run: () => setPutAway((current) => new Set([...current, ...pendingJobs]))
       }
     };
@@ -124,8 +126,8 @@ export function useGenerationActivity({ items, enabled, watching, reveal, onJump
       title: count === 1 ? `${kind === 'video' ? 'Video' : 'Image'} ready` : `${count} ${kind}s ready`,
       meta: prompt || 'In the gallery',
       metaTitle: prompt || undefined,
-      action: { label: 'View', run: () => { setLanded(null); onView(first); } },
-      dismiss: { label: 'Dismiss', run: () => setLanded(null) },
+      action: { label: t("View"), run: () => { setLanded(null); onView(first); } },
+      dismiss: { label: t("Dismiss"), run: () => setLanded(null) },
       expire: { after: DONE_HOLD_MS, run: () => setLanded(null) }
     };
   }
@@ -134,6 +136,7 @@ export function useGenerationActivity({ items, enabled, watching, reveal, onJump
 
 /** The live preview in a small frame, with heat passing over it while ComfyUI works. */
 function WorkFrame({ src, working }: { src?: string; working: boolean }) {
+  useLanguage();
   return (
     <span className={cn('activity-frame', working && 'is-working')} aria-hidden="true">
       <SafeImg src={src} draggable={false} fallback={<HeatCells />} />
@@ -143,6 +146,7 @@ function WorkFrame({ src, working }: { src?: string; working: boolean }) {
 
 /** Before the first preview: a few cells warming up, the same cells as the download arrows. */
 function HeatCells() {
+  useLanguage();
   const gap = useCellGap(0.1);
   const cells = Array.from({ length: 16 }, (_, index) => ({ x: index % 4, y: Math.floor(index / 4) }));
   return (
@@ -156,6 +160,7 @@ function HeatCells() {
 
 /** The results, fanned like prints on a table: one, or the first few of a batch. */
 function ResultFan({ items }: { items: GalleryItem[] }) {
+  useLanguage();
   if (!items.length) return <span className="activity-frame is-done" aria-hidden="true"><HeatCells /></span>;
   return (
     <span className={cn('activity-fan', `has-${items.length}`)} aria-hidden="true">

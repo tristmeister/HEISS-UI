@@ -1,3 +1,5 @@
+import { t } from '../../i18n/core.js';
+import { useLanguage } from '../../i18n/react';
 "use client";
 
 import {
@@ -38,7 +40,7 @@ const SelectContext = createContext<SelectContextValue | null>(null);
 
 export function useSelectContext() {
   const ctx = useContext(SelectContext);
-  if (!ctx) throw new Error("Select compound components must be inside <Select>");
+  if (!ctx) throw new Error(t("Select compound components must be inside <Select>"));
   return ctx;
 }
 
@@ -75,6 +77,7 @@ function Select({
   name,
   required,
 }: SelectProps) {
+  useLanguage();
   const [internalValue, setInternalValue] = useState(defaultValue ?? "");
   const [open, setOpen] = useState(false);
   const currentValue = value !== undefined ? value : internalValue;
@@ -158,6 +161,7 @@ const SelectTrigger = forwardRef<HTMLButtonElement, SelectTriggerProps>(
     { className, variant, icon: Icon, placeholder = "Select…", error, ...props },
     ref
   ) => {
+  useLanguage();
     const { value, open, setOpen, disabled, triggerRef, labelMap } =
       useSelectContext();
     const shape = useShape();
@@ -271,6 +275,7 @@ const SelectItem = forwardRef<HTMLDivElement, SelectItemProps>(
     },
     ref
   ) => {
+  useLanguage();
     const selectCtx = useSelectContext();
     const contentCtx = useContext(SelectContentContext);
     const internalRef = useRef<HTMLDivElement>(null);
@@ -396,6 +401,7 @@ function SelectGroup({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
+  useLanguage();
   return (
     <div role="group" className={className} {...props}>
       {children}

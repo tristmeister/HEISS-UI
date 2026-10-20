@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Tip } from './components';
@@ -8,6 +10,7 @@ import { Tip } from './components';
  * two edges behind it while they are stacked, moving between the two.
  */
 export function StackRunsButton({ on, onToggle, disabled = false, phone = false }: { on: boolean; onToggle: () => void; disabled?: boolean; phone?: boolean }) {
+  useLanguage();
   const size = phone ? 22 : 18;
   const spring = { type: "spring" as const, stiffness: 520, damping: 34 };
   const rects = on
@@ -19,7 +22,7 @@ export function StackRunsButton({ on, onToggle, disabled = false, phone = false 
       <button
         type="button"
         className={`${phone ? "phone-icon" : "zen-control-button stack-runs-button"}${on ? " is-on" : ""}`}
-        aria-label="Auto-grouping"
+        aria-label={t("Auto-grouping")}
         aria-pressed={on}
         disabled={disabled}
         onClick={onToggle}

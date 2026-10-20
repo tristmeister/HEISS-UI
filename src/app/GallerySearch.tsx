@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Search, Star, X } from 'lucide-react';
@@ -55,13 +57,14 @@ type SearchProps = {
 
 /** The magnifier beside Controls, lit while a search filters the gallery. */
 export function GallerySearchButton({ search, open, setOpen }: Pick<SearchProps, 'search' | 'open' | 'setOpen'>) {
+  useLanguage();
   const on = open || searchActive(search);
   return (
-    <Tip content="Search the gallery (/)">
+    <Tip content={t("Search the gallery (/)")}>
       <button
         type="button"
         className={cn('zen-control-button gallery-search-button', on && 'is-on')}
-        aria-label="Search the gallery"
+        aria-label={t("Search the gallery")}
         aria-expanded={on}
         // The field keeps its focus, so this click toggles instead of racing the field's blur.
         onMouseDown={(event) => event.preventDefault()}
@@ -77,6 +80,7 @@ export function GallerySearchBar({ search, setSearch, count, open, setOpen, hidd
   /** The activity pills own the top centre; the field waits under them while they show. */
   islandsHeight?: number;
 }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   const active = searchActive(search);
@@ -112,8 +116,8 @@ export function GallerySearchBar({ search, setSearch, count, open, setOpen, hidd
               if (event.key === 'Enter') { event.preventDefault(); event.currentTarget.blur(); }
             }}
             onBlur={() => { if (!active) setOpen(false); }}
-            placeholder={hiddenSpace ? 'Search Hidden' : 'Search prompts and models'}
-            aria-label={hiddenSpace ? 'Search Hidden' : 'Search the gallery'}
+            placeholder={hiddenSpace ? t("Search Hidden") : t("Search prompts and models")}
+            aria-label={hiddenSpace ? t("Search Hidden") : t("Search the gallery")}
             spellCheck={false}
             autoComplete="off"
             enterKeyHint="search"
@@ -123,21 +127,21 @@ export function GallerySearchBar({ search, setSearch, count, open, setOpen, hidd
               <AnimatedNumber value={count} />
             </span>
           ) : null}
-          <Tip content={search.favorites ? 'Show everything' : 'Only favorites'}>
+          <Tip content={search.favorites ? t("Show everything") : t("Only favorites")}>
             <button
               type="button"
               className={cn('gallery-search-fav', search.favorites && 'is-on')}
               aria-pressed={search.favorites}
-              aria-label="Only favorites"
+              aria-label={t("Only favorites")}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => setSearch({ ...search, favorites: !search.favorites })}
             >
               <Star size={14} fill={search.favorites ? 'currentColor' : 'none'} />
-              <span>Favorites</span>
+              <span>{t("Favorites")}</span>
             </button>
           </Tip>
-          <Tip content={active ? 'Clear search (Esc)' : 'Close (Esc)'}>
-            <button type="button" className="gallery-search-close" aria-label={active ? 'Clear search' : 'Close search'} onMouseDown={(event) => event.preventDefault()} onClick={close}>
+          <Tip content={active ? t("Clear search (Esc)") : t("Close (Esc)")}>
+            <button type="button" className="gallery-search-close" aria-label={active ? t("Clear search") : t("Close search")} onMouseDown={(event) => event.preventDefault()} onClick={close}>
               <X size={15} />
             </button>
           </Tip>
@@ -149,6 +153,7 @@ export function GallerySearchBar({ search, setSearch, count, open, setOpen, hidd
 
 /** What an empty result says, and the one way back. */
 export function SearchEmpty({ search, onClear, hiddenSpace = false }: { search: GallerySearch; onClear: () => void; hiddenSpace?: boolean }) {
+  useLanguage();
   const words = search.q.trim();
   const onlyStars = search.favorites && !words;
   return (
@@ -156,12 +161,12 @@ export function SearchEmpty({ search, onClear, hiddenSpace = false }: { search: 
       <div className="empty stage-empty search-empty" aria-live="polite">
         <div className="stage-mark"><SearchMark className="stage-layer" star={onlyStars} /></div>
         <div className="stage-copy">
-          <h2>{onlyStars ? 'No favorites yet' : <>Nothing matches “{words}”{search.favorites ? ' in favorites' : ''}</>}</h2>
+          <h2>{onlyStars ? t("No favorites yet") : <>{t("Nothing matches “")}{words}”{search.favorites ? t(" in favorites") : ''}</>}</h2>
           <p>{onlyStars
-            ? `Star an image${hiddenSpace ? ' in Hidden' : ''} and it shows up here.`
-            : 'Search covers prompts, models and LoRAs. Try fewer words.'}</p>
+            ? t("Star an image{0} and it shows up here.", { "0": (hiddenSpace ? t(" in Hidden") : t("")) })
+            : t("Search covers prompts, models and LoRAs. Try fewer words.")}</p>
           <div className="empty-actions">
-            <button type="button" className="reconnect-btn primary" onClick={onClear}><X size={13} /> {onlyStars ? 'Show everything' : 'Clear search'}</button>
+            <button type="button" className="reconnect-btn primary" onClick={onClear}><X size={13} /> {onlyStars ? t("Show everything") : t("Clear search")}</button>
           </div>
         </div>
       </div>
@@ -173,6 +178,7 @@ export function SearchEmpty({ search, onClear, hiddenSpace = false }: { search: 
 
 /** Under the phone's top bar: the field, a Favourites pill and Cancel. */
 export function PhoneSearchBar({ search, setSearch, open, setOpen, hiddenSpace = false }: Omit<SearchProps, 'count'>) {
+  useLanguage();
   const shown = open || searchActive(search);
   const inputRef = React.useRef<HTMLInputElement | null>(null);
   React.useEffect(() => { if (open) inputRef.current?.focus({ preventScroll: true }); }, [open]);
@@ -187,17 +193,17 @@ export function PhoneSearchBar({ search, setSearch, open, setOpen, hiddenSpace =
           value={search.q}
           onChange={(event) => setSearch({ ...search, q: event.target.value.slice(0, 200) })}
           onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
-          placeholder={hiddenSpace ? 'Search Hidden' : 'Search prompts and models'}
-          aria-label={hiddenSpace ? 'Search Hidden' : 'Search the gallery'}
+          placeholder={hiddenSpace ? t("Search Hidden") : t("Search prompts and models")}
+          aria-label={hiddenSpace ? t("Search Hidden") : t("Search the gallery")}
           spellCheck={false}
           autoComplete="off"
           enterKeyHint="search"
         />
       </label>
-      <button type="button" className={cn('phone-icon phone-search-fav', search.favorites && 'is-on')} aria-pressed={search.favorites} aria-label="Only favorites" onClick={() => { haptic('tap'); setSearch({ ...search, favorites: !search.favorites }); }}>
+      <button type="button" className={cn('phone-icon phone-search-fav', search.favorites && 'is-on')} aria-pressed={search.favorites} aria-label={t("Only favorites")} onClick={() => { haptic('tap'); setSearch({ ...search, favorites: !search.favorites }); }}>
         <Star size={20} fill={search.favorites ? 'currentColor' : 'none'} />
       </button>
-      <button type="button" className="phone-pill" onClick={() => { setSearch(emptySearch); setOpen(false); }}>Cancel</button>
+      <button type="button" className="phone-pill" onClick={() => { setSearch(emptySearch); setOpen(false); }}>{t("Cancel")}</button>
     </div>
   );
 }

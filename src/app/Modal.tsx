@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
@@ -54,6 +56,7 @@ export function Modal({
   bodyClassName?: string;
   contentProps?: React.HTMLAttributes<HTMLDivElement>;
 }>) {
+  useLanguage();
   const openerRef = React.useRef<HTMLElement | null>(null);
   if (open && !openerRef.current && typeof document !== 'undefined' && document.activeElement instanceof HTMLElement) {
     openerRef.current = document.activeElement;
@@ -94,7 +97,7 @@ export function Modal({
               </div>
               {headerActions ? <div className="modal-head-actions">{headerActions}</div> : null}
               {hideClose ? null : (
-                <Dialog.Close className="modal-close" aria-label="Close" disabled={busy}><X size={15} /></Dialog.Close>
+                <Dialog.Close className="modal-close" aria-label={t("Close")} disabled={busy}><X size={15} /></Dialog.Close>
               )}
             </header>
             <div className={cn('modal-body', bodyClassName)}>{children}</div>

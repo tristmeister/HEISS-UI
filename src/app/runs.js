@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 // How the gallery groups itself: into moments (stretches of time you spent
 // making things) and, inside each moment, into runs (the takes and variations
 // of one idea). Plain JavaScript so `node --test` can check it without a build
@@ -192,7 +193,7 @@ export function momentTitle(start, end, now = Date.now()) {
   const days = Math.round((today - day) / 86_400_000);
   const allDay = end - start > 8 * 60 * 60 * 1000;
   if (days <= 0) {
-    if (allDay) return { title: "Today", part: "" };
+    if (allDay) return { title: t("Today"), part: "" };
     return { title: part === "night" ? "Tonight" : `This ${part}`, part: "" };
   }
   if (days === 1) return { title: allDay ? "Yesterday" : part === "night" ? "Last night" : `Yesterday ${part}`, part: "" };

@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { Media } from './components';
@@ -24,10 +26,12 @@ function inpaintPreviewOf(item: GalleryItem): InpaintPreview | null {
 }
 
 export function GenerationMedia({ item, muted = false, fit = 'cover', children }: React.PropsWithChildren<{ item: GalleryItem; muted?: boolean; fit?: 'cover' | 'contain' }>) {
+  useLanguage();
   return <GenerationMediaInstance key={generationIdentity(item)} item={item} muted={muted} fit={fit}>{children}</GenerationMediaInstance>;
 }
 
 function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWithChildren<{ item: GalleryItem; muted: boolean; fit: 'cover' | 'contain' }>) {
+  useLanguage();
   const mode = useContext(GenerationPreviewMode);
   const reducedMotion = useReducedMotion();
   const beganPending = useRef(item.status === 'pending');
@@ -55,7 +59,7 @@ function GenerationMediaInstance({ item, muted, fit, children }: React.PropsWith
   return (
     <div className={`generation-surface${pending ? ' is-pending' : ''}${resolving ? ' is-resolving' : ''}`}>
       {item.status === 'done' && item.type === 'image' && source && failedSource !== source ? (
-        <img src={source} alt={muted ? "" : item.prompt ? `Generated from: ${item.prompt.slice(0, 160)}` : "Generated image"} draggable={false} className="generation-result" decoding="async"
+        <img src={source} alt={muted ? "" : item.prompt ? t("Generated from: {0}", { "0": (item.prompt.slice(0, 160)) }) : t("Generated image")} draggable={false} className="generation-result" decoding="async"
           onLoad={() => setLoadedSource(source)}
           onError={() => {
             if (isThumbnail) { setUseFullImage(true); return; }
@@ -96,6 +100,7 @@ class EffectBoundary extends React.Component<React.PropsWithChildren, { failed: 
 
 /** A single latest-frame buffer; incoming previews never create an animation queue. */
 export function GenerationPreview({ preview, fit = 'cover', aspectRatio = 1, finalSource, onResolved }: { preview?: string; fit?: 'cover' | 'contain'; aspectRatio?: number; finalSource?: string; onResolved?: () => void }) {
+  useLanguage();
   const mode = useContext(GenerationPreviewMode);
   const reducedMotion = useReducedMotion();
   const host = useRef<HTMLDivElement>(null);

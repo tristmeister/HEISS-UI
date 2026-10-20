@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ArrowLeft, Check, Download, ExternalLink, Pause, RefreshCw } from 'lucide-react';
 import { Modal } from './Modal';
@@ -70,15 +72,16 @@ const STEPS: Array<{ id: Step; label: string }> = [
 ];
 
 function SetupSteps({ step }: { step: Step }) {
+  useLanguage();
   const current = STEPS.findIndex((item) => item.id === step);
   return (
-    <ol className="upscale-stepper" aria-label="Setup steps">
+    <ol className="upscale-stepper" aria-label={t("Setup steps")}>
       {STEPS.map((item, index) => {
         const state = step === 'ready' || index < current ? 'done' : index === current ? 'active' : 'todo';
         return (
           <li key={item.id} className={`is-${state}`} aria-current={state === 'active' ? 'step' : undefined}>
             <i aria-hidden="true">{state === 'done' ? <Check size={10} strokeWidth={3} /> : null}</i>
-            <span>{item.label}</span>
+            <span>{t(item.label)}</span>
           </li>
         );
       })}
@@ -122,6 +125,7 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
   onChanged?: () => void;
   comfyUrl?: string;
 }) {
+  useLanguage();
   const { plan, checkedAt, reload } = useFamilySetupPlan(family, profileId, open);
   const { state: downloads, landed, start, pause } = useModelDownloads();
   const admin = useThisComputer();
@@ -219,14 +223,14 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
   /* ---------------------------------------------------------- Body */
 
   let body: React.ReactNode = null;
-  let footer: React.ReactNode = <button className="btn is-ghost" onClick={close}>Not now</button>;
-  const recheck = <button className="btn" onClick={() => reload()}><RefreshCw size={13} /> Check again</button>;
+  let footer: React.ReactNode = <button className="btn is-ghost" onClick={close}>{t("Not now")}</button>;
+  const recheck = <button className="btn" onClick={() => reload()}><RefreshCw size={13} />{t("Check again")}</button>;
   const nextStep: Step = route === 'pack' || !parts.some((row) => !row.have) ? 'ready' : 'files';
 
   if (!plan) {
-    body = <Watcher>Checking ComfyUI…</Watcher>;
+    body = <Watcher>{t("Checking ComfyUI…")}</Watcher>;
   } else if (!plan.comfy.online) {
-    body = <Watcher lastChecked={checkedAt}>Waiting for ComfyUI{comfyUrl ? <> at <code>{comfyUrl.replace(/^https?:\/\//, '')}</code></> : null}</Watcher>;
+    body = <Watcher lastChecked={checkedAt}>{t("Waiting for ComfyUI")}{comfyUrl ? <>{t("at")}{" "}<code>{comfyUrl.replace(/^https?:\/\//, '')}</code></> : null}</Watcher>;
     footer = <>{footer}{recheck}</>;
   } else if (step === 'comfy') {
     const pack = plan.comfy.pack;
@@ -238,29 +242,29 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
             <strong>{name}{plan.profile?.variant ? <em>{plan.profile.variant}</em> : null}</strong>
             <code>{plan.profile?.model}</code>
           </div>
-          <span className="family-setup-file-route">{route === 'pack' ? `${pack?.name} nodes` : 'ComfyUI’s own nodes'}</span>
+          <span className="family-setup-file-route">{route === 'pack' ? t("{0} nodes", { "0": (pack?.name) }) : t("ComfyUI’s own nodes")}</span>
         </div>
         {route === 'native' && !plan.comfy.native ? (
           <>
             <div className="upscale-callout family-setup-gap">
-              <strong>Update ComfyUI to its newest version</strong>
-              <span>ComfyUI learned {title} on 16 October 2026, after release 0.41.3{plan.comfy.version ? `. This one is ${plan.comfy.version}` : ''}. Update it (<code>git pull</code> in its folder, or the nightly in ComfyUI-Manager), then restart it.</span>
+              <strong>{t("Update ComfyUI to its newest version")}</strong>
+              <span>{t("ComfyUI learned")}{" "}{title}{t("on 16 October 2026, after release 0.41.3")}{plan.comfy.version ? t(". This one is {0}", { "0": (plan.comfy.version) }) : ''}{t(". Update it (")}<code>{t("git pull")}</code>{t("in its folder, or the nightly in ComfyUI-Manager), then restart it.")}</span>
             </div>
-            <p className="upscale-fine">Or use the official model folder in <code>models/diffusers</code> with its makers’ nodes, which run on the ComfyUI you have. <a href={plan.page} target="_blank" rel="noreferrer">How <ExternalLink size={11} /></a></p>
-            <Watcher lastChecked={checkedAt}>Waiting for ComfyUI to know {title}…</Watcher>
+            <p className="upscale-fine">{t("Or use the official model folder in")}{" "}<code>models/diffusers</code>{t("with its makers’ nodes, which run on the ComfyUI you have.")}{" "}<a href={plan.page} target="_blank" rel="noreferrer">{t("How")}{" "}<ExternalLink size={11} /></a></p>
+            <Watcher lastChecked={checkedAt}>{t("Waiting for ComfyUI to know")}{" "}{title}…</Watcher>
           </>
         ) : route === 'pack' && pack && !pack.loaded && pack.part?.nodePack ? (
           <div className="family-setup-gap">
-            <NodeInstall pack={pack.part.nodePack} plan={pack.part.install} autoInstall={pack.part.autoInstall} showToast={showToast} onRestarted={() => reload()} afterRestart={`${name} is ready after that.`} />
-            <Watcher lastChecked={checkedAt}>Waiting for the {pack.name} nodes…</Watcher>
+            <NodeInstall pack={pack.part.nodePack} plan={pack.part.install} autoInstall={pack.part.autoInstall} showToast={showToast} onRestarted={() => reload()} afterRestart={t("{0} is ready after that.", { "0": (name) })} />
+            <Watcher lastChecked={checkedAt}>{t("Waiting for the")}{" "}{pack.name}{t("nodes…")}</Watcher>
           </div>
         ) : route === 'pack' && pack && !pack.ready ? (
           <div className="upscale-callout family-setup-gap">
-            <strong>Update ComfyUI</strong>
-            <span>The {pack.name} nodes are in, but this ComfyUI lacks the layer skip node they sample with. Version 0.38 or newer has it.</span>
+            <strong>{t("Update ComfyUI")}</strong>
+            <span>{t("The")}{" "}{pack.name}{t("nodes are in, but this ComfyUI lacks the layer skip node they sample with. Version 0.38 or newer has it.")}</span>
           </div>
         ) : (
-          <p className="family-setup-ok family-setup-gap"><Check size={13} strokeWidth={2.6} aria-hidden="true" /> {route === 'native' ? `This ComfyUI runs ${title} on its own.` : `The ${pack?.name} nodes are in.`}</p>
+          <p className="family-setup-ok family-setup-gap"><Check size={13} strokeWidth={2.6} aria-hidden="true" /> {route === 'native' ? t("This ComfyUI runs {0} on its own.", { "0": (title) }) : t("The {0} nodes are in.", { "0": (pack?.name) })}</p>
         )}
       </>
     );
@@ -268,7 +272,7 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
       <>
         {footer}
         {!routeOk ? recheck : null}
-        <button className="btn is-primary" disabled={!routeOk} onClick={() => setStep(ready ? 'ready' : nextStep)}>Continue</button>
+        <button className="btn is-primary" disabled={!routeOk} onClick={() => setStep(ready ? 'ready' : nextStep)}>{t("Continue")}</button>
       </>
     );
   } else if (step === 'files') {
@@ -278,8 +282,8 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
           <div className="upscale-meter">
             <strong>{Math.floor(progress * 100)}<small>%</small></strong>
             <div>
-              <span>{formatBytes(totals.received) || '0 MB'} of {formatBytes(totals.total)}</span>
-              <span>{totals.speed > 0 ? `${formatBytes(totals.speed)}/s · ${formatEta((totals.total - totals.received) / totals.speed)}` : 'Connecting to Hugging Face'}</span>
+              <span>{formatBytes(totals.received) || t("0 MB")}{t("of")}{" "}{formatBytes(totals.total)}</span>
+              <span>{totals.speed > 0 ? `${formatBytes(totals.speed)}/s · ${formatEta((totals.total - totals.received) / totals.speed)}` : t("Connecting to Hugging Face")}</span>
             </div>
           </div>
         ) : null}
@@ -292,38 +296,38 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
             return (
               <li key={row.part} className={cn(done && 'is-done')}>
                 <div>
-                  <strong>{row.label}<em>{row.part === 'encoder' ? 'reads your prompt' : 'draws the pixels'}</em></strong>
+                  <strong>{row.label}<em>{row.part === 'encoder' ? t("reads your prompt") : t("draws the pixels")}</em></strong>
                   {state === 'downloading' || state === 'paused' ? <CellBar value={value} /> : <code>{row.have || row.download?.file}</code>}
                 </div>
                 <span>
-                  {done ? <><Check size={12} strokeWidth={3} /> {state === 'installed' ? 'In place' : 'Downloaded'}</>
+                  {done ? <><Check size={12} strokeWidth={3} /> {state === 'installed' ? t("In place") : t("Downloaded")}</>
                     : state === 'downloading' ? `${Math.floor(value * 100)}%`
-                    : state === 'paused' ? 'Paused'
-                    : state === 'error' ? 'Stopped'
+                    : state === 'paused' ? t("Paused")
+                    : state === 'error' ? t("Stopped")
                     : formatBytes(row.download?.bytes)}
                 </span>
               </li>
             );
           })}
         </ul>
-        {!admin ? <p className="upscale-fine">Files download on the computer running HEISS UI. Set {title} up there.</p>
-          : plan.local === false ? <p className="upscale-fine">ComfyUI runs on another computer. Put these files in its model folders there.</p>
-          : short ? <p className="upscale-fine is-warn">These need {formatBytes(remaining)} and the disk has {formatBytes(space?.free)} free.</p>
+        {!admin ? <p className="upscale-fine">{t("Files download on the computer running HEISS UI. Set")}{" "}{title}{t("up there.")}</p>
+          : plan.local === false ? <p className="upscale-fine">{t("ComfyUI runs on another computer. Put these files in its model folders there.")}</p>
+          : short ? <p className="upscale-fine is-warn">{t("These need")}{" "}{formatBytes(remaining)}{t("and the disk has")}{" "}{formatBytes(space?.free)}{t("free.")}</p>
           : null}
-        {!pending.length && !moving.length ? <Watcher lastChecked={checkedAt}>Waiting for ComfyUI to list the files…</Watcher> : null}
+        {!pending.length && !moving.length ? <Watcher lastChecked={checkedAt}>{t("Waiting for ComfyUI to list the files…")}</Watcher> : null}
       </>
     );
     footer = (
       <>
-        <button className="btn is-ghost" onClick={() => setStep('comfy')}><ArrowLeft size={13} /> Back</button>
+        <button className="btn is-ghost" onClick={() => setStep('comfy')}><ArrowLeft size={13} />{t("Back")}</button>
         {moving.length ? (
           <>
-            <button className="btn" onClick={() => run(async () => { for (const row of moving) await pause(row.download!.id); })}><Pause size={13} /> Pause</button>
-            <button className="btn is-primary" onClick={close}>Continue in background</button>
+            <button className="btn" onClick={() => run(async () => { for (const row of moving) await pause(row.download!.id); })}><Pause size={13} />{t("Pause")}</button>
+            <button className="btn is-primary" onClick={close}>{t("Continue in background")}</button>
           </>
         ) : pending.length && admin && plan.local !== false ? (
           <button className="btn is-primary" disabled={busy || short} onClick={getAll}>
-            <Download size={14} /> {failed || pending.some((row) => rowState(row.download, row.have) === 'paused') ? 'Resume' : 'Download'} · {formatBytes(remaining)}
+            <Download size={14} /> {failed || pending.some((row) => rowState(row.download, row.have) === 'paused') ? t("Resume") : t("Download")} · {formatBytes(remaining)}
           </button>
         ) : null}
       </>
@@ -333,15 +337,15 @@ export function FamilySetupDialog({ family, profileId, open, onOpenChange, showT
       <div className="family-setup-ready">
         <div>
           <strong>{name}</strong>
-          <span>{route === 'pack' ? `Through the ${plan.comfy.pack?.name} nodes, skipping layer 22 on the negative pass` : 'On ComfyUI’s own nodes'} · 50 steps · CFG 3 · 1024 × 1024</span>
+          <span>{route === 'pack' ? t("Through the {0} nodes, skipping layer 22 on the negative pass", { "0": (plan.comfy.pack?.name) }) : t("On ComfyUI’s own nodes")}{t("· 50 steps · CFG 3 · 1024 × 1024")}</span>
         </div>
-        <p>Put words you want in the picture in quotes, like <q>a café sign that reads “Open late”</q>.</p>
+        <p>{t("Put words you want in the picture in quotes, like")}{" "}<q>{t("a café sign that reads “Open late”")}</q>.</p>
       </div>
     );
     footer = (
       <>
-        <button className="btn is-ghost" onClick={close}>Close</button>
-        <button className="btn is-primary" disabled={!plan.profile} onClick={() => { if (plan.profile) onUse(plan.profile.id); close(); }}><Check size={14} /> Use {title}</button>
+        <button className="btn is-ghost" onClick={close}>{t("Close")}</button>
+        <button className="btn is-primary" disabled={!plan.profile} onClick={() => { if (plan.profile) onUse(plan.profile.id); close(); }}><Check size={14} />{t("Use")}{" "}{title}</button>
       </>
     );
   }

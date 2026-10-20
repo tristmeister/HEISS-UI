@@ -11,6 +11,9 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Added
+- Russian interface translation, with an English / Русский selector in Settings › General. Language changes update the interface without resetting prompts or generation settings, persist in this browser, and synchronize across its open tabs.
+
 ## [0.18.1] - 2026-10-19
 
 > Bug fixes and a FLUX.3 prompt enhancer switch

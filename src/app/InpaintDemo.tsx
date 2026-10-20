@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from "react";
 import { Brush, BrushCleaning, Eraser, Redo2, RotateCcw, Undo2 } from "lucide-react";
 import { cn } from "./format";
@@ -77,6 +79,7 @@ const sceneUrls = () => (scenes ||= { day: scene(false), night: scene(true) });
 const autoPath = [[150, 96], [300, 70], [450, 104], [640, 64], [720, 120], [560, 160], [380, 150], [220, 176], [130, 150]];
 
 export function InpaintDemo() {
+  useLanguage();
   const rootRef = React.useRef<HTMLDivElement>(null);
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -274,13 +277,13 @@ export function InpaintDemo() {
   const again = () => { setPhase("paint"); setComparing(false); };
 
   const tools = [
-    { id: "brush" as const, label: "Brush", icon: <Brush size={16} /> },
-    { id: "eraser" as const, label: "Eraser", icon: <Eraser size={16} /> }
+    { id: "brush" as const, label: t("Brush"), icon: <Brush size={16} /> },
+    { id: "eraser" as const, label: t("Eraser"), icon: <Eraser size={16} /> }
   ];
 
   return (
     <div className="inpaint-demo-wrap" ref={rootRef}>
-      <div className={cn("inpaint-demo", `is-${phase}`, comparing && "is-comparing")} role="group" aria-label="Try inpainting">
+      <div className={cn("inpaint-demo", `is-${phase}`, comparing && "is-comparing")} role="group" aria-label={t("Try inpainting")}>
         <div
           ref={viewportRef}
           className={cn("inpaint-viewport", phase === "paint" ? `is-${tool}` : "is-idle")}
@@ -300,7 +303,7 @@ export function InpaintDemo() {
             <div className="inpaint-demo-working" style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, height: `${box.h * 100}%` }} aria-hidden="true" />
           ) : null}
           <div ref={ringRef} className={cn("inpaint-ring", tool === "eraser" && "is-eraser", previewing && "is-preview")} aria-hidden="true" />
-          <p className={cn("inpaint-hint", (history.painted || phase !== "paint") && "is-hidden")} aria-hidden={history.painted}>Paint over what should change</p>
+          <p className={cn("inpaint-hint", (history.painted || phase !== "paint") && "is-hidden")} aria-hidden={history.painted}>{t("Paint over what should change")}</p>
           {phase === "done" ? (
             <button
               type="button"
@@ -311,12 +314,12 @@ export function InpaintDemo() {
               onKeyDown={(event) => { if (event.key === " " || event.key === "Enter") setComparing(true); }}
               onKeyUp={() => setComparing(false)}
             >
-              {comparing ? "The original" : "Hold to see the original"}
+              {comparing ? t("The original") : t("Hold to see the original")}
             </button>
           ) : null}
         </div>
 
-        <div className={cn("inpaint-pill", phase !== "paint" && "is-resting")} role="toolbar" aria-label="Painting tools">
+        <div className={cn("inpaint-pill", phase !== "paint" && "is-resting")} role="toolbar" aria-label={t("Painting tools")}>
           {tools.map((item) => (
             <Tip key={item.id} content={item.label}>
               <button type="button" className={cn("inpaint-tool", tool === item.id && "is-active")} aria-label={item.label} aria-pressed={tool === item.id} disabled={phase !== "paint"} onClick={() => { touched.current = true; setTool(item.id); }}>
@@ -325,15 +328,15 @@ export function InpaintDemo() {
             </Tip>
           ))}
           <span className="inpaint-divider" aria-hidden="true" />
-          <Tip content="Undo">
-            <button type="button" className="inpaint-tool" aria-label="Undo" disabled={!history.undo || phase !== "paint"} onClick={undo}><Undo2 size={16} /></button>
+          <Tip content={t("Undo")}>
+            <button type="button" className="inpaint-tool" aria-label={t("Undo")} disabled={!history.undo || phase !== "paint"} onClick={undo}><Undo2 size={16} /></button>
           </Tip>
-          <Tip content="Redo">
-            <button type="button" className="inpaint-tool" aria-label="Redo" disabled={!history.redo || phase !== "paint"} onClick={redoStroke}><Redo2 size={16} /></button>
+          <Tip content={t("Redo")}>
+            <button type="button" className="inpaint-tool" aria-label={t("Redo")} disabled={!history.redo || phase !== "paint"} onClick={redoStroke}><Redo2 size={16} /></button>
           </Tip>
           <span className="inpaint-divider" aria-hidden="true" />
-          <Tip content="Clear the painting">
-            <button type="button" className="inpaint-tool" aria-label="Clear the painting" disabled={!history.painted || phase !== "paint"} onClick={clear}><BrushCleaning size={16} /></button>
+          <Tip content={t("Clear the painting")}>
+            <button type="button" className="inpaint-tool" aria-label={t("Clear the painting")} disabled={!history.painted || phase !== "paint"} onClick={clear}><BrushCleaning size={16} /></button>
           </Tip>
         </div>
 
@@ -341,12 +344,12 @@ export function InpaintDemo() {
       </div>
 
       <div className="inpaint-demo-prompt">
-        <span className="inpaint-demo-text"><span>Prompt</span>{PROMPT}</span>
+        <span className="inpaint-demo-text"><span>{t("Prompt")}</span>{PROMPT}</span>
         {phase === "done" ? (
-          <button type="button" className="btn" onClick={again}><RotateCcw size={14} /> Paint again</button>
+          <button type="button" className="btn" onClick={again}><RotateCcw size={14} />{t("Paint again")}</button>
         ) : (
           <button type="button" className={cn("btn is-primary", history.painted && phase === "paint" && "is-ready")} disabled={!history.painted || phase !== "paint"} onClick={generate}>
-            {phase === "working" ? "Making it…" : "Generate"}
+            {phase === "working" ? t("Making it…") : t("Generate")}
           </button>
         )}
       </div>

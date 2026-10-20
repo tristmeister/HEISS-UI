@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ExternalLink, Plug } from 'lucide-react';
 import { Modal } from './Modal';
@@ -54,6 +56,7 @@ function thisComputerLine(hardware: Hardware | null) {
 }
 
 export function NoComfySheet({ open, onOpenChange, onChangeAddress }: { open: boolean; onOpenChange: (open: boolean) => void; onChangeAddress?: () => void }) {
+  useLanguage();
   const hardware = useHardware();
   const here = thisSystem(hardware);
   const order: System[] = [here, ...(['windows', 'mac', 'linux'] as System[]).filter((system) => system !== here)];
@@ -62,10 +65,10 @@ export function NoComfySheet({ open, onOpenChange, onChangeAddress }: { open: bo
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Get ComfyUI"
-      description="ComfyUI does the generating. Install and start it, and it connects here."
+      title={t("Get ComfyUI")}
+      description={t("ComfyUI does the generating. Install and start it, and it connects here.")}
       className="no-comfy-sheet"
-      footer={onChangeAddress ? <button type="button" className="btn is-ghost" onClick={() => { onOpenChange(false); onChangeAddress(); }}><Plug size={13} /> Use another address</button> : undefined}
+      footer={onChangeAddress ? <button type="button" className="btn is-ghost" onClick={() => { onOpenChange(false); onChangeAddress(); }}><Plug size={13} />{t("Use another address")}</button> : undefined}
     >
       <ul className="no-comfy-routes">
         {order.map((system) => {
@@ -74,12 +77,12 @@ export function NoComfySheet({ open, onOpenChange, onChangeAddress }: { open: bo
             <li key={system} className={cn('no-comfy-route', system === here && 'is-here')}>
               <div className="no-comfy-route-head">
                 <strong>{route.name}</strong>
-                {system === here ? <span className="no-comfy-here">This computer</span> : null}
+                {system === here ? <span className="no-comfy-here">{t("This computer")}</span> : null}
               </div>
               <p>{route.what}</p>
               <div className="no-comfy-links">
                 {route.links.map((link) => (
-                  <a key={link.href} className={cn('btn', system === here && link === route.links[0] ? 'is-primary' : '')} href={link.href} target="_blank" rel="noreferrer">{link.label} <ExternalLink size={12} /></a>
+                  <a key={link.href} className={cn('btn', system === here && link === route.links[0] ? 'is-primary' : '')} href={link.href} target="_blank" rel="noreferrer">{t(link.label)} <ExternalLink size={12} /></a>
                 ))}
               </div>
             </li>
@@ -87,13 +90,10 @@ export function NoComfySheet({ open, onOpenChange, onChangeAddress }: { open: bo
         })}
       </ul>
       <section className="no-comfy-notes">
-        <h3>Connecting</h3>
-        <p>Start ComfyUI and leave it running. It connects on port 8188 (manual or portable install) or 8000 (ComfyUI Desktop).</p>
-        <h3>Memory and disk</h3>
-        <p>
-          A graphics card with 8 GB runs SDXL and the compact Flux.2 Klein; 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything.
-          On a Mac, 16 GB of memory runs SDXL, 18 GB or more Flux.2 Klein, and 48 GB or more Krea 2.
-          Models take 7 to 50 GB of disk each.{line ? <> <strong>{line}</strong></> : null}
+        <h3>{t("Connecting")}</h3>
+        <p>{t("Start ComfyUI and leave it running. It connects on port 8188 (manual or portable install) or 8000 (ComfyUI Desktop).")}</p>
+        <h3>{t("Memory and disk")}</h3>
+        <p>{t("A graphics card with 8 GB runs SDXL and the compact Flux.2 Klein; 12 to 16 GB is comfortable, and 24 GB or more runs nearly everything. On a Mac, 16 GB of memory runs SDXL, 18 GB or more Flux.2 Klein, and 48 GB or more Krea 2. Models take 7 to 50 GB of disk each.")}{line ? <> <strong>{line}</strong></> : null}
         </p>
       </section>
     </Modal>

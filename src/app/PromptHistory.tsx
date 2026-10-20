@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Search, Star, X } from 'lucide-react';
@@ -33,12 +35,13 @@ function sectionsFor(prompts: PromptEntry[], query: string): Section[] {
   const pinned = prompts.filter((entry) => entry.pinned).map((entry) => ({ entry, ranges: [] }));
   const recent = prompts.filter((entry) => !entry.pinned).slice(0, recentLimit).map((entry) => ({ entry, ranges: [] }));
   return [
-    { id: 'pinned', label: 'Starred', rows: pinned },
+    { id: 'pinned', label: t("Starred"), rows: pinned },
     { id: 'recent', label: pinned.length ? 'Recent' : '', rows: recent }
   ].filter((section) => section.rows.length);
 }
 
 function Highlighted({ text, ranges }: { text: string; ranges: Array<[number, number]> }) {
+  useLanguage();
   if (!ranges.length) return <>{text}</>;
   const parts: React.ReactNode[] = [];
   let at = 0;
@@ -72,6 +75,7 @@ export function PromptHistoryPopover({ open, onClose, onPick, hiddenSpace = fals
   hiddenSpace?: boolean;
   onError: (message: string) => void;
 }) {
+  useLanguage();
   const reduced = useReducedMotion();
   return (
     <AnimatePresence>
@@ -93,6 +97,7 @@ export function PromptHistoryPopover({ open, onClose, onPick, hiddenSpace = fals
 }
 
 function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (reason: 'escape' | 'outside') => void; onPick: (text: string) => void; hiddenSpace: boolean; onError: (message: string) => void }) {
+  useLanguage();
   const { prompts, ready } = usePromptHistory(true);
   const [query, setQuery] = React.useState('');
   const sections = React.useMemo(() => sectionsFor(prompts, query), [prompts, query]);
@@ -156,7 +161,7 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
 
   let rowIndex = -1;
   return (
-    <div ref={panelRef} className="prompt-history-panel" role="dialog" aria-label="Recent prompts" onKeyDown={onKeyDown}>
+    <div ref={panelRef} className="prompt-history-panel" role="dialog" aria-label={t("Recent prompts")} onKeyDown={onKeyDown}>
       <label className="model-menu-search">
         <Search size={14} aria-hidden="true" />
         <input
@@ -164,16 +169,16 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
           className="is-framed"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={prompts.length ? `Search ${prompts.length === 1 ? '1 prompt' : `${prompts.length} prompts`}` : 'Recent prompts'}
-          aria-label="Search recent prompts"
+          placeholder={prompts.length ? t("Search {0}", { "0": (prompts.length === 1 ? t("1 prompt") : `${prompts.length} prompts`) }) : t("Recent prompts")}
+          aria-label={t("Search recent prompts")}
           aria-controls={`${id}-list`}
           aria-activedescendant={cursor >= 0 ? `${id}-row-${cursor}` : undefined}
           spellCheck={false}
           autoComplete="off"
         />
-        {query ? <button type="button" className="model-menu-clear" aria-label="Clear search" onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={12} /></button> : null}
+        {query ? <button type="button" className="model-menu-clear" aria-label={t("Clear search")} onClick={() => { setQuery(''); searchRef.current?.focus(); }}><X size={12} /></button> : null}
       </label>
-      <div ref={listRef} id={`${id}-list`} className="prompt-history-list" role="listbox" aria-label="Recent prompts">
+      <div ref={listRef} id={`${id}-list`} className="prompt-history-list" role="listbox" aria-label={t("Recent prompts")}>
         {sections.map((section) => (
           <div key={section.id} className="prompt-history-section" role="group" aria-label={section.label || undefined}>
             {section.label ? <div className="prompt-history-label">{section.label}</div> : null}
@@ -186,10 +191,10 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
                     <span className="prompt-history-text"><Highlighted text={row.entry.text} ranges={row.ranges} /></span>
                     <span className="prompt-history-meta">{meta(row.entry)}</span>
                   </button>
-                  <button type="button" className="prompt-history-icon is-pin" tabIndex={-1} aria-pressed={Boolean(row.entry.pinned)} aria-label={row.entry.pinned ? 'Unstar this prompt' : 'Star this prompt to keep it'} title={row.entry.pinned ? 'Unstar' : 'Star to keep'} onClick={() => pin(row.entry)}>
+                  <button type="button" className="prompt-history-icon is-pin" tabIndex={-1} aria-pressed={Boolean(row.entry.pinned)} aria-label={row.entry.pinned ? t("Unstar this prompt") : t("Star this prompt to keep it")} title={row.entry.pinned ? t("Unstar") : t("Star to keep")} onClick={() => pin(row.entry)}>
                     <Star size={13} fill={row.entry.pinned ? 'currentColor' : 'none'} />
                   </button>
-                  <button type="button" className="prompt-history-icon is-forget" tabIndex={-1} aria-label="Remove this prompt" title="Remove" onClick={() => forget(row.entry)}>
+                  <button type="button" className="prompt-history-icon is-forget" tabIndex={-1} aria-label={t("Remove this prompt")} title={t("Remove")} onClick={() => forget(row.entry)}>
                     <X size={13} />
                   </button>
                 </div>
@@ -199,15 +204,15 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
         ))}
         {!flat.length && ready ? (
           <p className="prompt-history-empty">
-            {query.trim() ? <>No prompt matches “{query.trim()}”.</> : <>Prompts you generate with show up here.</>}
+            {query.trim() ? <>{t("No prompt matches “")}{query.trim()}”.</> : <>{t("Prompts you generate with show up here.")}</>}
           </p>
         ) : null}
       </div>
       <footer className="prompt-history-foot">
-        <span><kbd>↑</kbd><kbd>↓</kbd> choose</span>
-        <span><kbd>↵</kbd> use</span>
-        <span><kbd>esc</kbd> close</span>
-        {hiddenSpace ? <em>From the gallery. Prompts from Hidden aren’t saved.</em> : null}
+        <span><kbd>↑</kbd><kbd>↓</kbd>{t("choose")}</span>
+        <span><kbd>↵</kbd>{t("use")}</span>
+        <span><kbd>{t("esc")}</kbd>{t("close")}</span>
+        {hiddenSpace ? <em>{t("From the gallery. Prompts from Hidden aren’t saved.")}</em> : null}
       </footer>
     </div>
   );
@@ -216,6 +221,7 @@ function HistoryPanel({ onClose, onPick, hiddenSpace, onError }: { onClose: (rea
 /* ------------------------------------------------------------ Phone */
 
 export function PromptHistorySheet({ open, onClose, onPick, onError }: { open: boolean; onClose: () => void; onPick: (text: string) => void; onError: (message: string) => void }) {
+  useLanguage();
   const { prompts, ready } = usePromptHistory(open);
   const [query, setQuery] = React.useState('');
   React.useEffect(() => { if (!open) setQuery(''); }, [open]);
@@ -223,11 +229,11 @@ export function PromptHistorySheet({ open, onClose, onPick, onError }: { open: b
   const count = sections.reduce((sum, section) => sum + section.rows.length, 0);
   const { pin, forget } = useRowActions(onError);
   return (
-    <Sheet open={open} onClose={onClose} title="Recent prompts" full className="phone-prompt-history">
+    <Sheet open={open} onClose={onClose} title={t("Recent prompts")} full className="phone-prompt-history">
       {prompts.length > 6 ? (
         <label className="phone-search">
           <Search size={17} aria-hidden="true" />
-          <input className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${prompts.length} prompts`} aria-label="Search recent prompts" spellCheck={false} autoComplete="off" />
+          <input className="is-framed" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search {0} prompts", { "0": (prompts.length) })} aria-label={t("Search recent prompts")} spellCheck={false} autoComplete="off" />
         </label>
       ) : null}
       {sections.map((section) => (
@@ -239,10 +245,10 @@ export function PromptHistorySheet({ open, onClose, onPick, onError }: { open: b
                 <button type="button" className="phone-row" onClick={() => { haptic('tap'); onPick(row.entry.text); }}>
                   <span><span className="phone-history-text"><Highlighted text={row.entry.text} ranges={row.ranges} /></span><small>{meta(row.entry)}</small></span>
                 </button>
-                <button type="button" className={cn('phone-icon', row.entry.pinned && 'is-on')} aria-pressed={Boolean(row.entry.pinned)} aria-label={row.entry.pinned ? 'Unstar this prompt' : 'Star this prompt to keep it'} onClick={() => { haptic('tap'); pin(row.entry); }}>
+                <button type="button" className={cn('phone-icon', row.entry.pinned && 'is-on')} aria-pressed={Boolean(row.entry.pinned)} aria-label={row.entry.pinned ? t("Unstar this prompt") : t("Star this prompt to keep it")} onClick={() => { haptic('tap'); pin(row.entry); }}>
                   <Star size={18} fill={row.entry.pinned ? 'currentColor' : 'none'} />
                 </button>
-                <button type="button" className="phone-icon" aria-label="Remove this prompt" onClick={() => forget(row.entry)}>
+                <button type="button" className="phone-icon" aria-label={t("Remove this prompt")} onClick={() => forget(row.entry)}>
                   <X size={18} />
                 </button>
               </div>
@@ -250,7 +256,7 @@ export function PromptHistorySheet({ open, onClose, onPick, onError }: { open: b
           </div>
         </React.Fragment>
       ))}
-      {!count && ready ? <p className="phone-empty">{query.trim() ? `No prompt matches “${query.trim()}”.` : 'Prompts you generate with show up here.'}</p> : null}
+      {!count && ready ? <p className="phone-empty">{query.trim() ? t("No prompt matches “{0}”.", { "0": (query.trim()) }) : t("Prompts you generate with show up here.")}</p> : null}
     </Sheet>
   );
 }

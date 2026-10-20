@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from './format';
@@ -13,11 +15,12 @@ const optionLabel = (option: Option) => (typeof option === 'string' ? option : o
  * a real <select> laid over the row, invisible, so the tap is native.
  */
 export function PhoneSelect({ label, value, options, onChange, icon }: { label: string; value: string; options: Option[]; onChange: (value: string) => void; icon?: React.ReactNode }) {
+  useLanguage();
   const current = options.find((option) => optionValue(option) === value);
   return (
     <label className="phone-row phone-select">
       {icon}
-      <span>{label}<small>{current ? optionLabel(current) : value || 'Not set'}</small></span>
+      <span>{label}<small>{current ? optionLabel(current) : value || t("Not set")}</small></span>
       <ChevronDown size={18} className="phone-row-end" aria-hidden="true" />
       <select value={value} aria-label={label} onChange={(event) => { haptic('tap'); onChange(event.target.value); }}>
         {current || !value ? null : <option value={value}>{value}</option>}
@@ -39,6 +42,7 @@ export function PhoneSlider({ label, value, min, max, step = 1, onChange, format
   hint?: React.ReactNode;
   className?: string;
 }) {
+  useLanguage();
   return (
     <div className={cn('phone-control', className)}>
       <span className="phone-control-label">{label} <b>{format ? format(value) : value}</b></span>
@@ -81,6 +85,7 @@ const switchHaptics = typeof window !== 'undefined'
  * twice. A label has no touch handling of its own, so scrolling still works.
  */
 export function HapticTarget() {
+  useLanguage();
   if (!switchHaptics) return null;
   return (
     <label className="haptic-target" aria-hidden="true">

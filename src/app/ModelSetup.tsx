@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { Check, ChevronDown, Download, ExternalLink, Pause, Play, RefreshCw, RotateCw, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -64,6 +66,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   /** An imported workflow that lacks custom nodes as well; those are listed below the panel. */
   alsoNeedsNodes?: boolean;
 }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const { state, landed, start: startDownload, pause, discard } = useModelDownloads();
   // Remembered with each download, so the top pill can bring people back to this panel.
@@ -133,8 +136,8 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
     setRecommendation(keys, true)
       .then(() => {
         onInstalled();
-        showToast('Won’t show this again', 'success', {
-          action: { label: 'Undo', onClick: () => { setRecommendation(keys, false).then(() => { setDismissedNow(false); onInstalled(); }).catch(() => null); } }
+        showToast(t("Won’t show this again"), 'success', {
+          action: { label: t("Undo"), onClick: () => { setRecommendation(keys, false).then(() => { setDismissedNow(false); onInstalled(); }).catch(() => null); } }
         });
       })
       .catch((error) => { setDismissedNow(false); showToast(error instanceof Error ? error.message : 'Couldn’t save that', 'error'); });
@@ -164,12 +167,12 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
 
   if (!missing.length && shownDone?.length) {
     return (
-      <section className={cn('model-setup', `is-${variant}`, 'is-ready')} aria-label={alsoNeedsNodes ? 'Files in place' : `${name} is ready`} role="status">
+      <section className={cn('model-setup', `is-${variant}`, 'is-ready')} aria-label={alsoNeedsNodes ? t("Files in place") : t("{0} is ready", { "0": (name) })} role="status">
         <header className="model-setup-head">
           <div>
             {/* Files alone do not make an imported workflow ready while its custom nodes are missing. */}
-            <strong>{alsoNeedsNodes ? `${shownDone.length === 1 ? 'Its file is' : 'Its files are'} in place` : `${name} is ready`}</strong>
-            <span>{alsoNeedsNodes ? 'Only the custom nodes below are missing.' : shownDone.length === 1 ? 'The missing part is in place.' : shownDone.length === 2 ? 'Both missing parts are in place.' : `All ${shownDone.length} missing parts are in place.`}</span>
+            <strong>{alsoNeedsNodes ? t("{0} in place", { "0": (shownDone.length === 1 ? t("Its file is") : t("Its files are")) }) : t("{0} is ready", { "0": (name) })}</strong>
+            <span>{alsoNeedsNodes ? t("Only the custom nodes below are missing.") : shownDone.length === 1 ? t("The missing part is in place.") : shownDone.length === 2 ? t("Both missing parts are in place.") : t("All {0} missing parts are in place.", { "0": (shownDone.length) })}</span>
           </div>
         </header>
         <ul className="model-setup-list">
@@ -219,7 +222,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const short = startable.length > 1 ? [...perDisk.values()].find((disk) => disk.need > disk.free) : undefined;
   const getAll = () => {
     if (short) {
-      showToast(`Not enough space. These need ${formatBytes(short.need)} and the disk has ${formatBytes(short.free)} free. Free up space or get them one at a time.`, 'error');
+      showToast(t("Not enough space. These need {0} and the disk has {1} free. Free up space or get them one at a time.", { "0": (formatBytes(short.need)), "1": (formatBytes(short.free)) }), 'error');
       return;
     }
     run(async () => { for (const row of startable) await start(row.download!.id); });
@@ -250,19 +253,19 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
   const rowFor = new Map(rows.map((row) => [partKey(row.item), row]));
 
   return (
-    <section className={cn('model-setup', `is-${variant}`)} aria-label="Files this model needs">
+    <section className={cn('model-setup', `is-${variant}`)} aria-label={t("Files this model needs")}>
       <header className="model-setup-head">
         <div>
           <strong>{title}</strong>
-          <span>{short && !moving ? `These need ${formatBytes(short.need)} and the disk has ${formatBytes(short.free)} free.` : subtitle}</span>
+          <span>{short && !moving ? t("These need {0} and the disk has {1} free.", { "0": (formatBytes(short.need)), "1": (formatBytes(short.free)) }) : subtitle}</span>
         </div>
         {profile.setupGuide ? (
           // A family with its own guided setup: the same parts, with the choices that come before them.
-          <button type="button" className="btn" onClick={() => openFamilySetup(profile.setupGuide!, profile.id)}>Guided setup</button>
+          <button type="button" className="btn" onClick={() => openFamilySetup(profile.setupGuide!, profile.id)}>{t("Guided setup")}</button>
         ) : null}
         {startable.length > 1 && !outdated ? (
           <button type="button" className={cn('btn', short ? 'is-ghost' : 'is-primary')} onClick={getAll}>
-            <Download size={14} /> Get all{remainingBytes ? ` · ${formatBytes(remainingBytes)}${sizeUnknown ? '+' : ''}` : ''}
+            <Download size={14} />{t("Get all")}{remainingBytes ? ` · ${formatBytes(remainingBytes)}${sizeUnknown ? '+' : ''}` : ''}
           </button>
         ) : null}
       </header>
@@ -291,10 +294,10 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
                 </motion.div>
               ) : null}
             </AnimatePresence>
-            {rowState === 'error' ? <p className="model-setup-error">{current?.error || 'The download stopped.'}</p> : null}
-            {rowState === 'error' && current?.needsBrowser ? <p className="model-setup-detail">Or add a Hugging Face token in Settings › Models, then try again here.</p> : null}
+            {rowState === 'error' ? <p className="model-setup-error">{current?.error || t("The download stopped.")}</p> : null}
+            {rowState === 'error' && current?.needsBrowser ? <p className="model-setup-detail">{t("Or add a Hugging Face token in Settings › Models, then try again here.")}</p> : null}
             {download && download.id !== item.downloads[0]?.id && downloadFor(state, item.downloads[0].file)?.status === 'error' && (rowState === 'downloading' || rowState === 'queued')
-              ? <p className="model-setup-detail">{item.downloads[0].file} wasn’t available, so this version is downloading instead.</p>
+              ? <p className="model-setup-detail">{item.downloads[0].file}{t("wasn’t available, so this version is downloading instead.")}</p>
               : null}
             {download && item.downloads.length > 1 && !remote && rowState !== 'landed' && rowState !== 'downloading' && rowState !== 'queued' ? (
               <OtherVersions
@@ -306,7 +309,7 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
             {/* A row with its own download says enough; the where-to-put-it line is for the rest. */}
             {rowState === 'manual' || (rowState === 'idle' && remote) ? <p className="model-setup-detail">{item.detail}</p> : null}
             {item.nodePack ? (
-              <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={`${name} is ready after that.`} />
+              <NodeInstall pack={item.nodePack} plan={item.install} autoInstall={item.autoInstall} showToast={showToast} onRestarted={onInstalled} afterRestart={t("{0} is ready after that.", { "0": (name) })} />
             ) : item.command ? (
               <div className="model-setup-command"><ShellCommand plan={item.command} showToast={showToast} /></div>
             ) : null}
@@ -316,20 +319,20 @@ export function ModelSetup({ profile, showToast, onInstalled, variant = 'sidebar
       </ul>
       {stuck && !moving && !remote ? (
         <div className="model-setup-restart">
-          <p>Downloaded, but ComfyUI hasn’t listed it yet. Restart ComfyUI to load it.</p>
+          <p>{t("Downloaded, but ComfyUI hasn’t listed it yet. Restart ComfyUI to load it.")}</p>
           <ComfyRestart compact onBack={onInstalled} />
         </div>
       ) : null}
       {optional && missing.some((item) => item.dismissKey) && !moving ? (
-        <button type="button" className="btn is-ghost model-setup-recheck" onClick={() => dismissRecommended(missing.filter((item) => item.dismissKey).map((item) => item.dismissKey!))}>Don’t show again</button>
+        <button type="button" className="btn is-ghost model-setup-recheck" onClick={() => dismissRecommended(missing.filter((item) => item.dismissKey).map((item) => item.dismissKey!))}>{t("Don’t show again")}</button>
       ) : null}
       {waitingOnComfy ? (
-        <div className="model-setup-watch"><Watcher lastChecked={lookedAt}>{outdated ? 'Watching for the ComfyUI update…' : 'Watching for the nodes…'}</Watcher></div>
+        <div className="model-setup-watch"><Watcher lastChecked={lookedAt}>{outdated ? t("Watching for the ComfyUI update…") : t("Watching for the nodes…")}</Watcher></div>
       ) : null}
       {manual && !moving && !waitingOnComfy ? (
-        <button type="button" className="btn is-ghost model-setup-recheck" onClick={onInstalled}><RefreshCw size={13} /> Check again</button>
+        <button type="button" className="btn is-ghost model-setup-recheck" onClick={onInstalled}><RefreshCw size={13} />{t("Check again")}</button>
       ) : null}
-      {remote ? <p className="model-setup-note">{thisComputer ? 'ComfyUI runs on another computer. Put these files in its model folders there, then rescan.' : 'Add these on the computer running HEISS UI.'}</p> : null}
+      {remote ? <p className="model-setup-note">{thisComputer ? t("ComfyUI runs on another computer. Put these files in its model folders there, then rescan.") : t("Add these on the computer running HEISS UI.")}</p> : null}
     </section>
   );
 }
@@ -347,24 +350,25 @@ function sourceLine(download: PartDownload) {
  * need to open this.
  */
 function OtherVersions({ downloads, current, onPick }: { downloads: PartDownload[]; current: PartDownload; onPick: (download: PartDownload) => void }) {
+  useLanguage();
   const [open, setOpen] = React.useState(false);
   const others = downloads.filter((entry) => entry.id !== current.id);
   if (!others.length) return null;
   return (
     <div className={cn('model-setup-versions', open && 'is-open')}>
       <button type="button" className="model-setup-versions-toggle" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
-        {current.file === downloads[0].file ? `Other version${others.length === 1 ? '' : 's'}` : 'All versions'} <em>{others.length}</em> <ChevronDown size={12} />
+        {current.file === downloads[0].file ? t("Other version{0}", { "0": (others.length === 1 ? t("") : t("s")) }) : t("All versions")} <em>{others.length}</em> <ChevronDown size={12} />
       </button>
       {open ? (
         <ul>
           <li className="is-current">
             <span><strong>{breakable(current.file)}</strong><small>{sourceLine(current)}</small></span>
-            <em>Selected</em>
+            <em>{t("Selected")}</em>
           </li>
           {others.map((entry) => (
             <li key={entry.id}>
-              <span><strong>{breakable(entry.file)}</strong><small>{sourceLine(entry)}{entry.onDisk ? ' · already downloaded' : ''}</small></span>
-              <button type="button" className="btn is-ghost" onClick={() => { setOpen(false); onPick(entry); }}><Download size={13} /> Download</button>
+              <span><strong>{breakable(entry.file)}</strong><small>{sourceLine(entry)}{entry.onDisk ? t(" · already downloaded") : ''}</small></span>
+              <button type="button" className="btn is-ghost" onClick={() => { setOpen(false); onPick(entry); }}><Download size={13} />{t("Download")}</button>
             </li>
           ))}
         </ul>
@@ -380,6 +384,7 @@ function breakable(text: string) {
 
 /** The part's dot, name and whatever sits on the right; shared by live and finished rows. */
 function SetupRowHead({ item, rowState, children }: { item: MissingPart; rowState: RowState; children?: React.ReactNode }) {
+  useLanguage();
   const ticked = rowState === 'landed' || rowState === 'installed';
   return (
     <div className="model-setup-row">
@@ -396,9 +401,10 @@ function SetupRowHead({ item, rowState, children }: { item: MissingPart; rowStat
 }
 
 function SetupRowShell({ item, rowState }: { item: MissingPart; rowState: RowState }) {
+  useLanguage();
   return (
     <li className={cn('model-setup-item', `is-${rowState}`)}>
-      <SetupRowHead item={item} rowState={rowState}><span className="model-setup-meta">In place</span></SetupRowHead>
+      <SetupRowHead item={item} rowState={rowState}><span className="model-setup-meta">{t("In place")}</span></SetupRowHead>
     </li>
   );
 }
@@ -416,6 +422,7 @@ function progressLine(current: ModelDownload, rowState: RowState) {
 
 /** Throwing away gigabytes takes a second tap: the first one asks, then it resets. */
 function DiscardButton({ file, receivedBytes, onDiscard }: { file: string; receivedBytes: number; onDiscard: () => void }) {
+  useLanguage();
   const [asking, setAsking] = React.useState(false);
   React.useEffect(() => {
     if (!asking) return;
@@ -423,9 +430,9 @@ function DiscardButton({ file, receivedBytes, onDiscard }: { file: string; recei
     return () => window.clearTimeout(timer);
   }, [asking]);
   if (asking) {
-    return <button type="button" className="btn is-danger-soft" onClick={() => { setAsking(false); onDiscard(); }}>Discard {formatBytes(receivedBytes) || 'it'}?</button>;
+    return <button type="button" className="btn is-danger-soft" onClick={() => { setAsking(false); onDiscard(); }}>{t("Discard")}{" "}{formatBytes(receivedBytes) || t("it")}?</button>;
   }
-  return <button type="button" className="btn is-ghost is-icon" aria-label={`Discard partial download of ${file}`} title="Discard" onClick={() => setAsking(true)}><X size={14} /></button>;
+  return <button type="button" className="btn is-ghost is-icon" aria-label={t("Discard partial download of {0}", { "0": (file) })} title={t("Discard")} onClick={() => setAsking(true)}><X size={14} /></button>;
 }
 
 function RowActions({ rowState, download, current, remote, run, start, pause, discard }: {
@@ -438,36 +445,37 @@ function RowActions({ rowState, download, current, remote, run, start, pause, di
   pause: (id: string) => Promise<unknown>;
   discard: (id: string) => Promise<unknown>;
 }) {
+  useLanguage();
   if (!download) return null;
   const link = (
-    <a className="btn is-ghost is-icon" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer" aria-label={`Open ${download.file} on Hugging Face`} title={download.file}>
+    <a className="btn is-ghost is-icon" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer" aria-label={t("Open {0} on Hugging Face", { "0": (download.file) })} title={download.file}>
       <ExternalLink size={14} />
     </a>
   );
   if (rowState === 'downloading' || rowState === 'queued') {
-    return <button type="button" className="btn is-ghost is-icon" aria-label={`Pause ${download.file}`} title="Pause" onClick={() => run(() => pause(current?.id || download.id))}><Pause size={14} /></button>;
+    return <button type="button" className="btn is-ghost is-icon" aria-label={t("Pause {0}", { "0": (download.file) })} title={t("Pause")} onClick={() => run(() => pause(current?.id || download.id))}><Pause size={14} /></button>;
   }
   if (rowState === 'paused') {
     return (
       <>
-        <button type="button" className="btn" onClick={() => run(() => start(download.id))}><Play size={13} /> Resume</button>
+        <button type="button" className="btn" onClick={() => run(() => start(download.id))}><Play size={13} />{t("Resume")}</button>
         <DiscardButton file={download.file} receivedBytes={current?.receivedBytes || 0} onDiscard={() => run(() => discard(download.id))} />
       </>
     );
   }
   if (rowState === 'error' && current?.needsBrowser) {
     // Gated: only a logged-in browser can fetch it, so the way on is its page.
-    return <a className="btn" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Hugging Face</a>;
+    return <a className="btn" href={download.url.replace('/resolve/', '/blob/')} target="_blank" rel="noreferrer"><ExternalLink size={13} />{t("Hugging Face")}</a>;
   }
   if (rowState === 'error') {
-    return <button type="button" className="btn" onClick={() => run(() => start(download.id))}><RotateCw size={13} /> {current?.retryable === false ? 'Try again' : 'Resume'}</button>;
+    return <button type="button" className="btn" onClick={() => run(() => start(download.id))}><RotateCw size={13} /> {current?.retryable === false ? t("Try again") : t("Resume")}</button>;
   }
-  if (rowState === 'landed') return <span className="model-setup-meta">In place</span>;
+  if (rowState === 'landed') return <span className="model-setup-meta">{t("In place")}</span>;
   return (
     <>
       {!remote ? (
         <button type="button" className="btn" onClick={() => run(() => start(download.id))} title={[download.file, download.source].filter(Boolean).join(' · ')}>
-          <Download size={14} /> {download.bytes ? formatBytes(download.bytes) : 'Get'}
+          <Download size={14} /> {download.bytes ? formatBytes(download.bytes) : t("Get")}
         </button>
       ) : null}
       {link}

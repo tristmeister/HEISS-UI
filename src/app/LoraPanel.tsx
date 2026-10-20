@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Reorder, useDragControls } from 'framer-motion';
 import { AlertTriangle, ArrowLeft, Check, ChevronDown, GripVertical, Layers, Plus, RotateCcw, Save, Search, Star, X } from 'lucide-react';
@@ -46,6 +48,7 @@ const round = (value: number) => Math.round(value * 100) / 100;
 /* ------------------------------------------------------------------ Card */
 
 function StrengthControl({ value, onChange, disabled, label }: { value: number; onChange: (next: number) => void; disabled?: boolean; label: string }) {
+  useLanguage();
   const [draft, setDraft] = useState<string | null>(null);
   const fill = Math.max(0, Math.min(1, (value - strengthMin) / (strengthMax - strengthMin)));
   const commit = () => {
@@ -58,7 +61,7 @@ function StrengthControl({ value, onChange, disabled, label }: { value: number; 
     <div className={cn('lora-strength', disabled && 'is-disabled')}>
       <input
         type="range"
-        aria-label={`${label} strength`}
+        aria-label={t("{0} strength", { "0": (label) })}
         min={strengthMin}
         max={strengthMax}
         step={0.05}
@@ -67,10 +70,10 @@ function StrengthControl({ value, onChange, disabled, label }: { value: number; 
         onChange={(event) => onChange(round(Number(event.target.value)))}
         onDoubleClick={() => onChange(defaultLoraStrength)}
       />
-      <Tip content="Type a value. Arrow keys nudge by 0.01, Shift by 0.1">
+      <Tip content={t("Type a value. Arrow keys nudge by 0.01, Shift by 0.1")}>
         <input
           className="lora-strength-value is-bare"
-          aria-label={`${label} strength value`}
+          aria-label={t("{0} strength value", { "0": (label) })}
           inputMode="decimal"
           value={draft ?? value.toFixed(2)}
           onFocus={(event) => { setDraft(value.toFixed(2)); requestAnimationFrame(() => event.target.select()); }}
@@ -100,6 +103,7 @@ function StrengthControl({ value, onChange, disabled, label }: { value: number; 
  */
 /** The words a LoRA was trained to answer to; a click copies one for the prompt. */
 function TriggerWords({ words }: { words: string[] }) {
+  useLanguage();
   const [copied, setCopied] = useState('');
   if (!words.length) return null;
   const copy = async (word: string) => {
@@ -109,9 +113,9 @@ function TriggerWords({ words }: { words: string[] }) {
   };
   return (
     <p className="lora-triggers">
-      <span>Trigger</span>
+      <span>{t("Trigger")}</span>
       {words.map((word) => (
-        <Tip key={word} content={copied === word ? 'Copied' : 'Copy for the prompt'}>
+        <Tip key={word} content={copied === word ? t("Copied") : t("Copy for the prompt")}>
           <button type="button" className={cn('lora-trigger', copied === word && 'is-copied')} onClick={() => copy(word)}>{word}</button>
         </Tip>
       ))}
@@ -133,6 +137,7 @@ function LoraCard({ item, index, count, missing, overLimit, info, otherModel, on
   onSwap: () => void;
   onMove: (to: number) => void;
 }) {
+  useLanguage();
   const controls = useDragControls();
   const folder = folderOf(item.name);
   const label = fileName(item.name);
@@ -142,7 +147,7 @@ function LoraCard({ item, index, count, missing, overLimit, info, otherModel, on
         <button
           type="button"
           className="lora-grip"
-          aria-label={`Reorder ${label}. Use the arrow keys to move it.`}
+          aria-label={t("Reorder {0}. Use the arrow keys to move it.", { "0": (label) })}
           onPointerDown={(event) => controls.start(event)}
           onKeyDown={(event) => {
             if (event.key === 'ArrowUp' && index > 0) { event.preventDefault(); onMove(index - 1); }
@@ -153,17 +158,17 @@ function LoraCard({ item, index, count, missing, overLimit, info, otherModel, on
         </button>
       ) : null}
       <div className="lora-card-top">
-        <Tip content={folder ? `${folder} · click to swap` : 'Click to swap for another LoRA'}>
+        <Tip content={folder ? t("{0} · click to swap", { "0": (folder) }) : t("Click to swap for another LoRA")}>
           <button type="button" className="lora-name" onClick={onSwap}>{label}</button>
         </Tip>
-        <Tip content="Remove"><button type="button" className="lora-remove" aria-label={`Remove ${label}`} onClick={onRemove}><X size={13} /></button></Tip>
-        <Switch size="sm" label={item.enabled ? `Turn off ${label}` : `Turn on ${label}`} checked={item.enabled} onChange={(enabled) => onChange({ enabled })} />
+        <Tip content={t("Remove")}><button type="button" className="lora-remove" aria-label={t("Remove {0}", { "0": (label) })} onClick={onRemove}><X size={13} /></button></Tip>
+        <Switch size="sm" label={item.enabled ? t("Turn off {0}", { "0": (label) }) : t("Turn on {0}", { "0": (label) })} checked={item.enabled} onChange={(enabled) => onChange({ enabled })} />
       </div>
       <StrengthControl label={label} value={item.strength} disabled={!item.enabled} onChange={(strength) => onChange({ strength })} />
       {!missing && item.enabled && info?.triggers?.length ? <TriggerWords words={info.triggers} /> : null}
-      {missing ? <p className="lora-warning"><AlertTriangle size={12} /> Not in ComfyUI’s LoRA folder</p> : null}
-      {!missing && overLimit ? <p className="lora-warning"><AlertTriangle size={12} /> Over this workflow’s limit, so it isn’t used</p> : null}
-      {!missing && !overLimit && otherModel ? <p className="lora-warning is-soft"><AlertTriangle size={12} /> Made for {otherModel}, so it may not work here</p> : null}
+      {missing ? <p className="lora-warning"><AlertTriangle size={12} />{t("Not in ComfyUI’s LoRA folder")}</p> : null}
+      {!missing && overLimit ? <p className="lora-warning"><AlertTriangle size={12} />{t("Over this workflow’s limit, so it isn’t used")}</p> : null}
+      {!missing && !overLimit && otherModel ? <p className="lora-warning is-soft"><AlertTriangle size={12} />{t("Made for")}{" "}{otherModel}{t(", so it may not work here")}</p> : null}
     </Reorder.Item>
   );
 }
@@ -189,6 +194,7 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
   onSwap: (name: string) => void;
   onClose: () => void;
 }) {
+  useLanguage();
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string[]>([]);
   const [highlight, setHighlight] = useState(0);
@@ -200,13 +206,13 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
   const available = useMemo(() => new Set(options), [options]);
   const sections = useMemo<PickerSection[]>(() => {
     const q = query.trim().toLowerCase();
-    if (q) return [{ id: 'results', label: 'Results', rows: rankedLoras(options, profile, q, fitOf).map((name) => ({ key: `q:${name}`, name })) }];
+    if (q) return [{ id: 'results', label: t("Results"), rows: rankedLoras(options, profile, q, fitOf).map((name) => ({ key: `q:${name}`, name })) }];
     const out: PickerSection[] = [];
     const fav = favorites.filter((name) => available.has(name));
     const rec = recents.filter((name) => available.has(name) && !fav.includes(name)).slice(0, 5);
     const suggested = recommendedLoras(options, profile, '', fitOf).filter((name) => !fav.includes(name) && !rec.includes(name)).slice(0, 6);
-    if (fav.length) out.push({ id: 'favorites', label: 'Favorites', rows: fav.map((name) => ({ key: `f:${name}`, name })) });
-    if (rec.length) out.push({ id: 'recents', label: 'Recent', rows: rec.map((name) => ({ key: `r:${name}`, name })) });
+    if (fav.length) out.push({ id: 'favorites', label: t("Favorites"), rows: fav.map((name) => ({ key: `f:${name}`, name })) });
+    if (rec.length) out.push({ id: 'recents', label: t("Recent"), rows: rec.map((name) => ({ key: `r:${name}`, name })) });
     if (suggested.length) out.push({ id: 'suggested', label: profile?.familyName || profile?.family ? `Suggested for ${profile.familyName || profile.family}` : 'Suggested', rows: suggested.map((name) => ({ key: `s:${name}`, name })) });
     for (const group of loraGroups(options, profile, '', fitOf)) {
       out.push({ id: group.id, label: group.label, collapsible: true, rows: group.loras.map((name) => ({ key: `${group.id}:${name}`, name })) });
@@ -231,10 +237,10 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
 
   let rowIndex = -1;
   return (
-    <div className="lora-picker" role="dialog" aria-label={swapping ? 'Replace LoRA' : 'Add LoRAs'}>
+    <div className="lora-picker" role="dialog" aria-label={swapping ? t("Replace LoRA") : t("Add LoRAs")}>
       <div className="lora-picker-head">
-        <button type="button" className="btn is-ghost lora-picker-back" onClick={onClose}><ArrowLeft size={14} /> Back</button>
-        <span>{swapping ? <>Replace <strong>{fileName(swapping)}</strong></> : remaining > 0 ? `Add up to ${remaining}` : 'Stack is full'}</span>
+        <button type="button" className="btn is-ghost lora-picker-back" onClick={onClose}><ArrowLeft size={14} />{t("Back")}</button>
+        <span>{swapping ? <>{t("Replace")}{" "}<strong>{fileName(swapping)}</strong></> : remaining > 0 ? t("Add up to {0}", { "0": (remaining) }) : t("Stack is full")}</span>
       </div>
       <label className="lora-picker-search">
         <Search size={14} />
@@ -242,8 +248,8 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
           ref={inputRef}
           className="is-framed"
           value={query}
-          placeholder={`Search ${options.length} LoRAs`}
-          aria-label="Search LoRAs"
+          placeholder={t("Search {0} LoRAs", { "0": (options.length) })}
+          aria-label={t("Search LoRAs")}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'ArrowDown') { event.preventDefault(); setHighlight((value) => Math.min(visibleRows.length - 1, value + 1)); }
@@ -257,7 +263,7 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
             if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); if (query) setQuery(''); else onClose(); }
           }}
         />
-        {query ? <button type="button" aria-label="Clear search" onClick={() => { setQuery(''); inputRef.current?.focus(); }}><X size={13} /></button> : null}
+        {query ? <button type="button" aria-label={t("Clear search")} onClick={() => { setQuery(''); inputRef.current?.focus(); }}><X size={13} /></button> : null}
       </label>
       <div className="lora-picker-list" ref={listRef} role="listbox" aria-multiselectable={multi}>
         {sections.map((section) => {
@@ -291,11 +297,11 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
                       <strong>{fileName(row.name)}</strong>
                       {folderOf(row.name) && (query || !section.collapsible) ? <span>{folderOf(row.name)}</span> : null}
                     </span>
-                    {added ? <em>Added</em> : fitOf(row.name) === 'other' && baseOf(row.name) ? <em className="lora-fit" title={`Made for ${baseOf(row.name)}`}>{baseOf(row.name)}</em> : null}
+                    {added ? <em>{t("Added")}</em> : fitOf(row.name) === 'other' && baseOf(row.name) ? <em className="lora-fit" title={t("Made for {0}", { "0": (baseOf(row.name)) })}>{baseOf(row.name)}</em> : null}
                     <button
                       type="button"
                       className={cn('lora-option-star', favorite && 'active')}
-                      aria-label={favorite ? `Unfavorite ${fileName(row.name)}` : `Favorite ${fileName(row.name)}`}
+                      aria-label={favorite ? t("Unfavorite {0}", { "0": (fileName(row.name)) }) : t("Favorite {0}", { "0": (fileName(row.name)) })}
                       onClick={(event) => { event.stopPropagation(); onToggleFavorite(row.name); }}
                     >
                       <Star size={13} fill={favorite ? 'currentColor' : 'none'} />
@@ -306,13 +312,13 @@ function LoraPicker({ options, profile, fitOf, baseOf, current, favorites, recen
             </div>
           );
         })}
-        {!visibleRows.length && query ? <div className="lora-empty"><p>No LoRAs match “{query}”.</p></div> : null}
+        {!visibleRows.length && query ? <div className="lora-empty"><p>{t("No LoRAs match “")}{query}”.</p></div> : null}
       </div>
       {multi ? (
         <div className="lora-picker-foot">
-          <span>{full && remaining > 0 ? `This workflow takes ${remaining} more` : selected.length ? `${selected.length} selected` : 'Click to select, Enter to toggle'}</span>
+          <span>{full && remaining > 0 ? t("This workflow takes {0} more", { "0": (remaining) }) : selected.length ? t("{0} selected", { "0": (selected.length) }) : t("Click to select, Enter to toggle")}</span>
           <button type="button" className="btn is-primary" disabled={!selected.length} onClick={() => onAdd(selected)}>
-            <Plus size={14} /> Add{selected.length > 1 ? ` ${selected.length}` : ''}
+            <Plus size={14} />{t("Add")}{selected.length > 1 ? ` ${selected.length}` : ''}
           </button>
         </div>
       ) : null}
@@ -341,6 +347,7 @@ function suggestStackName(loras: LoraSelection[], taken: string[]) {
 }
 
 function NameField({ initial, action, onSave, onCancel }: { initial: string; action: string; onSave: (name: string) => void; onCancel: () => void }) {
+  useLanguage();
   const [value, setValue] = useState(initial);
   const save = () => { const name = value.trim(); if (name) onSave(name); else onCancel(); };
   return (
@@ -348,14 +355,14 @@ function NameField({ initial, action, onSave, onCancel }: { initial: string; act
       <input
         autoFocus
         className="is-framed"
-        aria-label="Stack name"
+        aria-label={t("Stack name")}
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onFocus={(event) => event.target.select()}
         onKeyDown={(event) => { if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); onCancel(); } }}
       />
       <button type="submit" className="lora-chip-action is-primary" disabled={!value.trim()}>{action}</button>
-      <button type="button" className="lora-chip-action" aria-label="Cancel" onClick={onCancel}><X size={13} /></button>
+      <button type="button" className="lora-chip-action" aria-label={t("Cancel")} onClick={onCancel}><X size={13} /></button>
     </form>
   );
 }
@@ -371,6 +378,7 @@ function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
   setActiveId: (id: string) => void;
   onLoad: (stack: LoraSnapshot) => void;
 }) {
+  useLanguage();
   const [naming, setNaming] = useState<null | { mode: 'new' } | { mode: 'rename'; id: string }>(null);
   // The stack you're working from: the one you loaded, an exact match, or one with
   // the same LoRAs (so nudging a strength reads as "changed", not "unsaved").
@@ -388,7 +396,7 @@ function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
   const remove = async (stack: LoraSnapshot) => { if (await library.deleteStack(stack) && stack.id === activeId) setActiveId(''); };
 
   return (
-    <section className="lora-stacks" aria-label={`Saved stacks for ${family}`}>
+    <section className="lora-stacks" aria-label={t("Saved stacks for {0}", { "0": (family) })}>
       {library.stacks.length ? (
         <div className="lora-chips">
           {library.stacks.map((stack) => {
@@ -397,7 +405,7 @@ function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
               return <NameField key={stack.id} initial={stack.name} action="Rename" onSave={(name) => { library.renameStack(stack.id, name); setNaming(null); }} onCancel={() => setNaming(null)} />;
             }
             return (
-              <Tip key={stack.id} content={<>{stack.loras.map((item) => fileName(item.name)).join(', ') || 'Empty'}<br /><span className="lora-tip-hint">Double-click to rename</span></>}>
+              <Tip key={stack.id} content={<>{stack.loras.map((item) => fileName(item.name)).join(', ') || t("Empty")}<br /><span className="lora-tip-hint">{t("Double-click to rename")}</span></>}>
                 <span className={cn('lora-chip', isActive && 'is-active', isActive && modified && 'is-modified')}>
                   <button
                     type="button"
@@ -413,7 +421,7 @@ function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
                     <span className="lora-chip-name">{stack.name}</span>
                     <em>{stack.loras.length}</em>
                   </button>
-                  <button type="button" className="lora-chip-remove" aria-label={`Delete stack ${stack.name}`} onClick={() => remove(stack)}><X size={11} /></button>
+                  <button type="button" className="lora-chip-remove" aria-label={t("Delete stack {0}", { "0": (stack.name) })} onClick={() => remove(stack)}><X size={11} /></button>
                 </span>
               </Tip>
             );
@@ -430,13 +438,13 @@ function Stacks({ library, loras, activeId, setActiveId, onLoad }: {
         />
       ) : modified && active ? (
         <div className="lora-stack-changes">
-          <span><i aria-hidden="true" />Unsaved changes</span>
-          <Tip content={`Save these LoRAs into ${active.name}`}><button type="button" className="lora-text-action is-strong" onClick={() => library.updateStack(active.id)}>Update</button></Tip>
-          <button type="button" className="lora-text-action" onClick={() => setNaming({ mode: 'new' })}>Save as new</button>
+          <span><i aria-hidden="true" />{t("Unsaved changes")}</span>
+          <Tip content={t("Save these LoRAs into {0}", { "0": (active.name) })}><button type="button" className="lora-text-action is-strong" onClick={() => library.updateStack(active.id)}>{t("Update")}</button></Tip>
+          <button type="button" className="lora-text-action" onClick={() => setNaming({ mode: 'new' })}>{t("Save as new")}</button>
         </div>
       ) : canSaveNew ? (
         <button type="button" className="lora-save-chip" onClick={() => setNaming({ mode: 'new' })}>
-          <Save size={12} /> Save as stack{library.stacks.length ? '' : <span> for every {family} workflow</span>}
+          <Save size={12} />{t("Save as stack")}{library.stacks.length ? '' : <span>{t("for every")}{" "}{family}{t("workflow")}</span>}
         </button>
       ) : null}
     </section>
@@ -457,6 +465,7 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
   rememberedStrength: (name: string, fallback: number) => number;
   unavailableReason: string;
 }) {
+  useLanguage();
   const [picker, setPicker] = useState<{ swap: string | null } | null>(null);
   const [activeStackId, setActiveStackId] = useState('');
   const [undo, setUndo] = useState<Undo | null>(null);
@@ -536,14 +545,14 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
   return (
     <div className="lora-panel">
       <header className="lora-head">
-        <span className="lora-count">{loras.length ? <>{activeCount} active <em>· {loras.length}/{cap}</em></> : `Up to ${cap} LoRAs`}</span>
+        <span className="lora-count">{loras.length ? <>{activeCount}{t("active")}{" "}<em>· {loras.length}/{cap}</em></> : t("Up to {0} LoRAs", { "0": (cap) })}</span>
         {loras.length ? (
           <>
-            <Tip content={allOff ? 'Turn all LoRAs back on' : 'Turn all LoRAs off'}>
-              <button type="button" className="lora-head-action" onClick={() => setLoras((current) => current.map((item) => ({ ...item, enabled: allOff })))}>{allOff ? 'All on' : 'All off'}</button>
+            <Tip content={allOff ? t("Turn all LoRAs back on") : t("Turn all LoRAs off")}>
+              <button type="button" className="lora-head-action" onClick={() => setLoras((current) => current.map((item) => ({ ...item, enabled: allOff })))}>{allOff ? t("All on") : t("All off")}</button>
             </Tip>
-            <Tip content="Remove all LoRAs">
-              <button type="button" className="lora-head-action" onClick={clearAll}>Clear</button>
+            <Tip content={t("Remove all LoRAs")}>
+              <button type="button" className="lora-head-action" onClick={clearAll}>{t("Clear")}</button>
             </Tip>
           </>
         ) : null}
@@ -572,19 +581,19 @@ export function LoraPanel({ loras, setLoras, options, profile, limit, library, r
         </Reorder.Group>
       ) : (
         <div className="lora-empty">
-          <p>LoRAs steer style, characters or detail on top of the model.{library.stacks.length ? ' Load a saved stack above, or add one.' : ' Add one to start.'}</p>
+          <p>{t("LoRAs steer style, characters or detail on top of the model.")}{library.stacks.length ? t(" Load a saved stack above, or add one.") : t(" Add one to start.")}</p>
         </div>
       )}
 
       {undo ? (
         <div className="lora-undo" role="status">
           <span>{undo.label}</span>
-          <button type="button" onClick={() => { setLoras(undo.restore); setUndo(null); }}><RotateCcw size={12} /> Undo</button>
+          <button type="button" onClick={() => { setLoras(undo.restore); setUndo(null); }}><RotateCcw size={12} />{t("Undo")}</button>
         </div>
       ) : null}
 
       <button type="button" className="btn lora-add" onClick={() => setPicker({ swap: null })} disabled={loras.length >= cap}>
-        <Plus size={14} /> {loras.length >= cap ? `This workflow takes ${cap}` : 'Add LoRA'}
+        <Plus size={14} /> {loras.length >= cap ? t("This workflow takes {0}", { "0": (cap) }) : t("Add LoRA")}
       </button>
     </div>
   );

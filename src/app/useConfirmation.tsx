@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Pencil, Trash2 } from 'lucide-react';
 import { Modal } from './Modal';
@@ -81,7 +82,7 @@ export function useConfirmation(enabled: boolean) {
         initialFocus={cancelRef}
         footer={
           <>
-            <button ref={cancelRef} className="btn" onClick={() => settle(false)}>Cancel</button>
+            <button ref={cancelRef} className="btn" onClick={() => settle(false)}>{t("Cancel")}</button>
             <button className={pending?.destructive ? 'btn is-danger' : 'btn is-primary'} onClick={() => settle(true)}>{pending?.action}</button>
           </>
         }
@@ -98,8 +99,8 @@ export function useConfirmation(enabled: boolean) {
         initialFocus={inputRef}
         footer={
           <>
-            <button className="btn" onClick={() => settlePrompt(null)}>Cancel</button>
-            <button className="btn is-primary" disabled={!draft.trim()} onClick={submitPrompt}>{prompt?.action || 'Save'}</button>
+            <button className="btn" onClick={() => settlePrompt(null)}>{t("Cancel")}</button>
+            <button className="btn is-primary" disabled={!draft.trim()} onClick={submitPrompt}>{prompt?.action || t("Save")}</button>
           </>
         }
       >

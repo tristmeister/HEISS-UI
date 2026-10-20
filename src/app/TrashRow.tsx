@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { RotateCcw, Trash2 } from 'lucide-react';
 import { apiJson } from './api';
@@ -20,6 +22,7 @@ export function TrashRow({ confirmAction, showToast, Row }: {
   showToast: ShowToast;
   Row: React.ComponentType<React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>>;
 }) {
+  useLanguage();
   const [trash, setTrash] = React.useState<TrashSummary | null>(null);
   const [busy, setBusy] = React.useState(false);
   const load = React.useCallback(() => apiJson<TrashSummary>('/api/gallery/trash').then(setTrash).catch(() => null), []);
@@ -40,12 +43,12 @@ export function TrashRow({ confirmAction, showToast, Row }: {
     }
   };
   const emptyNow = async () => {
-    if (!await confirmAction({ title: 'Empty the trash?', description: `${trash.files} file${trash.files === 1 ? ' is' : 's are'} deleted permanently. This can’t be undone.`, action: 'Empty trash', destructive: true, irreversible: true })) return;
+    if (!await confirmAction({ title: t("Empty the trash?"), description: t("{0} file{1} deleted permanently. This can’t be undone.", { "0": (trash.files), "1": (trash.files === 1 ? t(" is") : t("s are")) }), action: t("Empty trash"), destructive: true, irreversible: true })) return;
     setBusy(true);
     try {
       const data = await apiJson<{ trash: TrashSummary }>('/api/gallery/trash/empty', { method: 'POST' });
       setTrash(data.trash);
-      showToast('Trash emptied', 'removed');
+      showToast(t("Trash emptied"), 'removed');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Couldn’t empty the trash', 'error');
     } finally {
@@ -54,16 +57,16 @@ export function TrashRow({ confirmAction, showToast, Row }: {
   };
   return (
     <Row
-      label="Trash"
+      label={t("Trash")}
       description={empty
-        ? `“Delete all” moves images here for ${trash.days} days.`
-        : `${trash.items} image${trash.items === 1 ? '' : 's'} from ${trash.batches === 1 ? 'one clear' : `${trash.batches} clears`}. The oldest are deleted on ${day(trash.purgesAt)}.`}
+        ? t("“Delete all” moves images here for {0} days.", { "0": (trash.days) })
+        : t("{0} image{1} from {2}. The oldest are deleted on {3}.", { "0": (trash.items), "1": (trash.items === 1 ? t("") : t("s")), "2": (trash.batches === 1 ? t("one clear") : `${trash.batches} clears`), "3": (day(trash.purgesAt)) })}
       disabled={busy}
     >
       {empty ? null : (
         <>
-          <button className="btn" disabled={busy} onClick={restore}><RotateCcw size={14} /> Restore{trash.batches > 1 ? ' latest' : ''}</button>
-          <button className="btn is-ghost" disabled={busy} aria-label="Empty trash" onClick={emptyNow}><Trash2 size={14} /></button>
+          <button className="btn" disabled={busy} onClick={restore}><RotateCcw size={14} />{t("Restore")}{trash.batches > 1 ? t(" latest") : ''}</button>
+          <button className="btn is-ghost" disabled={busy} aria-label={t("Empty trash")} onClick={emptyNow}><Trash2 size={14} /></button>
         </>
       )}
     </Row>

@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { KeyRound, LogOut, QrCode as QrIcon } from 'lucide-react';
 import { apiJson } from './api';
@@ -33,6 +35,7 @@ function day(value: string) {
  * they are kept; used from the next start.
  */
 function HttpsRows({ tls, supervised, restartHeiss, showToast, onSaved, Row, Status }: { tls: NonNullable<NetworkInfo['tls']>; supervised: boolean; restartHeiss: () => Promise<boolean>; showToast: ShowToast; onSaved: () => void } & Pick<Pieces, 'Row' | 'Status'>) {
+  useLanguage();
   const atComputer = useAtComputer();
   const [editing, setEditing] = React.useState(false);
   const [cert, setCert] = React.useState(tls.next.certPath || '');
@@ -57,10 +60,10 @@ function HttpsRows({ tls, supervised, restartHeiss, showToast, onSaved, Row, Sta
     }
   };
   const names = tls.names.filter((name) => !name.startsWith('*.'));
-  const label = tls.active ? <Status tone="ok">HTTPS on</Status>
-    : tls.configured && (!tls.ok || tls.problem) ? <Status tone="bad">HTTPS can’t start</Status>
-    : tls.configured ? <Status tone="warn">HTTPS set up</Status>
-    : <Status>HTTPS off</Status>;
+  const label = tls.active ? <Status tone="ok">{t("HTTPS on")}</Status>
+    : tls.configured && (!tls.ok || tls.problem) ? <Status tone="bad">{t("HTTPS can’t start")}</Status>
+    : tls.configured ? <Status tone="warn">{t("HTTPS set up")}</Status>
+    : <Status>{t("HTTPS off")}</Status>;
   const description = tls.active ? `Other devices connect securely on port ${tls.port}${names.length ? ` as ${names.join(', ')}` : ''}. Certificate valid until ${day(tls.validTo)}.`
     : tls.configured && (!tls.ok || tls.problem) ? `${tls.problem || tls.error} Other devices can’t connect until it’s fixed. This computer still can.`
     : tls.configured ? 'Starts when Open on other devices is on.'
@@ -70,22 +73,22 @@ function HttpsRows({ tls, supervised, restartHeiss, showToast, onSaved, Row, Sta
       <Row label={label} description={description} stacked={editing}>
         {editing ? (
           <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (cert.trim() && key.trim() && !busy) save(); }}>
-            <input className="modal-input set-path-input" aria-label="Certificate file" placeholder="Certificate file (.crt or .pem)" value={cert} onChange={(event) => setCert(event.target.value)} spellCheck={false} autoComplete="off" autoFocus />
-            <input className="modal-input set-path-input" aria-label="Key file" placeholder="Key file (.key)" value={key} onChange={(event) => setKey(event.target.value)} spellCheck={false} autoComplete="off" />
-            <p className="set-inline-hint" aria-live="polite">{problem || 'Paths on this computer. With Tailscale, run tailscale cert with this computer’s name and paste the two files it creates.'}</p>
-            <button type="button" className="btn is-ghost" onClick={() => { setEditing(false); setProblem(''); }}>Cancel</button>
-            <button type="submit" className="btn is-primary" disabled={!cert.trim() || !key.trim() || busy}>{busy ? 'Checking…' : 'Save'}</button>
+            <input className="modal-input set-path-input" aria-label={t("Certificate file")} placeholder={t("Certificate file (.crt or .pem)")} value={cert} onChange={(event) => setCert(event.target.value)} spellCheck={false} autoComplete="off" autoFocus />
+            <input className="modal-input set-path-input" aria-label={t("Key file")} placeholder={t("Key file (.key)")} value={key} onChange={(event) => setKey(event.target.value)} spellCheck={false} autoComplete="off" />
+            <p className="set-inline-hint" aria-live="polite">{problem || t("Paths on this computer. With Tailscale, run tailscale cert with this computer’s name and paste the two files it creates.")}</p>
+            <button type="button" className="btn is-ghost" onClick={() => { setEditing(false); setProblem(''); }}>{t("Cancel")}</button>
+            <button type="submit" className="btn is-primary" disabled={!cert.trim() || !key.trim() || busy}>{busy ? t("Checking…") : t("Save")}</button>
           </form>
         ) : atComputer && !tls.fromShell ? (
           <>
-            {next.configured ? <button className="btn is-ghost" disabled={busy} onClick={() => save(true)}>Turn off</button> : null}
-            <button className="btn" onClick={() => setEditing(true)}>{next.configured ? 'Change' : 'Add certificate'}</button>
+            {next.configured ? <button className="btn is-ghost" disabled={busy} onClick={() => save(true)}>{t("Turn off")}</button> : null}
+            <button className="btn" onClick={() => setEditing(true)}>{next.configured ? t("Change") : t("Add certificate")}</button>
           </>
         ) : null}
       </Row>
       {pending ? (
-        <Row label="Waiting for a restart" description={next.configured ? `HTTPS${next.ok ? ` for ${next.names.join(', ')}` : ''} starts when HEISS UI restarts.` : 'HTTPS turns off when HEISS UI restarts.'}>
-          {supervised && atComputer ? <button className="btn" onClick={() => { restartHeiss(); }}>Restart now</button> : null}
+        <Row label={t("Waiting for a restart")} description={next.configured ? t("HTTPS{0} starts when HEISS UI restarts.", { "0": (next.ok ? ` for ${next.names.join(', ')}` : t("")) }) : t("HTTPS turns off when HEISS UI restarts.")}>
+          {supervised && atComputer ? <button className="btn" onClick={() => { restartHeiss(); }}>{t("Restart now")}</button> : null}
         </Row>
       ) : null}
     </>
@@ -116,6 +119,7 @@ function ago(value: string) {
 
 /** The studio password: set or changed here, typed twice like Hidden's, since devices can't reset it. */
 function StudioPasswordRow({ access, onSaved, showToast, Row, Status }: { access: AccessSettings | null; onSaved: () => void; showToast: ShowToast } & Pick<Pieces, 'Row' | 'Status'>) {
+  useLanguage();
   const atComputer = useAtComputer();
   const [editing, setEditing] = React.useState(false);
   const [password, setPassword] = React.useState('');
@@ -143,9 +147,9 @@ function StudioPasswordRow({ access, onSaved, showToast, Row, Status }: { access
     : !again ? 'Type it again.'
     : passwordStrength(password) > 0.6 ? 'Strong enough.' : 'It works, but a longer one is safer.';
   const label = !state ? <Skeleton className="skeleton-text short" />
-    : state.set ? <Status tone="ok">Studio password set</Status>
-    : state.hidden ? <Status tone="warn">Using the Hidden password</Status>
-    : <Status tone="warn">No studio password</Status>;
+    : state.set ? <Status tone="ok">{t("Studio password set")}</Status>
+    : state.hidden ? <Status tone="warn">{t("Using the Hidden password")}</Status>
+    : <Status tone="warn">{t("No studio password")}</Status>;
   const description = !state ? undefined
     : !atComputer ? 'Other devices sign in with it. Set it on the computer running HEISS UI.'
     : state.set ? 'Other devices sign in with it. Changing it signs every device out.'
@@ -155,14 +159,14 @@ function StudioPasswordRow({ access, onSaved, showToast, Row, Status }: { access
     <Row label={label} description={description} stacked={editing}>
       {editing ? (
         <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (canSave) save(); }}>
-          <input className="modal-input" type="password" autoComplete="new-password" aria-label="Studio password" placeholder="Studio password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
-          <input className="modal-input" type="password" autoComplete="new-password" aria-label="Studio password again" placeholder="Again" value={again} onChange={(event) => setAgain(event.target.value)} />
+          <input className="modal-input" type="password" autoComplete="new-password" aria-label={t("Studio password")} placeholder={t("Studio password")} value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
+          <input className="modal-input" type="password" autoComplete="new-password" aria-label={t("Studio password again")} placeholder={t("Again")} value={again} onChange={(event) => setAgain(event.target.value)} />
           <p className="set-inline-hint" aria-live="polite">{hint}</p>
-          <button type="button" className="btn is-ghost" onClick={close}>Cancel</button>
-          <button type="submit" className="btn is-primary" disabled={!canSave}>{busy ? 'Saving…' : 'Save'}</button>
+          <button type="button" className="btn is-ghost" onClick={close}>{t("Cancel")}</button>
+          <button type="submit" className="btn is-primary" disabled={!canSave}>{busy ? t("Saving…") : t("Save")}</button>
         </form>
       ) : atComputer && state ? (
-        <button className={cn('btn', !state.set && 'is-primary')} onClick={() => setEditing(true)}><KeyRound size={14} /> {state.set ? 'Change' : 'Set'}</button>
+        <button className={cn('btn', !state.set && 'is-primary')} onClick={() => setEditing(true)}><KeyRound size={14} /> {state.set ? t("Change") : t("Set")}</button>
       ) : null}
     </Row>
   );
@@ -170,17 +174,18 @@ function StudioPasswordRow({ access, onSaved, showToast, Row, Status }: { access
 
 /** One address to open on a phone: copy it, or show it as a code to scan. */
 function AddressRow({ url, detail, open, onToggle, copyToClipboard, Row }: { url: string; detail: string; open: boolean; onToggle: () => void; copyToClipboard: (text: string) => Promise<boolean> } & Pick<Pieces, 'Row'>) {
+  useLanguage();
   const copy = useCopyFeedback();
   return (
     <>
       <Row label={<span className="set-model-name">{url}</span>} description={detail}>
-        <button className={cn('btn is-ghost', open && 'is-active')} aria-expanded={open} aria-label={open ? `Hide QR code for ${url}` : `Show QR code for ${url}`} onClick={onToggle}><QrIcon size={14} /></button>
-        <button className="btn" onClick={() => copy.copyWith(() => copyToClipboard(url), url)}><CopyIcon copied={copy.copied === url} /> {copy.copied === url ? 'Copied' : 'Copy'}</button>
+        <button className={cn('btn is-ghost', open && 'is-active')} aria-expanded={open} aria-label={open ? t("Hide QR code for {0}", { "0": (url) }) : t("Show QR code for {0}", { "0": (url) })} onClick={onToggle}><QrIcon size={14} /></button>
+        <button className="btn" onClick={() => copy.copyWith(() => copyToClipboard(url), url)}><CopyIcon copied={copy.copied === url} /> {copy.copied === url ? t("Copied") : t("Copy")}</button>
       </Row>
       {open ? (
         <div className="set-qr">
-          <QrCode value={url} label={`QR code for ${url}`} />
-          <p>Scan with your phone’s camera, then sign in with the studio password.</p>
+          <QrCode value={url} label={t("QR code for {0}", { "0": (url) })} />
+          <p>{t("Scan with your phone’s camera, then sign in with the studio password.")}</p>
         </div>
       ) : null}
     </>
@@ -202,6 +207,7 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
   copyToClipboard: (text: string) => Promise<boolean>;
   showToast: ShowToast;
 } & Pieces) {
+  useLanguage();
   const atComputer = useAtComputer();
   const [network, setNetwork] = React.useState<NetworkInfo | null>(null);
   const [access, setAccess] = React.useState<AccessSettings | null>(null);
@@ -222,7 +228,7 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
   // With HTTPS the certificate's names are the way in; without it, this computer's addresses.
   // Set up but not running (a bad certificate, a busy port): the network stays closed, and the HTTPS row says why.
   const entries = tls?.configured && !tls.active ? [] : tls?.active
-    ? tls.names.filter((name) => !name.startsWith('*.')).map((name) => ({ key: name, url: `https://${name.includes(':') ? `[${name}]` : name}:${tls.port}`, detail: 'HTTPS, from the certificate', virtual: false }))
+    ? tls.names.filter((name) => !name.startsWith('*.')).map((name) => ({ key: name, url: `https://${name.includes(':') ? `[${name}]` : name}:${tls.port}`, detail: t("HTTPS, from the certificate"), virtual: false }))
     : (network?.interfaces || []).map((item) => ({ key: `${item.name}-${item.address}`, url: lanUrl(item.address), detail: `${item.name}${item.likelyVirtual ? ' · probably a VPN or virtual adapter' : ''}`, virtual: item.likelyVirtual }));
   // One real address: show its code straight away, it's what people came for.
   const real = entries.filter((item) => !item.virtual);
@@ -236,7 +242,7 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
       description: next
         ? 'Running generations stop and this page reloads.'
         : 'Running generations stop and other devices disconnect.',
-      action: 'Restart HEISS UI'
+      action: t("Restart HEISS UI")
     })) return;
     setBusy(true);
     try {
@@ -252,9 +258,9 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
 
   const setAdmin = async (enabled: boolean) => {
     if (enabled && !await confirmAction({
-      title: 'Trust other devices with admin?',
-      description: 'Signed-in devices can then update HEISS UI, install nodes and models, change the output folder and clear the gallery.',
-      action: 'Allow admin'
+      title: t("Trust other devices with admin?"),
+      description: t("Signed-in devices can then update HEISS UI, install nodes and models, change the output folder and clear the gallery."),
+      action: t("Allow admin")
     })) return;
     try {
       const result = await apiJson<{ adminFromDevices: boolean }>('/api/access/admin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ enabled }) });
@@ -266,15 +272,15 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
 
   const signOutAll = async () => {
     if (!await confirmAction({
-      title: 'Sign out all devices?',
-      description: 'They need the studio password to sign in again. This computer isn’t affected.',
-      action: 'Sign out all',
+      title: t("Sign out all devices?"),
+      description: t("They need the studio password to sign in again. This computer isn’t affected."),
+      action: t("Sign out all"),
       destructive: true
     })) return;
     try {
       await apiJson('/api/access/sign-out-all', { method: 'POST' });
       await loadAccess();
-      showToast('All devices signed out', 'success');
+      showToast(t("All devices signed out"), 'success');
     } catch (error) {
       showToast(error instanceof Error ? error.message : 'Couldn’t sign the devices out', 'error');
     }
@@ -292,15 +298,15 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
 
   return (
     <>
-      <Group title="Other devices" note="Only on a network you trust.">
+      <Group title={t("Other devices")} note={t("Only on a network you trust.")}>
         {lan ? (
-          <Row label="Open on other devices" description={description} disabled={busy || restarting}>
-            {pending && lan.supervised && !restarting ? <button className="btn" onClick={restartNow}>Restart now</button> : null}
-            <Switch label="Open on other devices" checked={forced ? on : lan.saved} disabled={!canChange || forced || busy || restarting} onChange={toggle} />
+          <Row label={t("Open on other devices")} description={description} disabled={busy || restarting}>
+            {pending && lan.supervised && !restarting ? <button className="btn" onClick={restartNow}>{t("Restart now")}</button> : null}
+            <Switch label={t("Open on other devices")} checked={forced ? on : lan.saved} disabled={!canChange || forced || busy || restarting} onChange={toggle} />
           </Row>
         ) : !network ? <Row label={<Skeleton className="skeleton-text short" />} /> : null}
         {(on || lan?.saved) && noPassword ? (
-          <Row label={<Status tone="warn">Needs a studio password</Status>} description="Other devices need it to sign in. Set it below." />
+          <Row label={<Status tone="warn">{t("Needs a studio password")}</Status>} description={t("Other devices need it to sign in. Set it below.")} />
         ) : null}
         {on ? entries.map((item) => (
           <AddressRow
@@ -313,13 +319,13 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
             Row={Row}
           />
         )) : null}
-        {on && network && !entries.length && !(tls?.configured && !tls.ok) ? <Row label="No network address" description="This computer isn’t on a local network right now." /> : null}
+        {on && network && !entries.length && !(tls?.configured && !tls.ok) ? <Row label={t("No network address")} description={t("This computer isn’t on a local network right now.")} /> : null}
         {/* HTTPS only matters for other devices, so it lives with them, folded away. */}
         {tls && (on || lan?.saved || tls.configured) ? (
           <SettingsDrawer
             id="set-https"
-            title="HTTPS"
-            description={<>{tls.active ? 'On' : tls.configured && (!tls.ok || tls.problem) ? 'Set up, but it can’t start' : tls.configured ? 'Set up' : 'Off'} · uses a certificate you already have, such as one from <code>tailscale cert</code></>}
+            title={t("HTTPS")}
+            description={<>{tls.active ? t("On") : tls.configured && (!tls.ok || tls.problem) ? t("Set up, but it can’t start") : tls.configured ? t("Set up") : t("Off")}{t("· uses a certificate you already have, such as one from")}{" "}<code>{t("tailscale cert")}</code></>}
             defaultOpen={Boolean(tls.configured && (!tls.ok || tls.problem))}
           >
             <HttpsRows tls={tls} supervised={Boolean(lan?.supervised)} restartHeiss={restartHeiss} showToast={showToast} onSaved={load} Row={Row} Status={Status} />
@@ -327,31 +333,31 @@ export function OtherDevicesGroup({ canChange, confirmAction, restartHeiss, rest
         ) : null}
       </Group>
 
-      <Group title="Signing in">
+      <Group title={t("Signing in")}>
         <StudioPasswordRow access={access} onSaved={loadAccess} showToast={showToast} Row={Row} Status={Status} />
         <Row
-          label="Trust other devices with admin"
-          description={`Lets signed-in devices update HEISS UI, install nodes and models, change the output folder and clear the gallery.${atComputer ? '' : ' Only the computer running HEISS UI can change this.'}`}
+          label={t("Trust other devices with admin")}
+          description={t("Lets signed-in devices update HEISS UI, install nodes and models, change the output folder and clear the gallery.{0}", { "0": (atComputer ? t("") : t(" Only the computer running HEISS UI can change this.")) })}
           disabled={!atComputer || !access}
         >
-          <Switch label="Trust other devices with admin" checked={Boolean(access?.adminFromDevices)} disabled={!atComputer || !access} onChange={setAdmin} />
+          <Switch label={t("Trust other devices with admin")} checked={Boolean(access?.adminFromDevices)} disabled={!atComputer || !access} onChange={setAdmin} />
         </Row>
         {!atComputer ? (
-          <Row label="Sign out this device" description="The studio password is needed again next time.">
-            <button className="btn" onClick={() => apiJson('/api/access/sign-out', { method: 'POST' }).catch(() => null).then(() => window.location.reload())}><LogOut size={14} /> Sign out</button>
+          <Row label={t("Sign out this device")} description={t("The studio password is needed again next time.")}>
+            <button className="btn" onClick={() => apiJson('/api/access/sign-out', { method: 'POST' }).catch(() => null).then(() => window.location.reload())}><LogOut size={14} />{t("Sign out")}</button>
           </Row>
         ) : null}
       </Group>
 
       {canChange && (devices.length || (atComputer && on)) ? (
-        <Group title="Signed-in devices" note={devices.length ? 'Devices stay signed in for a week.' : undefined}>
+        <Group title={t("Signed-in devices")} note={devices.length ? t("Devices stay signed in for a week.") : undefined}>
           {devices.map((device) => (
-            <Row key={device.id} label={device.current ? `${device.label} · this device` : device.label} description={`Signed in ${ago(device.createdAt)} · last seen ${ago(device.lastSeenAt)}`} />
+            <Row key={device.id} label={device.current ? t("{0} · this device", { "0": (device.label) }) : device.label} description={t("Signed in {0} · last seen {1}", { "0": (ago(device.createdAt)), "1": (ago(device.lastSeenAt)) })} />
           ))}
-          {!devices.length ? <Row label="No devices signed in" description="Devices appear here after they sign in." /> : null}
+          {!devices.length ? <Row label={t("No devices signed in")} description={t("Devices appear here after they sign in.")} /> : null}
           {atComputer && devices.length ? (
-            <Row label="Sign out all devices" description="They need the studio password to sign in again.">
-              <button className="btn is-danger-soft" onClick={signOutAll}><LogOut size={14} /> Sign out all</button>
+            <Row label={t("Sign out all devices")} description={t("They need the studio password to sign in again.")}>
+              <button className="btn is-danger-soft" onClick={signOutAll}><LogOut size={14} />{t("Sign out all")}</button>
             </Row>
           ) : null}
         </Group>

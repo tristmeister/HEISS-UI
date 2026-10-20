@@ -1,0 +1,11 @@
+export type Language = 'en' | 'ru';
+export type TranslationValues = Record<string, string | number | boolean | null | undefined>;
+export const languages: ReadonlyArray<{value: Language; label: string}>;
+export const languageStorageKey: string;
+export function supportedLanguage(value: unknown): Language | null;
+export function getLanguage(): Language;
+export function getServerLanguage(): Language;
+export function subscribeLanguage(listener: () => void): () => void;
+export function setLanguage(value: string): boolean;
+export function translate(message: string, values?: TranslationValues, locale?: Language): string;
+export function t(message: string, values?: TranslationValues): string;

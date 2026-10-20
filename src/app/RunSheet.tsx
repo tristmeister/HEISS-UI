@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Rows3 } from 'lucide-react';
 import { Sheet } from './PhoneStudio';
@@ -19,6 +21,7 @@ export function RunSheet({ run, onClose, openItem, onShowInGallery }: {
   openItem: (item: GalleryItem) => void;
   onShowInGallery: (run: Run) => void;
 }) {
+  useLanguage();
   // Kept while the sheet slides away, so it doesn't empty mid-exit.
   const last = useRef<Run | null>(run);
   if (run) last.current = run;
@@ -31,6 +34,7 @@ export function RunSheet({ run, onClose, openItem, onShowInGallery }: {
 }
 
 function CoverFlow({ run, onOpen, onShowInGallery }: { run: Run; onOpen: (item: GalleryItem) => void; onShowInGallery: () => void }) {
+  useLanguage();
   const items = run.items.filter((item) => item.status === "done");
   const track = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -82,7 +86,7 @@ function CoverFlow({ run, onOpen, onShowInGallery }: { run: Run; onOpen: (item: 
             key={item.id}
             type="button"
             className="cover-flow-card"
-            aria-label={`Open ${position + 1} of ${items.length}`}
+            aria-label={t("Open {0} of {1}", { "0": (position + 1), "1": (items.length) })}
             onClick={(event) => {
               if (position === index) { onOpen(item); return; }
               const card = event.currentTarget;
@@ -94,13 +98,13 @@ function CoverFlow({ run, onOpen, onShowInGallery }: { run: Run; onOpen: (item: 
         ))}
       </div>
       <div className="cover-flow-caption">
-        <small>{index + 1} of {items.length}{run.model ? <> · {modelName(run.model)}</> : null} · {timeSpan(run.start, run.end)}</small>
+        <small>{index + 1}{t("of")}{" "}{items.length}{run.model ? <> · {modelName(run.model)}</> : null} · {timeSpan(run.start, run.end)}</small>
         <strong>{runTitle(run)}</strong>
         {current?.prompt && run.variations > 1 ? <p>{current.prompt}</p> : null}
       </div>
       <button type="button" className="cover-flow-show" onClick={onShowInGallery}>
         <Rows3 size={18} />
-        <span>Show in gallery</span>
+        <span>{t("Show in gallery")}</span>
       </button>
     </div>
   );

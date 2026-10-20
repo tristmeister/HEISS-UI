@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ArrowUp, Dices, EyeOff, ChevronUp, CircleDotDashed, History, Images, Layers, RefreshCw, SlidersHorizontal, X } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -159,6 +161,7 @@ const generateButtonSpring = { type: "spring" as const, stiffness: 520, damping:
  */
 type GenerateButtonPassthrough = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "children" | "className" | "disabled" | "onClick" | "aria-label" | "type" | "style" | "onAnimationStart" | "onDrag" | "onDragStart" | "onDragEnd">;
 function GenerateButton({ children, className, disabled, blocked, busy, onClick, "aria-label": ariaLabel, ref, ...rest }: GenerateButtonPassthrough & { children: React.ReactNode; className?: string; disabled?: boolean; blocked?: boolean; busy?: boolean; onClick?: React.MouseEventHandler<HTMLButtonElement>; "aria-label"?: string; ref?: React.Ref<HTMLButtonElement> }) {
+  useLanguage();
   const prefersReducedMotion = useReducedMotion();
   const inert = disabled || blocked;
   return (
@@ -183,12 +186,13 @@ function GenerateButton({ children, className, disabled, blocked, busy, onClick,
 
 /** Where this generation lands, shown only in Hidden: a quiet ember chip, not a switch. */
 function HiddenChip({ density = "full" }: { density?: ControlDensity }) {
+  useLanguage();
   return (
-    <Tip content="New images go into Hidden">
-      <span className={cn("hidden-chip", density !== "full" && `is-density-${density}`)} role="status" aria-label="Generating into Hidden">
+    <Tip content={t("New images go into Hidden")}>
+      <span className={cn("hidden-chip", density !== "full" && `is-density-${density}`)} role="status" aria-label={t("Generating into Hidden")}>
         {/* Eye-off, as on Hide: "this lands out of sight". The dock's lock is the place itself. */}
         <EyeOff size={12} strokeWidth={2.2} aria-hidden="true" />
-        {density === "full" ? <span>Hidden</span> : null}
+        {density === "full" ? <span>{t("Hidden")}</span> : null}
       </span>
     </Tip>
   );
@@ -282,6 +286,7 @@ export type ComposerBarProps = {
 };
 
 export function ComposerBar(props: ComposerBarProps) {
+  useLanguage();
   const {
     models, model, modelProfiles, showInpaint = true, profileBadges, chooseModel, modelMenu, currentProfile, comfyOffline, comfyRestarting = false, onFindModels, onGetModels, strayModelCount, mode,
     aspectPickerValue, aspectOptions, aspectValue, defaultAspectSize, applyAspect, sizeTier = "none", sizeTiers, sizeArea = 0, megapixelControl = null, sizeMax, customLimits, chooseSizeTier, applyCustomRatio, setCustomDimensions, savedSizes, saveCustomSize, renameSavedSize, removeSavedSize, pickSavedSize,
@@ -335,20 +340,20 @@ export function ComposerBar(props: ComposerBarProps) {
   );
 
   const stepsPicker = (density: ControlDensity) => (
-    <NumberPicker label="Steps" icon={<CircleDotDashed size={14} />} density={density} value={steps} onChange={setSteps} min={stepsMeta.min || 1} max={stepsMeta.max || 150} step={stepsMeta.step || 1} size="sm" />
+    <NumberPicker label={t("Steps")} icon={<CircleDotDashed size={14} />} density={density} value={steps} onChange={setSteps} min={stepsMeta.min || 1} max={stepsMeta.max || 150} step={stepsMeta.step || 1} size="sm" />
   );
 
   const variantsPicker = (density: ControlDensity) => showVariants ? (
-    <NumberPicker label="Images" icon={<Images size={14} />} density={density} value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} size="sm" />
+    <NumberPicker label={t("Images")} icon={<Images size={14} />} density={density} value={count} onChange={setCount} min={countMeta.min || 1} max={countMeta.max ?? 8} step={countMeta.step || 1} size="sm" />
   ) : null;
 
   const loraPill = (density: ControlDensity) => loraActiveCount ? (
-    <Tip content={`${loraActiveCount} LoRA${loraActiveCount === 1 ? "" : "s"} active. Click to edit`}>
-      <button type="button" className={cn("lora-pill", density !== "full" && `is-density-${density}`)} onClick={onOpenLoras} aria-label={`${loraActiveCount} LoRA${loraActiveCount === 1 ? "" : "s"} active, edit LoRAs`}>
+    <Tip content={t("{0} LoRA{1} active. Click to edit", { "0": (loraActiveCount), "1": (loraActiveCount === 1 ? t("") : t("s")) })}>
+      <button type="button" className={cn("lora-pill", density !== "full" && `is-density-${density}`)} onClick={onOpenLoras} aria-label={t("{0} LoRA{1} active, edit LoRAs", { "0": (loraActiveCount), "1": (loraActiveCount === 1 ? t("") : t("s")) })}>
         {/* "2 LoRAs" where there's room; the icon and the count where there isn't. */}
         {density === "full" ? null : <Layers size={13} />}
         <AnimatedNumber value={loraActiveCount} />
-        {density === "full" ? <span className="lora-pill-word">{loraActiveCount === 1 ? "LoRA" : "LoRAs"}</span> : null}
+        {density === "full" ? <span className="lora-pill-word">{loraActiveCount === 1 ? t("LoRA") : t("LoRAs")}</span> : null}
       </button>
     </Tip>
   ) : null;
@@ -386,8 +391,8 @@ export function ComposerBar(props: ComposerBarProps) {
           transition={{ type: "spring", duration: 0.3, bounce: 0 }}
         >
           <header>
-            <span>Settings</span>
-            <Tip content="Close"><button type="button" className="icon-button" aria-label="Close settings" onClick={() => setDrawerOpen(false)}><X size={14} /></button></Tip>
+            <span>{t("Settings")}</span>
+            <Tip content={t("Close")}><button type="button" className="icon-button" aria-label={t("Close settings")} onClick={() => setDrawerOpen(false)}><X size={14} /></button></Tip>
           </header>
           {tucked.map(([id, label, render]) => (
             <div className="composer-drawer-row" key={id}>
@@ -400,27 +405,27 @@ export function ComposerBar(props: ComposerBarProps) {
       </AnimatePresence>
       <div className="zen-prompt-actions" ref={rowRef} data-density-level={level}>
         <div className="prompt-left-actions" data-fluid-group>
-          <Tip content={!canUseNegativePrompt ? "This model doesn’t use a negative prompt" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}>
+          <Tip content={!canUseNegativePrompt ? t("This model doesn’t use a negative prompt") : showNegativePrompt ? t("Hide negative prompt") : t("Show negative prompt")}>
             <button
               data-open-trigger
               type="button"
               className={cn("negative-toggle", showNegativePrompt && "active", !canUseNegativePrompt && "is-unavailable", plan.negative.density !== "full" && `is-density-${plan.negative.density}`)}
-              aria-label={!canUseNegativePrompt ? "Negative prompt unavailable for this model" : showNegativePrompt ? "Hide negative prompt" : "Show negative prompt"}
+              aria-label={!canUseNegativePrompt ? t("Negative prompt unavailable for this model") : showNegativePrompt ? t("Hide negative prompt") : t("Show negative prompt")}
               aria-disabled={!canUseNegativePrompt || undefined}
               onClick={() => { if (canUseNegativePrompt) setShowNegativePrompt((value: boolean) => !value); }}
             >
               <ChevronUp size={13} className={cn(!showNegativePrompt && "flip")} />
-              {plan.negative.density === "full" ? "Negative" : null}
+              {plan.negative.density === "full" ? t("Negative") : null}
             </button>
           </Tip>
           {onToggleHistory ? (
             // Styled as the Negative toggle at its icon-only size: one family of composer controls.
-            <Tip content="Recent prompts (↑ in an empty prompt)">
+            <Tip content={t("Recent prompts (↑ in an empty prompt)")}>
               <button
                 data-history-trigger
                 type="button"
                 className={cn("negative-toggle is-density-mini history-toggle", historyOpen && "active")}
-                aria-label="Recent prompts"
+                aria-label={t("Recent prompts")}
                 aria-expanded={historyOpen}
                 aria-haspopup="dialog"
                 onClick={onToggleHistory}
@@ -431,8 +436,8 @@ export function ComposerBar(props: ComposerBarProps) {
           ) : null}
           {inline("private", privateToggle)}
           {pinnedSeed.trim() && onRandomSeed ? (
-            <Tip content={`Every run uses seed ${pinnedSeed.trim()}. Click for a random seed.`}>
-              <button type="button" className="seed-chip" aria-label={`Seed ${pinnedSeed.trim()} is fixed. Use a random seed`} onClick={onRandomSeed}>
+            <Tip content={t("Every run uses seed {0}. Click for a random seed.", { "0": (pinnedSeed.trim()) })}>
+              <button type="button" className="seed-chip" aria-label={t("Seed {0} is fixed. Use a random seed", { "0": (pinnedSeed.trim()) })} onClick={onRandomSeed}>
                 <Dices size={14} />
                 <span>{pinnedSeed.trim()}</span>
               </button>
@@ -440,8 +445,8 @@ export function ComposerBar(props: ComposerBarProps) {
           ) : null}
           {/* A video takes minutes; once this machine has run one like it, say how long, before it starts. */}
           {mode === "video" && generationEstimate?.ms && generationEstimate.ms >= 60_000 ? (
-            <Tip content={`From your last runs of this model at this size${generationEstimate.queueMs && generationEstimate.queueMs > 5000 ? `, after ${formatAbout(generationEstimate.queueMs)} of queue` : ""}`}>
-              <span className="composer-estimate">Usually {formatAbout(generationEstimate.ms)} here</span>
+            <Tip content={t("From your last runs of this model at this size{0}", { "0": (generationEstimate.queueMs && generationEstimate.queueMs > 5000 ? `, after ${formatAbout(generationEstimate.queueMs)} of queue` : t("")) })}>
+              <span className="composer-estimate">{t("Usually")}{" "}{formatAbout(generationEstimate.ms)}{t("here")}</span>
             </Tip>
           ) : null}
         </div>
@@ -452,12 +457,12 @@ export function ComposerBar(props: ComposerBarProps) {
           {inline("variants", variantsPicker)}
           {inline("lora", loraPill)}
           {tucked.length ? (
-            <Tip content="More settings">
+            <Tip content={t("More settings")}>
               <button
                 type="button"
                 data-open-trigger
                 className={cn("composer-more", drawerOpen && "active")}
-                aria-label="More settings"
+                aria-label={t("More settings")}
                 aria-expanded={drawerOpen}
                 onClick={() => setDrawerOpen((value) => !value)}
               >
@@ -467,18 +472,18 @@ export function ComposerBar(props: ComposerBarProps) {
             </Tip>
           ) : null}
         </div>
-        <Tip content={comfyRestarting ? "ComfyUI is restarting. Back in a few seconds." : comfyOffline ? "ComfyUI is offline. Click to check again." : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}${generateKey ? ` · ${generateKey}` : ""}`}>
+        <Tip content={comfyRestarting ? t("ComfyUI is restarting. Back in a few seconds.") : comfyOffline ? t("ComfyUI is offline. Click to check again.") : generateDisabledReason || `${mode === "image" ? `Generate ${displayCount} image${displayCount === 1 ? "" : "s"}` : "Generate video"}${estimatePhrase(generationEstimate) ? ` · ${estimatePhrase(generationEstimate)}` : ""}${generateKey ? ` · ${generateKey}` : ""}`}>
           <GenerateButton
             className={cn("generate", Boolean(runningCount) && !comfyOffline && !comfyRestarting && "is-working", comfyRestarting ? "is-restarting" : comfyOffline && "is-offline")}
             onClick={comfyRestarting ? undefined : comfyOffline ? refreshComfyStatus : generate}
             disabled={comfyRestarting || (comfyOffline ? comfyRetrying : false)}
             blocked={!comfyOffline && !comfyRestarting && generateDisabled}
             busy={comfyRestarting || (comfyOffline && comfyRetrying) || undefined}
-            aria-label={comfyRestarting ? "ComfyUI is restarting" : comfyOffline ? (comfyRetrying ? "Checking ComfyUI" : "ComfyUI offline, check again") : generateDisabledReason || "Generate"}
+            aria-label={comfyRestarting ? t("ComfyUI is restarting") : comfyOffline ? (comfyRetrying ? t("Checking ComfyUI") : t("ComfyUI offline, check again")) : generateDisabledReason || t("Generate")}
           >
             {comfyRestarting
-              ? <><RefreshCw size={14} className="spin" /><span>Restarting…</span></>
-              : comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? "Checking…" : "ComfyUI offline"}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
+              ? <><RefreshCw size={14} className="spin" /><span>{t("Restarting…")}</span></>
+              : comfyOffline ? <><RefreshCw size={14} className={cn(comfyRetrying && "spin")} /><span>{comfyRetrying ? t("Checking…") : t("ComfyUI offline")}</span></> : <ArrowUp size={18} strokeWidth={2.4} />}
           </GenerateButton>
         </Tip>
       </div>

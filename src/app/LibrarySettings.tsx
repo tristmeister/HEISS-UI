@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { FolderPlus, RefreshCw } from 'lucide-react';
 import { apiJson } from './api';
@@ -38,6 +40,7 @@ export function EarlierImagesGroup({ Group, Row, showToast, confirmAction, outpu
   confirmAction: ConfirmAction;
   outputDir?: string;
 }) {
+  useLanguage();
   const [folders, setFolders] = React.useState<LibraryFolder[] | null>(null);
   const [busy, setBusy] = React.useState('');
   React.useEffect(() => {
@@ -63,18 +66,17 @@ export function EarlierImagesGroup({ Group, Row, showToast, confirmAction, outpu
   const post = (url: string, body?: unknown) => apiJson<ImportResult>(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body || {}) });
 
   return (
-    <Group title="Earlier images" note="Images stay where they are and aren’t copied. Prompts saved in the files by ComfyUI or AUTOMATIC1111 can be searched.">
+    <Group title={t("Earlier images")} note={t("Images stay where they are and aren’t copied. Prompts saved in the files by ComfyUI or AUTOMATIC1111 can be searched.")}>
       {(folders || []).map((folder) => (
         <Row
           key={folder.id}
           label={folder.name}
-          description={<><code className="set-path">{folder.path}</code><br />{folder.available ? plural(folder.count, 'image') : 'Not reachable right now. Is the drive connected?'}</>}
+          description={<><code className="set-path">{folder.path}</code><br />{folder.available ? plural(folder.count, 'image') : t("Not reachable right now. Is the drive connected?")}</>}
         >
-          <button className="btn is-ghost" disabled={Boolean(busy)} onClick={() => run(folder.id, () => post(`/api/library/folders/${encodeURIComponent(folder.id)}/scan`), `from ${folder.name}`)} aria-label={`Rescan ${folder.name}`}>
-            <RefreshCw size={14} className={busy === folder.id ? 'spin' : undefined} /> Rescan
-          </button>
+          <button className="btn is-ghost" disabled={Boolean(busy)} onClick={() => run(folder.id, () => post(`/api/library/folders/${encodeURIComponent(folder.id)}/scan`), `from ${folder.name}`)} aria-label={t("Rescan {0}", { "0": (folder.name) })}>
+            <RefreshCw size={14} className={busy === folder.id ? 'spin' : undefined} />{t("Rescan")}</button>
           <button className="btn is-ghost" disabled={Boolean(busy)} onClick={async () => {
-            if (!await confirmAction({ title: `Stop showing ${folder.name}?`, description: 'Its images are removed from the gallery. The files stay where they are.', action: 'Remove folder' })) return;
+            if (!await confirmAction({ title: t("Stop showing {0}?", { "0": (folder.name) }), description: t("Its images are removed from the gallery. The files stay where they are."), action: t("Remove folder") })) return;
             try {
               const result = await apiJson<ImportResult>(`/api/library/folders/${encodeURIComponent(folder.id)}`, { method: 'DELETE' });
               if (result.folders) setFolders(result.folders);
@@ -82,18 +84,18 @@ export function EarlierImagesGroup({ Group, Row, showToast, confirmAction, outpu
             } catch (error) {
               showToast(error instanceof Error ? error.message : 'Couldn’t remove that folder', 'error');
             }
-          }}>Remove</button>
+          }}>{t("Remove")}</button>
         </Row>
       ))}
-      <Row label="Add a folder" description="Older ComfyUI outputs, or an AUTOMATIC1111 or Forge folder. Subfolders are included.">
+      <Row label={t("Add a folder")} description={t("Older ComfyUI outputs, or an AUTOMATIC1111 or Forge folder. Subfolders are included.")}>
         <button className="btn" disabled={Boolean(busy)} onClick={() => run('add', () => post('/api/library/folders', { start: outputDir || '' }), 'from that folder')}>
-          <FolderPlus size={14} /> {busy === 'add' ? 'Looking…' : 'Choose…'}
+          <FolderPlus size={14} /> {busy === 'add' ? t("Looking…") : t("Choose…")}
         </button>
       </Row>
       {outputDir ? (
-        <Row label="Everything in the output folder" description="Adds images ComfyUI saved that aren’t in the gallery, such as runs made in ComfyUI or older than its history.">
+        <Row label={t("Everything in the output folder")} description={t("Adds images ComfyUI saved that aren’t in the gallery, such as runs made in ComfyUI or older than its history.")}>
           <button className="btn" disabled={Boolean(busy)} onClick={() => run('output', () => post('/api/library/output'), 'from the output folder')}>
-            <RefreshCw size={14} className={busy === 'output' ? 'spin' : undefined} /> {busy === 'output' ? 'Scanning…' : 'Scan'}
+            <RefreshCw size={14} className={busy === 'output' ? 'spin' : undefined} /> {busy === 'output' ? t("Scanning…") : t("Scan")}
           </button>
         </Row>
       ) : null}
@@ -103,6 +105,7 @@ export function EarlierImagesGroup({ Group, Row, showToast, confirmAction, outpu
 
 /** Civitai-ready PNGs: off unless switched on, and never for Hidden. A row of Library › Sharing. */
 export function CivitaiRow({ Row, Switch, showToast, canChange }: Omit<Parts, 'Group'> & { canChange: boolean }) {
+  useLanguage();
   const [enabled, setEnabled] = React.useState<boolean | null>(null);
   React.useEffect(() => {
     let live = true;
@@ -122,39 +125,40 @@ export function CivitaiRow({ Row, Switch, showToast, canChange }: Omit<Parts, 'G
   };
   return (
     <Row
-      label={<>Civitai-ready images<BetaTag /></>}
-      description="Saves the prompt, LoRAs, steps, sampler, seed and model in each new PNG the way AUTOMATIC1111 does, so Civitai fills them in on upload. ComfyUI’s workflow stays in the file; Hidden images are left alone."
+      label={<>{t("Civitai-ready images")}<BetaTag /></>}
+      description={t("Saves the prompt, LoRAs, steps, sampler, seed and model in each new PNG the way AUTOMATIC1111 does, so Civitai fills them in on upload. ComfyUI’s workflow stays in the file; Hidden images are left alone.")}
       disabled={enabled === null || !canChange}
     >
-      <Switch label="Civitai-ready images" checked={Boolean(enabled)} onChange={change} disabled={enabled === null || !canChange} />
+      <Switch label={t("Civitai-ready images")} checked={Boolean(enabled)} onChange={change} disabled={enabled === null || !canChange} />
     </Row>
   );
 }
 
 /** Recent prompts: whether to keep them, what the list holds, and the way to empty it. */
 export function PromptHistoryRow({ Row, Switch, showToast, confirmAction }: Pick<Parts, 'Row' | 'Switch' | 'showToast'> & { confirmAction: ConfirmAction }) {
+  useLanguage();
   const { prompts, enabled } = usePromptHistory(true);
   const starred = prompts.filter((entry) => entry.pinned).length;
   const recent = prompts.length - starred;
   const fail = (error: unknown) => showToast(error instanceof Error ? error.message : 'Couldn’t change recent prompts', 'error');
   const toggle = async (next: boolean) => {
-    if (!next && recent && !await confirmAction({ title: 'Turn off recent prompts?', description: `${plural(recent, 'recent prompt')} ${recent === 1 ? 'is' : 'are'} forgotten.${starred ? ' Starred prompts stay.' : ''}`, action: 'Turn off' })) return;
+    if (!next && recent && !await confirmAction({ title: t("Turn off recent prompts?"), description: t("{0} {1} forgotten.{2}", { "0": (plural(recent, 'recent prompt')), "1": (recent === 1 ? t("is") : t("are")), "2": (starred ? t(" Starred prompts stay.") : t("")) }), action: t("Turn off") })) return;
     setPromptHistoryEnabled(next).catch(fail);
   };
   return (
     <>
       <Row
-        label="Keep recent prompts"
-        description={`Press ↑ in an empty prompt, or the clock beside Negative, to reuse one. Shared with other devices; prompts from Hidden aren’t saved.${enabled && prompts.length ? ` ${plural(recent, 'recent prompt')}${starred ? `, ${starred} starred` : ''}.` : ''}`}
+        label={t("Keep recent prompts")}
+        description={t("Press ↑ in an empty prompt, or the clock beside Negative, to reuse one. Shared with other devices; prompts from Hidden aren’t saved.{0}", { "0": (enabled && prompts.length ? ` ${plural(recent, 'recent prompt')}${starred ? `, ${starred} starred` : ''}.` : t("")) })}
       >
-        <Switch label="Keep recent prompts" checked={enabled} onChange={toggle} />
+        <Switch label={t("Keep recent prompts")} checked={enabled} onChange={toggle} />
       </Row>
       {enabled && recent ? (
-        <Row label="Forget recent prompts" description={starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.'}>
+        <Row label={t("Forget recent prompts")} description={starred ? t("Starred prompts stay.") : t("The list starts over with your next prompt.")}>
           <button className="btn" onClick={async () => {
-            if (!await confirmAction({ title: 'Forget recent prompts?', description: starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.', action: 'Forget' })) return;
+            if (!await confirmAction({ title: t("Forget recent prompts?"), description: starred ? 'Starred prompts stay.' : 'The list starts over with your next prompt.', action: t("Forget") })) return;
             clearPrompts().catch(fail);
-          }}>Forget</button>
+          }}>{t("Forget")}</button>
         </Row>
       ) : null}
     </>

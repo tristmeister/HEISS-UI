@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import { fallbackAspectPresets } from './constants';
 import { clampText, settingMax } from './format';
 import { touchCenter, touchDistance } from './gallery';
@@ -106,7 +107,7 @@ export function useViewerControls(view: any) {
     const message = matchingProfile ? "Settings applied." : "Settings applied. Its model isn’t installed, so the current model stays.";
     toast(message, {
       duration: 8000,
-      action: before ? { label: "Undo", onClick: () => restoreDraft(before) } : undefined
+      action: before ? { label: t("Undo"), onClick: () => restoreDraft(before) } : undefined
     });
     return Boolean(matchingProfile);
   }
@@ -114,11 +115,11 @@ export function useViewerControls(view: any) {
   function applyLoras(item: GalleryItem) {
     const loras = normalizeLoras(item.settings?.loras);
     if (!loras.length) {
-      showToast("This output has no LoRAs", "error");
+      showToast(t("This output has no LoRAs"), "error");
       return;
     }
     setLoras(loras);
-    showToast("LoRAs applied", "success");
+    showToast(t("LoRAs applied"), "success");
   }
 
   function moveZen(direction: 1 | -1) {

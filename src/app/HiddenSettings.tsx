@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { Download, Fingerprint, KeyRound, LockKeyhole, Trash2 } from 'lucide-react';
 import { BetaTag } from './components';
@@ -31,6 +33,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   Status: React.ComponentType<React.PropsWithChildren<{ tone?: 'ok' | 'bad' | 'warn' }>>;
   Switch: React.ComponentType<{ checked: boolean; onChange: (next: boolean) => void; disabled?: boolean; label: string }>;
 }) {
+  useLanguage();
   const { status, support, enabled, unlocked } = hidden;
   const label = support?.label || "Touch ID";
   const [changing, setChanging] = React.useState(false);
@@ -44,8 +47,8 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   if (!enabled) {
     return (
       <Group>
-        <Row label={<Status>Not set up</Status>} description={atComputer ? "Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello." : "Images you keep to yourself. Set up Hidden on the computer running HEISS UI."}>
-          {atComputer ? <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} /> Set up Hidden</button> : null}
+        <Row label={<Status>{t("Not set up")}</Status>} description={atComputer ? t("Images you keep to yourself, encrypted on this computer. Unlock with a password, Touch ID or Windows Hello.") : t("Images you keep to yourself. Set up Hidden on the computer running HEISS UI.")}>
+          {atComputer ? <button className="btn is-primary" onClick={() => { hidden.takeIntent(); hidden.setSetupOpen(true); }}><LockKeyhole size={14} />{t("Set up Hidden")}</button> : null}
         </Row>
       </Group>
     );
@@ -63,7 +66,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   };
 
   const removeBiometric = async (id: string, name: string) => {
-    if (!await confirmAction({ title: `Remove ${name}?`, description: "It can’t unlock Hidden after this. The passkey stays in your password manager until you delete it there.", action: "Remove", destructive: true })) return;
+    if (!await confirmAction({ title: t("Remove {0}?", { "0": (name) }), description: t("It can’t unlock Hidden after this. The passkey stays in your password manager until you delete it there."), action: t("Remove"), destructive: true })) return;
     await hidden.removeBiometric(id).catch((error) => showToast(error instanceof Error ? error.message : "Couldn’t remove the passkey", "error"));
   };
 
@@ -74,7 +77,7 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
       setPassword("");
       setConfirmPassword("");
       setChanging(false);
-      showToast("Password changed", "success");
+      showToast(t("Password changed"), "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Couldn’t change the password", "error");
     } finally {
@@ -83,10 +86,10 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
   };
 
   const erase = async () => {
-    if (!await confirmAction({ title: "Erase Hidden?", description: "All Hidden images with their prompts and upscales, the password and all passkeys are erased from this computer. This can’t be undone.", action: "Erase Hidden", destructive: true, irreversible: true })) return;
+    if (!await confirmAction({ title: t("Erase Hidden?"), description: t("All Hidden images with their prompts and upscales, the password and all passkeys are erased from this computer. This can’t be undone."), action: t("Erase Hidden"), destructive: true, irreversible: true })) return;
     try {
       await hidden.erase();
-      showToast("Hidden erased", "removed");
+      showToast(t("Hidden erased"), "removed");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Couldn’t erase Hidden", "error");
     }
@@ -104,69 +107,69 @@ export function HiddenSettings({ hidden, prefs, setPrefs, showToast, confirmActi
     <>
       <Group>
         <Row
-          label={<Status tone={unlocked ? 'ok' : 'warn'}>{unlocked ? 'Unlocked' : 'Locked'}</Status>}
-          description={unlocked ? "Locks when idle." : "Unlock to change the password or passkeys, or to export."}
+          label={<Status tone={unlocked ? 'ok' : 'warn'}>{unlocked ? t("Unlocked") : t("Locked")}</Status>}
+          description={unlocked ? t("Locks when idle.") : t("Unlock to change the password or passkeys, or to export.")}
         >
           {unlocked
-            ? <button className="btn" onClick={() => hidden.lock()}><LockKeyhole size={14} /> Lock</button>
-            : <button className="btn is-primary" onClick={() => hidden.requestUnlock(null)}>Unlock</button>}
+            ? <button className="btn" onClick={() => hidden.lock()}><LockKeyhole size={14} />{t("Lock")}</button>
+            : <button className="btn is-primary" onClick={() => hidden.requestUnlock(null)}>{t("Unlock")}</button>}
         </Row>
       </Group>
 
-      <Group title="Unlock methods" note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <> Open <a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a> to add it.</> : null}</> : undefined}>
-        <Row label={<span className="hidden-way"><KeyRound size={14} /> Password</span>} description={atComputer ? "Works on any signed-in device." : "Works on any signed-in device. Change it on the computer running HEISS UI."} stacked={changing}>
+      <Group title={t("Unlock methods")} note={support && !support.available ? <>{support.reason}{support.localhostUrl ? <>{t("Open")}{" "}<a href={support.localhostUrl}>{support.localhostUrl.replace(/^https?:\/\//, "")}</a>{t("to add it.")}</> : null}</> : undefined}>
+        <Row label={<span className="hidden-way"><KeyRound size={14} />{t("Password")}</span>} description={atComputer ? t("Works on any signed-in device.") : t("Works on any signed-in device. Change it on the computer running HEISS UI.")} stacked={changing}>
           {changing ? (
             <form className="set-inline-form is-password" onSubmit={(event) => { event.preventDefault(); if (canSavePassword) savePassword(); }}>
               {/* Typed twice, as at setup: there is no reset, so a typo would lock you out. */}
-              <input className="modal-input" type="password" autoComplete="new-password" aria-label="New password" placeholder="New password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
-              <input className="modal-input" type="password" autoComplete="new-password" aria-label="New password again" placeholder="Again" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
+              <input className="modal-input" type="password" autoComplete="new-password" aria-label={t("New password")} placeholder={t("New password")} value={password} onChange={(event) => setPassword(event.target.value)} autoFocus />
+              <input className="modal-input" type="password" autoComplete="new-password" aria-label={t("New password again")} placeholder={t("Again")} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
               <p className="set-inline-hint" aria-live="polite">{passwordHint}</p>
-              <button type="button" className="btn is-ghost" onClick={() => { setChanging(false); setPassword(""); setConfirmPassword(""); }}>Cancel</button>
-              <button type="submit" className="btn is-primary" disabled={!canSavePassword}>{busy === "password" ? "Saving…" : passwordStrength(password) > 0.6 ? "Save" : "Save anyway"}</button>
+              <button type="button" className="btn is-ghost" onClick={() => { setChanging(false); setPassword(""); setConfirmPassword(""); }}>{t("Cancel")}</button>
+              <button type="submit" className="btn is-primary" disabled={!canSavePassword}>{busy === "password" ? t("Saving…") : passwordStrength(password) > 0.6 ? t("Save") : t("Save anyway")}</button>
             </form>
-          ) : <button className="btn" disabled={!unlocked || !atComputer} onClick={() => setChanging(true)}>Change</button>}
+          ) : <button className="btn" disabled={!unlocked || !atComputer} onClick={() => setChanging(true)}>{t("Change")}</button>}
         </Row>
         {passkeys.map((passkey) => (
-          <Row key={passkey.id} label={<span className="hidden-way"><Fingerprint size={14} /> {passkey.name || "Passkey"}<BetaTag /></span>} description={unlocked ? [passkey.kind === "device" ? "Tied to this browser" : "", passkey.createdAt ? `added ${when(passkey.createdAt)}` : "", passkey.lastUsedAt ? `last used ${when(passkey.lastUsedAt)}` : ""].filter(Boolean).join(", ").replace(/^a/, "A") : undefined}>
-            <button className="btn is-ghost" aria-label={`Remove ${passkey.name || "passkey"}`} disabled={!unlocked} onClick={() => removeBiometric(passkey.id, passkey.name || "this passkey")}><Trash2 size={14} /></button>
+          <Row key={passkey.id} label={<span className="hidden-way"><Fingerprint size={14} /> {passkey.name || t("Passkey")}<BetaTag /></span>} description={unlocked ? [passkey.kind === "device" ? "Tied to this browser" : "", passkey.createdAt ? `added ${when(passkey.createdAt)}` : "", passkey.lastUsedAt ? `last used ${when(passkey.lastUsedAt)}` : ""].filter(Boolean).join(", ").replace(/^a/, "A") : undefined}>
+            <button className="btn is-ghost" aria-label={t("Remove {0}", { "0": (passkey.name || "passkey") })} disabled={!unlocked} onClick={() => removeBiometric(passkey.id, passkey.name || "this passkey")}><Trash2 size={14} /></button>
           </Row>
         ))}
         {support?.available ? (
-          <Row label={<span className="hidden-way"><Fingerprint size={14} /> {passkeys.length ? `Add another` : label}<BetaTag /></span>} description={passkeys.length ? "Another device, or your phone." : "Unlock without typing."}>
-            <button className="btn" disabled={!unlocked || busy === "passkey"} onClick={addBiometric}>{busy === "passkey" ? "Waiting…" : `Add ${passkeys.length ? "passkey" : label}`}</button>
+          <Row label={<span className="hidden-way"><Fingerprint size={14} /> {passkeys.length ? t("Add another") : label}<BetaTag /></span>} description={passkeys.length ? t("Another device, or your phone.") : t("Unlock without typing.")}>
+            <button className="btn" disabled={!unlocked || busy === "passkey"} onClick={addBiometric}>{busy === "passkey" ? t("Waiting…") : t("Add {0}", { "0": (passkeys.length ? t("passkey") : label) })}</button>
           </Row>
         ) : null}
       </Group>
 
-      <Group title="Auto-lock" note="Locks after this long without activity, on each device separately.">
-        <Row label="Lock Hidden after" description="Without activity on this device.">
-          <div className="segmented" role="radiogroup" aria-label="Lock Hidden after">
+      <Group title={t("Auto-lock")} note={t("Locks after this long without activity, on each device separately.")}>
+        <Row label={t("Lock Hidden after")} description={t("Without activity on this device.")}>
+          <div className="segmented" role="radiogroup" aria-label={t("Lock Hidden after")}>
             {autoLockChoices.map((choice) => (
-              <button key={choice.value} type="button" role="radio" aria-checked={autoLock === choice.value} className={cn(autoLock === choice.value && 'active')} onClick={() => setPrefs({ hiddenAutoLockMinutes: choice.value })}>{choice.label}</button>
+              <button key={choice.value} type="button" role="radio" aria-checked={autoLock === choice.value} className={cn(autoLock === choice.value && 'active')} onClick={() => setPrefs({ hiddenAutoLockMinutes: choice.value })}>{t(choice.label)}</button>
             ))}
           </div>
         </Row>
       </Group>
 
-      <Group title="Sharing">
-        <Row label="Share without settings" description="Leaves the prompt, seed and workflow out of files downloaded or shared from Hidden.">
-          <Switch label="Share without settings" checked={prefs.hiddenShareWithoutSettings !== false} onChange={(next) => setPrefs({ hiddenShareWithoutSettings: next })} />
+      <Group title={t("Sharing")}>
+        <Row label={t("Share without settings")} description={t("Leaves the prompt, seed and workflow out of files downloaded or shared from Hidden.")}>
+          <Switch label={t("Share without settings")} checked={prefs.hiddenShareWithoutSettings !== false} onChange={(next) => setPrefs({ hiddenShareWithoutSettings: next })} />
         </Row>
       </Group>
 
-      <Group title="Export">
-        <Row label="Export Hidden" description="Every image, unencrypted, in one ZIP file." disabled={!unlocked}>
-          <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/hidden/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Export</a>
+      <Group title={t("Export")}>
+        <Row label={t("Export Hidden")} description={t("Every image, unencrypted, in one ZIP file.")} disabled={!unlocked}>
+          <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/hidden/export" : undefined} aria-disabled={!unlocked} download><Download size={14} />{t("Export")}</a>
         </Row>
-        <Row label="Encrypted backup" description="Every image in one file, encrypted with the Hidden password. Restoring from it isn’t supported yet, so keep a ZIP export too." disabled={!unlocked}>
-          <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/vault/export" : undefined} aria-disabled={!unlocked} download><Download size={14} /> Back up</a>
+        <Row label={t("Encrypted backup")} description={t("Every image in one file, encrypted with the Hidden password. Restoring from it isn’t supported yet, so keep a ZIP export too.")} disabled={!unlocked}>
+          <a className={cn("btn", !unlocked && "is-disabled")} href={unlocked ? "/api/vault/export" : undefined} aria-disabled={!unlocked} download><Download size={14} />{t("Back up")}</a>
         </Row>
       </Group>
 
       {atComputer ? (
-        <Group title="Start over" tone="danger" note="Without the password or a passkey, erasing is the only way to start over.">
-          <Row label="Erase Hidden" description="Erases every Hidden image, the password and all passkeys from this computer.">
-            <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} /> Erase</button>
+        <Group title={t("Start over")} tone="danger" note={t("Without the password or a passkey, erasing is the only way to start over.")}>
+          <Row label={t("Erase Hidden")} description={t("Erases every Hidden image, the password and all passkeys from this computer.")}>
+            <button className="btn is-danger-soft" onClick={erase}><Trash2 size={14} />{t("Erase")}</button>
           </Row>
         </Group>
       ) : null}

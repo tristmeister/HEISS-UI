@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Check, ExternalLink, FolderSearch, Plug, RefreshCw } from 'lucide-react';
 import { githubUrl } from './constants';
@@ -49,6 +51,7 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
   /** The "pick a first model" cards, shown when ComfyUI has no model HEISS UI can run. */
   starter?: React.ReactNode;
 }) {
+  useLanguage();
   const thisComputer = useThisComputer();
   const [phase, setPhase] = useState<Phase>(!known ? 'waiting' : offline ? 'offline' : 'empty');
   const [connectedAt, setConnectedAt] = useState<number | null>(null);
@@ -111,50 +114,50 @@ export function EmptyStage({ known, offline, restarting = false, device, retryin
         <div className="stage-copy" key={`${copy}${restarting ? "-restarting" : ""}`}>
           {copy === 'offline' && restarting ? (
             <>
-              <h2>Restarting ComfyUI</h2>
-              <p>It picks up new nodes and model folders, then reconnects. <RestartEtaText fallback="Usually a few seconds." /></p>
+              <h2>{t("Restarting ComfyUI")}</h2>
+              <p>{t("It picks up new nodes and model folders, then reconnects.")}{" "}<RestartEtaText fallback="Usually a few seconds." /></p>
             </>
           ) : copy === 'looking' ? (
             <>
-              <h2>Looking for ComfyUI…</h2>
-              {where ? <p>Checking <code className="stage-code">{where}</code>{ports.length ? <> and port {ports.join(', ')}</> : null}.</p> : null}
+              <h2>{t("Looking for ComfyUI…")}</h2>
+              {where ? <p>{t("Checking")}{" "}<code className="stage-code">{where}</code>{ports.length ? <>{t("and port")}{" "}{ports.join(', ')}</> : null}.</p> : null}
             </>
           ) : copy === 'offline' ? (
             <>
-              <h2>{retrying ? 'Looking for ComfyUI…' : 'ComfyUI is offline'}</h2>
-              <p>Start ComfyUI and it connects.{where ? <> Checking <code className="stage-code">{where}</code>{ports.length ? <> and port {ports.join(', ')}</> : null}.</> : null}</p>
+              <h2>{retrying ? t("Looking for ComfyUI…") : t("ComfyUI is offline")}</h2>
+              <p>{t("Start ComfyUI and it connects.")}{where ? <>{t("Checking")}{" "}<code className="stage-code">{where}</code>{ports.length ? <>{t("and port")}{" "}{ports.join(', ')}</> : null}.</> : null}</p>
               <div className="empty-actions">
-                <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? 'Checking…' : 'Check again'}</button>
-                {thisComputer ? <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} /> Change address</button> : null}
+                <button className="reconnect-btn primary" onClick={onRetry} disabled={retrying} aria-busy={retrying || undefined}><RefreshCw size={13} className={cn(retrying && 'spin')} /> {retrying ? t("Checking…") : t("Check again")}</button>
+                {thisComputer ? <button className="reconnect-btn" onClick={onOpenConnection}><Plug size={13} />{t("Change address")}</button> : null}
               </div>
               {onNoComfy
-                ? <button type="button" className="stage-link" onClick={onNoComfy}>No ComfyUI yet?</button>
-                : <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">No ComfyUI yet? <ExternalLink size={11} /></a>}
+                ? <button type="button" className="stage-link" onClick={onNoComfy}>{t("No ComfyUI yet?")}</button>
+                : <a className="stage-link" href="https://www.comfy.org/download" target="_blank" rel="noreferrer">{t("No ComfyUI yet?")}{" "}<ExternalLink size={11} /></a>}
             </>
           ) : copy === 'connected' ? (
             <>
-              <h2 className="stage-connected"><span><Check size={12} strokeWidth={3} /></span> Connected</h2>
-              <p>{device ? `ComfyUI on ${device}` : 'ComfyUI is ready.'}</p>
+              <h2 className="stage-connected"><span><Check size={12} strokeWidth={3} /></span>{t("Connected")}</h2>
+              <p>{device ? t("ComfyUI on {0}", { "0": (device) }) : t("ComfyUI is ready.")}</p>
             </>
           ) : copy === 'empty' && noModels && starter && thisComputer ? (
             <>
-              <h2>Choose a first model</h2>
-              <p>It downloads with everything it needs.{onFindModels ? <> Already have models on this computer? <button type="button" className="stage-inline-link" onClick={onFindModels}>Find them</button>.</> : null}</p>
+              <h2>{t("Choose a first model")}</h2>
+              <p>{t("It downloads with everything it needs.")}{onFindModels ? <>{t("Already have models on this computer?")}{" "}<button type="button" className="stage-inline-link" onClick={onFindModels}>{t("Find them")}</button>.</> : null}</p>
               {starter}
             </>
           ) : copy === 'empty' && noModels ? (
             <>
-              <h2>No models yet</h2>
-              <p>{thisComputer ? 'Put a checkpoint or diffusion model in ComfyUI’s models folder, or find models elsewhere on this computer.' : 'Add a checkpoint or diffusion model to ComfyUI on the computer running HEISS UI, and it shows up here.'}</p>
+              <h2>{t("No models yet")}</h2>
+              <p>{thisComputer ? t("Put a checkpoint or diffusion model in ComfyUI’s models folder, or find models elsewhere on this computer.") : t("Add a checkpoint or diffusion model to ComfyUI on the computer running HEISS UI, and it shows up here.")}</p>
               <div className="empty-actions">
-                {onFindModels && thisComputer ? <button className="reconnect-btn primary" onClick={onFindModels}><FolderSearch size={13} /> Find models</button> : null}
-                <a className="reconnect-btn" href={`${githubUrl}#supported-models`} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Which models work</a>
+                {onFindModels && thisComputer ? <button className="reconnect-btn primary" onClick={onFindModels}><FolderSearch size={13} />{t("Find models")}</button> : null}
+                <a className="reconnect-btn" href={`${githubUrl}#supported-models`} target="_blank" rel="noreferrer"><ExternalLink size={13} />{t("Which models work")}</a>
               </div>
             </>
           ) : copy === 'empty' ? (
             <>
-              <h2>No outputs yet</h2>
-              <p>Write a prompt below to start.</p>
+              <h2>{t("No outputs yet")}</h2>
+              <p>{t("Write a prompt below to start.")}</p>
             </>
           ) : null}
         </div>

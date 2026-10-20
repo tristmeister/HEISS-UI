@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { cn } from './format';
@@ -74,12 +76,14 @@ export function useRunClock(progress?: Progress | null) {
 
 /** "12 s left" for a running item, ticking by itself, or nothing without an estimate. */
 export function RunLeft({ progress }: { progress?: Progress | null }) {
+  useLanguage();
   const { leftMs } = useRunClock(progress);
   return leftMs === null ? null : <>{formatLeft(leftMs)}</>;
 }
 
 /** The overlay on a running generation: what it is doing, how far, and how long is left (or how long it has been). */
 export function GenerationProgress({ item, formatElapsed }: { item: GalleryItem; formatElapsed: (value: number) => string }) {
+  useLanguage();
   const reading = progressReading(item.progress);
   const clock = useRunClock(item.progress);
   // With an estimate the bar follows the whole run, setup and decoding too, instead of steps alone.
@@ -89,11 +93,11 @@ export function GenerationProgress({ item, formatElapsed }: { item: GalleryItem;
   const ratio = timed ? clock.ratio : reading.kind === 'steps' ? reading.ratio : upscaling && reading.kind === 'phase' ? (reading.percent ?? 0) / 100 : 0;
   return (
     <div className={cn('generation-progress', item.progress?.reconnecting && 'is-reconnecting')} style={{ '--progress-ratio': ratio } as React.CSSProperties}>
-      <div className="generate-overlay" title={item.progress?.reconnecting ? 'ComfyUI stopped responding. The image appears when it’s back.' : undefined}>
+      <div className="generate-overlay" title={item.progress?.reconnecting ? t("ComfyUI stopped responding. The image appears when it’s back.") : undefined}>
         <span className="generate-step">
           {reading.kind === 'steps' ? (
             <>
-              <span className="generate-step-label">Step</span>
+              <span className="generate-step-label">{t("Step")}</span>
               <span className="generate-step-count">
                 <AnimatePresence mode="wait">
                   <motion.span key={reading.value} variants={numberVariants} initial="initial" animate="animate" exit="exit">
@@ -109,7 +113,7 @@ export function GenerationProgress({ item, formatElapsed }: { item: GalleryItem;
               {reading.percent !== null ? <span className="generate-step-count">{reading.percent}<i className="is-unit">%</i></span> : null}
             </>
           ) : (
-            <span className="generate-step-label is-queued">Queued</span>
+            <span className="generate-step-label is-queued">{t("Queued")}</span>
           )}
         </span>
         <span className="generate-elapsed">{clock.leftMs !== null ? formatLeft(clock.leftMs) : <ElapsedTime startedAt={item.createdAt} format={formatElapsed} />}</span>

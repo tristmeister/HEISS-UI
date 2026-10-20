@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { Check, RotateCw } from 'lucide-react';
 import { apiJson } from './api';
@@ -152,6 +154,7 @@ export function listNames(names: string[]) {
 
 /** The restart estimate as text, ticking on its own so the surface around it does not re-render. */
 export function RestartEtaText({ fallback = 'Usually back in a few seconds.' }: { fallback?: string }) {
+  useLanguage();
   const eta = useComfyRestartEta();
   return <>{eta?.text || fallback}</>;
 }
@@ -248,7 +251,7 @@ export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; conf
     }
     if (!alive.current) return;
     setPhase('error');
-    setError('ComfyUI hasn’t come back yet. Check its window for errors.');
+    setError(t("ComfyUI hasn’t come back yet. Check its window for errors."));
   };
 
   // A restart started anywhere (another button, a setup step, another tab) shows here too.
@@ -262,15 +265,16 @@ export function useComfyRestart({ onBack, confirm }: { onBack?: () => void; conf
 
 /** Why the restart button is off, with a way to check again. */
 export function ComfyManagerNote({ info, refresh, className }: { info: ManagerInfo | null; refresh: () => void; className?: string }) {
+  useLanguage();
   return (
     <p className={cn('comfy-restart-note', className)}>
       {info?.stale
-        ? <>Restart HEISS UI to use this.</>
+        ? <>{t("Restart HEISS UI to use this.")}</>
         : info?.connected
-        ? <>Needs ComfyUI-Manager. Start ComfyUI with <code>--enable-manager</code>, or restart it yourself.</>
-        : info?.error ? <>Couldn’t check ComfyUI: {info.error}</>
-        : <>ComfyUI is offline.</>}{' '}
-      <button type="button" className="comfy-restart-link" onClick={() => refresh()}>Check again</button>
+        ? <>{t("Needs ComfyUI-Manager. Start ComfyUI with")}{" "}<code>--enable-manager</code>{t(", or restart it yourself.")}</>
+        : info?.error ? <>{t("Couldn’t check ComfyUI:")}{" "}{info.error}</>
+        : <>{t("ComfyUI is offline.")}</>}{' '}
+      <button type="button" className="comfy-restart-link" onClick={() => refresh()}>{t("Check again")}</button>
     </p>
   );
 }
@@ -285,18 +289,19 @@ export function ComfyRestart({ onBack, confirm, compact = false, className }: {
   compact?: boolean;
   className?: string;
 }) {
+  useLanguage();
   const { info, refresh, phase, error, busy, off, restart, eta, result } = useComfyRestart({ onBack, confirm });
   const thisComputer = useThisComputer();
   // Restarting is looked after at the computer; elsewhere only its progress shows.
-  if (!thisComputer && !busy) return <p className={cn('comfy-restart-note', className)}>Restart ComfyUI from the computer running HEISS UI.</p>;
+  if (!thisComputer && !busy) return <p className={cn('comfy-restart-note', className)}>{t("Restart ComfyUI from the computer running HEISS UI.")}</p>;
   return (
     <div className={cn('comfy-restart', compact && 'is-compact', className)}>
       <button type="button" className={cn('btn', phase === 'back' && 'is-done')} onClick={restart} disabled={off || busy || info === null} aria-live="polite">
         {phase === 'back' ? <Check size={14} /> : <RotateCw size={14} className={cn(busy && 'is-spinning')} />}
-        {phase === 'back' ? 'Back online' : busy ? 'Restarting…' : 'Restart ComfyUI'}
+        {phase === 'back' ? t("Back online") : busy ? t("Restarting…") : t("Restart ComfyUI")}
       </button>
       {off ? <ComfyManagerNote info={info} refresh={refresh} /> : null}
-      {busy && !compact ? <p className="comfy-restart-note">ComfyUI is restarting to pick up new nodes and folders. {eta?.text || 'Usually back in a few seconds.'}</p> : null}
+      {busy && !compact ? <p className="comfy-restart-note">{t("ComfyUI is restarting to pick up new nodes and folders.")}{" "}{eta?.text || t("Usually back in a few seconds.")}</p> : null}
       {phase === 'back' && !compact && result && restartResultLine(result) !== 'Back online' ? <p className={cn('comfy-restart-note', Boolean(result.failedPacks?.length) && 'is-error')}>{restartResultLine(result)}</p> : null}
       {phase === 'error' ? <p className="comfy-restart-note is-error">{error}</p> : null}
     </div>

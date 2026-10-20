@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import { Modal } from './Modal';
 
 /** Every keyboard shortcut, for Settings › General and the "?" overlay. */
@@ -24,13 +26,14 @@ export function generateShortcut(enterToGenerate: boolean) {
 }
 
 export function ShortcutsSheet({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  useLanguage();
   return (
-    <Modal open={open} onOpenChange={onOpenChange} title="Keyboard shortcuts" description="They pause while you type in a field, except the ones that send the prompt." className="shortcuts-sheet">
+    <Modal open={open} onOpenChange={onOpenChange} title={t("Keyboard shortcuts")} description={t("They pause while you type in a field, except the ones that send the prompt.")} className="shortcuts-sheet">
       <dl className="shortcuts-list">
         {shortcuts.map(([keys, what]) => (
           <div key={keys} className="shortcuts-row">
             <dt><kbd className="set-kbd">{keys}</kbd></dt>
-            <dd>{what}</dd>
+            <dd>{t(what)}</dd>
           </div>
         ))}
       </dl>

@@ -50,6 +50,7 @@ The node graph is for building workflows. HEISS UI is for the everyday loop of p
 - **Hidden.** A locked place for images you keep to yourself, opened with Touch ID, Windows Hello or a password. Generate into it, or hide anything later.
 - **Civitai-ready images (beta).** New PNGs carry their prompt and settings in a form Civitai fills in for you on upload. Turn it on in Settings › Library.
 - **Zen mode.** Just the prompt and the picture, fullscreen.
+- **English and Russian.** Switch interface language in Settings › General; prompts and workflow parameters stay unchanged. [Language guide](./docs/guides/LOCALIZATION.md).
 
 LoRA stacks, live previews, video previews, recent prompts and gallery search are on the [website](https://heiss-ui.vercel.app/#features).
 

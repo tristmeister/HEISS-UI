@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ARROW } from './UpscaleHero';
@@ -26,6 +28,7 @@ const releaseNotesUrl = (version: string) => `https://github.com/tristmeister/HE
 
 /** The arrow at rest (a pulse of heat rising through it) or just updated (lit bottom to top). */
 function RisingArrow({ mode }: { mode: 'available' | 'updated' }) {
+  useLanguage();
   const gap = useCellGap(0.1);
   return (
     <svg className={cn('udw-arrow', 'uup-arrow', `is-${mode}`)} viewBox="-1 -5 17 21" aria-hidden="true">
@@ -105,54 +108,54 @@ export function useUpdateActivity({ status, thisComputer, restarting, justUpdate
         ...base,
         glyph,
         wide: true,
-        title: `HEISS UI ${latest} is here`,
+        title: t("HEISS UI {0} is here", { "0": (latest) }),
         meta: status?.highlight
-          ? <>{status.highlight}{status.more ? <span className="uup-more"> · {status.more} more</span> : null}</>
+          ? <>{status.highlight}{status.more ? <span className="uup-more"> · {status.more}{t("more")}</span> : null}</>
           : status?.size ? `${formatBytes(status.size)}, downloads in the background` : 'Downloads in the background',
         metaTitle: status?.highlight,
         metaLines: 2,
-        action: { label: 'Update', run: onUpdate },
-        dismiss: { label: 'Later', title: 'Later', run: () => onLater(latest) }
+        action: { label: t("Update"), run: onUpdate },
+        dismiss: { label: t("Later"), title: t("Later"), run: () => onLater(latest) }
       };
     case 'downloading':
       return {
         ...base,
         glyph,
-        title: `Updating to ${latest}`,
+        title: t("Updating to {0}", { "0": (latest) }),
         figure: total ? <><AnimatedNumber value={Math.floor(progress * 100)} />%</> : undefined,
         progress,
         meta: total ? `${formatBytes(received)} of ${formatBytes(total)}` : 'Starting the download'
       };
     case 'verifying':
-      return { ...base, glyph, title: `Getting ${latest} ready`, meta: 'Checking the download' };
+      return { ...base, glyph, title: t("Getting {0} ready", { "0": (latest) }), meta: 'Checking the download' };
     case 'ready':
       return {
         ...base,
         glyph,
-        title: `HEISS UI ${latest} is ready`,
+        title: t("HEISS UI {0} is ready", { "0": (latest) }),
         meta: running ? `Restarting stops ${generations}` : 'Takes a few seconds',
-        action: running ? { label: 'When done', run: () => setArmed(true) } : { label: 'Restart', run: onRestart },
-        dismiss: { label: 'Dismiss', run: () => setPutAway(`ready:${latest}`) }
+        action: running ? { label: t("When done"), run: () => setArmed(true) } : { label: t("Restart"), run: onRestart },
+        dismiss: { label: t("Dismiss"), run: () => setPutAway(`ready:${latest}`) }
       };
     case 'waiting':
       return {
         ...base,
         glyph,
-        title: 'Restarting when done',
+        title: t("Restarting when done"),
         meta: `After ${generations} finish${running === 1 ? 'es' : ''}`,
-        action: { label: 'Now', run: onRestart },
-        dismiss: { label: 'Don’t restart', run: () => setArmed(false) }
+        action: { label: t("Now"), run: onRestart },
+        dismiss: { label: t("Don’t restart"), run: () => setArmed(false) }
       };
     case 'restarting':
-      return { ...base, glyph, title: 'Restarting', meta: 'Back in a few seconds' };
+      return { ...base, glyph, title: t("Restarting"), meta: 'Back in a few seconds' };
     case 'updated':
       return {
         ...base,
         state: 'done',
         glyph,
-        title: `You’re on HEISS UI ${justUpdated}`,
-        meta: <a className="uup-link" href={releaseNotesUrl(justUpdated)} target="_blank" rel="noreferrer">See what’s new</a>,
-        dismiss: { label: 'Dismiss', run: onDoneUpdated },
+        title: t("You’re on HEISS UI {0}", { "0": (justUpdated) }),
+        meta: <a className="uup-link" href={releaseNotesUrl(justUpdated)} target="_blank" rel="noreferrer">{t("See what’s new")}</a>,
+        dismiss: { label: t("Dismiss"), run: onDoneUpdated },
         expire: { after: UPDATED_HOLD_MS, run: onDoneUpdated }
       };
     case 'error':
@@ -160,11 +163,11 @@ export function useUpdateActivity({ status, thisComputer, restarting, justUpdate
         ...base,
         state: 'error',
         glyph,
-        title: 'The update stopped',
+        title: t("The update stopped"),
         meta: download?.error || 'The download didn’t finish',
         metaTitle: download?.error,
-        action: { label: 'Try again', run: onUpdate },
-        dismiss: { label: 'Dismiss', run: () => setPutAway(errorKey) }
+        action: { label: t("Try again"), run: onUpdate },
+        dismiss: { label: t("Dismiss"), run: () => setPutAway(errorKey) }
       };
   }
 }

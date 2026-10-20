@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronsLeftRight } from 'lucide-react';
 import type { GalleryItem } from './types';
@@ -19,6 +21,7 @@ const GRAB_RADIUS = 22;
  * React state, so it tracks without lag.
  */
 export function UpscaleCompare({ item, zoomed }: { item: GalleryItem; zoomed: boolean }) {
+  useLanguage();
   const rootRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const position = useRef(50);
@@ -126,7 +129,7 @@ export function UpscaleCompare({ item, zoomed }: { item: GalleryItem; zoomed: bo
       onKeyDown={onKeyDown}
       tabIndex={0}
       role="slider"
-      aria-label="Split between the original and the upscale"
+      aria-label={t("Split between the original and the upscale")}
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={valueNow}
@@ -141,8 +144,8 @@ export function UpscaleCompare({ item, zoomed }: { item: GalleryItem; zoomed: bo
         <div className="upscale-compare-line" aria-hidden="true">
           <span><ChevronsLeftRight size={15} strokeWidth={2.2} /></span>
         </div>
-        <span className="upscale-compare-tag is-before">Original</span>
-        <span className="upscale-compare-tag is-after">Upscaled{item.upscale?.scale ? ` ${item.upscale.scale}×` : ''}</span>
+        <span className="upscale-compare-tag is-before">{t("Original")}</span>
+        <span className="upscale-compare-tag is-after">{t("Upscaled")}{item.upscale?.scale ? ` ${item.upscale.scale}×` : ''}</span>
       </div>
     </div>
   );

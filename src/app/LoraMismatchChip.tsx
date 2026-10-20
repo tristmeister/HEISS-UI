@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TriangleAlert, X } from 'lucide-react';
@@ -33,6 +35,7 @@ function useNoteHeightVar() {
  * hides the note for this exact set until the tab reloads.
  */
 export function LoraMismatchChip({ mismatch, onOpenLoras, onDismiss }: { mismatch: LoraMismatch | null; onOpenLoras?: () => void; onDismiss: (key: string) => void }) {
+  useLanguage();
   const noteRef = useNoteHeightVar();
   return (
     <AnimatePresence>
@@ -50,13 +53,12 @@ export function LoraMismatchChip({ mismatch, onOpenLoras, onDismiss }: { mismatc
           <TriangleAlert size={13} aria-hidden="true" />
           <span>
             {mismatch.names.length === 1
-              ? <><b>{shortName(mismatch.names[0])}</b> is made for {mismatch.madeFor[0] || "another model"}, not {mismatch.model}.</>
-              : <>{mismatch.names.length} LoRAs are made for other models, not {mismatch.model}.</>}
-            {" "}Sure they fit?
-          </span>
-          {onOpenLoras ? <button type="button" className="lora-mismatch-action" onClick={onOpenLoras}>Check</button> : null}
-          <button type="button" className="lora-mismatch-action is-quiet" onClick={() => onDismiss(mismatch.key)}>Keep them</button>
-          <button type="button" className="lora-mismatch-close" aria-label="Dismiss" onClick={() => onDismiss(mismatch.key)}><X size={12} /></button>
+              ? <><b>{shortName(mismatch.names[0])}</b>{t("is made for")}{" "}{mismatch.madeFor[0] || t("another model")}{t(", not")}{" "}{mismatch.model}.</>
+              : <>{mismatch.names.length}{t("LoRAs are made for other models, not")}{" "}{mismatch.model}.</>}
+            {" "}{t("Sure they fit?")}</span>
+          {onOpenLoras ? <button type="button" className="lora-mismatch-action" onClick={onOpenLoras}>{t("Check")}</button> : null}
+          <button type="button" className="lora-mismatch-action is-quiet" onClick={() => onDismiss(mismatch.key)}>{t("Keep them")}</button>
+          <button type="button" className="lora-mismatch-close" aria-label={t("Dismiss")} onClick={() => onDismiss(mismatch.key)}><X size={12} /></button>
         </motion.div>
       ) : null}
     </AnimatePresence>

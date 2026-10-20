@@ -1,3 +1,5 @@
+import { languages, setLanguage, t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { ComfyManagerNote, ComfyRestart, restartResultLine, useComfyRestart, useComfyRestartEta, useComfyRestarting } from './ComfyRestart';
 import { NodeInstall } from './NodeInstall';
@@ -44,6 +46,7 @@ export type SettingsSection = typeof SETTINGS_SECTIONS[number]['id'];
 /* ------------------------------------------------------------ Primitives */
 
 export function Switch({ checked, onChange, disabled, label, size = 'md' }: { checked: boolean; onChange: (next: boolean) => void; disabled?: boolean; label: string; size?: 'sm' | 'md' }) {
+  useLanguage();
   return (
     <button type="button" role="switch" aria-checked={checked} aria-label={label} disabled={disabled} className={cn('switch', size === 'sm' && 'is-sm')} onClick={() => onChange(!checked)}>
       <span className="switch-thumb" />
@@ -52,6 +55,7 @@ export function Switch({ checked, onChange, disabled, label, size = 'md' }: { ch
 }
 
 export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: Array<{ value: T; label: React.ReactNode }>; onChange: (next: T) => void; label: string }) {
+  useLanguage();
   return (
     <div className="segmented" role="radiogroup" aria-label={label}>
       {options.map((option) => (
@@ -65,6 +69,7 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
 
 /** The two looks of a stacked run, drawn small: a photo with two edges under it, and a cover flow. */
 function RunStyleGlyph({ kind }: { kind: 'burst' | 'flow' }) {
+  useLanguage();
   return (
     <svg width="18" height="14" viewBox="0 0 18 14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {kind === 'burst' ? (
@@ -86,6 +91,7 @@ function RunStyleGlyph({ kind }: { kind: 'burst' | 'flow' }) {
 
 /** Where HEISS UI looks for ComfyUI: test an address, then keep it. */
 function ComfyAddressRow({ current, search, showToast, onSaved }: { current: string; search: boolean; showToast: ShowToast; onSaved: () => void }) {
+  useLanguage();
   const [value, setValue] = React.useState(current);
   const [busy, setBusy] = React.useState(false);
   const [note, setNote] = React.useState('');
@@ -99,27 +105,28 @@ function ComfyAddressRow({ current, search, showToast, onSaved }: { current: str
       if (!response.ok) { setNote(data.error || 'Couldn’t check that address.'); return; }
       setValue(data.url);
       if (!data.reachable) { setNote(`${data.detail || 'ComfyUI didn’t respond at that address.'}${save ? ' The address wasn’t saved.' : ''}`); return; }
-      if (data.saved) { setNote('Saved. Connected to ComfyUI.'); onSaved(); }
-      else setNote('ComfyUI responds at that address.');
+      if (data.saved) { setNote(t("Saved. Connected to ComfyUI.")); onSaved(); }
+      else setNote(t("ComfyUI responds at that address."));
     } catch {
-      setNote('Can’t reach HEISS UI. Make sure it’s running.');
+      setNote(t("Can’t reach HEISS UI. Make sure it’s running."));
     } finally {
       setBusy(false);
     }
   };
   const changed = value.trim() && value.trim() !== current;
   return (
-    <Row label="Address" description={note || `Where ComfyUI runs. ComfyUI Desktop usually uses port 8000, a manual install 8188${search ? '; on this computer both are tried' : ''}.`}>
+    <Row label={t("Address")} description={note || t("Where ComfyUI runs. ComfyUI Desktop usually uses port 8000, a manual install 8188{0}.", { "0": (search ? t("; on this computer both are tried") : t("")) })}>
       <div className="set-address">
-        <input className="set-path-input" value={value} onChange={(event) => setValue(event.target.value)} aria-label="ComfyUI address" spellCheck={false} autoComplete="off" onKeyDown={(event) => { if (event.key === 'Enter' && changed) submit(true); }} />
-        <button className="btn" onClick={() => submit(false)} disabled={busy || !value.trim()}>Test</button>
-        <button className="btn is-primary" onClick={() => submit(true)} disabled={busy || !changed}>{busy ? 'Checking…' : 'Save'}</button>
+        <input className="set-path-input" value={value} onChange={(event) => setValue(event.target.value)} aria-label={t("ComfyUI address")} spellCheck={false} autoComplete="off" onKeyDown={(event) => { if (event.key === 'Enter' && changed) submit(true); }} />
+        <button className="btn" onClick={() => submit(false)} disabled={busy || !value.trim()}>{t("Test")}</button>
+        <button className="btn is-primary" onClick={() => submit(true)} disabled={busy || !changed}>{busy ? t("Checking…") : t("Save")}</button>
       </div>
     </Row>
   );
 }
 
 export function Group({ title, note, tone, children }: React.PropsWithChildren<{ title?: string; note?: React.ReactNode; tone?: 'danger' }>) {
+  useLanguage();
   return (
     <section className="set-group">
       {title ? <h4 className="set-group-title">{title}</h4> : null}
@@ -130,6 +137,7 @@ export function Group({ title, note, tone, children }: React.PropsWithChildren<{
 }
 
 export function Row({ label, description, children, stacked, disabled }: React.PropsWithChildren<{ label: React.ReactNode; description?: React.ReactNode; stacked?: boolean; disabled?: boolean }>) {
+  useLanguage();
   return (
     <div className={cn('set-row', stacked && 'is-stacked', disabled && 'is-disabled')}>
       <div className="set-row-text">
@@ -142,6 +150,7 @@ export function Row({ label, description, children, stacked, disabled }: React.P
 }
 
 function SwitchRow({ label, tag, description, checked, onChange, disabled }: { label: string; tag?: React.ReactNode; description?: React.ReactNode; checked: boolean; onChange: (next: boolean) => void; disabled?: boolean }) {
+  useLanguage();
   return (
     <Row label={tag ? <>{label}{tag}</> : label} description={description} disabled={disabled}>
       <Switch label={label} checked={checked} onChange={onChange} disabled={disabled} />
@@ -151,6 +160,7 @@ function SwitchRow({ label, tag, description, checked, onChange, disabled }: { l
 
 /** Whether HEISS looks on the usual ports when its address doesn't answer. Off for a second ComfyUI kept just for HEISS. */
 function ComfySearchRow({ enabled, onSaved }: { enabled: boolean; onSaved: () => void }) {
+  useLanguage();
   const [checked, setChecked] = React.useState(enabled);
   const [note, setNote] = React.useState('');
   React.useEffect(() => { setChecked(enabled); }, [enabled]);
@@ -163,13 +173,13 @@ function ComfySearchRow({ enabled, onSaved }: { enabled: boolean; onSaved: () =>
       onSaved();
     } catch {
       setChecked(!next);
-      setNote('Couldn’t save that. Make sure HEISS UI is running.');
+      setNote(t("Couldn’t save that. Make sure HEISS UI is running."));
     }
   };
   return (
     <SwitchRow
-      label="Find ComfyUI on its own"
-      description={note || 'When nothing answers at this address, try ports 8188 and 8000 and switch to the ComfyUI there. Turn off to stay on this address, e.g. with a second ComfyUI just for HEISS.'}
+      label={t("Find ComfyUI on its own")}
+      description={note || t("When nothing answers at this address, try ports 8188 and 8000 and switch to the ComfyUI there. Turn off to stay on this address, e.g. with a second ComfyUI just for HEISS.")}
       checked={checked}
       onChange={change}
     />
@@ -178,30 +188,31 @@ function ComfySearchRow({ enabled, onSaved }: { enabled: boolean; onSaved: () =>
 
 /** Folders ComfyUI reads because HEISS added them, and the way to find more. */
 function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsChange }: { folders: ModelFolders; confirmAction: ConfirmAction; onOpen: () => void; hints: boolean; onHintsChange: (next: boolean) => void }) {
+  useLanguage();
   const report = folders.report;
   const stray = (report?.folders || []).reduce((sum, folder) => sum + folder.count, 0);
   const linked = report?.linked || [];
   // Settings is where people come to check: look again, quietly, each time it opens.
   React.useEffect(() => { folders.scan({ quiet: true }); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Group title="Model folders" note={report?.configLabel ? <>Stored in <code>{report.configLabel}</code>.</> : undefined}>
+    <Group title={t("Model folders")} note={report?.configLabel ? <>{t("Stored in")}{" "}<code>{report.configLabel}</code>.</> : undefined}>
       {linked.map((item) => (
-        <Row key={item.path} label={<span className="set-folder-path" title={item.path}>{item.label}</span>} description={item.read ? 'Added here · ComfyUI reads it' : 'Added here · ComfyUI reads it after a restart'}>
+        <Row key={item.path} label={<span className="set-folder-path" title={item.path}>{item.label}</span>} description={item.read ? t("Added here · ComfyUI reads it") : t("Added here · ComfyUI reads it after a restart")}>
           <button className="btn is-ghost" onClick={async () => {
-            if (!await confirmAction({ title: `Stop using ${item.label}?`, description: 'ComfyUI stops reading this folder after its next restart.', action: 'Remove folder' })) return;
+            if (!await confirmAction({ title: t("Stop using {0}?", { "0": (item.label) }), description: t("ComfyUI stops reading this folder after its next restart."), action: t("Remove folder") })) return;
             folders.remove(item.path);
-          }}>Remove</button>
+          }}>{t("Remove")}</button>
         </Row>
       ))}
       <Row
-        label={stray ? <Status tone="warn">{stray} model{stray === 1 ? '' : 's'} found</Status> : 'Find models'}
-        description={stray ? 'They’re in a folder ComfyUI doesn’t read.' : 'Searches other ComfyUI installs, shared folders and external drives.'}
+        label={stray ? <Status tone="warn">{stray}{t("model")}{stray === 1 ? '' : 's'}{t("found")}</Status> : t("Find models")}
+        description={stray ? t("They’re in a folder ComfyUI doesn’t read.") : t("Searches other ComfyUI installs, shared folders and external drives.")}
       >
-        <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? 'Add' : 'Search'}</button>
+        <button className={cn('btn', stray > 0 && 'is-primary')} onClick={onOpen}><FolderSearch size={14} /> {stray ? t("Add") : t("Search")}</button>
       </Row>
       <SwitchRow
-        label="Notify about unread model folders"
-        description="Shows a note in the sidebar and model menu when models are in a folder ComfyUI doesn’t read."
+        label={t("Notify about unread model folders")}
+        description={t("Shows a note in the sidebar and model menu when models are in a folder ComfyUI doesn’t read.")}
         checked={hints}
         onChange={onHintsChange}
       />
@@ -210,6 +221,7 @@ function ModelFolderSettings({ folders, confirmAction, onOpen, hints, onHintsCha
 }
 
 function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad' | 'warn' }>) {
+  useLanguage();
   return <span className={cn('set-status', tone && `is-${tone}`)}><i aria-hidden="true" />{children}</span>;
 }
 
@@ -217,13 +229,14 @@ function Status({ tone, children }: React.PropsWithChildren<{ tone?: 'ok' | 'bad
 
 /** Every shortcut, folded away until asked for: the list is long and rarely needed here. */
 function ShortcutsDrawer() {
+  useLanguage();
   return (
-    <SettingsDrawer id="set-shortcuts" title="Keyboard shortcuts" description={<>{shortcuts.length} · <kbd className="set-kbd">?</kbd> shows them anywhere</>}>
+    <SettingsDrawer id="set-shortcuts" title={t("Keyboard shortcuts")} description={<>{shortcuts.length} · <kbd className="set-kbd">?</kbd>{t("shows them anywhere")}</>}>
       <dl className="set-keys">
         {shortcuts.map(([keys, what]) => (
           <React.Fragment key={keys}>
             <dt><kbd className="set-kbd">{keys}</kbd></dt>
-            <dd>{what}</dd>
+            <dd>{t(what)}</dd>
           </React.Fragment>
         ))}
       </dl>
@@ -235,10 +248,11 @@ function ShortcutsDrawer() {
 
 /** A plain restart button: its arrow turns while it works and becomes a check when it's back. */
 function RestartButton({ what, busy, done, disabled, onClick }: { what: string; busy: boolean; done?: boolean; disabled?: boolean; onClick: () => void }) {
+  useLanguage();
   return (
-    <button type="button" className={cn('btn', done && 'is-done')} onClick={onClick} disabled={disabled || busy || done} aria-label={`Restart ${what}`} aria-live="polite">
+    <button type="button" className={cn('btn', done && 'is-done')} onClick={onClick} disabled={disabled || busy || done} aria-label={t("Restart {0}", { "0": (what) })} aria-live="polite">
       {done ? <Check size={14} /> : <RotateCw size={14} className={cn(busy && 'is-spinning')} />}
-      {done ? 'Restarted' : busy ? 'Restarting…' : 'Restart'}
+      {done ? t("Restarted") : busy ? t("Restarting…") : t("Restart")}
     </button>
   );
 }
@@ -254,9 +268,10 @@ function RestartGroup({ confirmAction, onComfyBack, restartHeiss, heissRestartin
   heissRestarting: boolean;
   updateStatus: UpdateStatus | null;
 }) {
+  useLanguage();
   const comfy = useComfyRestart({
     onBack: onComfyBack,
-    confirm: () => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. It takes a few seconds.', action: 'Restart ComfyUI', destructive: true })
+    confirm: () => confirmAction({ title: t("Restart ComfyUI?"), description: t("Running and queued generations stop. It takes a few seconds."), action: t("Restart ComfyUI"), destructive: true })
   });
   const comfyBack = comfy.phase === 'back';
   const comfyLine = comfyBack ? restartResultLine(comfy.result)
@@ -268,7 +283,7 @@ function RestartGroup({ confirmAction, onComfyBack, restartHeiss, heissRestartin
   const [heissFailed, setHeissFailed] = React.useState(false);
   const unsupervised = Boolean(updateStatus?.release && updateStatus.supervised === false) || heissFailed;
   const restartApp = async () => {
-    if (!await confirmAction({ title: 'Restart HEISS UI?', description: 'Running generations stop and this page reloads.', action: 'Restart HEISS UI', destructive: true })) return;
+    if (!await confirmAction({ title: t("Restart HEISS UI?"), description: t("Running generations stop and this page reloads."), action: t("Restart HEISS UI"), destructive: true })) return;
     if (!await restartHeiss()) setHeissFailed(true);
   };
   const heissLine = heissRestarting ? 'This page reloads when it’s done.'
@@ -276,11 +291,11 @@ function RestartGroup({ confirmAction, onComfyBack, restartHeiss, heissRestartin
     : 'Reloads the studio. Running generations stop.';
 
   return (
-    <Group title="Restart" note={comfy.off && comfy.info ? <ComfyManagerNote info={comfy.info} refresh={comfy.refresh} /> : undefined}>
-      <Row label="ComfyUI" description={comfyLine}>
+    <Group title={t("Restart")} note={comfy.off && comfy.info ? <ComfyManagerNote info={comfy.info} refresh={comfy.refresh} /> : undefined}>
+      <Row label={t("ComfyUI")} description={comfyLine}>
         <RestartButton what="ComfyUI" busy={comfy.busy} done={comfyBack} disabled={comfy.off || comfy.info === null} onClick={comfy.restart} />
       </Row>
-      <Row label="HEISS UI" description={heissLine}>
+      <Row label={t("HEISS UI")} description={heissLine}>
         <RestartButton what="HEISS UI" busy={heissRestarting} disabled={unsupervised} onClick={restartApp} />
       </Row>
     </Group>
@@ -294,62 +309,64 @@ function RestartGroup({ confirmAction, onComfyBack, restartHeiss, heissRestartin
  * setup dialog, which owns installing nodes, downloading and verifying.
  */
 function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: { status: UpscaleStatus | null; reason?: string; install: UpscaleInstall; onOpenSetup: () => void; onDownload: () => void }) {
+  useLanguage();
   if (install?.status === 'running') {
     const ratio = install.totalBytes ? Math.min(1, (install.receivedBytes || 0) / install.totalBytes) : 0;
     return (
-      <Row label={<Status tone="warn">Downloading the model</Status>} description={`${formatBytes(install.receivedBytes)} of ${formatBytes(install.totalBytes)}`} stacked>
+      <Row label={<Status tone="warn">{t("Downloading the model")}</Status>} description={t("{0} of {1}", { "0": (formatBytes(install.receivedBytes)), "1": (formatBytes(install.totalBytes)) })} stacked>
         <div className="set-progress"><div style={{ width: `${Math.round(ratio * 100)}%` }} /></div>
-        <button className="btn" onClick={onOpenSetup}>Show progress</button>
+        <button className="btn" onClick={onOpenSetup}>{t("Show progress")}</button>
       </Row>
     );
   }
   if (!status) {
-    return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale isn’t available right now.'}><button className="btn" onClick={onOpenSetup}>Open setup</button></Row>;
+    return <Row label={<Status tone="warn">{t("Unavailable")}</Status>} description={reason || t("Smart upscale isn’t available right now.")}><button className="btn" onClick={onOpenSetup}>{t("Open setup")}</button></Row>;
   }
   if (!status.nodesInstalled) {
-    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install of its ComfyUI nodes."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+    return <Row label={<Status tone="warn">{t("Needs the SeedVR2 nodes")}</Status>} description={t("A one-time install of its ComfyUI nodes.")}><button className="btn is-primary" onClick={onOpenSetup}>{t("Set up")}</button></Row>;
   }
   if (install?.status === 'error' && !status.ready) {
-    return <Row label={<Status tone="bad">Download stopped</Status>} description={install.error}><button className="btn is-primary" onClick={onOpenSetup}>Resume</button></Row>;
+    return <Row label={<Status tone="bad">{t("Download stopped")}</Status>} description={install.error}><button className="btn is-primary" onClick={onOpenSetup}>{t("Resume")}</button></Row>;
   }
   if (status.needsDownload) {
-    return <Row label={<Status tone="warn">Needs a download</Status>} description={`${formatBytes(status.downloadBytes)} of SeedVR2 weights, downloaded once.`}><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+    return <Row label={<Status tone="warn">{t("Needs a download")}</Status>} description={t("{0} of SeedVR2 weights, downloaded once.", { "0": (formatBytes(status.downloadBytes)) })}><button className="btn is-primary" onClick={onOpenSetup}>{t("Set up")}</button></Row>;
   }
   if (status.substituting) {
     const effort = upscaleQualityLabel(status.quality);
     const scale = upscaleEfforts.find((item) => item.value === status.quality)?.scale;
     return (
       <Row
-        label={<Status tone="warn">Download needed</Status>}
-        description={`${effort} still upscales${scale ? ` at ${scale}` : ''} with a model you already have, so results can look different. Download its own model for the best quality.`}
+        label={<Status tone="warn">{t("Download needed")}</Status>}
+        description={t("{0} still upscales{1} with a model you already have, so results can look different. Download its own model for the best quality.", { "0": (effort), "1": (scale ? ` at ${scale}` : t("")) })}
         stacked
       >
-        <button className="btn is-primary" onClick={onDownload}>Download {effort} · {formatBytes(status.downloadBytes)}</button>
+        <button className="btn is-primary" onClick={onDownload}>{t("Download")}{" "}{effort} · {formatBytes(status.downloadBytes)}</button>
       </Row>
     );
   }
-  return <Row label={<Status tone="ok">Ready</Status>} description="Hover a finished image and click the arrow in its top-left corner." />;
+  return <Row label={<Status tone="ok">{t("Ready")}</Status>} description={t("Hover a finished image and click the arrow in its top-left corner.")} />;
 }
 
 /** Smart upscale's state in a word or two, for its drawer. */
 function upscaleSummary(status: UpscaleStatus | null, install: UpscaleInstall) {
-  if (install?.status === 'running') return { label: 'downloading' };
-  if (!status) return { label: 'unavailable' };
-  if (!status.nodesInstalled || status.needsDownload) return { label: 'needs setup' };
-  if (install?.status === 'error' && !status.ready) return { label: 'download stopped' };
-  if (status.substituting) return { label: 'download needed' };
-  return { label: 'ready' };
+  if (install?.status === 'running') return { label: t("downloading") };
+  if (!status) return { label: t("unavailable") };
+  if (!status.nodesInstalled || status.needsDownload) return { label: t("needs setup") };
+  if (install?.status === 'error' && !status.ready) return { label: t("download stopped") };
+  if (status.substituting) return { label: t("download needed") };
+  return { label: t("ready") };
 }
 
 const profileName = (profile: Profile) => profile.displayName || profile.label;
 
 /** Models as small chips with their family, the first few shown and the rest a tap away. */
 function ModelChips({ profiles, limit = 8 }: { profiles: Profile[]; limit?: number }) {
+  useLanguage();
   const [all, setAll] = React.useState(false);
   const unique = profiles.filter((profile, index) => profiles.findIndex((other) => profileName(other) === profileName(profile)) === index);
   const shown = all ? unique : unique.slice(0, limit);
   return (
-    <ul className="set-chips" aria-label="Models">
+    <ul className="set-chips" aria-label={t("Models")}>
       {shown.map((profile) => (
         <li key={profile.id} className="set-chip" title={profileName(profile)}>
           <span>{profileName(profile)}</span>
@@ -357,7 +374,7 @@ function ModelChips({ profiles, limit = 8 }: { profiles: Profile[]; limit?: numb
         </li>
       ))}
       {unique.length > limit ? (
-        <li><button type="button" className="set-chip is-more" onClick={() => setAll((value) => !value)}>{all ? 'Fewer' : `+${unique.length - limit} more`}</button></li>
+        <li><button type="button" className="set-chip is-more" onClick={() => setAll((value) => !value)}>{all ? t("Fewer") : t("+{0} more", { "0": (unique.length - limit) })}</button></li>
       ) : null}
     </ul>
   );
@@ -365,17 +382,18 @@ function ModelChips({ profiles, limit = 8 }: { profiles: Profile[]; limit?: numb
 
 /** No model can inpaint yet: the starter models can, and the studio downloads them. */
 function InpaintSuggestions({ onGetModels }: { onGetModels?: () => void }) {
+  useLanguage();
   const { plan } = useStarterPlan();
   const families = plan?.families || [];
   return (
-    <Row label="Models that can inpaint" description={onGetModels ? 'Each downloads in the studio with its text encoder and VAE.' : 'Get one on the computer running HEISS UI.'} stacked>
+    <Row label={t("Models that can inpaint")} description={onGetModels ? t("Each downloads in the studio with its text encoder and VAE.") : t("Get one on the computer running HEISS UI.")} stacked>
       <div className="set-suggest">
-        <ul className="set-chips" aria-label="Suggested models">
+        <ul className="set-chips" aria-label={t("Suggested models")}>
           {families.length ? families.map((family) => (
             <li key={family.family} className="set-chip is-suggest" title={family.blurb || undefined}><span>{family.title}</span></li>
           )) : <li><Skeleton className="skeleton-text short" /></li>}
         </ul>
-        {onGetModels ? <button className="btn is-primary" onClick={onGetModels}><Download size={14} /> Get a model</button> : null}
+        {onGetModels ? <button className="btn is-primary" onClick={onGetModels}><Download size={14} />{t("Get a model")}</button> : null}
       </div>
     </Row>
   );
@@ -396,31 +414,32 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
   onInstall: () => void;
   onRestart: () => void;
 }) {
+  useLanguage();
   const download = status.download;
   const latest = status.latest || download?.version || '';
-  const notes = status.url ? <a className="btn is-ghost" href={status.url} target="_blank" rel="noreferrer"><ExternalLink size={13} /> What's new</a> : null;
+  const notes = status.url ? <a className="btn is-ghost" href={status.url} target="_blank" rel="noreferrer"><ExternalLink size={13} />{t("What's new")}</a> : null;
   const check = (
     <MosaicButton busy={checking} disabled={checking || busy} onClick={onCheck}>
-      {checking ? 'Checking for updates…' : status.ok && !status.available ? 'Up to date · check again' : 'Check for updates'}
+      {checking ? t("Checking for updates…") : status.ok && !status.available ? t("Up to date · check again") : t("Check for updates")}
     </MosaicButton>
   );
   const result = status.result;
   const resultRow = result && !result.ok ? (
     <Row
-      label={<Status tone="bad">{result.rolledBack ? `${result.to} didn’t start` : 'The last update didn’t install'}</Status>}
-      description={result.rolledBack ? `Still on ${result.from}.${result.error ? ` ${result.error}` : ''}` : result.error}
+      label={<Status tone="bad">{result.rolledBack ? t("{0} didn’t start", { "0": (result.to) }) : t("The last update didn’t install")}</Status>}
+      description={result.rolledBack ? t("Still on {0}.{1}", { "0": (result.from), "1": (result.error ? ` ${result.error}` : t("")) }) : result.error}
     />
   ) : null;
 
   if (restarting) {
-    return <Row label={<Status tone="warn">{download?.status === 'ready' ? `Restarting into ${latest}` : 'Restarting'}</Status>} description="This page reloads when it’s done." />;
+    return <Row label={<Status tone="warn">{download?.status === 'ready' ? t("Restarting into {0}", { "0": (latest) }) : t("Restarting")}</Status>} description={t("This page reloads when it’s done.")} />;
   }
   if (download?.status === 'downloading' || download?.status === 'verifying' || download?.status === 'unpacking') {
     const ratio = download.totalBytes ? Math.min(1, (download.receivedBytes || 0) / download.totalBytes) : 0;
     return (
       <Row
-        label={<Status tone="warn">{download.status === 'downloading' ? `Downloading ${latest}` : 'Checking the download'}</Status>}
-        description={download.status === 'downloading' ? `${formatBytes(download.receivedBytes)} of ${formatBytes(download.totalBytes)}. You can keep working.` : 'Checking and unpacking.'}
+        label={<Status tone="warn">{download.status === 'downloading' ? t("Downloading {0}", { "0": (latest) }) : t("Checking the download")}</Status>}
+        description={download.status === 'downloading' ? t("{0} of {1}. You can keep working.", { "0": (formatBytes(download.receivedBytes)), "1": (formatBytes(download.totalBytes)) }) : t("Checking and unpacking.")}
         stacked
       >
         <div className="set-progress"><div style={{ width: `${Math.round((download.status === 'downloading' ? ratio : 1) * 100)}%` }} /></div>
@@ -430,12 +449,12 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
   if (download?.status === 'ready') {
     return (
       <Row
-        label={<Status tone="ok">{latest} is ready to install</Status>}
-        description={status.supervised ? 'Running generations stop when HEISS UI restarts.' : 'Quit HEISS UI and open it again to finish.'}
+        label={<Status tone="ok">{latest}{t("is ready to install")}</Status>}
+        description={status.supervised ? t("Running generations stop when HEISS UI restarts.") : t("Quit HEISS UI and open it again to finish.")}
         stacked
       >
         <div className="about-update">
-          {status.supervised ? <button className="btn is-primary" onClick={onRestart}>Restart now</button> : null}
+          {status.supervised ? <button className="btn is-primary" onClick={onRestart}>{t("Restart now")}</button> : null}
           {notes}
         </div>
       </Row>
@@ -446,20 +465,20 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
       <>
         {resultRow}
         <Row
-          label={<Status tone="warn">HEISS UI {latest} is available</Status>}
+          label={<Status tone="warn">{t("HEISS UI")}{" "}{latest}{t("is available")}</Status>}
           description={download?.status === 'error'
-            ? `The download stopped: ${download.error}`
+            ? t("The download stopped: {0}", { "0": (download.error) })
             : status.canInstall
-              ? `You have ${status.current}.${status.size ? ` ${formatBytes(status.size)}.` : ''} Installs on restart.`
+              ? t("You have {0}.{1} Installs on restart.", { "0": (status.current), "1": (status.size ? ` ${formatBytes(status.size)}.` : t("")) })
               : status.unsigned
-                ? `You have ${status.current}. This release can’t be verified, so it won’t install from here. Download it yourself only if you trust the source.`
-                : `You have ${status.current}. Download this release, replace this folder with it and keep your data folder.`}
+                ? t("You have {0}. This release can’t be verified, so it won’t install from here. Download it yourself only if you trust the source.", { "0": (status.current) })
+                : t("You have {0}. Download this release, replace this folder with it and keep your data folder.", { "0": (status.current) })}
           stacked
         >
           <div className="about-update">
             {status.canInstall
-              ? <button className="btn is-primary" onClick={onInstall} disabled={busy}>{download?.status === 'error' ? 'Try again' : 'Install update'}</button>
-              : status.url ? <a className="btn is-primary" href={status.url} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Download</a> : null}
+              ? <button className="btn is-primary" onClick={onInstall} disabled={busy}>{download?.status === 'error' ? t("Try again") : t("Install update")}</button>
+              : status.url ? <a className="btn is-primary" href={status.url} target="_blank" rel="noreferrer"><ExternalLink size={13} />{t("Download")}</a> : null}
             {notes}
             {check}
           </div>
@@ -471,8 +490,8 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
     <>
       {resultRow}
       <Row
-        label={<Status tone={status.error ? 'bad' : status.ok ? 'ok' : undefined}>{status.error || (result?.ok && result.to ? `Updated to ${result.to}` : status.ok ? 'Up to date' : 'Not checked yet')}</Status>}
-        description={status.current ? `HEISS UI ${status.current}. Checks GitHub for a newer release.` : 'Checks GitHub for a newer release.'}
+        label={<Status tone={status.error ? 'bad' : status.ok ? 'ok' : undefined}>{status.error || (result?.ok && result.to ? t("Updated to {0}", { "0": (result.to) }) : status.ok ? t("Up to date") : t("Not checked yet"))}</Status>}
+        description={status.current ? t("HEISS UI {0}. Checks GitHub for a newer release.", { "0": (status.current) }) : t("Checks GitHub for a newer release.")}
         stacked
       >
         <div className="about-update">{check}</div>
@@ -485,6 +504,7 @@ function ReleaseUpdateRow({ status, busy, restarting, checking, onCheck, onInsta
 
 /** About › Help: where the common fixes are, and the setup lines a bug report needs. */
 function HelpGroup({ copyToClipboard }: { copyToClipboard: (text: string) => Promise<boolean> }) {
+  useLanguage();
   const copy = useCopyFeedback();
   // Asks ComfyUI too, so it waits until the page has settled.
   React.useEffect(() => {
@@ -497,12 +517,12 @@ function HelpGroup({ copyToClipboard }: { copyToClipboard: (text: string) => Pro
     return text ? copyToClipboard(text) : false;
   };
   return (
-    <Group title="Help">
-      <Row label="Troubleshooting" description="Common errors and how to fix them.">
-        <a className="btn is-ghost" href={troubleshootingUrl()} target="_blank" rel="noreferrer"><LifeBuoy size={13} /> Open</a>
+    <Group title={t("Help")}>
+      <Row label={t("Troubleshooting")} description={t("Common errors and how to fix them.")}>
+        <a className="btn is-ghost" href={troubleshootingUrl()} target="_blank" rel="noreferrer"><LifeBuoy size={13} />{t("Open")}</a>
       </Row>
-      <Row label="Copy diagnostics" description="HEISS UI, ComfyUI and Node.js versions, system and GPU, for a bug report. Prompts, images and file names aren’t included.">
-        <button className="btn" onClick={() => copy.copyWith(copyDiagnostics)}><CopyIcon copied={Boolean(copy.copied)} /> {copy.copied ? 'Copied' : 'Copy'}</button>
+      <Row label={t("Copy diagnostics")} description={t("HEISS UI, ComfyUI and Node.js versions, system and GPU, for a bug report. Prompts, images and file names aren’t included.")}>
+        <button className="btn" onClick={() => copy.copyWith(copyDiagnostics)}><CopyIcon copied={Boolean(copy.copied)} /> {copy.copied ? t("Copied") : t("Copy")}</button>
       </Row>
     </Group>
   );
@@ -517,14 +537,14 @@ const fileCount = (report: OutputFolderReport) => {
 
 /** One sentence per state, always saying what it means for the gallery. */
 function describeFolder(report: OutputFolderReport | null): { tone?: 'ok' | 'warn' | 'bad'; label: string; detail: string } {
-  if (!report) return { label: 'Checking…', detail: '' };
+  if (!report) return { label: t("Checking…"), detail: '' };
   switch (report.state) {
-    case 'empty': return { tone: 'warn', label: 'Not set', detail: 'Needed to delete files and to remove ComfyUI’s copies of hidden images.' };
-    case 'missing': return { tone: 'bad', label: 'Folder not found', detail: 'There’s nothing at that path on this computer.' };
-    case 'not-folder': return { tone: 'bad', label: 'Not a folder', detail: 'That path points at a file.' };
-    case 'mismatch': return { tone: 'warn', label: 'Recent images aren’t here', detail: `None of the last ${report.checked} images are in this folder (${fileCount(report)}). ComfyUI probably saves somewhere else; try Find automatically.` };
-    case 'match': return { tone: 'ok', label: 'Linked', detail: `${report.found === report.checked ? `All ${report.checked}` : `${report.found} of ${report.checked}`} recent images found here · ${fileCount(report)}` };
-    default: return { tone: report.looksLikeComfy ? 'ok' : 'warn', label: report.looksLikeComfy ? 'Linked' : 'Set', detail: `${fileCount(report)}${report.looksLikeComfy ? '' : ' · doesn’t look like a ComfyUI output folder'}. Checked again after the next image.` };
+    case 'empty': return { tone: 'warn', label: t("Not set"), detail: t("Needed to delete files and to remove ComfyUI’s copies of hidden images.") };
+    case 'missing': return { tone: 'bad', label: t("Folder not found"), detail: t("There’s nothing at that path on this computer.") };
+    case 'not-folder': return { tone: 'bad', label: t("Not a folder"), detail: t("That path points at a file.") };
+    case 'mismatch': return { tone: 'warn', label: t("Recent images aren’t here"), detail: t("None of the last {0} images are in this folder ({1}). ComfyUI probably saves somewhere else; try Find automatically.", { "0": (report.checked), "1": (fileCount(report)) }) };
+    case 'match': return { tone: 'ok', label: t("Linked"), detail: t("{0} recent images found here · {1}", { "0": (report.found === report.checked ? `All ${report.checked}` : `${report.found} of ${report.checked}`), "1": (fileCount(report)) }) };
+    default: return { tone: report.looksLikeComfy ? 'ok' : 'warn', label: report.looksLikeComfy ? 'Linked' : 'Set', detail: t("{0}{1}. Checked again after the next image.", { "0": (fileCount(report)), "1": (report.looksLikeComfy ? t("") : t(" · doesn’t look like a ComfyUI output folder")) }) };
   }
 }
 
@@ -536,6 +556,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
   onCopy: (dir: string) => Promise<boolean>;
   showToast: ShowToast;
 }) {
+  useLanguage();
   const pathCopy = useCopyFeedback();
   const [report, setReport] = React.useState<OutputFolderReport | null>(null);
   const [canBrowse, setCanBrowse] = React.useState(false);
@@ -609,7 +630,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
   const needsSearch = !dirty && report && report.state !== 'match';
   return (
     <Row
-      label={<span className="set-folder-title">Output folder<Status tone={shown.tone}>{dirty ? `New path: ${shown.label.toLowerCase()}` : shown.label}</Status></span>}
+      label={<span className="set-folder-title">{t("Output folder")}<Status tone={shown.tone}>{dirty ? t("New path: {0}", { "0": (shown.label.toLowerCase()) }) : shown.label}</Status></span>}
       description={<span aria-live="polite">{shown.detail || galleryNote}</span>}
       stacked
     >
@@ -617,9 +638,9 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
         <div className="set-folder-field">
           <input
             className="modal-input set-path-input"
-            aria-label="Output folder"
+            aria-label={t("Output folder")}
             value={draft}
-            placeholder={canBrowse ? 'Paste a path, or browse' : 'Paste the full folder path'}
+            placeholder={canBrowse ? t("Paste a path, or browse") : t("Paste the full folder path")}
             spellCheck={false}
             autoComplete="off"
             onChange={(event) => setDraft(event.target.value)}
@@ -627,23 +648,23 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
           />
           {!dirty && hasSaved ? (
             <span className="set-folder-tools">
-              <Tip content="Open in the file manager"><button type="button" className="set-folder-tool" aria-label="Open the output folder" onClick={onOpen}><FolderOpen size={14} /></button></Tip>
-              <Tip content={pathCopy.copied ? 'Copied' : 'Copy path'}><button type="button" className="set-folder-tool" aria-label="Copy the path" onClick={() => pathCopy.copyWith(() => onCopy(report?.path || savedDir))}><CopyIcon copied={Boolean(pathCopy.copied)} /></button></Tip>
+              <Tip content={t("Open in the file manager")}><button type="button" className="set-folder-tool" aria-label={t("Open the output folder")} onClick={onOpen}><FolderOpen size={14} /></button></Tip>
+              <Tip content={pathCopy.copied ? t("Copied") : t("Copy path")}><button type="button" className="set-folder-tool" aria-label={t("Copy the path")} onClick={() => pathCopy.copyWith(() => onCopy(report?.path || savedDir))}><CopyIcon copied={Boolean(pathCopy.copied)} /></button></Tip>
             </span>
           ) : null}
         </div>
         {dirty
-          ? <button className="btn is-primary" type="submit" disabled={draftBlocked || busy === 'save'}>Save</button>
-          : canBrowse ? <button className="btn" type="button" onClick={browse} disabled={Boolean(busy)}><FolderSearch size={14} /> {busy === 'browse' ? 'Waiting…' : 'Browse…'}</button> : null}
+          ? <button className="btn is-primary" type="submit" disabled={draftBlocked || busy === 'save'}>{t("Save")}</button>
+          : canBrowse ? <button className="btn" type="button" onClick={browse} disabled={Boolean(busy)}><FolderSearch size={14} /> {busy === 'browse' ? t("Waiting…") : t("Browse…")}</button> : null}
       </form>
       {candidates ? (
-        <div className="set-folder-picks" role="list" aria-label="Folders found">
+        <div className="set-folder-picks" role="list" aria-label={t("Folders found")}>
           {candidates.map((item) => (
             <button key={item.path} type="button" role="listitem" className="set-folder-pick" onClick={() => save(item.path)} disabled={busy === 'save'}>
               <code className="set-path">{item.path}</code>
               <span>
-                {item.source === 'comfy' ? 'From ComfyUI · ' : ''}
-                {item.state === 'match' ? `${item.found} of ${item.checked} recent images here` : item.state === 'mismatch' ? 'Recent images aren’t here' : fileCount(item)}
+                {item.source === 'comfy' ? t("From ComfyUI · ") : ''}
+                {item.state === 'match' ? t("{0} of {1} recent images here", { "0": (item.found), "1": (item.checked) }) : item.state === 'mismatch' ? t("Recent images aren’t here") : fileCount(item)}
               </span>
               {item.state === 'match' ? <Check size={14} className="set-folder-pick-mark" aria-hidden="true" /> : null}
             </button>
@@ -652,7 +673,7 @@ function OutputFolderRow({ savedDir, galleryNote, onSave, onOpen, onCopy, showTo
       ) : null}
       {needsSearch ? (
         <div className="set-actions">
-          <button className="btn is-ghost" onClick={detect} disabled={Boolean(busy)}><ScanSearch size={14} /> {busy === 'detect' ? 'Searching…' : 'Find automatically'}</button>
+          <button className="btn is-ghost" onClick={detect} disabled={Boolean(busy)}><ScanSearch size={14} /> {busy === 'detect' ? t("Searching…") : t("Find automatically")}</button>
         </div>
       ) : null}
     </Row>
@@ -687,6 +708,7 @@ function formatDay(value: string) {
 /* ------------------------------------------------------------ Dialog */
 
 export function SettingsDialog({ view, open, section, onSectionChange, onClose, onGetModels }: { view: Record<string, any>; open: boolean; section: SettingsSection; onSectionChange: (section: SettingsSection) => void; onClose: () => void; onGetModels?: () => void }) {
+  const language = useLanguage();
   const {
     prefs, setPrefs,
     upscaleStatus, upscaleUnavailableReason, upscaleInstall, upscaleSetup,
@@ -787,58 +809,63 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
   }, [open, section]);
 
   return (
-    <Modal open={open} onOpenChange={(next) => { if (!next) onClose(); }} size="sheet" className="settings-modal" bodyClassName="set-layout" title="Settings">
-      <nav className="set-nav" aria-label="Settings sections">
+    <Modal open={open} onOpenChange={(next) => { if (!next) onClose(); }} size="sheet" className="settings-modal" bodyClassName="set-layout" title={t("Settings")}>
+      <nav className="set-nav" aria-label={t("Settings sections")}>
         {SETTINGS_SECTIONS.filter((item) => thisComputer || item.id !== 'models').map((item) => {
           const Icon = item.icon;
           return (
             <button key={item.id} type="button" className={cn('set-nav-item', section === item.id && 'active')} aria-current={section === item.id ? 'page' : undefined} aria-controls="settings-panel" data-section={item.id} onClick={() => onSectionChange(item.id)}>
               <Icon size={15} />
-              <span>{item.label}</span>
+              <span>{t(item.label)}</span>
             </button>
           );
         })}
         <a className="set-nav-discord" href={discordUrl} target="_blank" rel="noreferrer">
           <DiscordIcon size={13} />
-          <span>Join the Discord</span>
+          <span>{t("Join the Discord")}</span>
         </a>
         <button type="button" className="set-nav-feedback" onClick={() => openFeedback({ from: 'settings' })}>
-          <strong>Idea or bug?</strong>
-          <span>Send it to the board</span>
+          <strong>{t("Idea or bug?")}</strong>
+          <span>{t("Send it to the board")}</span>
         </button>
       </nav>
 
       {/* A region named by its heading, so a screen reader hears where it landed. */}
       <div className="set-panel" key={section} id="settings-panel" role="region" aria-labelledby="settings-panel-title">
         <header className="set-page-head">
-          <h3 id="settings-panel-title">{current.label}</h3>
-          <p>{current.description}</p>
+          <h3 id="settings-panel-title">{t(current.label)}</h3>
+          <p>{t(current.description)}</p>
         </header>
 
         {section === 'general' ? (
           <>
-            {phoneDevice || prefs.fullStudioOnPhone ? <Group title="Layout">
-              <SwitchRow label="Simple phone studio" description="A simpler layout for making, browsing and sharing. Everything else stays on the computer." checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} />
+            <Group title={t('Language')}>
+              <Row label={t('Interface language')} description={t('Changes labels and help text only. Your prompts, model names and workflow values stay unchanged.')}>
+                <StudioSelect value={language} onChange={setLanguage} options={[...languages]} label={t('Interface language')} />
+              </Row>
+            </Group>
+            {phoneDevice || prefs.fullStudioOnPhone ? <Group title={t("Layout")}>
+              <SwitchRow label={t("Simple phone studio")} description={t("A simpler layout for making, browsing and sharing. Everything else stays on the computer.")} checked={!prefs.fullStudioOnPhone} onChange={(next) => setPrefs({ fullStudioOnPhone: !next })} />
             </Group> : null}
-            <Group title="Keyboard" note="Shortcuts pause while you type in a field, except the ones that send the prompt.">
+            <Group title={t("Keyboard")} note={t("Shortcuts pause while you type in a field, except the ones that send the prompt.")}>
               <ShortcutsDrawer />
             </Group>
-            <Group title="Safety">
-              <SwitchRow label="Confirm before removing things" description="Asks before deleting or stopping something. Permanent deletes always ask." checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
+            <Group title={t("Safety")}>
+              <SwitchRow label={t("Confirm before removing things")} description={t("Asks before deleting or stopping something. Permanent deletes always ask.")} checked={prefs.confirmActions} onChange={(next) => setPrefs({ confirmActions: next })} />
             </Group>
-            <Group title="Reset" tone="danger">
+            <Group title={t("Reset")} tone="danger">
               {thisComputer ? (
                 <>
-                  <Row label="Delete all finished images" description="Moves their files to the trash for 30 days, then deletes them. Hidden isn’t affected.">
-                    <button className="btn is-danger-soft" onClick={clearGallery}>Delete all</button>
+                  <Row label={t("Delete all finished images")} description={t("Moves their files to the trash for 30 days, then deletes them. Hidden isn’t affected.")}>
+                    <button className="btn is-danger-soft" onClick={clearGallery}>{t("Delete all")}</button>
                   </Row>
-                  <Row label="Clear all cache" description="Clears the browser cache, stale queue state and ComfyUI’s memory.">
-                    <button className="btn is-danger-soft" onClick={clearAllCache}>Clear cache</button>
+                  <Row label={t("Clear all cache")} description={t("Clears the browser cache, stale queue state and ComfyUI’s memory.")}>
+                    <button className="btn is-danger-soft" onClick={clearAllCache}>{t("Clear cache")}</button>
                   </Row>
                 </>
               ) : null}
-              <Row label="Reset all settings" description="Resets prompts, layout, model choices, LoRA stacks and every preference here.">
-                <button className="btn is-danger-soft" onClick={resetAllSettings}>Reset</button>
+              <Row label={t("Reset all settings")} description={t("Resets prompts, layout, model choices, LoRA stacks and every preference here.")}>
+                <button className="btn is-danger-soft" onClick={resetAllSettings}>{t("Reset")}</button>
               </Row>
             </Group>
           </>
@@ -846,28 +873,28 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
         {section === 'generation' ? (
           <>
-            <Group title="Composer">
-              <SwitchRow label="Enter to generate" description="Press Enter to generate and Shift+Enter for a new line." checked={prefs.enterToGenerate} onChange={(next) => setPrefs({ enterToGenerate: next })} />
-              <Row label="Run variants as" description={prefs.variationQueueMode === 'separate' ? 'One job per variant. Easier to cancel one at a time.' : 'One ComfyUI job with a larger batch. Usually faster.'}>
-                <Segmented label="Run variants as" value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: 'One batch' }, { value: 'separate', label: 'Separate jobs' }]} />
+            <Group title={t("Composer")}>
+              <SwitchRow label={t("Enter to generate")} description={t("Press Enter to generate and Shift+Enter for a new line.")} checked={prefs.enterToGenerate} onChange={(next) => setPrefs({ enterToGenerate: next })} />
+              <Row label={t("Run variants as")} description={prefs.variationQueueMode === 'separate' ? t("One job per variant. Easier to cancel one at a time.") : t("One ComfyUI job with a larger batch. Usually faster.")}>
+                <Segmented label={t("Run variants as")} value={prefs.variationQueueMode === 'separate' ? 'separate' : 'batch'} onChange={(next) => setPrefs({ variationQueueMode: next })} options={[{ value: 'batch', label: t("One batch") }, { value: 'separate', label: t("Separate jobs") }]} />
               </Row>
               <PromptHistoryRow Row={Row} Switch={Switch} showToast={showToast} confirmAction={confirmAction} />
-              <SwitchRow label="Size in megapixels" description={prefs.megapixelSizing ? 'The size menu has a Megapixels field in place of 2K. Every shape is drawn at the count you set.' : 'Set a megapixel count in the size menu instead of choosing 2K.'} checked={Boolean(prefs.megapixelSizing)} onChange={(next) => setPrefs({ megapixelSizing: next })} />
+              <SwitchRow label={t("Size in megapixels")} description={prefs.megapixelSizing ? t("The size menu has a Megapixels field in place of 2K. Every shape is drawn at the count you set.") : t("Set a megapixel count in the size menu instead of choosing 2K.")} checked={Boolean(prefs.megapixelSizing)} onChange={(next) => setPrefs({ megapixelSizing: next })} />
             </Group>
-            <Group title="Previews">
-              <Row label="While generating" description={prefs.generationPreviewMode === 'simple' ? 'Each sampler step as it arrives. Lighter on the GPU.' : 'Early steps show as an animated pixel mosaic. With reduced motion on, Simple is used.'}>
-                <Segmented label="Generation previews" value={prefs.generationPreviewMode === 'simple' ? 'simple' : 'advanced'} onChange={(next) => setPrefs({ generationPreviewMode: next })} options={[{ value: 'advanced', label: 'Mosaic' }, { value: 'simple', label: 'Simple' }]} />
+            <Group title={t("Previews")}>
+              <Row label={t("While generating")} description={prefs.generationPreviewMode === 'simple' ? t("Each sampler step as it arrives. Lighter on the GPU.") : t("Early steps show as an animated pixel mosaic. With reduced motion on, Simple is used.")}>
+                <Segmented label={t("Generation previews")} value={prefs.generationPreviewMode === 'simple' ? 'simple' : 'advanced'} onChange={(next) => setPrefs({ generationPreviewMode: next })} options={[{ value: 'advanced', label: t("Mosaic") }, { value: 'simple', label: t("Simple") }]} />
               </Row>
             </Group>
-            <Group title="Input images">
-              <SwitchRow label="Automatically resize input images" description="Fits large start and reference images to the generation size. Keeps their proportions and your originals." checked={prefs.autoResizeInputs !== false} onChange={(next) => setPrefs({ autoResizeInputs: next })} />
+            <Group title={t("Input images")}>
+              <SwitchRow label={t("Automatically resize input images")} description={t("Fits large start and reference images to the generation size. Keeps their proportions and your originals.")} checked={prefs.autoResizeInputs !== false} onChange={(next) => setPrefs({ autoResizeInputs: next })} />
             </Group>
-            <Group title="Starting values" note="Used when a model doesn’t set its own. The current draft stays as it is.">
-              <Row label="Variants"><NumberPicker label="Variants" value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
-              <Row label="Image steps"><NumberPicker label="Steps" value={Number(prefs.defaultImageSteps)} onChange={(next) => setPrefs({ defaultImageSteps: next })} min={1} max={150} /></Row>
-              <Row label="Video steps"><NumberPicker label="Steps" value={Number(prefs.defaultVideoSteps)} onChange={(next) => setPrefs({ defaultVideoSteps: next })} min={1} max={150} /></Row>
-              <Row label="Video frames"><NumberPicker label="Frames" value={Number(prefs.defaultVideoFrames)} onChange={(next) => setPrefs({ defaultVideoFrames: next })} min={1} max={1000} step={4} /></Row>
-              <Row label="Video FPS"><NumberPicker label="FPS" value={Number(prefs.defaultFps)} onChange={(next) => setPrefs({ defaultFps: next })} min={1} max={60} /></Row>
+            <Group title={t("Starting values")} note={t("Used when a model doesn’t set its own. The current draft stays as it is.")}>
+              <Row label={t("Variants")}><NumberPicker label={t("Variants")} value={Number(prefs.defaultImageCount)} onChange={(next) => setPrefs({ defaultImageCount: next })} min={1} max={16} /></Row>
+              <Row label={t("Image steps")}><NumberPicker label={t("Steps")} value={Number(prefs.defaultImageSteps)} onChange={(next) => setPrefs({ defaultImageSteps: next })} min={1} max={150} /></Row>
+              <Row label={t("Video steps")}><NumberPicker label={t("Steps")} value={Number(prefs.defaultVideoSteps)} onChange={(next) => setPrefs({ defaultVideoSteps: next })} min={1} max={150} /></Row>
+              <Row label={t("Video frames")}><NumberPicker label={t("Frames")} value={Number(prefs.defaultVideoFrames)} onChange={(next) => setPrefs({ defaultVideoFrames: next })} min={1} max={1000} step={4} /></Row>
+              <Row label={t("Video FPS")}><NumberPicker label={t("FPS")} value={Number(prefs.defaultFps)} onChange={(next) => setPrefs({ defaultFps: next })} min={1} max={60} /></Row>
             </Group>
           </>
         ) : null}
@@ -875,26 +902,26 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
         {section === 'features' ? (
           <>
           <Group>
-            <SettingsDrawer id="set-feature-upscale" title="Smart upscale" description={upscaleOn ? `On · ${upscaleState.label}` : 'Off'}>
-              <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
+            <SettingsDrawer id="set-feature-upscale" title={t("Smart upscale")} description={upscaleOn ? t("On · {0}", { "0": (upscaleState.label) }) : t("Off")}>
+              <SwitchRow label={t("Smart upscale")} description={t("Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original.")} checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
               {upscaleOn ? (
                 <>
-                  <Row label="Effort" description={effort.detail}>
-                    <Segmented label="Upscale effort" value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label, scale }) => ({ value, label: `${label} ${scale}` }))} />
+                  <Row label={t("Effort")} description={effort.detail}>
+                    <Segmented label={t("Upscale effort")} value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label, scale }) => ({ value, label: `${label} ${scale}` }))} />
                   </Row>
                   <SwitchRow
-                    label="Face detail pass"
+                    label={t("Face detail pass")}
                     tag={<BetaTag />}
                     description={faceDetailReady
-                      ? 'Redraws small faces before the upscale. Close-ups are left as they are.'
-                      : 'Redraws small faces before the upscale. Needs the Impact Pack and Impact Subpack nodes.'}
+                      ? t("Redraws small faces before the upscale. Close-ups are left as they are.")
+                      : t("Redraws small faces before the upscale. Needs the Impact Pack and Impact Subpack nodes.")}
                     checked={Boolean(prefs.upscaleFaceDetail) && faceDetailReady}
                     disabled={!faceDetailReady}
                     onChange={(next) => setPrefs({ upscaleFaceDetail: next })}
                   />
                   {!faceDetailReady && upscaleStatus?.faceDetail?.setup?.length ? upscaleStatus.faceDetail.setup.map((setup: NonNullable<NonNullable<typeof upscaleStatus.faceDetail.setup>>[number]) => (
                     <div className="set-node-install" key={setup.pack.name}>
-                      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart="Then the face pass can be turned on here." />
+                      <NodeInstall pack={setup.pack} plan={setup} managerHint={setup.manager} autoInstall={setup.autoInstall} showToast={showToast} onRestarted={() => view.refreshUpscaleStatus?.()} afterRestart={t("Then the face pass can be turned on here.")} />
                     </div>
                   )) : null}
                   <UpscaleReadiness status={upscaleStatus} reason={upscaleUnavailableReason} install={upscaleInstall} onOpenSetup={() => upscaleSetup.openSetup()} onDownload={() => upscaleSetup.openSetup(null, { download: true })} />
@@ -905,18 +932,18 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
           {inpaintReleased ? (
             <Group>
-              <SettingsDrawer id="set-feature-inpaint" title={<>Inpainting<BetaTag /></>} description={!inpaintOn ? 'Off' : inpaintModels.length ? `On · ${inpaintModels.length} of your models can` : 'On · no model can yet'}>
-                <SwitchRow label="Inpainting" description="A brush in a start or reference image’s menu: paint over part of it and only that part changes. Off hides the brush everywhere." checked={inpaintOn} onChange={(next) => setPrefs({ inpainting: next })} />
+              <SettingsDrawer id="set-feature-inpaint" title={<>{t("Inpainting")}<BetaTag /></>} description={!inpaintOn ? t("Off") : inpaintModels.length ? t("On · {0} of your models can", { "0": (inpaintModels.length) }) : t("On · no model can yet")}>
+                <SwitchRow label={t("Inpainting")} description={t("A brush in a start or reference image’s menu: paint over part of it and only that part changes. Off hides the brush everywhere.")} checked={inpaintOn} onChange={(next) => setPrefs({ inpainting: next })} />
                 {inpaintOn ? (
                   <>
                     {inpaintModels.length ? (
-                      <Row label="Your models that can inpaint" stacked>
+                      <Row label={t("Your models that can inpaint")} stacked>
                         <ModelChips profiles={inpaintModels} />
                       </Row>
                     ) : (
                       <InpaintSuggestions onGetModels={onGetModels} />
                     )}
-                    <Row label="Strength and edge softness" description={`While a painted image is in the prompt bar, both are in ${phoneDevice ? 'the Advanced sheet' : 'the sidebar’s Basics, under the image'}. Strength is there for models that take a start image.`} />
+                    <Row label={t("Strength and edge softness")} description={t("While a painted image is in the prompt bar, both are in {0}. Strength is there for models that take a start image.", { "0": (phoneDevice ? t("the Advanced sheet") : t("the sidebar’s Basics, under the image")) })} />
                     <InpaintDemo />
                   </>
                 ) : null}
@@ -928,7 +955,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
         {section === 'library' ? (
           <>
-            {thisComputer ? <Group title="Folders">
+            {thisComputer ? <Group title={t("Folders")}>
               <OutputFolderRow
                 savedDir={paths.outputDir || ''}
                 galleryNote={galleryLoaded ? `${gallery.length} item${gallery.length === 1 ? '' : 's'} in the gallery` : undefined}
@@ -937,43 +964,43 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                 onCopy={(dir) => copyToClipboard(dir)}
                 showToast={showToast}
               />
-              <Row label="Workflows folder" description={paths.workflowsDir ? <code className="set-path is-oneline" title={paths.workflowsDir}><bdi>{paths.workflowsDir}</bdi></code> : <Skeleton className="skeleton-text path" />}>
-                <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
+              <Row label={t("Workflows folder")} description={paths.workflowsDir ? <code className="set-path is-oneline" title={paths.workflowsDir}><bdi>{paths.workflowsDir}</bdi></code> : <Skeleton className="skeleton-text path" />}>
+                <button className="btn is-ghost" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} />{t("Rescan")}</button>
               </Row>
             </Group> : null}
-            <Group title="Gallery">
-              <SwitchRow label="Follow the latest output" description="Shows each new image as it finishes." checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
-              {features.moments ? <SwitchRow label="Group by time" description="Headings like “This evening” split the gallery by when you made things." checked={prefs.showMoments !== false} onChange={(next) => setPrefs({ showMoments: next })} /> : null}
-              <SwitchRow label="Wide images take two columns" description="Landscape images span two columns when there are three or more." checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
-              <SwitchRow label="Show failed items" description="Interrupted and failed generations stay in the gallery." checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
+            <Group title={t("Gallery")}>
+              <SwitchRow label={t("Follow the latest output")} description={t("Shows each new image as it finishes.")} checked={prefs.followLatest} onChange={(next) => setPrefs({ followLatest: next })} />
+              {features.moments ? <SwitchRow label={t("Group by time")} description={t("Headings like “This evening” split the gallery by when you made things.")} checked={prefs.showMoments !== false} onChange={(next) => setPrefs({ showMoments: next })} /> : null}
+              <SwitchRow label={t("Wide images take two columns")} description={t("Landscape images span two columns when there are three or more.")} checked={Boolean(prefs.spanWideImages)} onChange={(next) => setPrefs({ spanWideImages: next })} />
+              <SwitchRow label={t("Show failed items")} description={t("Interrupted and failed generations stay in the gallery.")} checked={prefs.showFailedItems} onChange={(next) => setPrefs({ showFailedItems: next })} />
             </Group>
-            <Group title="Auto-grouping" note="Similar generations group themselves into a stack, found by prompt, model and time. The button next to search switches this too.">
-              <SwitchRow label="Auto-grouping" description="Pictures from similar prompts fold into one tile that opens to show all of them." checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
+            <Group title={t("Auto-grouping")} note={t("Similar generations group themselves into a stack, found by prompt, model and time. The button next to search switches this too.")}>
+              <SwitchRow label={t("Auto-grouping")} description={t("Pictures from similar prompts fold into one tile that opens to show all of them.")} checked={Boolean(prefs.stackRuns)} onChange={(next) => setPrefs({ stackRuns: next })} />
               {prefs.stackRuns ? (
-                <Row label="Stacks look like" description={prefs.runStackStyle === 'flow' ? 'A cover flow of the run inside one card.' : 'The newest image, with two edges under it.'}>
+                <Row label={t("Stacks look like")} description={prefs.runStackStyle === 'flow' ? t("A cover flow of the run inside one card.") : t("The newest image, with two edges under it.")}>
                   <Segmented
-                    label="Stacks look like"
+                    label={t("Stacks look like")}
                     value={prefs.runStackStyle === 'flow' ? 'flow' : 'burst'}
                     onChange={(next) => setPrefs({ runStackStyle: next })}
                     options={[
-                      { value: 'burst', label: <><RunStyleGlyph kind="burst" /> Photo</> },
-                      { value: 'flow', label: <><RunStyleGlyph kind="flow" /> Cover flow</> },
+                      { value: 'burst', label: <><RunStyleGlyph kind="burst" />{t("Photo")}</> },
+                      { value: 'flow', label: <><RunStyleGlyph kind="flow" />{t("Cover flow")}</> },
                     ]}
                   />
                 </Row>
               ) : null}
             </Group>
             {atComputer ? <EarlierImagesGroup Group={Group} Row={Row} showToast={showToast} confirmAction={confirmAction} outputDir={paths.outputDir || ''} /> : null}
-            <Group title="Sharing">
-              <SwitchRow label="Share without settings" description="Leaves the prompt, seed and workflow out of downloaded and shared files. The gallery’s own files keep them." checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
-              <Row label="Export gallery" description="Every finished image in one ZIP file. Hidden has its own export.">
-                <a className="btn" href="/api/gallery/export" download><Download size={14} /> Export</a>
+            <Group title={t("Sharing")}>
+              <SwitchRow label={t("Share without settings")} description={t("Leaves the prompt, seed and workflow out of downloaded and shared files. The gallery’s own files keep them.")} checked={prefs.shareWithoutSettings === true} onChange={(next) => setPrefs({ shareWithoutSettings: next })} />
+              <Row label={t("Export gallery")} description={t("Every finished image in one ZIP file. Hidden has its own export.")}>
+                <a className="btn" href="/api/gallery/export" download><Download size={14} />{t("Export")}</a>
               </Row>
               <CivitaiRow Row={Row} Switch={Switch} showToast={showToast} canChange={thisComputer} />
             </Group>
-            <Group title="Clean up">
-              <Row label="Clear failed items" description="Removes failed and interrupted cards.">
-                <button className="btn" onClick={clearFailedItems}>Clear</button>
+            <Group title={t("Clean up")}>
+              <Row label={t("Clear failed items")} description={t("Removes failed and interrupted cards.")}>
+                <button className="btn" onClick={clearFailedItems}>{t("Clear")}</button>
               </Row>
               {thisComputer ? <TrashRow confirmAction={confirmAction} showToast={showToast} Row={Row} /> : null}
             </Group>
@@ -986,23 +1013,23 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
         {section === 'connection' ? (
           <>
-            <Group title="ComfyUI">
+            <Group title={t("ComfyUI")}>
               <Row
-                label={comfyRestarting ? <Status tone="warn">Restarting</Status> : health ? <Status tone={connected ? 'ok' : 'bad'}>{connected ? 'Connected' : 'Not connected'}</Status> : <Skeleton className="skeleton-text short" />}
-                description={comfyRestarting ? `Reconnects when it’s back. ${restartEta?.text || 'Usually a few seconds.'}` : health ? (connected ? health.comfyUrl : health.error || `Start ComfyUI at ${health.comfyUrl || 'http://127.0.0.1:8188'}, then check again.`) : undefined}
+                label={comfyRestarting ? <Status tone="warn">{t("Restarting")}</Status> : health ? <Status tone={connected ? 'ok' : 'bad'}>{connected ? t("Connected") : t("Not connected")}</Status> : <Skeleton className="skeleton-text short" />}
+                description={comfyRestarting ? t("Reconnects when it’s back. {0}", { "0": (restartEta?.text || 'Usually a few seconds.') }) : health ? (connected ? health.comfyUrl : health.error || t("Start ComfyUI at {0}, then check again.", { "0": (health.comfyUrl || 'http://127.0.0.1:8188') })) : undefined}
               >
                 {connected
-                  ? <button className="btn is-ghost" onClick={() => window.open(health?.comfyUrl || 'http://127.0.0.1:8188', '_blank')}><ExternalLink size={14} /> Open ComfyUI</button>
-                  : <button className="btn is-primary" onClick={refreshHealth} disabled={comfyRestarting}>{comfyRestarting ? 'Waiting…' : 'Check again'}</button>}
+                  ? <button className="btn is-ghost" onClick={() => window.open(health?.comfyUrl || 'http://127.0.0.1:8188', '_blank')}><ExternalLink size={14} />{t("Open ComfyUI")}</button>
+                  : <button className="btn is-primary" onClick={refreshHealth} disabled={comfyRestarting}>{comfyRestarting ? t("Waiting…") : t("Check again")}</button>}
               </Row>
               {thisComputer ? (
-                <SettingsDrawer key={health && !connected ? 'off' : 'on'} id="set-comfy-address" title="Change address" description="If ComfyUI runs on another port or computer" defaultOpen={Boolean(health && !connected && !comfyRestarting)}>
+                <SettingsDrawer key={health && !connected ? 'off' : 'on'} id="set-comfy-address" title={t("Change address")} description={t("If ComfyUI runs on another port or computer")} defaultOpen={Boolean(health && !connected && !comfyRestarting)}>
                   <ComfyAddressRow current={health?.comfyUrl || 'http://127.0.0.1:8188'} search={health?.comfySearch !== false} showToast={showToast} onSaved={() => { refreshHealth(); refreshModels(false); refreshWorkflows(); }} />
                   <ComfySearchRow enabled={health?.comfySearch !== false} onSaved={refreshHealth} />
                 </SettingsDrawer>
               ) : (
-                <Row label="Restart ComfyUI" description="Loads new custom nodes and files, and frees memory.">
-                  <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: 'Restart ComfyUI?', description: 'Running and queued generations stop. It takes a few seconds.', action: 'Restart ComfyUI', destructive: true })} />
+                <Row label={t("Restart ComfyUI")} description={t("Loads new custom nodes and files, and frees memory.")}>
+                  <ComfyRestart className="is-end" onBack={() => { refreshModels(false); refreshWorkflows(); }} confirm={() => confirmAction({ title: t("Restart ComfyUI?"), description: t("Running and queued generations stop. It takes a few seconds."), action: t("Restart ComfyUI"), destructive: true })} />
                 </Row>
               )}
             </Group>
@@ -1025,7 +1052,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
         {section === 'models' ? (
           <>
             {typedModels.length ? (
-              <Group title="Model types" note="Set the type for models that weren’t recognized or were detected wrong.">
+              <Group title={t("Model types")} note={t("Set the type for models that weren’t recognized or were detected wrong.")}>
                 {typedModels.map((file) => {
                   const key = `${file.source}:${file.name}`;
                   const folder = file.source === 'checkpoint' ? 'Checkpoint' : 'Diffusion model';
@@ -1046,12 +1073,12 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                 })}
               </Group>
             ) : null}
-            <Group title="Installed">
+            <Group title={t("Installed")}>
               <Row
-                label={models ? `${models.imageModels.length} image · ${models.videoModels.length} video` : <Skeleton className="skeleton-text short" />}
-                description="Rescan finds models and workflows added since ComfyUI started."
+                label={models ? t("{0} image · {1} video", { "0": (models.imageModels.length), "1": (models.videoModels.length) }) : <Skeleton className="skeleton-text short" />}
+                description={t("Rescan finds models and workflows added since ComfyUI started.")}
               >
-                <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} /> Rescan</button>
+                <button className="btn" onClick={() => { refreshModels(); refreshWorkflows(); }}><RefreshCw size={14} />{t("Rescan")}</button>
               </Row>
             </Group>
             {modelFolders ? <ModelFolderSettings folders={modelFolders} confirmAction={confirmAction} onOpen={() => { onClose(); modelFolders.openDialog(); }} hints={prefs.modelFolderHints !== false} onHintsChange={(next) => setPrefs({ modelFolderHints: next })} /> : null}
@@ -1063,33 +1090,32 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
           <>
             <section className="about-hero">
               <HeatMark className="about-mark" />
-              <p className="about-tagline">A local image and video studio for ComfyUI.</p>
+              <p className="about-tagline">{t("A local image and video studio for ComfyUI.")}</p>
               {/* What staying local means, in numbers: everything made here stays here. */}
               {stats ? (
                 <p className="about-value">
-                  {stats.outputs.toLocaleString()} {stats.videos ? 'images and videos' : stats.outputs === 1 ? 'image' : 'images'} made here · none uploaded · no telemetry
-                </p>
+                  {stats.outputs.toLocaleString()} {stats.videos ? t("images and videos") : stats.outputs === 1 ? t("image") : t("images")}{t("made here · none uploaded · no telemetry")}</p>
               ) : null}
               <div className="about-meta">
                 {appVersion ? (
                   sinceRelease?.commits
-                    ? <span title={`${sinceRelease.commits} commit${sinceRelease.commits === 1 ? '' : 's'} since the ${sinceRelease.tag} release`}>v{appVersion} + {sinceRelease.commits}</span>
+                    ? <span title={t("{0} commit{1} since the {2} release", { "0": (sinceRelease.commits), "1": (sinceRelease.commits === 1 ? t("") : t("s")), "2": (sinceRelease.tag) })}>v{appVersion} + {sinceRelease.commits}</span>
                     : <span>v{appVersion}</span>
                 ) : null}
-                {updateStatus?.current ? <span>{updateStatus.branch || 'main'} · {String(updateStatus.current).slice(0, 7)}</span> : null}
-                <span>MIT licensed</span>
+                {updateStatus?.current ? <span>{updateStatus.branch || t("main")} · {String(updateStatus.current).slice(0, 7)}</span> : null}
+                <span>{t("MIT licensed")}</span>
               </div>
             </section>
 
-            <Group title="Stats" note={stats && stats.outputs ? <>Since {formatDay(stats.firstAt)} · {stats.activeDays} active day{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <> · busiest day {formatDay(stats.busiestDay)} with {stats.busiestCount}</> : null}.</> : undefined}>
+            <Group title={t("Stats")} note={stats && stats.outputs ? <>{t("Since")}{" "}{formatDay(stats.firstAt)} · {stats.activeDays}{t("active day")}{stats.activeDays === 1 ? '' : 's'}{stats.busiestCount > 1 ? <>{t("· busiest day")}{" "}{formatDay(stats.busiestDay)}{t("with")}{" "}{stats.busiestCount}</> : null}.</> : undefined}>
               <div className="about-stats">
                 {[
-                  { value: stats ? compact(stats.outputs) : null, label: 'Outputs', hint: stats ? `${compact(stats.images)} images · ${compact(stats.videos)} videos` : '' },
-                  { value: stats ? formatDuration(stats.renderMs) : null, label: 'Rendering', hint: stats?.upscales ? `${compact(stats.upscales)} upscaled` : 'time in ComfyUI' },
-                  { value: stats ? `${compact(stats.megapixels)} MP` : null, label: 'Pixels made', hint: 'megapixels' },
-                  { value: stats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null, label: 'Current streak', hint: stats?.currentStreak ? '' : 'starts with today’s first image' },
-                  { value: stats ? `${stats.longestStreak} day${stats.longestStreak === 1 ? '' : 's'}` : null, label: 'Longest streak', hint: '' },
-                  { value: stats ? (topWorkflowName || '—') : null, label: 'Most used', hint: stats?.topWorkflowCount ? `${compact(stats.topWorkflowCount)} outputs` : '' }
+                  { value: stats ? compact(stats.outputs) : null, label: t("Outputs"), hint: stats ? `${compact(stats.images)} images · ${compact(stats.videos)} videos` : '' },
+                  { value: stats ? formatDuration(stats.renderMs) : null, label: t("Rendering"), hint: stats?.upscales ? `${compact(stats.upscales)} upscaled` : 'time in ComfyUI' },
+                  { value: stats ? `${compact(stats.megapixels)} MP` : null, label: t("Pixels made"), hint: 'megapixels' },
+                  { value: stats ? `${stats.currentStreak} day${stats.currentStreak === 1 ? '' : 's'}` : null, label: t("Current streak"), hint: stats?.currentStreak ? '' : 'starts with today’s first image' },
+                  { value: stats ? `${stats.longestStreak} day${stats.longestStreak === 1 ? '' : 's'}` : null, label: t("Longest streak"), hint: '' },
+                  { value: stats ? (topWorkflowName || '—') : null, label: t("Most used"), hint: stats?.topWorkflowCount ? `${compact(stats.topWorkflowCount)} outputs` : '' }
                 ].map((tile) => (
                   <div className="about-stat" key={tile.label}>
                     <strong title={typeof tile.value === 'string' ? tile.value : undefined}>{tile.value ?? <Skeleton className="skeleton-text short" />}</strong>
@@ -1100,7 +1126,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
               </div>
             </Group>
 
-            {thisComputer ? <Group title="Updates" note={updateStatus?.restartRequired ? 'Restart HEISS UI to finish updating.' : undefined}>
+            {thisComputer ? <Group title={t("Updates")} note={updateStatus?.restartRequired ? t("Restart HEISS UI to finish updating.") : undefined}>
               {updateStatus?.release ? (
                 <ReleaseUpdateRow
                   status={updateStatus}
@@ -1112,19 +1138,19 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                   onRestart={restartForUpdate}
                 />
               ) : (
-                <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? 'Downloads the latest code and rebuilds.' : 'Checks GitHub for a newer commit.'} stacked>
+                <Row label={<Status tone={updateStatus?.error ? 'bad' : updateStatus?.available ? 'warn' : updateStatus?.ok ? 'ok' : undefined}>{updateLabel}</Status>} description={updateStatus?.available ? t("Downloads the latest code and rebuilds.") : t("Checks GitHub for a newer commit.")} stacked>
                   <div className="about-update">
                     <MosaicButton busy={checking} disabled={checking || updateBusy} onClick={runUpdateCheck}>
-                      {checking ? 'Checking for updates…' : updateStatus?.ok && !updateStatus.available ? 'Up to date · check again' : 'Check for updates'}
+                      {checking ? t("Checking for updates…") : updateStatus?.ok && !updateStatus.available ? t("Up to date · check again") : t("Check for updates")}
                     </MosaicButton>
-                    {updateStatus?.available ? <button className="btn is-primary" onClick={installUpdate} disabled={updateBusy}>{updateBusy ? 'Installing…' : 'Install update'}</button> : null}
+                    {updateStatus?.available ? <button className="btn is-primary" onClick={installUpdate} disabled={updateBusy}>{updateBusy ? t("Installing…") : t("Install update")}</button> : null}
                   </div>
                 </Row>
               )}
               {updateStatus?.release && updateStatus.prefs ? (
                 <SwitchRow
-                  label="Check automatically"
-                  description="Checks GitHub for a new version every few hours."
+                  label={t("Check automatically")}
+                  description={t("Checks GitHub for a new version every few hours.")}
                   checked={updateStatus.prefs.autoCheck}
                   onChange={(autoCheck) => setUpdatePrefs({ autoCheck })}
                 />
@@ -1133,14 +1159,13 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
 
             <section className="feedback-hero">
               <div className="feedback-hero-copy">
-                <span className="feedback-hero-eyebrow">Feedback</span>
-                <strong>Make HEISS better.</strong>
-                <p>Report a bug or suggest an idea on the public board.</p>
+                <span className="feedback-hero-eyebrow">{t("Feedback")}</span>
+                <strong>{t("Make HEISS better.")}</strong>
+                <p>{t("Report a bug or suggest an idea on the public board.")}</p>
                 <div className="feedback-hero-actions">
-                  <button type="button" className="feedback-hero-post" onClick={() => openFeedback({ from: 'settings' })}>
-                    New post <span><Plus size={14} strokeWidth={2.4} /></span>
+                  <button type="button" className="feedback-hero-post" onClick={() => openFeedback({ from: 'settings' })}>{t("New post")}{" "}<span><Plus size={14} strokeWidth={2.4} /></span>
                   </button>
-                  <a className="feedback-hero-link" href={boardUrl} target="_blank" rel="noreferrer">View board <ArrowUpRight size={14} /></a>
+                  <a className="feedback-hero-link" href={boardUrl} target="_blank" rel="noreferrer">{t("View board")}{" "}<ArrowUpRight size={14} /></a>
                 </div>
               </div>
               <a className="feedback-hero-stage" href={boardUrl} target="_blank" rel="noreferrer" tabIndex={-1} aria-hidden="true">
@@ -1152,28 +1177,28 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
                   <img src="/feedback-board.webp" alt="" width={1120} height={749} loading="lazy" decoding="async" draggable={false} />
                 </span>
               </a>
-              <p className="feedback-hero-fine">Posts never include prompts, images or file names.</p>
+              <p className="feedback-hero-fine">{t("Posts never include prompts, images or file names.")}</p>
             </section>
 
             <HelpGroup copyToClipboard={copyToClipboard} />
 
-            <Group title="Links">
+            <Group title={t("Links")}>
               <div className="about-links">
-                <a href={githubUrl} target="_blank" rel="noreferrer"><Github size={15} /><span>Source on GitHub</span><ExternalLink size={12} /></a>
-                <a href={boardUrl} target="_blank" rel="noreferrer"><MessageSquarePlus size={15} /><span>Feedback board</span><ExternalLink size={12} /></a>
-                <a href={discordUrl} target="_blank" rel="noreferrer"><DiscordIcon size={15} /><span>Discord</span><ExternalLink size={12} /></a>
-                <a href="https://heiss-ui.vercel.app/" target="_blank" rel="noreferrer"><Globe size={15} /><span>Website</span><ExternalLink size={12} /></a>
-                <a href={`${githubUrl}/blob/main/LICENSE`} target="_blank" rel="noreferrer"><Scale size={15} /><span>MIT license</span><ExternalLink size={12} /></a>
-                <a href={`${githubUrl}/blob/main/CHANGELOG.md`} target="_blank" rel="noreferrer"><ScrollText size={15} /><span>Changelog</span><ExternalLink size={12} /></a>
+                <a href={githubUrl} target="_blank" rel="noreferrer"><Github size={15} /><span>{t("Source on GitHub")}</span><ExternalLink size={12} /></a>
+                <a href={boardUrl} target="_blank" rel="noreferrer"><MessageSquarePlus size={15} /><span>{t("Feedback board")}</span><ExternalLink size={12} /></a>
+                <a href={discordUrl} target="_blank" rel="noreferrer"><DiscordIcon size={15} /><span>{t("Discord")}</span><ExternalLink size={12} /></a>
+                <a href="https://heiss-ui.vercel.app/" target="_blank" rel="noreferrer"><Globe size={15} /><span>{t("Website")}</span><ExternalLink size={12} /></a>
+                <a href={`${githubUrl}/blob/main/LICENSE`} target="_blank" rel="noreferrer"><Scale size={15} /><span>{t("MIT license")}</span><ExternalLink size={12} /></a>
+                <a href={`${githubUrl}/blob/main/CHANGELOG.md`} target="_blank" rel="noreferrer"><ScrollText size={15} /><span>{t("Changelog")}</span><ExternalLink size={12} /></a>
               </div>
             </Group>
 
-            <Group title="Credits">
-              <Row label="J-AI Studio by Jasper" description="HEISS UI started as a fork of J-AI Studio. The prompt-first idea and much of the foundation are his work.">
-                <a className="btn is-ghost" href="https://github.com/jasperdevs/J-AI-Studio" target="_blank" rel="noreferrer"><ExternalLink size={13} /> J-AI Studio</a>
+            <Group title={t("Credits")}>
+              <Row label={t("J-AI Studio by Jasper")} description={t("HEISS UI started as a fork of J-AI Studio. The prompt-first idea and much of the foundation are his work.")}>
+                <a className="btn is-ghost" href="https://github.com/jasperdevs/J-AI-Studio" target="_blank" rel="noreferrer"><ExternalLink size={13} />{t("J-AI Studio")}</a>
               </Row>
-              <Row label="ComfyUI" description="Renders every image and video.">
-                <a className="btn is-ghost" href="https://github.com/comfyanonymous/ComfyUI" target="_blank" rel="noreferrer"><ExternalLink size={13} /> ComfyUI</a>
+              <Row label={t("ComfyUI")} description={t("Renders every image and video.")}>
+                <a className="btn is-ghost" href="https://github.com/comfyanonymous/ComfyUI" target="_blank" rel="noreferrer"><ExternalLink size={13} />{t("ComfyUI")}</a>
               </Row>
             </Group>
           </>

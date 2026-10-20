@@ -1,3 +1,5 @@
+import { t } from './i18n/core.js';
+import { useLanguage } from './i18n/react';
 import "./app/domGuard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
@@ -76,10 +78,10 @@ function imageInputsForProfile(profile: Profile | null | undefined): MediaInput[
   if (profile.kind !== "image") return [];
   // Edit models read a reference; everything else can only start from a picture and redraw it.
   if (profile.capabilities.imageToImage) {
-    return [{ id: "reference", kind: "image", required: true, min: 1, max: 1, label: "Reference image", role: "reference" }];
+    return [{ id: "reference", kind: "image", required: true, min: 1, max: 1, label: t("Reference image"), role: "reference" }];
   }
   if (profile.capabilities.startImage) {
-    return [{ id: "reference", kind: "image", required: false, min: 0, max: 1, label: "Start image", role: "start" }];
+    return [{ id: "reference", kind: "image", required: false, min: 0, max: 1, label: t("Start image"), role: "start" }];
   }
   return [];
 }
@@ -96,6 +98,7 @@ const formatUpdateBytes = (bytes = 0) => `${(bytes / 1024 ** 2).toFixed(bytes > 
 const OPEN_DIALOG = '[role="dialog"]:not([data-focus-trap]), [role="alertdialog"]';
 
 function App() {
+  useLanguage();
   useKeyboardInset();
   useArrowKeyGroups();
   const now = Date.now();
@@ -233,7 +236,7 @@ function App() {
       next.delete(run.id);
       return next;
     });
-    showToast("Unstacked", "default", { description: runTitle(run), action: { label: "Undo", onClick: () => { unstack(run, false); setOpenRuns((current) => new Set([...current, run.id])); } } });
+    showToast(t("Unstacked"), "default", { description: runTitle(run), action: { label: t("Undo"), onClick: () => { unstack(run, false); setOpenRuns((current) => new Set([...current, run.id])); } } });
   }, [unstack]); // eslint-disable-line react-hooks/exhaustive-deps
   // Zen steps over a stacked run as one thing, and shows it as a run.
   const zenGallery = useMemo(() => {
@@ -267,7 +270,7 @@ function App() {
     const load = () => loadGallery().catch(() => {
       if (cancelled) return;
       attempt += 1;
-      if (attempt === 1) showToast("Couldn’t load the gallery. Trying again…", "error");
+      if (attempt === 1) showToast(t("Couldn’t load the gallery. Trying again…"), "error");
       timer = window.setTimeout(load, Math.min(15000, 2000 * attempt));
     });
     load();
@@ -300,7 +303,7 @@ function App() {
       const result = status?.result;
       if (result && !result.ok) showToast(result.rolledBack ? `HEISS UI ${result.to} didn’t start. Back on ${result.from}${result.error ? ` (${result.error})` : ""}.` : result.error || "The update didn’t install", "error");
       else if (status?.release) setJustUpdated(result?.to || status.current || "");
-      else showToast("HEISS UI updated", "success");
+      else showToast(t("HEISS UI updated"), "success");
     }).catch(() => null);
   }, []);
 
@@ -314,18 +317,18 @@ function App() {
     // An old marker (the restart never came back here) says nothing about this page.
     if (Date.now() - pending.at > 10 * 60 * 1000) return;
     if (typeof pending.lan !== "boolean") {
-      showToast("HEISS UI restarted", "success");
+      showToast(t("HEISS UI restarted"), "success");
       return;
     }
     const wanted = pending.lan;
     apiJson<{ listening: boolean; addresses: string[]; port: number }>("/api/network").then((network) => {
       if (network.listening === wanted) {
         const address = network.addresses[0];
-        showToast(wanted ? "Open on other devices" : "Closed to other devices", "success", wanted && address ? { description: `On this network: ${window.location.protocol}//${address}:${window.location.port || network.port}` } : undefined);
+        showToast(wanted ? "Open on other devices" : "Closed to other devices", "success", wanted && address ? { description: t("On this network: {0}//{1}:{2}", { "0": (window.location.protocol), "1": (address), "2": (window.location.port || network.port) }) } : undefined);
       } else {
-        showToast(wanted ? "Still closed to other devices" : "Still open to other devices", "error", { description: "HEISS UI restarted, but the setting didn’t take. Settings › Connection says why.", duration: Infinity });
+        showToast(wanted ? "Still closed to other devices" : "Still open to other devices", "error", { description: t("HEISS UI restarted, but the setting didn’t take. Settings › Connection says why."), duration: Infinity });
       }
-    }).catch(() => showToast("HEISS UI restarted", "success"));
+    }).catch(() => showToast(t("HEISS UI restarted"), "success"));
   }, []);
 
   // A release download runs on the server; follow it while it is in flight.
@@ -394,7 +397,7 @@ function App() {
           ? "LoRA changes are saved on this device. Sign in again to sync them."
           : "Can’t reach HEISS UI. LoRA changes are saved on this device and sync when it’s back.", "error");
       } else if (!sync.failing && loraSyncFailing.current && !sync.pending) {
-        showToast("LoRA changes synced", "success");
+        showToast(t("LoRA changes synced"), "success");
       }
       if (!sync.failing || sync.pending > 0) loraSyncFailing.current = sync.failing && sync.pending > 0;
     });
@@ -465,9 +468,9 @@ function App() {
     if (lastRestart && lastRestart.startedAt === watchedRestart.current) {
       watchedRestart.current = 0;
       setComfyRestartResult(lastRestart);
-      if (lastRestart.outcome === "failed") showToast("ComfyUI didn’t come back after the restart. Check its window for errors.", "error");
-      else if (lastRestart.failedPacks?.length) showToast(`ComfyUI is back, but ${listNames(lastRestart.failedPacks)} didn’t load. See its window for details.`, "error");
-      else if (lastRestart.newPacks?.length) showToast(`ComfyUI is back with ${listNames(lastRestart.newPacks)}.`, "success");
+      if (lastRestart.outcome === "failed") showToast(t("ComfyUI didn’t come back after the restart. Check its window for errors."), "error");
+      else if (lastRestart.failedPacks?.length) showToast(t("ComfyUI is back, but {0} didn’t load. See its window for details.", { "0": (listNames(lastRestart.failedPacks)) }), "error");
+      else if (lastRestart.newPacks?.length) showToast(t("ComfyUI is back with {0}.", { "0": (listNames(lastRestart.newPacks)) }), "success");
     }
     setComfyRestarting(comfyRestarting);
   }, [comfyRestarting, comfyStatus.restartStartedAt, comfyStatus.restartTypicalMs, lastRestart?.startedAt]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -773,7 +776,7 @@ function App() {
     try {
       localStorage.setItem("heiss-ui-prefs", JSON.stringify(merged));
     } catch {
-      showToast("Couldn’t save settings", "error");
+      showToast(t("Couldn’t save settings"), "error");
     }
   }
   function setZenMode(enabled: boolean) {
@@ -804,11 +807,11 @@ function App() {
    */
   async function copyToClipboard(text: string, announce = ""): Promise<boolean> {
     if (!text) {
-      showToast("Nothing to copy", "error");
+      showToast(t("Nothing to copy"), "error");
       return false;
     }
     const copied = await copyText(text);
-    if (!copied) showToast("Couldn’t copy", "error");
+    if (!copied) showToast(t("Couldn’t copy"), "error");
     else if (announce) showToast(announce, "success");
     return copied;
   }
@@ -816,7 +819,7 @@ function App() {
   /** The viewer's copy button: the image itself, its link, or its details. */
   async function copyItemToClipboard(item: GalleryItem): Promise<boolean> {
     const copied = await copyImage(item);
-    if (!copied) showToast("Couldn’t copy", "error");
+    if (!copied) showToast(t("Couldn’t copy"), "error");
     return copied;
   }
 
@@ -833,7 +836,7 @@ function App() {
       })
       .catch((error) => {
         setStatus(error.message);
-        if (notify) showToast("Couldn’t refresh models", "error", { action: { label: "Try again", onClick: () => refreshModels(true) } });
+        if (notify) showToast(t("Couldn’t refresh models"), "error", { action: { label: t("Try again"), onClick: () => refreshModels(true) } });
       });
     modelsRefreshRef.current = request;
     return request;
@@ -858,10 +861,10 @@ function App() {
     try { if (localStorage.getItem(key)) return; localStorage.setItem(key, "1"); } catch { /* told this session at most */ }
     const when = new Date(exit.lastSeen || exit.at).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" });
     const details = [`HEISS UI stopped: ${exit.reason}`, `Last seen running: ${new Date(exit.lastSeen || exit.at).toISOString()}`, exit.code !== null ? `Exit code: ${exit.code}` : "", exit.signal ? `Signal: ${exit.signal}` : "", exit.detail ? `\nLast output:\n${exit.detail}` : ""].filter(Boolean).join("\n");
-    showToast("HEISS UI stopped unexpectedly last time", "warning", {
-      description: `${exit.reason.replace(/\.?$/, ".")} Last seen running ${when}.`,
+    showToast(t("HEISS UI stopped unexpectedly last time"), "warning", {
+      description: t("{0} Last seen running {1}.", { "0": (exit.reason.replace(/\.?$/, ".")), "1": (when) }),
       duration: 20_000,
-      action: { label: "Copy details", onClick: () => { void copyToClipboard(details, "Details copied"); } }
+      action: { label: t("Copy details"), onClick: () => { void copyToClipboard(details, "Details copied"); } }
     });
   }
 
@@ -895,7 +898,7 @@ function App() {
       .then((data) => {
         // Not at the saved address, but on ComfyUI Desktop's port (or the other way round): now saved.
         if (data.found) {
-          showToast(`Found ComfyUI at ${data.found.replace(/^https?:\/\//, "")}`, "success");
+          showToast(t("Found ComfyUI at {0}", { "0": (data.found.replace(/^https?:\/\//, "")) }), "success");
           refreshHealth();
         }
         const { found: _found, ...status } = data;
@@ -930,7 +933,7 @@ function App() {
       });
       setPaths(next);
       // The row shows the saved folder; only a folder that doesn't hold your images is worth a word.
-      if (next.report?.state === "mismatch") showToast("Folder saved. Recent images aren’t in it.", "warning");
+      if (next.report?.state === "mismatch") showToast(t("Folder saved. Recent images aren’t in it."), "warning");
       loadGallery().catch(() => null);
       return next.report || null;
     } catch (error) {
@@ -960,7 +963,7 @@ function App() {
       plural: (count) => `Moved ${count} images to Hidden`,
       glyph: "lock",
       action: hiddenIds.length ? {
-        label: "Undo",
+        label: t("Undo"),
         onClick: async () => {
           await hidden.unhide(hiddenIds.map((id) => ({ id } as GalleryItem)));
           loadGallery().catch(() => null);
@@ -1013,8 +1016,8 @@ function App() {
   async function installUpdate({ confirm = true }: { confirm?: boolean } = {}) {
     const release = Boolean(updateStatus?.release);
     if (confirm && !await confirmAction(release
-      ? { title: `Update to HEISS UI ${updateStatus?.latest}?`, description: `Downloads${updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : " the update"} and installs it when HEISS UI restarts.`, action: "Download" }
-      : { title: "Update HEISS UI?", description: "Pulls the latest code, installs packages and rebuilds.", action: "Update" })) return;
+      ? { title: t("Update to HEISS UI {0}?", { "0": (updateStatus?.latest) }), description: t("Downloads{0} and installs it when HEISS UI restarts.", { "0": (updateStatus?.size ? ` ${formatUpdateBytes(updateStatus.size)}` : t(" the update")) }), action: t("Download") }
+      : { title: t("Update HEISS UI?"), description: t("Pulls the latest code, installs packages and rebuilds."), action: t("Update") })) return;
     try {
       setUpdateBusy(true);
       const data = await apiJson<UpdateStatus>("/api/update/install", { method: "POST" });
@@ -1028,7 +1031,7 @@ function App() {
       }
       showToast(data.updated ? "Update installed. Restart HEISS UI to use it." : data.message || "Up to date", data.updated ? "success" : "default");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Couldn’t update", "error", { action: { label: "Try again", onClick: () => installUpdate({ confirm: false }) } });
+      showToast(error instanceof Error ? error.message : "Couldn’t update", "error", { action: { label: t("Try again"), onClick: () => installUpdate({ confirm: false }) } });
     } finally {
       setUpdateBusy(false);
     }
@@ -1043,7 +1046,7 @@ function App() {
     try {
       await apiJson("/api/update/restart", { method: "POST" });
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "Couldn’t restart HEISS UI", "error", { id: restartToastId, duration: Infinity, action: { label: "Try again", onClick: () => restartHeiss({ update, lan }) } });
+      showToast(error instanceof Error ? error.message : "Couldn’t restart HEISS UI", "error", { id: restartToastId, duration: Infinity, action: { label: t("Try again"), onClick: () => restartHeiss({ update, lan }) } });
       return false;
     }
     // A downloaded update goes in with any restart, so say so when the page comes back.
@@ -1052,7 +1055,7 @@ function App() {
       if (withUpdate) localStorage.setItem(updateInstalledKey, JSON.stringify({ at }));
       else localStorage.setItem(restartedKey, JSON.stringify({ at, ...(typeof lan === "boolean" ? { lan } : {}) }));
     } catch { /* the toast just won't show */ }
-    showToast(withUpdate ? "Installing the update…" : "Restarting HEISS UI…", "default", { id: restartToastId, duration: Infinity, description: "This page reloads when it’s back.", glyph: <RefreshCw size={16} className="spin" /> });
+    showToast(withUpdate ? "Installing the update…" : "Restarting HEISS UI…", "default", { id: restartToastId, duration: Infinity, description: t("This page reloads when it’s back."), glyph: <RefreshCw size={16} className="spin" /> });
     setRestarting(true);
     // Wait for a server that started after the restart, then load its new page.
     const deadline = at + 3 * 60 * 1000;
@@ -1062,7 +1065,7 @@ function App() {
       if (Date.now() > deadline) {
         setRestarting(false);
         try { localStorage.removeItem(restartedKey); } catch { /* nothing to clear */ }
-        showToast("HEISS UI didn’t come back", "error", { id: restartToastId, description: "Start it again with its launcher, then reload.", duration: Infinity, action: { label: "Reload", onClick: () => window.location.reload() } });
+        showToast(t("HEISS UI didn’t come back"), "error", { id: restartToastId, description: t("Start it again with its launcher, then reload."), duration: Infinity, action: { label: t("Reload"), onClick: () => window.location.reload() } });
         return;
       }
       window.setTimeout(poll, 1000);
@@ -1099,7 +1102,7 @@ function App() {
       setWidth(fitted.width);
       setHeight(fitted.height);
       if (fitted.width !== width || fitted.height !== height) {
-        showToast(`Custom size fitted to ${profile.displayName || profile.label || "this model"}: ${fitted.width} × ${fitted.height}`, "default", { description: `${width} × ${height} is past what it takes.` });
+        showToast(t("Custom size fitted to {0}: {1} × {2}", { "0": (profile.displayName || profile.label || "this model"), "1": (fitted.width), "2": (fitted.height) }), "default", { description: t("{0} × {1} is past what it takes.", { "0": (width), "1": (height) }) });
       }
     } else if (keptShape) {
       setWidth(keptShape.w);
@@ -1209,7 +1212,7 @@ function App() {
     }
     if (customSize) {
       const defaults = currentProfile?.defaults || {};
-      const defaultPreset = { label: "Default", value: "default", w: Number(defaults.width || 1024), h: Number(defaults.height || 1024) };
+      const defaultPreset = { label: t("Default"), value: "default", w: Number(defaults.width || 1024), h: Number(defaults.height || 1024) };
       const preset = closestPreset([defaultPreset, ...aspectOptions], { width, height });
       if (preset) { setWidth(preset.w); setHeight(preset.h); }
       setCustomSize(false);
@@ -1244,7 +1247,7 @@ function App() {
         // Another device's sizes come in with the answer, unless this page changed again meanwhile.
         if (savedSizesRef.current === next) { savedSizesRef.current = data.sizes; setSavedSizesState(data.sizes); }
       })
-      .catch(() => showToast("Couldn’t save your sizes", "error", { description: "They’re kept on this page until it reloads." }));
+      .catch(() => showToast(t("Couldn’t save your sizes"), "error", { description: t("They’re kept on this page until it reloads.") }));
   }
   useEffect(() => {
     let alive = true;
@@ -1293,8 +1296,8 @@ function App() {
     if (index < 0) return;
     const removed = savedSizesRef.current[index];
     updateSavedSizes((current) => current.filter((item) => item.id !== id));
-    showToast(`Removed “${removed.name}”`, "removed", {
-      action: { label: "Undo", onClick: () => updateSavedSizes((current) => {
+    showToast(t("Removed “{0}”", { "0": (removed.name) }), "removed", {
+      action: { label: t("Undo"), onClick: () => updateSavedSizes((current) => {
         if (current.some((item) => item.id === removed.id)) return current;
         const restored = [...current];
         restored.splice(Math.min(index, restored.length), 0, removed);
@@ -1308,7 +1311,7 @@ function App() {
     const fitted = sameRatio(snapped, saved) ? snapped : fitRatio(saved.width / saved.height, saved.width * saved.height, customLimits.width, customLimits.height, 16);
     setCustomDimensions(fitted);
     if (fitted.width !== saved.width || fitted.height !== saved.height) {
-      showToast(`“${saved.name}” fitted to this model: ${fitted.width} × ${fitted.height}`, "default", { description: `It’s saved as ${saved.width} × ${saved.height}, past what ${currentProfile?.displayName || currentProfile?.label || "this model"} takes.` });
+      showToast(t("“{0}” fitted to this model: {1} × {2}", { "0": (saved.name), "1": (fitted.width), "2": (fitted.height) }), "default", { description: t("It’s saved as {0} × {1}, past what {2} takes.", { "0": (saved.width), "1": (saved.height), "2": (currentProfile?.displayName || currentProfile?.label || "this model") }) });
     }
   }
   function setCustomDimensions(next: { width: number; height: number }) {
@@ -1479,7 +1482,7 @@ function App() {
     const slow = gallery.find((item) => item.status === "done" && item.timing?.slow && watchedRuns.current.has(item.jobId || item.id));
     if (!slow) return;
     slowHintShown.current = true;
-    showToast("That run was much slower than usual. ComfyUI may be short on graphics memory. Close other apps that use it, or try a smaller size.", "warning");
+    showToast(t("That run was much slower than usual. ComfyUI may be short on graphics memory. Close other apps that use it, or try a smaller size."), "warning");
   }, [gallery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // What Generate would take with these settings, the way generate() would send them.
@@ -1498,7 +1501,7 @@ function App() {
   // Every Restart ComfyUI button asks first when it would stop running work.
   useEffect(() => {
     registerRestartConfirm(() => runningCount
-      ? confirmAction({ title: "Restart ComfyUI?", description: `${runningCount} running generation${runningCount === 1 ? "" : "s"} will stop.`, action: "Restart", destructive: true })
+      ? confirmAction({ title: t("Restart ComfyUI?"), description: t("{0} running generation{1} will stop.", { "0": (runningCount), "1": (runningCount === 1 ? t("") : t("s")) }), action: t("Restart"), destructive: true })
       : Promise.resolve(true));
     return () => registerRestartConfirm(null);
   }, [runningCount, confirmAction]);
@@ -1521,10 +1524,10 @@ function App() {
   const modelSetupMissing = Boolean(currentProfile && (currentProfile.ready === false
     || (!currentProfile.encoderSlots && ((currentProfile.capabilities.textEncoder && !textEncoder) || (currentProfile.capabilities.vae && !vae)))));
   const generateDisabled = !currentProfile || modelSetupMissing || missingRequiredReference;
-  const generateDisabledReason = missingRequiredReference ? `${missingReferenceInput?.label || "Reference image"} is required`
-    : modelMissingParts.length ? `Needs ${modelMissingParts.map((item) => item.label).join(", ")}`
-    : modelSetupMissing ? "This model needs files first"
-    : !currentProfile ? (models ? "Choose a model" : "Loading models…") : undefined;
+  const generateDisabledReason = missingRequiredReference ? t('{0} is required', { 0: t(missingReferenceInput?.label || "Reference image") })
+    : modelMissingParts.length ? t('Needs {0}', { 0: modelMissingParts.map((item) => item.label).join(", ") })
+    : modelSetupMissing ? t("This model needs files first")
+    : !currentProfile ? (models ? t("Choose a model") : t("Loading models…")) : undefined;
   const loraActiveCount = currentProfile?.capabilities.lora ? loras.filter((item) => item.enabled && item.name).length : 0;
   // Active LoRAs whose files clearly say another model family (lora-info.js): a quiet note above the prompt bar.
   const loraOptionNames = useMemo(() => ((currentProfile?.options?.loras || models?.loras || []) as unknown[]).map((option) => typeof option === "string" ? option : String((option as { name?: string })?.name || "")).filter(Boolean), [currentProfile, models]);
@@ -1559,7 +1562,7 @@ function App() {
     if (next && profileId !== model) {
       // A switch loads the workflow's own defaults, which the composer shows; only
       // a reference image it had to drop is news.
-      if (referenceAssets.length > 0 && !imageInputsForProfile(next).length) showToast(`Reference image removed. ${next.displayName || next.label || "This model"} doesn’t use one.`, "warning");
+      if (referenceAssets.length > 0 && !imageInputsForProfile(next).length) showToast(t("Reference image removed. {0} doesn’t use one.", { "0": (next.displayName || next.label || "This model") }), "warning");
     }
     chooseModel(profileId);
     const lastUsed = { [profileId]: new Date().toISOString() };
@@ -1582,7 +1585,7 @@ function App() {
     }).then((data) => {
       if (data.preferences) setWorkflowPreferences(data.preferences);
       refreshWorkflows();
-    }).catch(() => showToast("Couldn’t save the favorite", "error"));
+    }).catch(() => showToast(t("Couldn’t save the favorite"), "error"));
   }
 
   toggleModelFavoriteRef.current = toggleModelFavorite;
@@ -1642,7 +1645,7 @@ function App() {
 
   async function useOutputAsStartImage(item: GalleryItem) {
     if (!canUseStartImage || item.status !== "done" || item.type !== "image" || !item.url || item.vaultLocked) {
-      showToast("This model can’t use this image as a reference", "error");
+      showToast(t("This model can’t use this image as a reference"), "error");
       return;
     }
     try {
@@ -1678,7 +1681,7 @@ function App() {
       });
       refreshModels(false);
       refreshWorkflows();
-      showToast("Workflow imported", "success");
+      showToast(t("Workflow imported"), "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Couldn’t import the workflow", "error");
     }
@@ -1731,7 +1734,7 @@ function App() {
     pickModel(profile.id);
     const first = !prompt.trim();
     if (first) setPrompt(starterPromptsFor(profile.family, profile.kind)[0]);
-    showToast(`${starterPick.title || profile.displayName || "The model"} is ready.${first ? ` Press ${generateShortcut(prefs.enterToGenerate)} to try the example prompt.` : ""}`, "success");
+    showToast(t("{0} is ready.{1}", { "0": (starterPick.title || profile.displayName || "The model"), "1": (first ? ` Press ${generateShortcut(prefs.enterToGenerate)} to try the example prompt.` : t("")) }), "success");
     window.setTimeout(() => zenPromptRef.current?.focus(), 0);
   }, [models, starterPick]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -1772,10 +1775,10 @@ function App() {
     recents: loraRecentList,
     loadStack: (stack: LoraSnapshot) => setLorasWithMemory(stack.loras),
     saveStack: (name: string) => { const stack = saveLoraStack(loraFamily, name, loras); bumpLoraLibrary(); return stack; },
-    updateStack: (id: string) => { updateLoraStack(loraFamily, id, loras); bumpLoraLibrary(); showToast('Stack updated', 'success'); },
+    updateStack: (id: string) => { updateLoraStack(loraFamily, id, loras); bumpLoraLibrary(); showToast(t("Stack updated"), 'success'); },
     renameStack: (id: string, name: string) => { renameLoraStack(loraFamily, id, name); bumpLoraLibrary(); },
     deleteStack: async (stack: LoraSnapshot) => {
-      if (!await confirmAction({ title: `Delete ${stack.name}?`, description: 'The LoRAs stay installed and in use.', action: 'Delete', destructive: true })) return false;
+      if (!await confirmAction({ title: t("Delete {0}?", { "0": (stack.name) }), description: t("The LoRAs stay installed and in use."), action: t("Delete"), destructive: true })) return false;
       deleteLoraStack(loraFamily, stack.id);
       bumpLoraLibrary();
       return true;

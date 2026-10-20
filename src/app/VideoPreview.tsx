@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { Play } from 'lucide-react';
 import { observeVideoPreview, refreshVideoPreviews, videoPreviewUrl } from './videoPreviewScheduler';
@@ -29,6 +31,7 @@ function useRetry(source: string) {
  * first) shows until the preview plays, and all along while previews are paused.
  */
 export function VideoPreview({ source }: { source: string }) {
+  useLanguage();
   const video = useRef<HTMLVideoElement>(null);
   const [load, setLoad] = useState(false);
   // What has loaded is kept as the address that loaded, not a flag reset when
@@ -70,7 +73,7 @@ export function VideoPreview({ source }: { source: string }) {
       <video ref={video} src={videoSrc} muted playsInline loop preload={load ? 'auto' : 'none'}
         disablePictureInPicture disableRemotePlayback draggable={false} aria-hidden="true"
         onLoadedData={() => { if (videoSrc) setReadySrc(videoSrc); }} onError={() => { if (videoSrc) videoTry.fail(); }} />
-      {!ready && !posterReady ? <span className="video-preview-placeholder"><Play size={22} /><span>{videoTry.gaveUp && posterTry.gaveUp ? 'Video' : 'Preview'}</span></span> : null}
+      {!ready && !posterReady ? <span className="video-preview-placeholder"><Play size={22} /><span>{videoTry.gaveUp && posterTry.gaveUp ? t("Video") : t("Preview")}</span></span> : null}
     </div>
   );
 }

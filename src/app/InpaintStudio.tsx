@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -105,6 +107,7 @@ async function maskLayer(dataUrl: string, width: number, height: number) {
  * It snaps to `sizes`, top is biggest.
  */
 export function SizeSlider({ index, onChange, onPreview }: { index: number; onChange: (index: number) => void; onPreview: (active: boolean) => void }) {
+  useLanguage();
   const trackRef = React.useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = React.useState(false);
   const last = sizes.length - 1;
@@ -118,7 +121,7 @@ export function SizeSlider({ index, onChange, onPreview }: { index: number; onCh
       className={cn("inpaint-size", dragging && "is-dragging")}
       role="slider"
       tabIndex={0}
-      aria-label="Brush size"
+      aria-label={t("Brush size")}
       aria-orientation="vertical"
       aria-valuemin={1}
       aria-valuemax={sizes.length}
@@ -165,6 +168,7 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
   onChange: (dataUrl: string | null) => void;
   onClose: () => void;
 }) {
+  useLanguage();
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const stageRef = React.useRef<HTMLDivElement>(null);
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
@@ -526,9 +530,9 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
   const aspect = size ? size.height / size.width : 0.75;
   const height = `min(${Math.round(Math.max(300, box.width * aspect))}px, 70dvh)`;
   const tools: Array<{ id: Tool; label: string; key: string; icon: React.ReactNode }> = [
-    { id: "brush", label: "Brush", key: "B", icon: <Brush size={16} /> },
-    { id: "eraser", label: "Eraser", key: "E", icon: <Eraser size={16} /> },
-    { id: "hand", label: "Move", key: "H or hold Space", icon: <Hand size={16} /> }
+    { id: "brush", label: t("Brush"), key: "B", icon: <Brush size={16} /> },
+    { id: "eraser", label: t("Eraser"), key: "E", icon: <Eraser size={16} /> },
+    { id: "hand", label: t("Move"), key: "H or hold Space", icon: <Hand size={16} /> }
   ];
 
   return createPortal(
@@ -537,7 +541,7 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
       className={cn("inpaint-studio", asSheet && "is-sheet")}
       style={asSheet ? undefined : { left: box.left, width: box.width, bottom: box.bottom, height }}
       role="dialog"
-      aria-label="Paint the part to change"
+      aria-label={t("Paint the part to change")}
       data-open-surface
       initial={{ opacity: 0, y: 10, scale: 0.97, filter: "blur(4px)" }}
       animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
@@ -560,13 +564,13 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
             <canvas ref={canvasRef} width={size.width} height={size.height} />
           </div>
         ) : (
-          <div className="inpaint-loading">{failed ? "This image couldn’t be opened." : null}</div>
+          <div className="inpaint-loading">{failed ? t("This image couldn’t be opened.") : null}</div>
         )}
         <div ref={ringRef} className={cn("inpaint-ring", activeTool === "eraser" && "is-eraser", previewing && "is-preview")} aria-hidden="true" />
-        <p className={cn("inpaint-hint", (history.painted || !size) && "is-hidden")} aria-hidden={history.painted}>Paint over what should change</p>
+        <p className={cn("inpaint-hint", (history.painted || !size) && "is-hidden")} aria-hidden={history.painted}>{t("Paint over what should change")}</p>
       </div>
 
-      <div className="inpaint-pill" role="toolbar" aria-label="Painting tools">
+      <div className="inpaint-pill" role="toolbar" aria-label={t("Painting tools")}>
         {tools.map((item) => (
           <Tip key={item.id} content={<>{item.label} <kbd>{item.key}</kbd></>}>
             <button type="button" className={cn("inpaint-tool", activeTool === item.id && "is-active")} aria-label={item.label} aria-pressed={activeTool === item.id} onClick={() => setTool(item.id)}>
@@ -575,11 +579,11 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
           </Tip>
         ))}
         <span className="inpaint-divider" aria-hidden="true" />
-        <Tip content={<>Undo <kbd>⌘Z</kbd></>}>
-          <button type="button" className="inpaint-tool" aria-label="Undo" disabled={!history.undo} onClick={undo}><Undo2 size={16} /></button>
+        <Tip content={<>{t("Undo")}{" "}<kbd>⌘Z</kbd></>}>
+          <button type="button" className="inpaint-tool" aria-label={t("Undo")} disabled={!history.undo} onClick={undo}><Undo2 size={16} /></button>
         </Tip>
-        <Tip content={<>Redo <kbd>⇧⌘Z</kbd></>}>
-          <button type="button" className="inpaint-tool" aria-label="Redo" disabled={!history.redo} onClick={redoStroke}><Redo2 size={16} /></button>
+        <Tip content={<>{t("Redo")}{" "}<kbd>⇧⌘Z</kbd></>}>
+          <button type="button" className="inpaint-tool" aria-label={t("Redo")} disabled={!history.redo} onClick={redoStroke}><Redo2 size={16} /></button>
         </Tip>
         {/* Only there while zoomed in: at fit it takes no room and has no tooltip. */}
         <AnimatePresence initial={false}>
@@ -592,21 +596,21 @@ export function InpaintStudio({ anchor, asset, mask, popRef, onChange, onClose }
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: "spring", duration: 0.32, bounce: 0 }}
             >
-              <Tip content={<>Fit to view <kbd>0</kbd></>}>
+              <Tip content={<>{t("Fit to view")}{" "}<kbd>0</kbd></>}>
                 <button type="button" className="inpaint-zoom-reset" onClick={resetZoom}>{zoom.percent}%</button>
               </Tip>
             </motion.div>
           ) : null}
         </AnimatePresence>
         <span className="inpaint-divider" aria-hidden="true" />
-        <Tip content={<>Clear the painting <kbd>Del</kbd></>}>
-          <button type="button" className="inpaint-tool" aria-label="Clear the painting" disabled={!history.painted} onClick={clear}><BrushCleaning size={16} /></button>
+        <Tip content={<>{t("Clear the painting")}{" "}<kbd>{t("Del")}</kbd></>}>
+          <button type="button" className="inpaint-tool" aria-label={t("Clear the painting")} disabled={!history.painted} onClick={clear}><BrushCleaning size={16} /></button>
         </Tip>
       </div>
 
       {/* Done sits apart, top right, so clearing and closing are never one slip apart. */}
-      <Tip content={<>Done <kbd>Esc</kbd></>}>
-        <button type="button" className="inpaint-close" aria-label="Done painting" onClick={onClose}><X size={16} /></button>
+      <Tip content={<>{t("Done")}{" "}<kbd>{t("Esc")}</kbd></>}>
+        <button type="button" className="inpaint-close" aria-label={t("Done painting")} onClick={onClose}><X size={16} /></button>
       </Tip>
 
       <SizeSlider index={sizeIndex} onChange={setSizeIndex} onPreview={setPreviewing} />

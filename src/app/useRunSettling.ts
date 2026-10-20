@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { runTitle, type GalleryGroups, type Run } from './runs';
 import type { ShowToast } from './toast';
@@ -77,7 +78,7 @@ export function useRunSettling(groups: GalleryGroups, { enabled, showToast }: { 
     showToast(folded.length === 1 ? "Stacked similar images" : `Stacked ${folded.length} groups of similar images`, "default", {
       description: folded.length === 1 ? runTitle(folded[0]) : folded.map(runTitle).slice(0, 3).join(" · "),
       action: {
-        label: "Undo",
+        label: t("Undo"),
         onClick: () => {
           for (const run of folded) held.current.add(run.id);
           const restored = new Set(settledRef.current);

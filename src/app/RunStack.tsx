@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronsDownUp, Ungroup } from 'lucide-react';
@@ -12,6 +14,7 @@ import type { GalleryItem } from './types';
 
 /** A still of an output for the cards behind a stack: the thumbnail, or a video's poster. */
 export function Still({ item, onLoad }: { item: GalleryItem; onLoad?: () => void }) {
+  useLanguage();
   const preview = item.type === "video" && item.url ? videoPreviewUrl(item.url) : "";
   // Through mediaUrl like a tile's image: the same address, so it comes from the same cache entry.
   const src = item.type === "video" ? (preview ? `${preview}${preview.includes("?") ? "&" : "?"}poster=1` : "") : mediaUrl(item.thumbnailUrl || item.url, item);
@@ -53,6 +56,7 @@ export function runKind(run: Run) {
 
 /** A moment's heading: its name, and when and how much, quietly beside it. */
 export function MomentHeading({ moment }: { moment: Moment }) {
+  useLanguage();
   return (
     <header className="moment-heading">
       <h2>{moment.title}</h2>
@@ -87,6 +91,7 @@ type RunStackProps = {
 };
 
 function RunStackComponent(props: RunStackProps) {
+  useLanguage();
   return props.variant === "flow" ? <FlowStack {...props} /> : <BurstStack {...props} />;
 }
 
@@ -97,6 +102,7 @@ function RunStackComponent(props: RunStackProps) {
  * fifth crossfades through it; a click opens it.
  */
 function BurstStack({ run, width, height, arriving = false, onOpen, titleFromPrompt }: RunStackProps) {
+  useLanguage();
   const reducedMotion = useReducedMotion();
   const done = run.items.filter((item) => item.status === "done").slice(0, SKIM_MAX);
   const [skim, setSkim] = useState<number | null>(null);
@@ -111,7 +117,7 @@ function BurstStack({ run, width, height, arriving = false, onOpen, titleFromPro
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 420, damping: 30 }}
     >
-      <button type="button" className="run-stack run-burst" aria-label={`${title}. ${runKind(run)}. Open the stack`} onClick={onOpen}>
+      <button type="button" className="run-stack run-burst" aria-label={t("{0}. {1}. Open the stack", { "0": (title), "1": (runKind(run)) })} onClick={onOpen}>
         <span className="run-burst-edge is-2" aria-hidden="true" />
         <span className="run-burst-edge is-1" aria-hidden="true" />
         <span className="run-stack-cover run-burst-cover" style={{ top: 0, bottom: BURST_EDGE }}>
@@ -134,6 +140,7 @@ function BurstStack({ run, width, height, arriving = false, onOpen, titleFromPro
 
 /** Skim ticks along the bottom fifth of a card; `onSkim` gets the output pointed at, or null. */
 function SkimStrip({ count, at, onSkim }: { count: number; at: number | null; onSkim: (index: number | null) => void }) {
+  useLanguage();
   const ref = useRef<HTMLSpanElement>(null);
   if (count < 2) return null;
   return (
@@ -165,6 +172,7 @@ function SkimStrip({ count, at, onSkim }: { count: number; at: number | null; on
  * Skimming the bottom fifth turns the flow; a click opens the run.
  */
 function FlowStack({ run, width, height, arriving = false, onOpen, titleFromPrompt }: RunStackProps) {
+  useLanguage();
   const reducedMotion = useReducedMotion();
   const done = run.items.filter((item) => item.status === "done").slice(0, SKIM_MAX);
   const [skim, setSkim] = useState<number | null>(null);
@@ -206,7 +214,7 @@ function FlowStack({ run, width, height, arriving = false, onOpen, titleFromProm
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 420, damping: 30 }}
     >
-      <button type="button" className="run-stack run-flow" aria-label={`${title}. ${runKind(run)}. Open the stack`} onClick={onOpen}>
+      <button type="button" className="run-stack run-flow" aria-label={t("{0}. {1}. Open the stack", { "0": (title), "1": (runKind(run)) })} onClick={onOpen}>
         {frontReady ? <span className="run-flow-ambient" aria-hidden="true"><Still item={run.cover} /></span> : null}
         <span className="run-flow-stage" style={{ "--face-w": `${faceW}px`, "--face-h": `${faceH}px`, "--face-x": `${Math.round((width - faceW) / 2)}px`, "--face-y": `${Math.round((height - faceH) / 2)}px` } as React.CSSProperties}>
           {leaves.map(({ item, offset }) => {
@@ -262,6 +270,7 @@ export function RunShelf({ run, y, width, height, folding, arriving, onClose, on
   onClose: () => void;
   onUnstack?: () => void;
 }) {
+  useLanguage();
   const reducedMotion = useReducedMotion();
   const title = runTitle(run);
   const meta = [run.live ? "Generating" : runKind(run), run.model ? modelName(run.model) : "", timeSpan(run.start, run.end)].filter(Boolean);
@@ -278,15 +287,15 @@ export function RunShelf({ run, y, width, height, folding, arriving, onClose, on
         <strong>{title}</strong>
         <small>{meta.map((part, index) => <React.Fragment key={part}>{index ? <i aria-hidden="true">·</i> : null}{part}</React.Fragment>)}</small>
         <span className="run-shelf-actions">
-          <button type="button" className="run-shelf-action" aria-label={`Stack ${title}`} onClick={onClose}>
+          <button type="button" className="run-shelf-action" aria-label={t("Stack {0}", { "0": (title) })} onClick={onClose}>
             <ChevronsDownUp size={13} strokeWidth={2.2} />
-            <span>Stack</span>
+            <span>{t("Stack")}</span>
           </button>
           {onUnstack ? (
-            <Tip content="Keep these as separate images">
-              <button type="button" className="run-shelf-action" aria-label={`Unstack ${title}`} onClick={onUnstack}>
+            <Tip content={t("Keep these as separate images")}>
+              <button type="button" className="run-shelf-action" aria-label={t("Unstack {0}", { "0": (title) })} onClick={onUnstack}>
                 <Ungroup size={13} strokeWidth={2} />
-                <span>Unstack</span>
+                <span>{t("Unstack")}</span>
               </button>
             </Tip>
           ) : null}
@@ -309,6 +318,7 @@ export function modelName(model: string) {
  * the gallery.
  */
 export function RunCard({ run, onOpen }: { run: Run; onOpen: () => void }) {
+  useLanguage();
   const reducedMotion = useReducedMotion();
   const done = run.items.filter((item) => item.status === "done").slice(0, 5);
   const fan = done.slice().reverse();
@@ -316,7 +326,7 @@ export function RunCard({ run, onOpen }: { run: Run; onOpen: () => void }) {
   const ratio = Number(run.cover.width || 1) / Math.max(1, Number(run.cover.height || 1));
   return (
     <div className="run-card" style={{ "--card-ratio": ratio } as React.CSSProperties}>
-      <button type="button" className="run-card-fan" aria-label={`Open ${runTitle(run)} in the gallery`} onClick={onOpen}>
+      <button type="button" className="run-card-fan" aria-label={t("Open {0} in the gallery", { "0": (runTitle(run)) })} onClick={onOpen}>
         {fan.map((item, index) => {
           const offset = index - middle;
           const front = index === fan.length - 1;
@@ -338,7 +348,7 @@ export function RunCard({ run, onOpen }: { run: Run; onOpen: () => void }) {
         <small>{runKind(run)}{run.model ? <><i aria-hidden="true">·</i>{modelName(run.model)}</> : null}</small>
         <strong>{runTitle(run)}</strong>
         <button type="button" className="run-card-open" onClick={onOpen}>
-          <span>Open in gallery</span>
+          <span>{t("Open in gallery")}</span>
         </button>
       </div>
     </div>

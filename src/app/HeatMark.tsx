@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { trackCanvasSize } from './canvasSize';
 
@@ -172,6 +174,7 @@ function drawMask(canvas: HTMLCanvasElement, cell: number, width: number, height
 }
 
 export function HeatMark({ className }: { className?: string }) {
+  useLanguage();
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // No WebGL (Remote Desktop, VMs, blocklisted GPUs): show the static lockup.
@@ -330,7 +333,7 @@ export function HeatMark({ className }: { className?: string }) {
   }, []);
 
   return (
-    <div ref={wrapRef} className={className} style={{ aspectRatio: heatMarkAspect }} role="img" aria-label="HEISS UI">
+    <div ref={wrapRef} className={className} style={{ aspectRatio: heatMarkAspect }} role="img" aria-label={t("HEISS UI")}>
       {failed
         ? <img className="about-mark-fallback" src="/heiss-lockup-white.svg" alt="" aria-hidden="true" draggable={false} />
         : <canvas ref={canvasRef} aria-hidden="true" />}

@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 "use client";
 
 import {
@@ -60,7 +62,7 @@ function useShape(): ShapeClasses {
 
 function useShapeContext() {
   const ctx = useContext(ShapeContext);
-  if (!ctx) throw new Error("useShapeContext must be used within a ShapeProvider");
+  if (!ctx) throw new Error(t("useShapeContext must be used within a ShapeProvider"));
   return ctx;
 }
 
@@ -79,6 +81,7 @@ function ShapeProvider({
   children: ReactNode;
   defaultShape?: ShapeVariant;
 }) {
+  useLanguage();
   const [shape, setShapeState] = useState<ShapeVariant>(defaultShape);
 
   const setShape = useCallback((next: ShapeVariant) => {

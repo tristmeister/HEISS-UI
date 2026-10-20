@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { apiJson } from './api';
 import { announceComfyRestart, fetchManager } from './ComfyRestart';
@@ -106,7 +107,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
     const value = signature(report?.folders || []);
     try { localStorage.setItem(dismissKey, value); } catch { /* the notice just comes back */ }
     setDismissed(value);
-    if (onStopHints) showToast('Hidden until new models are found', 'default', { action: { label: 'Don’t show again', onClick: onStopHints } });
+    if (onStopHints) showToast(t("Hidden until new models are found"), 'default', { action: { label: t("Don’t show again"), onClick: onStopHints } });
   }, [onStopHints, report, showToast]);
 
   /** Waits until ComfyUI reads every added folder, which it does from its next start; true once it does. */
@@ -182,7 +183,7 @@ export function useModelFolders({ connected, emptyModels, onModelsChanged, showT
   const remove = useCallback(async (path: string) => {
     try {
       await apiJson('/api/model-folders', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path }) });
-      showToast('Removed. Takes effect when ComfyUI restarts.', 'removed');
+      showToast(t("Removed. Takes effect when ComfyUI restarts."), 'removed');
       scan({ quiet: true });
     } catch (reason) {
       showToast(reason instanceof Error ? reason.message : 'Couldn’t remove that folder', 'error');

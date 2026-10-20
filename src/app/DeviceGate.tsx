@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound, RefreshCw } from 'lucide-react';
 import { ApiError, apiJson, signedOutEvent } from './api';
@@ -29,6 +31,7 @@ const loopbackNames = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
  * says so and this screen comes back.
  */
 export function DeviceGate({ children }: React.PropsWithChildren) {
+  useLanguage();
   // On localhost there is nothing to wait for; the check runs behind the studio.
   const [state, setState] = useState<GateState>(() => (typeof window !== 'undefined' && loopbackNames.has(window.location.hostname) ? { kind: 'in' } : { kind: 'checking' }));
 
@@ -41,8 +44,8 @@ export function DeviceGate({ children }: React.PropsWithChildren) {
     } catch (error) {
       if (error instanceof ApiError && error.status === 403) {
         setState(error.reason === 'host'
-          ? { kind: 'refused', title: 'Open HEISS UI by its address', text: error.message }
-          : { kind: 'refused', title: 'Not open to other devices', text: 'On the computer running HEISS UI, turn on “Open on other devices” in Settings › Connection, then reload this page.' });
+          ? { kind: 'refused', title: t("Open HEISS UI by its address"), text: error.message }
+          : { kind: 'refused', title: t("Not open to other devices"), text: 'On the computer running HEISS UI, turn on “Open on other devices” in Settings › Connection, then reload this page.' });
         return;
       }
       // Not reachable at all: the studio has its own offline screens.
@@ -62,12 +65,13 @@ export function DeviceGate({ children }: React.PropsWithChildren) {
   if (state.kind === 'refused') return <GateMessage title={state.title} text={state.text} />;
   const { studioPassword } = state.status;
   if (!studioPassword.set && !studioPassword.hidden) {
-    return <GateMessage title="Set a studio password" text="Other devices sign in with a studio password. Set one on the computer running HEISS UI in Settings › Connection, then reload this page." />;
+    return <GateMessage title={t("Set a studio password")} text="Other devices sign in with a studio password. Set one on the computer running HEISS UI in Settings › Connection, then reload this page." />;
   }
   return <SignIn legacy={studioPassword.hidden} onSignedIn={() => { window.location.reload(); }} />;
 }
 
 function GateMessage({ title, text }: { title: string; text: string }) {
+  useLanguage();
   return (
     <section className="device-gate hidden-lockscreen">
       <div className="empty stage-empty hidden-lock-stage">
@@ -76,7 +80,7 @@ function GateMessage({ title, text }: { title: string; text: string }) {
           <h2>{title}</h2>
           <p>{text}</p>
           <div className="empty-actions">
-            <button className="reconnect-btn primary" onClick={() => window.location.reload()}><RefreshCw size={13} /> Reload</button>
+            <button className="reconnect-btn primary" onClick={() => window.location.reload()}><RefreshCw size={13} />{t("Reload")}</button>
           </div>
         </div>
       </div>
@@ -85,6 +89,7 @@ function GateMessage({ title, text }: { title: string; text: string }) {
 }
 
 function SignIn({ legacy, onSignedIn }: { legacy: boolean; onSignedIn: () => void }) {
+  useLanguage();
   const [password, setPassword] = useState('');
   const [stage, setStage] = useState<LockMarkStage>('locked');
   const [error, setError] = useState('');
@@ -115,10 +120,10 @@ function SignIn({ legacy, onSignedIn }: { legacy: boolean; onSignedIn: () => voi
       <div className="empty stage-empty hidden-lock-stage">
         <div className="stage-mark"><LockMark className="stage-layer" stage={stage} /></div>
         <div className="stage-copy">
-          <h2>{stage === 'opening' ? 'Signed in' : 'Sign in to HEISS UI'}</h2>
+          <h2>{stage === 'opening' ? t("Signed in") : t("Sign in to HEISS UI")}</h2>
           <p>{legacy
-            ? 'Enter the studio password. Until one is set, it’s the Hidden password.'
-            : 'Enter the studio password set on the computer running HEISS UI.'}</p>
+            ? t("Enter the studio password. Until one is set, it’s the Hidden password.")
+            : t("Enter the studio password set on the computer running HEISS UI.")}</p>
           <div className="empty-actions">
             {stage !== 'opening' ? (
               <div className="hidden-unlock">
@@ -132,13 +137,13 @@ function SignIn({ legacy, onSignedIn }: { legacy: boolean; onSignedIn: () => voi
                     type="password"
                     name="password"
                     autoComplete="current-password"
-                    aria-label="Studio password"
-                    placeholder="Studio password"
+                    aria-label={t("Studio password")}
+                    placeholder={t("Studio password")}
                     value={password}
                     disabled={working}
                     onChange={(event) => { setPassword(event.target.value); if (stage === 'failed') setStage('locked'); }}
                   />
-                  <button type="submit" disabled={!password || working}>{working ? '…' : 'Sign in'}</button>
+                  <button type="submit" disabled={!password || working}>{working ? '…' : t("Sign in")}</button>
                 </form>
                 <div className="hidden-unlock-meta" aria-live="polite">
                   {error ? <span className="is-error">{error}</span> : null}

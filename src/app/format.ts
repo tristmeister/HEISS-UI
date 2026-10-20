@@ -1,3 +1,4 @@
+import { getLanguage, t } from '../i18n/core.js';
 import type React from 'react';
 import type { AspectPreset, GalleryItem, LoraSelection } from './types';
 
@@ -29,14 +30,14 @@ export function formatElapsed(ms: number) {
   const seconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
-  return minutes ? `${minutes}:${String(rest).padStart(2, "0")}` : `${rest}s`;
+  return minutes ? `${minutes}:${String(rest).padStart(2, "0")}` : t('{0}s', { 0: rest });
 }
 
 export function formatGeneratedAt(value?: string) {
   if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleString([], {
+  return date.toLocaleString(getLanguage(), {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -58,7 +59,7 @@ export function textLength(text: string) {
 
 export function characterMeta(text: string, limit?: number) {
   const length = textLength(text);
-  if (!limit) return `${length.toLocaleString()} chars`;
+  if (!limit) return t('{0} chars', { 0: length.toLocaleString(getLanguage()) });
   return `${length.toLocaleString()} / ${limit.toLocaleString()}`;
 }
 
@@ -154,7 +155,7 @@ export function generationDetailEntries(item: GalleryItem): GenerationDetailSect
   if (loras.length) {
     const modelSection = sections.find((item) => item.title === "Model");
     if (modelSection) modelSection.loras = loras;
-    else sections.push({ title: "Model", rows: [], loras });
+    else sections.push({ title: t("Model"), rows: [], loras });
   }
   section("Sampling", (add) => {
     add("Steps", settings.steps);

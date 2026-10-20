@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { Check, Link2, Pencil, Trash2, Unlink2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -67,7 +69,7 @@ export function sizeMenuModel({ value, options, currentSize, defaultSize, tier, 
     : targetArea > 0 ? sizePlan("none", shape.w, shape.h, native, sizeMax, targetArea, limits?.width.step).final : { width: shape.w, height: shape.h };
   const defaultPreset: AspectPreset = defaultOption || { label: ratioName(defaultShape.width, defaultShape.height), value: defaultSize, w: defaultShape.width, h: defaultShape.height };
   const rows: SizeRow[] = [
-    { key: "default", value: "default", label: "Default", small: defaultPreset.label, shape: defaultPreset, size: rowSize(defaultPreset) },
+    { key: "default", value: "default", label: t("Default"), small: defaultPreset.label, shape: defaultPreset, size: rowSize(defaultPreset) },
     ...listed.map((option) => ({ key: option.value, value: option.value, label: option.label, shape: option, size: rowSize(option) }))
   ];
   // In Custom a saved size that is exactly this one is the pick, rather than the shape it shares.
@@ -80,7 +82,7 @@ export function sizeMenuModel({ value, options, currentSize, defaultSize, tier, 
   const ownSize = custom && !offered.some((size) => near(size, picked));
   const savedRow = (item: SavedSize): SizeRow => ({ key: item.id, value: "", label: item.name, small: ratioName(item.width, item.height), shape: { label: "", value: "", w: item.width, h: item.height }, size: { width: item.width, height: item.height } });
   const ratio = ratioName(shown.width, shown.height);
-  const label = custom ? ratio : selected ? selected.label : isDefault ? "Default" : ratio;
+  const label = custom ? ratio : selected ? selected.label : isDefault ? t('Default') : ratio;
   // Megapixels: an MP tag, the way 2K says its size. The count is in the menu, its preview and the
   // tip: as a tag it would change width with every step of a drag, under a button held at its width.
   const mpTag = !custom && targetArea > 0 ? "MP" : "";
@@ -89,7 +91,7 @@ export function sizeMenuModel({ value, options, currentSize, defaultSize, tier, 
   /** The preview's caption for a row, or for the size chosen: "Name · ratio" where the name isn't the ratio itself. */
   const captionFor = (row: SizeRow | null) => row
     ? (row.small ? `${row.label} · ${row.small}` : row.label)
-    : custom ? `${savedMatch ? savedMatch.name : "Custom"} · ${ratio}` : isDefault ? `Default · ${defaultOption?.label || ratio}` : label;
+    : custom ? `${savedMatch ? savedMatch.name : t('Custom')} · ${ratio}` : isDefault ? `${t('Default')} · ${defaultOption?.label || ratio}` : label;
   const note = !modelNative ? ""
     : (tier === "2k" || targetArea > 0) && plan.capped ? `This model goes up to ${plan.maxSide} px a side.`
     : tier === "2k" && plan.untested ? "This model isn’t known for 2K. Some pictures may repeat or warp."
@@ -116,6 +118,7 @@ export function SizePreview({ size, label, sub, accent = false, shown = true, in
   inset?: number;
   className?: string;
 }) {
+  useLanguage();
   const ref = React.useRef<HTMLDivElement | null>(null);
   const [stage, setStage] = React.useState({ width: 0, height: 0 });
   React.useLayoutEffect(() => {
@@ -151,9 +154,10 @@ export function SizePreview({ size, label, sub, accent = false, shown = true, in
 }
 
 export function SizeTabs({ tiers, value, onChange }: { tiers: SizeTier[]; value: SizeTier; onChange: (tier: SizeTier) => void }) {
+  useLanguage();
   const index = Math.max(0, tiers.indexOf(value));
   return (
-    <div className="aspect-upscale-tabs" role="radiogroup" aria-label="Size" style={{ "--tab-index": index, "--tab-count": tiers.length } as React.CSSProperties} onKeyDown={(event) => {
+    <div className="aspect-upscale-tabs" role="radiogroup" aria-label={t("Size")} style={{ "--tab-index": index, "--tab-count": tiers.length } as React.CSSProperties} onKeyDown={(event) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
       event.preventDefault();
       event.stopPropagation();
@@ -172,7 +176,7 @@ export function SizeTabs({ tiers, value, onChange }: { tiers: SizeTier[]; value:
           tabIndex={tier === value ? 0 : -1}
           className={cn(tier === value && "is-active")}
           onClick={() => onChange(tier)}
-        >{tierLabels[tier]}</button>
+        >{t(tierLabels[tier])}</button>
       ))}
     </div>
   );
@@ -240,6 +244,7 @@ function SizeField({ axis, value, limits, onStart, onChange }: {
   onStart: () => void;
   onChange: (value: number) => void;
 }) {
+  useLanguage();
   const [draft, setDraft] = React.useState(String(value));
   const [editing, setEditing] = React.useState(false);
   React.useEffect(() => { if (!editing) setDraft(String(value)); }, [value, editing]);
@@ -264,13 +269,13 @@ function SizeField({ axis, value, limits, onStart, onChange }: {
   return (
     // Not a <label>: a label's click would focus the field at the end of every drag.
     <div className={cn("size-field", dragging && "is-dragging")} onClick={(event) => { if (event.target === event.currentTarget) input.current?.focus(); }}>
-      <Tip content={`Drag to change the ${label.toLowerCase()}`}>
+      <Tip content={t("Drag to change the {0}", { "0": (label.toLowerCase()) })}>
         <span className="size-field-key" {...handlers} aria-hidden="true">{axis}</span>
       </Tip>
       <input
         ref={input}
         inputMode="numeric"
-        aria-label={`${label} in pixels`}
+        aria-label={t("{0} in pixels", { "0": (label) })}
         value={draft}
         onFocus={(event) => { setEditing(true); onStart(); event.currentTarget.select(); }}
         onBlur={() => { setEditing(false); commit(); }}
@@ -318,6 +323,7 @@ export function MegapixelField({ current, control, custom }: {
   control: MegapixelControl;
   custom: boolean;
 }) {
+  useLanguage();
   const set = !custom && control.target !== null;
   const value = set ? control.target! : current;
   const clamp = (next: number) => Math.min(control.max, Math.max(MIN_MP, Math.round(next * 20) / 20));
@@ -348,15 +354,13 @@ export function MegapixelField({ current, control, custom }: {
   });
   return (
     <div className="size-mp">
-      <span className="size-mp-label">
-        Megapixels
-        {set ? <button type="button" className="size-mp-reset" onClick={control.onReset}>Reset</button> : <small>{custom ? "this size" : "as the model draws"}</small>}
+      <span className="size-mp-label">{t("Megapixels")}{set ? <button type="button" className="size-mp-reset" onClick={control.onReset}>{t("Reset")}</button> : <small>{custom ? t("this size") : t("as the model draws")}</small>}
       </span>
       <div className={cn("size-field size-mp-field", dragging && "is-dragging")} onClick={(event) => { if (event.target === event.currentTarget) input.current?.focus(); }}>
         <input
           ref={input}
           inputMode="decimal"
-          aria-label="Megapixels"
+          aria-label={t("Megapixels")}
           value={draft}
           onFocus={(event) => { shownAtFocus.current = draft; setEditing(true); event.currentTarget.select(); }}
           onBlur={() => { setEditing(false); commit(); }}
@@ -371,8 +375,8 @@ export function MegapixelField({ current, control, custom }: {
             }
           }}
         />
-        <Tip content="Drag to change the megapixels">
-          <span className="size-field-key" {...handlers} aria-hidden="true">MP</span>
+        <Tip content={t("Drag to change the megapixels")}>
+          <span className="size-field-key" {...handlers} aria-hidden="true">{t("MP")}</span>
         </Tip>
       </div>
     </div>
@@ -393,6 +397,7 @@ export function LinkedSizeFields({ size, limits, onChange, onSave, saved = false
   /** This exact size is saved already. */
   saved?: boolean;
 }) {
+  useLanguage();
   const [linked, setLinked] = React.useState(true);
   // Just clicked: the hover lean waits until the pointer leaves the link, so the click's move plays in full.
   const [fresh, setFresh] = React.useState(false);
@@ -417,8 +422,8 @@ export function LinkedSizeFields({ size, limits, onChange, onSave, saved = false
     <div className="size-custom-body">
       <div className={cn("size-fields", linked && "is-linked", fresh && "is-fresh")}>
         <SizeField axis="W" value={size.width} limits={limits.width} onStart={begin} onChange={setWidth} />
-        <Tip content={linked ? "Linked: the shape stays as you resize. Click to unlink" : "Unlinked: width and height change on their own. Click to link"}>
-          <button type="button" className="size-link" aria-pressed={linked} aria-label={linked ? "Unlink width and height" : "Link width and height"} onClick={() => { begin(); setFresh(true); setLinked((value) => !value); }} onPointerLeave={() => setFresh(false)}>
+        <Tip content={linked ? t("Linked: the shape stays as you resize. Click to unlink") : t("Unlinked: width and height change on their own. Click to link")}>
+          <button type="button" className="size-link" aria-pressed={linked} aria-label={linked ? t("Unlink width and height") : t("Link width and height")} onClick={() => { begin(); setFresh(true); setLinked((value) => !value); }} onPointerLeave={() => setFresh(false)}>
             {/* Keyed, so each change plays the icon's turn (37-size-menu.css). */}
             <span key={linked ? "linked" : "apart"} className="size-link-icon">{linked ? <Link2 size={14} strokeWidth={2.2} /> : <Unlink2 size={14} strokeWidth={2.2} />}</span>
           </button>
@@ -426,11 +431,11 @@ export function LinkedSizeFields({ size, limits, onChange, onSave, saved = false
         <SizeField axis="H" value={size.height} limits={limits.height} onStart={begin} onChange={setHeight} />
       </div>
       <div className="size-custom-note">
-        <span>{megapixels(size)} · {ratioName(size.width, size.height)}{atLimit ? <span className="is-limit"> · up to {Math.min(maxW, maxH)} px</span> : null}</span>
+        <span>{megapixels(size)} · {ratioName(size.width, size.height)}{atLimit ? <span className="is-limit">{t("· up to")}{" "}{Math.min(maxW, maxH)}{t("px")}</span> : null}</span>
         {onSave ? (
           <button type="button" className={cn("size-save", saved && "is-saved")} disabled={saved} onClick={onSave}>
             {/* Keyed, so the word changes with a small lift rather than a jump. */}
-            <span key={saved ? "saved" : "save"}>{saved ? <><Check size={12} strokeWidth={2.6} /> Saved</> : "Save size"}</span>
+            <span key={saved ? "saved" : "save"}>{saved ? <><Check size={12} strokeWidth={2.6} />{t("Saved")}</> : t("Save size")}</span>
           </button>
         ) : null}
       </div>
@@ -453,6 +458,7 @@ export function SavedSizeRow({ saved, active, onPick, onRename, onRemove, onPrev
   /** The row is under the pointer or focused (true), or not any more (false). */
   onPreview: (on: boolean) => void;
 }) {
+  useLanguage();
   const [renaming, setRenaming] = React.useState(false);
   const [draft, setDraft] = React.useState(saved.name);
   const ratio = ratioName(saved.width, saved.height);
@@ -480,7 +486,7 @@ export function SavedSizeRow({ saved, active, onPick, onRename, onRemove, onPrev
               autoFocus
               value={draft}
               maxLength={32}
-              aria-label="Name of this size"
+              aria-label={t("Name of this size")}
               onFocus={(event) => event.currentTarget.select()}
               onChange={(event) => setDraft(event.target.value)}
               onBlur={() => finish(true)}
@@ -509,8 +515,8 @@ export function SavedSizeRow({ saved, active, onPick, onRename, onRemove, onPrev
         )}
         {renaming ? null : (
           <span className="size-saved-actions">
-            <Tip content="Rename"><button type="button" aria-label={`Rename ${saved.name}`} onClick={() => { setDraft(saved.name); setRenaming(true); }}><Pencil size={13} /></button></Tip>
-            <Tip content="Remove"><button type="button" className="is-remove" aria-label={`Remove ${saved.name}`} onClick={onRemove}><Trash2 size={13} /></button></Tip>
+            <Tip content={t("Rename")}><button type="button" aria-label={t("Rename {0}", { "0": (saved.name) })} onClick={() => { setDraft(saved.name); setRenaming(true); }}><Pencil size={13} /></button></Tip>
+            <Tip content={t("Remove")}><button type="button" className="is-remove" aria-label={t("Remove {0}", { "0": (saved.name) })} onClick={onRemove}><Trash2 size={13} /></button></Tip>
           </span>
         )}
       </div>

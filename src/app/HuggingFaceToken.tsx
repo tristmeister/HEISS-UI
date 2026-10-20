@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { apiJson } from './api';
 import { Group, Row } from './SettingsDialog';
@@ -11,6 +13,7 @@ type TokenStatus = { set: boolean; source: '' | 'settings' | 'environment'; edit
  * goes only to huggingface.co, and is never shown again once saved.
  */
 export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }) {
+  useLanguage();
   const [status, setStatus] = React.useState<TokenStatus | null>(null);
   const [value, setValue] = React.useState('');
   const [busy, setBusy] = React.useState(false);
@@ -27,7 +30,7 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
       setStatus(next);
       setValue('');
       // Removed from HEISS UI, but one set in the shell still applies: say so rather than claim it is gone.
-      if (!token && next.source === 'environment') showToast(`Removed from Settings. ${next.key || 'HF_TOKEN'} in your environment still applies.`, 'warning');
+      if (!token && next.source === 'environment') showToast(t("Removed from Settings. {0} in your environment still applies.", { "0": (next.key || 'HF_TOKEN') }), 'warning');
       else showToast(token ? 'Hugging Face token saved' : 'Hugging Face token removed', token ? 'success' : 'removed');
     } catch (error) {
       setNote(error instanceof Error ? error.message : 'Couldn’t save the token.');
@@ -43,8 +46,8 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
       ? `Saved on this computer (${status.hint}). Only sent to huggingface.co.`
       : 'For gated models on Hugging Face. Create a read token there under Settings › Access Tokens; it’s only sent to huggingface.co.');
   return (
-    <Group title="Downloads" note={status.mirror ? `Downloads come from ${status.mirror} (HF_ENDPOINT).` : undefined}>
-      <Row label="Hugging Face token" description={description}>
+    <Group title={t("Downloads")} note={status.mirror ? t("Downloads come from {0} (HF_ENDPOINT).", { "0": (status.mirror) }) : undefined}>
+      <Row label={t("Hugging Face token")} description={description}>
         {status.editable ? (
           <form className="set-address" onSubmit={(event) => { event.preventDefault(); if (value.trim()) save(value.trim()); }}>
             <input
@@ -52,13 +55,13 @@ export function HuggingFaceTokenSettings({ showToast }: { showToast: ShowToast }
               type="password"
               value={value}
               onChange={(event) => setValue(event.target.value)}
-              placeholder={status.set ? 'New token' : 'hf_…'}
-              aria-label="Hugging Face token"
+              placeholder={status.set ? t("New token") : t("hf_…")}
+              aria-label={t("Hugging Face token")}
               spellCheck={false}
               autoComplete="off"
             />
-            {status.set && !value ? <button type="button" className="btn" disabled={busy} onClick={() => save('')}>Remove</button> : null}
-            <button type="submit" className="btn is-primary" disabled={busy || !value.trim()}>{busy ? 'Saving…' : 'Save'}</button>
+            {status.set && !value ? <button type="button" className="btn" disabled={busy} onClick={() => save('')}>{t("Remove")}</button> : null}
+            <button type="submit" className="btn is-primary" disabled={busy || !value.trim()}>{busy ? t("Saving…") : t("Save")}</button>
           </form>
         ) : null}
       </Row>

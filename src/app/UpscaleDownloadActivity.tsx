@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { AnimatedNumber } from './AnimatedNumber';
 import { ARROW, heatColor } from './UpscaleHero';
@@ -27,6 +29,7 @@ const jitter = (x: number, y: number) => ((x * 73 + y * 151) % 97) / 97;
 
 /** The setup hero's arrow, drawn as SVG cells: dim until the fill line reaches them, ember below it, white-hot at it. */
 export function MiniArrow({ mode, progress }: { mode: Mode; progress: number }) {
+  useLanguage();
   const gap = useCellGap(0.1);
   const filled = mode === 'downloading' ? Math.round(progress * rows) : rows;
   const front = rows - filled;
@@ -147,11 +150,11 @@ export function useUpscaleDownloadActivity(setup: UpscaleSetup, install: Upscale
       : mode === 'verifying' ? 'Almost ready'
       : mode === 'ready' ? (finished ? 'Upscaling the image' : 'Use the upscale arrow on any image')
       : 'Click to resume',
-    aside: waitingThumb ? <SafeImg className="activity-thumb is-waiting" src={waitingThumb} draggable={false} title="Upscales when the download is done" />
+    aside: waitingThumb ? <SafeImg className="activity-thumb is-waiting" src={waitingThumb} draggable={false} title={t("Upscales when the download is done")} />
       : readyThumb ? <SafeImg className="activity-thumb" src={readyThumb} draggable={false} />
       : null,
-    open: { label: `${title}. Open smart upscale setup`, run: () => setup.openSetup() },
-    dismiss: mode === 'error' || mode === 'ready' ? { label: 'Dismiss', run: dismiss } : undefined,
+    open: { label: t("{0}. Open smart upscale setup", { "0": (title) }), run: () => setup.openSetup() },
+    dismiss: mode === 'error' || mode === 'ready' ? { label: t("Dismiss"), run: dismiss } : undefined,
     expire: mode === 'ready' ? { after: READY_HOLD_MS, run: () => setFinished(null) } : undefined
   };
 }

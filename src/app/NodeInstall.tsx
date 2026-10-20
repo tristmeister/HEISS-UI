@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useState } from 'react';
 import { Check, Download, RotateCw } from 'lucide-react';
 import { ComfyRestart, managerMajor, useComfyManager } from './ComfyRestart';
@@ -11,10 +13,11 @@ import type { ShowToast } from './toast';
 
 
 export function CopyRow({ text, label, block, showToast }: { text: string; label: string; block?: boolean; showToast: ShowToast }) {
+  useLanguage();
   const { copied, copyWith } = useCopyFeedback();
   const copy = () => copyWith(async () => {
     const ok = await copyText(text);
-    if (!ok) showToast('Copy failed', 'error');
+    if (!ok) showToast(t("Copy failed"), 'error');
     return ok;
   });
   return (
@@ -22,7 +25,7 @@ export function CopyRow({ text, label, block, showToast }: { text: string; label
       <code>{text}</code>
       <button type="button" className={copied ? 'is-copied' : ''} onClick={copy} aria-label={label}>
         <CopyIcon copied={Boolean(copied)} size={13} />
-        <span>{copied ? 'Copied' : 'Copy'}</span>
+        <span>{copied ? t("Copied") : t("Copy")}</span>
       </button>
     </div>
   );
@@ -30,19 +33,20 @@ export function CopyRow({ text, label, block, showToast }: { text: string; label
 
 /** A command per shell (Terminal, or PowerShell and Command Prompt on Windows), with a switch between them. */
 export function ShellCommand({ plan, showToast }: { plan: ShellPlan; showToast: ShowToast }) {
+  useLanguage();
   const [index, setIndex] = useState(0);
   const shell = plan.commands[Math.min(index, plan.commands.length - 1)];
   if (!shell) return null;
   return (
     <>
       {plan.commands.length > 1 ? (
-        <div className="upscale-routes is-small" role="tablist" aria-label="Shell">
+        <div className="upscale-routes is-small" role="tablist" aria-label={t("Shell")}>
           {plan.commands.map((item, i) => (
             <button key={item.shell} type="button" role="tab" aria-selected={item === shell} className={cn(item === shell && 'is-active')} onClick={() => setIndex(i)}>{item.label}</button>
           ))}
         </div>
       ) : null}
-      <CopyRow text={shell.command} label={`Copy the ${shell.label} command`} block showToast={showToast} />
+      <CopyRow text={shell.command} label={t("Copy the {0} command", { "0": (shell.label) })} block showToast={showToast} />
     </>
   );
 }
@@ -59,6 +63,7 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
   onRestarted: () => void;
   afterRestart: string;
 }) {
+  useLanguage();
   const [state, setState] = useState<PackInstallState | null>(null);
   const alive = React.useRef(true);
   useEffect(() => () => { alive.current = false; }, []);
@@ -98,16 +103,16 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
       <div className="node-quick" role="alert">
         <p className="upscale-fine is-warn">{state.error}</p>
         <p className="upscale-fine">{state.canOverride
-          ? <>You can install {pack.name} with ComfyUI’s own Python instead. It’s third-party code from {source || 'GitHub'} and runs inside ComfyUI.</>
-          : <>Lower Manager’s security level if you trust {pack.name}, or install it yourself below.</>}</p>
-        {state.canOverride ? <button type="button" className="btn" onClick={() => start(true)}><Download size={14} /> Install anyway</button> : null}
+          ? <>{t("You can install")}{" "}{pack.name}{t("with ComfyUI’s own Python instead. It’s third-party code from")}{" "}{source || t("GitHub")}{t("and runs inside ComfyUI.")}</>
+          : <>{t("Lower Manager’s security level if you trust")}{" "}{pack.name}{t(", or install it yourself below.")}</>}</p>
+        {state.canOverride ? <button type="button" className="btn" onClick={() => start(true)}><Download size={14} />{t("Install anyway")}</button> : null}
       </div>
     );
   }
   if (state?.status === 'done') {
     return (
       <div className="node-quick is-done" role="status">
-        <p><Check size={13} strokeWidth={3} /><span>{pack.name} is installed. <strong>Restart ComfyUI</strong> to load it.{afterRestart ? ` ${afterRestart}` : ''}</span></p>
+        <p><Check size={13} strokeWidth={3} /><span>{pack.name}{t("is installed.")}{" "}<strong>{t("Restart ComfyUI")}</strong>{t("to load it.")}{afterRestart ? ` ${afterRestart}` : ''}</span></p>
         <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
       </div>
     );
@@ -117,11 +122,11 @@ function QuickInstall({ pack, onDone, showToast, onRestarted, afterRestart }: {
     <div className="node-quick">
       <button type="button" className="btn is-primary" onClick={() => start()} disabled={running}>
         {running ? <RotateCw size={14} className="is-spinning" /> : <Download size={14} />}
-        {running ? state.step || 'Installing…' : state?.status === 'error' ? 'Try again' : `Install ${pack.name}`}
+        {running ? state.step || t("Installing…") : state?.status === 'error' ? t("Try again") : t("Install {0}", { "0": (pack.name) })}
         {running ? null : <BetaTag />}
       </button>
-      {running ? <p className="upscale-fine">{state.route === 'manager' ? 'Installing through ComfyUI-Manager. ' : 'Installing with ComfyUI’s own Python. '}It can take a few minutes.</p> : null}
-      {!running && source ? <p className="upscale-fine">Third-party code from {source}, run inside ComfyUI.</p> : null}
+      {running ? <p className="upscale-fine">{state.route === 'manager' ? t("Installing through ComfyUI-Manager. ") : t("Installing with ComfyUI’s own Python. ")}{t("It can take a few minutes.")}</p> : null}
+      {!running && source ? <p className="upscale-fine">{t("Third-party code from")}{" "}{source}{t(", run inside ComfyUI.")}</p> : null}
       {state?.status === 'error' ? <p className="upscale-fine is-warn">{state.error}</p> : null}
     </div>
   );
@@ -145,11 +150,12 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
   onRestarted: () => void;
   afterRestart?: string;
 }) {
+  useLanguage();
   const { info: manager } = useComfyManager();
   const hasManager = manager ? manager.available : managerHint !== false;
   const managerV4 = managerMajor(manager) >= 4;
   const [route, setRoute] = useState<'manager' | 'terminal'>(hasManager ? 'manager' : 'terminal');
-  const commands = plan?.commands?.length ? plan.commands : [{ shell: 'sh' as const, label: 'Terminal', command: `cd ComfyUI/custom_nodes && git clone ${pack.repository}` }];
+  const commands = plan?.commands?.length ? plan.commands : [{ shell: 'sh' as const, label: t("Terminal"), command: `cd ComfyUI/custom_nodes && git clone ${pack.repository}` }];
   // The first answer from ComfyUI decides the default; after that the choice is the user's.
   const decided = React.useRef(Boolean(manager));
   useEffect(() => {
@@ -167,7 +173,7 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
     return (
       <div className="node-install">
         <QuickInstall pack={pack as NodePackInfo & { id: string }} showToast={showToast} onRestarted={onRestarted} afterRestart={afterRestart} onDone={(state) => { if (state?.status === 'error') setQuickError(state.error || 'The install stopped.'); if (state?.status === 'done') setInstalled(true); }} />
-        {installed ? null : <button type="button" className="comfy-restart-link node-install-manual" onClick={() => setManual(true)}>Install it yourself instead</button>}
+        {installed ? null : <button type="button" className="comfy-restart-link node-install-manual" onClick={() => setManual(true)}>{t("Install it yourself instead")}</button>}
       </div>
     );
   }
@@ -175,19 +181,19 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
     <li>
       <span className="upscale-step-n">{n}</span>
       <div>
-        <strong>Restart ComfyUI</strong> once it finishes. {afterRestart}
+        <strong>{t("Restart ComfyUI")}</strong>{t("once it finishes.")}{" "}{afterRestart}
         <ComfyRestart compact className="upscale-restart" onBack={onRestarted} />
       </div>
     </li>
   );
   return (
     <div className="node-install">
-      {quickError && !manual ? <p className="upscale-fine is-warn">The install stopped. {quickError} Install it yourself below.</p> : null}
-      <div className="upscale-routes" role="tablist" aria-label="How to install">
+      {quickError && !manual ? <p className="upscale-fine is-warn">{t("The install stopped.")}{" "}{quickError}{t("Install it yourself below.")}</p> : null}
+      <div className="upscale-routes" role="tablist" aria-label={t("How to install")}>
         {(['manager', 'terminal'] as const).map((value) => (
           <button key={value} type="button" role="tab" aria-selected={route === value} className={cn(route === value && 'is-active')} onClick={() => setRoute(value)}>
-            {value === 'manager' ? 'ComfyUI-Manager' : 'Terminal'}
-            {value === 'manager' && !hasManager ? <span className="upscale-route-tag">Off</span> : null}
+            {value === 'manager' ? t("ComfyUI-Manager") : t("Terminal")}
+            {value === 'manager' && !hasManager ? <span className="upscale-route-tag">{t("Off")}</span> : null}
           </button>
         ))}
       </div>
@@ -198,22 +204,20 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
             <div>
               {managerV4
                 ? pack.search
-                  ? <>In ComfyUI, open <strong>Manager</strong>, search the node list for <strong>{pack.search}</strong> and install it.</>
-                  : <>ComfyUI-Manager {manager?.version} can’t install from a Git URL in its main view, and {pack.name} isn’t in its list. Use the <strong>Terminal</strong> tab instead.</>
+                  ? <>{t("In ComfyUI, open")}{" "}<strong>{t("Manager")}</strong>{t(", search the node list for")}{" "}<strong>{pack.search}</strong>{t("and install it.")}</>
+                  : <>{t("ComfyUI-Manager")}{" "}{manager?.version}{t("can’t install from a Git URL in its main view, and")}{" "}{pack.name}{t("isn’t in its list. Use the")}{" "}<strong>{t("Terminal")}</strong>{t("tab instead.")}</>
                 : pack.subdir && pack.search
                   // A pack inside a bigger repository can't come in by Git URL: only its own folder belongs in custom_nodes.
-                  ? <>In ComfyUI, open <strong>Manager</strong>, search the node list for <strong>{pack.search}</strong> and install it.</>
-                  : <>In ComfyUI, open <strong>Manager</strong> and choose <strong>Install via Git URL</strong>.{pack.search ? <> Searching the node list for <strong>{pack.search}</strong> works too.</> : null}</>}
+                  ? <>{t("In ComfyUI, open")}{" "}<strong>{t("Manager")}</strong>{t(", search the node list for")}{" "}<strong>{pack.search}</strong>{t("and install it.")}</>
+                  : <>{t("In ComfyUI, open")}{" "}<strong>{t("Manager")}</strong>{t("and choose")}{" "}<strong>{t("Install via Git URL")}</strong>.{pack.search ? <>{t("Searching the node list for")}{" "}<strong>{pack.search}</strong>{t("works too.")}</> : null}</>}
               {pack.note ? <p className="upscale-fine">{pack.note}</p> : null}
-              {!hasManager ? <p className="upscale-fine">ComfyUI-Manager is off. Start ComfyUI with <code>--enable-manager</code>, or use the terminal.</p> : null}
+              {!hasManager ? <p className="upscale-fine">{t("ComfyUI-Manager is off. Start ComfyUI with")}{" "}<code>--enable-manager</code>{t(", or use the terminal.")}</p> : null}
             </div>
           </li>
           {managerV4 || pack.subdir ? null : (
             <li>
               <span className="upscale-step-n">2</span>
-              <div>
-                Paste the {pack.name} repository:
-                <CopyRow text={pack.repository} label="Copy the repository URL" showToast={showToast} />
+              <div>{t("Paste the")}{" "}{pack.name}{t("repository:")}<CopyRow text={pack.repository} label={t("Copy the repository URL")} showToast={showToast} />
               </div>
             </li>
           )}
@@ -225,15 +229,13 @@ export function NodeInstall({ pack, plan, managerHint, autoInstall, showToast, o
             <span className="upscale-step-n">1</span>
             <div>
               {plan?.cloned
-                ? <>The {pack.name} folder is already in <code>custom_nodes</code>. If it doesn’t load after a restart, its Python packages are missing. This installs them:</>
-                : <>Run this in {commands.length > 1 ? 'a terminal' : 'Terminal'}. It downloads the nodes into <code>custom_nodes</code> and installs what they need{plan?.python ? ' with ComfyUI’s own Python' : ''}:</>}
+                ? <>{t("The")}{" "}{pack.name}{t("folder is already in")}{" "}<code>{t("custom_nodes")}</code>{t(". If it doesn’t load after a restart, its Python packages are missing. This installs them:")}</>
+                : <>{t("Run this in")}{" "}{commands.length > 1 ? t("a terminal") : t("Terminal")}{t(". It downloads the nodes into")}{" "}<code>{t("custom_nodes")}</code>{t("and installs what they need")}{plan?.python ? t(" with ComfyUI’s own Python") : ''}:</>}
               <ShellCommand plan={{ commands }} showToast={showToast} />
-              {plan?.needsGit !== false ? <p className="upscale-fine">Needs <code>git</code>. Without it, use the ComfyUI-Manager route.</p> : null}
+              {plan?.needsGit !== false ? <p className="upscale-fine">{t("Needs")}{" "}<code>{t("git")}</code>{t(". Without it, use the ComfyUI-Manager route.")}</p> : null}
               {plan && !plan.exact ? (
                 <p className="upscale-fine">
-                  {plan.customNodesDir ? null : <>Run it from the folder that holds ComfyUI. </>}
-                  If ComfyUI runs from its own environment, swap <code>python</code> for that Python.
-                </p>
+                  {plan.customNodesDir ? null : <>{t("Run it from the folder that holds ComfyUI.")}{" "}</>}{t("If ComfyUI runs from its own environment, swap")}{" "}<code>{t("python")}</code>{t("for that Python.")}</p>
               ) : null}
             </div>
           </li>

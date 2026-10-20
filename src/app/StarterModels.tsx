@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { Check, Download, Pause, Play, RotateCw } from 'lucide-react';
 import { apiJson } from './api';
@@ -92,6 +94,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   /** Inside the "Get a model" sheet rather than on the empty stage. */
   compact?: boolean;
 }) {
+  useLanguage();
   const { plan, reload } = useStarterPlan();
   const { state, landed, start, pause } = useModelDownloads({ onDone: () => reload() });
   const thisComputer = useThisComputer();
@@ -131,8 +134,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
   return (
     <div className={cn('starter-models', compact && 'is-compact')}>
       <p className="starter-note">
-        {sentence ? <>{sentence} </> : null}Each version shows the {memoryWord(hardware)} it needs to run; the download is smaller.
-      </p>
+        {sentence ? <>{sentence} </> : null}{t("Each version shows the")}{" "}{memoryWord(hardware)}{t("it needs to run; the download is smaller.")}</p>
       <div className="starter-grid">
         {plan.families.map((family) => {
           const revealedVersion = revealing ? family.versions.find((item) => item.downloads.some((download) => download.file === revealing)) : undefined;
@@ -150,7 +152,7 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
                 <h3>{family.title}</h3>
                 <p>{family.blurb}</p>
               </header>
-              <div className="starter-versions" role="radiogroup" aria-label={`${family.title} versions`}>
+              <div className="starter-versions" role="radiogroup" aria-label={t("{0} versions", { "0": (family.title) })}>
                 {family.versions.map((item) => (
                   <button
                     key={item.id}
@@ -161,45 +163,45 @@ export function StarterModels({ showToast, onStarted, onUse, compact = false }: 
                     onClick={() => setChosen((current) => ({ ...current, [family.family]: item.id }))}
                   >
                     <span className="starter-version-name">
-                      <strong>{item.label}{item.id === family.best ? <i className="starter-best-dot" aria-label="Best on this computer" /> : null}</strong>
+                      <strong>{item.label}{item.id === family.best ? <i className="starter-best-dot" aria-label={t("Best on this computer")} /> : null}</strong>
                       <small>{item.detail}</small>
                     </span>
                     <span className="starter-version-memory">
-                      {item.installed ? <Check size={13} strokeWidth={2.6} aria-label="Installed" /> : <>{formatGB(item.memoryGB)}<small>to run</small></>}
+                      {item.installed ? <Check size={13} strokeWidth={2.6} aria-label={t("Installed")} /> : <>{formatGB(item.memoryGB)}<small>{t("to run")}</small></>}
                     </span>
                   </button>
                 ))}
               </div>
               <p className="starter-caption">
-                <span>{ready ? 'Installed' : `${formatDownload(version.remainingBytes || version.totalBytes)} download, into ComfyUI’s models folder`}</span>
+                <span>{ready ? t("Installed") : t("{0} download, into ComfyUI’s models folder", { "0": (formatDownload(version.remainingBytes || version.totalBytes)) })}</span>
                 {fitNote ? <span className="starter-fit"><i aria-hidden="true" />{fitNote}</span> : null}
               </p>
               <footer className="starter-card-foot">
                 {ready ? (
-                  <button type="button" className="btn" onClick={() => onUse(version.file)}><Check size={14} /> Use {family.title}</button>
+                  <button type="button" className="btn" onClick={() => onUse(version.file)}><Check size={14} />{t("Use")}{" "}{family.title}</button>
                 ) : !canDownload ? (
-                  <p className="starter-remote">{thisComputer ? 'ComfyUI runs on another computer. Download it there.' : 'Get it on the computer running HEISS UI.'}</p>
+                  <p className="starter-remote">{thisComputer ? t("ComfyUI runs on another computer. Download it there.") : t("Get it on the computer running HEISS UI.")}</p>
                 ) : progress.state === 'moving' || progress.state === 'paused' ? (
                   <div className="starter-progress">
                     <CellBar value={progress.total ? progress.received / progress.total : 0} />
                     <div className="starter-progress-row">
                       <small>
-                        {progress.state === 'paused' ? 'Paused' : 'Downloading'} · {formatDownload(progress.received) || '0 MB'} of {formatDownload(progress.total)}
+                        {progress.state === 'paused' ? t("Paused") : t("Downloading")} · {formatDownload(progress.received) || t("0 MB")}{t("of")}{" "}{formatDownload(progress.total)}
                         {progress.state === 'moving' && progress.speed > 0 ? ` · ${formatEta(left / progress.speed)}` : ''}
                       </small>
                       {progress.state === 'moving'
-                        ? <button type="button" className="btn is-ghost is-icon" aria-label={`Pause ${family.title}`} title="Pause" onClick={() => stop(version)}><Pause size={14} /></button>
-                        : <button type="button" className="btn is-ghost is-icon" aria-label={`Resume ${family.title}`} title="Resume" onClick={() => get(family, version)}><Play size={14} /></button>}
+                        ? <button type="button" className="btn is-ghost is-icon" aria-label={t("Pause {0}", { "0": (family.title) })} title={t("Pause")} onClick={() => stop(version)}><Pause size={14} /></button>
+                        : <button type="button" className="btn is-ghost is-icon" aria-label={t("Resume {0}", { "0": (family.title) })} title={t("Resume")} onClick={() => get(family, version)}><Play size={14} /></button>}
                     </div>
                   </div>
                 ) : progress.state === 'error' ? (
                   <div className="starter-progress">
-                    <p className="starter-error">{progress.error || 'The download stopped.'}</p>
-                    <button type="button" className="btn" onClick={() => get(family, version)}><RotateCw size={13} /> {progress.retryable ? 'Resume' : 'Try again'}</button>
+                    <p className="starter-error">{progress.error || t("The download stopped.")}</p>
+                    <button type="button" className="btn" onClick={() => get(family, version)}><RotateCw size={13} /> {progress.retryable ? t("Resume") : t("Try again")}</button>
                   </div>
                 ) : (
                   <button type="button" className="btn" onClick={() => get(family, version)}>
-                    <Download size={14} /> Get {family.title}
+                    <Download size={14} />{t("Get")}{" "}{family.title}
                   </button>
                 )}
               </footer>
@@ -220,14 +222,15 @@ export function GetModelsSheet({ open, onOpenChange, showToast, onStarted, onUse
   onUse: (file: string) => void;
   onFindModels?: () => void;
 }) {
+  useLanguage();
   return (
     <Modal
       open={open}
       onOpenChange={onOpenChange}
-      title="Get a model"
-      description="Each downloads with everything it needs and is selected when it’s done."
+      title={t("Get a model")}
+      description={t("Each downloads with everything it needs and is selected when it’s done.")}
       className="starter-sheet"
-      footer={onFindModels ? <button type="button" className="btn is-ghost" onClick={() => { onOpenChange(false); onFindModels(); }}>Find models on this computer</button> : undefined}
+      footer={onFindModels ? <button type="button" className="btn is-ghost" onClick={() => { onOpenChange(false); onFindModels(); }}>{t("Find models on this computer")}</button> : undefined}
     >
       <StarterModels compact showToast={showToast} onStarted={onStarted} onUse={(file) => { onOpenChange(false); onUse(file); }} />
     </Modal>

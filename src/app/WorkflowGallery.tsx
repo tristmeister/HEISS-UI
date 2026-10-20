@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Bot, Check, ClipboardPaste, FileJson, Heart, Minus, RefreshCw, Search, ShieldAlert, Trash2, Upload, Wand2, X } from 'lucide-react';
 import { Modal } from './Modal';
@@ -55,6 +57,7 @@ function nodeName(nodes: ImportDraft["metadata"]["nodes"], id: string) {
  * which don't (and so keep their saved values), and what was only guessed.
  */
 function ImportFit({ item }: { item: ImportDraft }) {
+  useLanguage();
   const { controls, guessed = [], nodes, kind, loraStack } = item.metadata;
   const relevant = workflowControls.filter((control) => control.editable && !(kind === "image" && (control.key === "frames" || control.key === "fps")) && !(kind === "video" && control.key === "count"));
   const connected = workflowControls.filter((control) => controls[control.key]);
@@ -78,34 +81,34 @@ function ImportFit({ item }: { item: ImportDraft }) {
   else notes.push("No LoRA picker. It needs an rgthree Power Lora Loader or Lora Loader Stack in the workflow.");
 
   return (
-    <section className="wf-fit" aria-label="Connected controls">
+    <section className="wf-fit" aria-label={t("Connected controls")}>
       <div className="wf-fit-cols">
         <div>
-          <h5>Follows the studio</h5>
+          <h5>{t("Follows the studio")}</h5>
           {connected.length ? (
             <ul>
               {connected.map((control) => (
                 <li key={control.key}>
                   <Check size={12} aria-hidden="true" />
-                  <strong>{control.label}</strong>
-                  <span>{nodeName(nodes, controls[control.key].node)}{guessed.includes(control.key) ? " · guessed" : ""}</span>
+                  <strong>{t(control.label)}</strong>
+                  <span>{nodeName(nodes, controls[control.key].node)}{guessed.includes(control.key) ? t(" · guessed") : ""}</span>
                 </li>
               ))}
             </ul>
-          ) : <p>Nothing connected. It runs as saved, whatever you type.</p>}
+          ) : <p>{t("Nothing connected. It runs as saved, whatever you type.")}</p>}
         </div>
         <div>
-          <h5>Stays as saved</h5>
+          <h5>{t("Stays as saved")}</h5>
           {unconnected.length ? (
             <ul className="is-off">
-              {unconnected.map((control) => <li key={control.key}><Minus size={12} aria-hidden="true" /><strong>{control.label}</strong></li>)}
+              {unconnected.map((control) => <li key={control.key}><Minus size={12} aria-hidden="true" /><strong>{t(control.label)}</strong></li>)}
             </ul>
-          ) : <p>Every studio control is connected.</p>}
+          ) : <p>{t("Every studio control is connected.")}</p>}
         </div>
       </div>
       <ul className="wf-fit-notes">
         {notes.map((note, index) => <li key={index}>{note}</li>)}
-        <li>Everything else runs as saved.</li>
+        <li>{t("Everything else runs as saved.")}</li>
       </ul>
     </section>
   );
@@ -117,9 +120,10 @@ function ImportFit({ item }: { item: ImportDraft }) {
  * node by node, before the workflow is saved.
  */
 function ImportRisks({ risks }: { risks: WorkflowRisk[] }) {
+  useLanguage();
   return (
     <div className="wf-caution" role="note">
-      <strong><ShieldAlert size={14} aria-hidden="true" /> This workflow can do more than make images</strong>
+      <strong><ShieldAlert size={14} aria-hidden="true" />{t("This workflow can do more than make images")}</strong>
       <ul>
         {risks.map((risk) => (
           <li key={risk.node}>
@@ -127,28 +131,30 @@ function ImportRisks({ risks }: { risks: WorkflowRisk[] }) {
           </li>
         ))}
       </ul>
-      <p>Its nodes run with the same access to this computer as ComfyUI. Import it only if you trust the source.</p>
+      <p>{t("Its nodes run with the same access to this computer as ComfyUI. Import it only if you trust the source.")}</p>
     </div>
   );
 }
 
 /** Hands the job of fitting a workflow to an AI agent: a prompt that says what HEISS UI can and can't connect. */
 function AgentGuide({ onCopy, copied, forWorkflow }: { onCopy: () => void; copied: boolean; forWorkflow?: boolean }) {
+  useLanguage();
   return (
     <div className="wf-agent">
       <span className="wf-agent-icon" aria-hidden="true"><Bot size={16} /></span>
       <div className="wf-agent-text">
-        <strong>{forWorkflow ? "Let an AI agent fix the connections" : "Prepare a workflow with an AI agent"}</strong>
+        <strong>{forWorkflow ? t("Let an AI agent fix the connections") : t("Prepare a workflow with an AI agent")}</strong>
         <span>{forWorkflow
-          ? "Copies a prompt with this workflow and its connections. Paste it into Claude, ChatGPT or another agent, then import the JSON it returns."
-          : "Copies a prompt that explains what can be connected. Paste it into Claude, ChatGPT or another agent with your workflow JSON, then import what it returns."}</span>
+          ? t("Copies a prompt with this workflow and its connections. Paste it into Claude, ChatGPT or another agent, then import the JSON it returns.")
+          : t("Copies a prompt that explains what can be connected. Paste it into Claude, ChatGPT or another agent with your workflow JSON, then import what it returns.")}</span>
       </div>
-      <button type="button" className="btn" onClick={onCopy}><CopyIcon copied={copied} size={13} /> {copied ? "Copied" : forWorkflow ? "Copy for an agent" : "Copy prompt"}</button>
+      <button type="button" className="btn" onClick={onCopy}><CopyIcon copied={copied} size={13} /> {copied ? t("Copied") : forWorkflow ? t("Copy for an agent") : t("Copy prompt")}</button>
     </div>
   );
 }
 
 function WorkflowThumbnail({ src }: { src?: string }) {
+  useLanguage();
   const [failed, setFailed] = useState(false);
   return src && !failed
     ? <img src={src} alt="" loading="lazy" draggable={false} onError={() => setFailed(true)} />
@@ -156,12 +162,14 @@ function WorkflowThumbnail({ src }: { src?: string }) {
 }
 
 function StatusBadge({ validation }: { validation: WorkflowSummary["validation"] }) {
+  useLanguage();
   const comfyRestarting = useComfyRestarting();
   const status = workflowState(validation, comfyRestarting);
   return <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>;
 }
 
 export function WorkflowGallery({ view }: { view: any }) {
+  useLanguage();
   const comfyRestarting = useComfyRestarting();
   // Importing and deleting workflow files happens at the computer running HEISS UI.
   const thisComputer = useThisComputer();
@@ -225,7 +233,7 @@ export function WorkflowGallery({ view }: { view: any }) {
       if (profile.family && profile.family !== "custom" && !profile.id.startsWith("custom:")) known.set(profile.family, profile.familyName || profile.family);
     }
     if (current && current !== "custom" && !known.has(current)) known.set(current, current);
-    return [{ label: "Its own", value: "custom" }, ...[...known].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ label, value }))];
+    return [{ label: t("Its own"), value: "custom" }, ...[...known].sort((a, b) => a[1].localeCompare(b[1])).map(([value, label]) => ({ label, value }))];
   };
   // The same setup panel as the sidebar, for the model this workflow runs.
   const selectedProfile = selected ? models?.profiles.find((profile) => profile.id === selected.profileId) : undefined;
@@ -243,12 +251,12 @@ export function WorkflowGallery({ view }: { view: any }) {
   const agentCopy = useCopyFeedback();
   const copyAgent = (text: string, key: string) => agentCopy.copyWith(async () => {
     const ok = await copyText(text);
-    if (!ok) showToast("Copy failed", "error");
+    if (!ok) showToast(t("Copy failed"), "error");
     return ok;
   }, key);
   const copyMissing = (nodes: string[]) => nodesCopy.copyWith(async () => {
     const ok = await copyText(nodes.join("\n"));
-    if (!ok) showToast("Copy failed", "error");
+    if (!ok) showToast(t("Copy failed"), "error");
     return ok;
   });
 
@@ -269,7 +277,7 @@ export function WorkflowGallery({ view }: { view: any }) {
     // A built-in model that only lacks parts can be picked: its setup panel then sits in the sidebar.
     const settingUp = models?.profiles.some((profile) => profile.id === workflow.profileId && profile.missing?.length);
     if (!workflow.validation.ok && !settingUp) {
-      showToast("This workflow needs setup first", "error");
+      showToast(t("This workflow needs setup first"), "error");
       return;
     }
     selectWorkflow(workflow.profileId);
@@ -278,7 +286,7 @@ export function WorkflowGallery({ view }: { view: any }) {
 
   const deleteWorkflow = async (workflow: WorkflowSummary) => {
     if (!workflow.deleteId) return;
-    if (!await confirmAction({ title: `Delete ${workflow.name}?`, description: "To get it back, import its JSON again.", action: "Delete", destructive: true })) return;
+    if (!await confirmAction({ title: t("Delete {0}?", { "0": (workflow.name) }), description: t("To get it back, import its JSON again."), action: t("Delete"), destructive: true })) return;
     setBusy(true);
     try {
       await apiJson(`/api/workflows/${encodeURIComponent(workflow.deleteId)}`, { method: "DELETE" });
@@ -291,7 +299,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         const fallbackProfile = models?.profiles.find((profile) => profile.id !== workflow.profileId && profile.kind === mode);
         if (fallbackProfile) chooseModel(fallbackProfile.id);
       }
-      showToast("Workflow deleted", "removed");
+      showToast(t("Workflow deleted"), "removed");
       refreshModels(false);
       refreshWorkflows();
     } catch (error) {
@@ -378,7 +386,7 @@ export function WorkflowGallery({ view }: { view: any }) {
         const guessed = (item.metadata.guessed || []).filter((entry) => entry !== key);
         const mediaInputs = key === "startImage"
           ? node && input
-            ? [{ ...(item.metadata.mediaInputs?.[0] || { id: "reference", kind: "image" as const, label: "Reference image", required: false, min: 0, max: 1 }), control: { node, input } }, ...(item.metadata.mediaInputs || []).slice(1)]
+            ? [{ ...(item.metadata.mediaInputs?.[0] || { id: "reference", kind: "image" as const, label: t("Reference image"), required: false, min: 0, max: 1 }), control: { node, input } }, ...(item.metadata.mediaInputs || []).slice(1)]
             : []
           : item.metadata.mediaInputs;
         return { ...item.metadata, controls, guessed, mediaInputs };
@@ -394,9 +402,9 @@ export function WorkflowGallery({ view }: { view: any }) {
       busy={busy}
       className="workflow-gallery"
       bodyClassName="wf-layout"
-      title="Workflows"
-      description="Choose what the next generation runs on, or import a ComfyUI workflow."
-      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>Import</span></button> : undefined}
+      title={t("Workflows")}
+      description={t("Choose what the next generation runs on, or import a ComfyUI workflow.")}
+      headerActions={thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={15} /><span>{t("Import")}</span></button> : undefined}
       contentProps={{
         onDragEnter: (event) => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } },
         onDragOver: (event) => { if (event.dataTransfer.types.includes("Files")) event.preventDefault(); },
@@ -408,12 +416,12 @@ export function WorkflowGallery({ view }: { view: any }) {
         <div className="wf-toolbar">
           <label className="wf-search">
             <Search size={14} />
-            <input className="is-framed" aria-label="Search workflows" value={query} placeholder="Search workflows" onChange={(event) => setQuery(event.target.value)} />
-            {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")}><X size={13} /></button> : null}
+            <input className="is-framed" aria-label={t("Search workflows")} value={query} placeholder={t("Search workflows")} onChange={(event) => setQuery(event.target.value)} />
+            {query ? <button type="button" aria-label={t("Clear search")} onClick={() => setQuery("")}><X size={13} /></button> : null}
           </label>
-          <Segmented label="Kind" value={kind} onChange={(next) => { setKind(next); setFilter("all"); }} options={[{ value: "image", label: "Image" }, { value: "video", label: <>Video<BetaTag /></> }]} />
+          <Segmented label={t("Kind")} value={kind} onChange={(next) => { setKind(next); setFilter("all"); }} options={[{ value: "image", label: t("Image") }, { value: "video", label: <>{t("Video")}<BetaTag /></> }]} />
         </div>
-        <div ref={filtersWheelRef} className="wf-filters" role="radiogroup" aria-label="Filter workflows">
+        <div ref={filtersWheelRef} className="wf-filters" role="radiogroup" aria-label={t("Filter workflows")}>
           {([["all", `All ${ofKind.length}`], ["favorites", "Favorites"], ...(attentionCount ? [["attention", `Needs attention ${attentionCount}`]] : [])] as Array<[Filter, string]>).map(([value, label]) => (
             <button key={value} type="button" role="radio" aria-checked={filter === value} className={cn(filter === value && "active")} onClick={() => setFilter(value)}>{label}</button>
           ))}
@@ -430,11 +438,11 @@ export function WorkflowGallery({ view }: { view: any }) {
                 onDoubleClick={() => useWorkflow(workflow)}
               >
                 <span className="wf-thumb"><WorkflowThumbnail key={workflow.thumbnail} src={workflow.thumbnail} /></span>
-                {workflow.favorite ? <span className="wf-fav" aria-label="Favorite"><Heart size={12} fill="currentColor" /></span> : null}
-                {workflow.profileId === model ? <span className="wf-current">In use</span> : null}
+                {workflow.favorite ? <span className="wf-fav" aria-label={t("Favorite")}><Heart size={12} fill="currentColor" /></span> : null}
+                {workflow.profileId === model ? <span className="wf-current">{t("In use")}</span> : null}
                 <span className="wf-card-copy">
                   <strong>{workflow.name}</strong>
-                  <span><em className={cn("wf-origin", workflow.source === "builtin" && "is-builtin")}>{workflow.source === "builtin" ? "Built in" : "Imported"}</em>{workflow.familyName || workflow.family}</span>
+                  <span><em className={cn("wf-origin", workflow.source === "builtin" && "is-builtin")}>{workflow.source === "builtin" ? t("Built in") : t("Imported")}</em>{workflow.familyName || workflow.family}</span>
                 </span>
                 {workflow.validation.ok && !workflow.validation.unverified ? null : <StatusBadge validation={workflow.validation} />}
               </button>
@@ -443,9 +451,9 @@ export function WorkflowGallery({ view }: { view: any }) {
         ) : (
           <div className="wf-empty">
             <Search size={20} />
-            <h3>{query ? "Nothing matches" : filter === "favorites" ? "No favorites yet" : `No ${kind} workflows yet`}</h3>
-            <p>{query ? "Try another name or clear the search." : filter === "favorites" ? "Tap the heart on a workflow to add it here." : "Import a ComfyUI workflow."}</p>
-            {query ? <button className="btn" onClick={() => setQuery("")}>Clear search</button> : filter === "favorites" ? <button className="btn" onClick={() => setFilter("all")}>Show all</button> : thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={14} /> Import workflow</button> : null}
+            <h3>{query ? t("Nothing matches") : filter === "favorites" ? t("No favorites yet") : t("No {0} workflows yet", { "0": (kind) })}</h3>
+            <p>{query ? t("Try another name or clear the search.") : filter === "favorites" ? t("Tap the heart on a workflow to add it here.") : t("Import a ComfyUI workflow.")}</p>
+            {query ? <button className="btn" onClick={() => setQuery("")}>{t("Clear search")}</button> : filter === "favorites" ? <button className="btn" onClick={() => setFilter("all")}>{t("Show all")}</button> : thisComputer ? <button className="btn is-primary" onClick={openImport}><Upload size={14} />{t("Import workflow")}</button> : null}
           </div>
         )}
       </section>
@@ -453,11 +461,11 @@ export function WorkflowGallery({ view }: { view: any }) {
       <aside className={cn("wf-detail", mobileDetailsOpen && "is-open-mobile")}>
         {selected && selectedStatus ? (
           <>
-            <button type="button" className="btn is-ghost wf-back" onClick={() => setMobileDetailsOpen(false)}><ArrowLeft size={15} /> All workflows</button>
+            <button type="button" className="btn is-ghost wf-back" onClick={() => setMobileDetailsOpen(false)}><ArrowLeft size={15} />{t("All workflows")}</button>
             <div className="wf-detail-thumb"><WorkflowThumbnail key={selected.thumbnail} src={selected.thumbnail} /></div>
             <div className="wf-detail-head">
               <h3>{selected.name}</h3>
-              <button type="button" className={cn("wf-heart", selected.favorite && "active")} aria-pressed={Boolean(selected.favorite)} aria-label={selected.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Couldn’t update favorites", "error"))}>
+              <button type="button" className={cn("wf-heart", selected.favorite && "active")} aria-pressed={Boolean(selected.favorite)} aria-label={selected.favorite ? t("Remove from favorites") : t("Add to favorites")} disabled={busy} onClick={() => updateFavorites(selected.id).catch((error) => showToast(error instanceof Error ? error.message : "Couldn’t update favorites", "error"))}>
                 <Heart size={16} fill={selected.favorite ? "currentColor" : "none"} />
               </button>
             </div>
@@ -473,35 +481,35 @@ export function WorkflowGallery({ view }: { view: any }) {
               {selected.validation.missingNodes?.length ? (
                 <div className="wf-missing">
                   <ul>{selected.validation.missingNodes.map((node) => <li key={node}><code>{node}</code></li>)}</ul>
-                  <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><CopyIcon copied={Boolean(nodesCopy.copied)} size={13} /> {nodesCopy.copied ? "Copied" : "Copy names"}</button>
+                  <button className="btn is-ghost" onClick={() => copyMissing(selected.validation.missingNodes || [])}><CopyIcon copied={Boolean(nodesCopy.copied)} size={13} /> {nodesCopy.copied ? t("Copied") : t("Copy names")}</button>
                 </div>
               ) : null}
               {[...(selectedProfile?.missing?.length ? [] : selected.validation.issues.filter((issue) => !(selected.validation.missingNodes?.length && issue.startsWith("Missing node class:")) && !(settingUp && missingFileIssue.test(issue)))), ...(selected.validation.warnings || [])].map((issue) => <p className="wf-issue" key={issue}>{issue}</p>)}
               {selected.validation.missingNodes?.length ? <ComfyRestart compact className="wf-restart" onBack={checkAgain} /> : null}
-              {selectedStatus.state !== "ready" && !settingUp ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} /> Check again</button> : null}
+              {selectedStatus.state !== "ready" && !settingUp ? <button className="btn is-ghost" onClick={checkAgain} disabled={checking}><RefreshCw size={13} className={cn(checking && "spin")} />{t("Check again")}</button> : null}
             </div>
 
             <div className="wf-detail-actions">
               <button className="btn is-primary" onClick={() => useWorkflow(selected)} disabled={busy || (!selected.validation.ok && !selectedProfile?.missing?.length) || selected.profileId === model}>
-                {selected.profileId === model ? <><Check size={15} /> In use</> : "Use workflow"}
+                {selected.profileId === model ? <><Check size={15} />{t("In use")}</> : t("Use workflow")}
               </button>
-              {selected.deleteId && thisComputer ? <button className="btn is-ghost is-danger-text" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={14} /> Delete</button> : null}
+              {selected.deleteId && thisComputer ? <button className="btn is-ghost is-danger-text" disabled={busy} onClick={() => deleteWorkflow(selected)}><Trash2 size={14} />{t("Delete")}</button> : null}
             </div>
 
             <dl className="wf-facts">
-              <dt>Source</dt><dd>{selected.source === "builtin" ? "Built in" : "Imported"}</dd>
-              <dt>Family</dt><dd>{selected.familyName || selected.family || "Unknown"}</dd>
-              <dt>Last used</dt><dd>{timeLabel(selected.lastUsedAt) || "Never"}</dd>
-              {selected.controls?.length ? <><dt>Controls</dt><dd>{selected.controls.map(controlLabel).join(", ")}</dd></> : null}
-              {selected.mediaInputs?.length ? <><dt>Inputs</dt><dd>{selected.mediaInputs.map((input) => input.label || "Reference image").join(", ")}</dd></> : null}
+              <dt>{t("Source")}</dt><dd>{selected.source === "builtin" ? t("Built in") : t("Imported")}</dd>
+              <dt>{t("Family")}</dt><dd>{selected.familyName || selected.family || t("Unknown")}</dd>
+              <dt>{t("Last used")}</dt><dd>{timeLabel(selected.lastUsedAt) || t("Never")}</dd>
+              {selected.controls?.length ? <><dt>{t("Controls")}</dt><dd>{selected.controls.map(controlLabel).join(", ")}</dd></> : null}
+              {selected.mediaInputs?.length ? <><dt>{t("Inputs")}</dt><dd>{selected.mediaInputs.map((input) => input.label || "Reference image").join(", ")}</dd></> : null}
             </dl>
           </>
         ) : (
-          <div className="wf-empty"><Wand2 size={22} /><h3>No workflow selected</h3><p>Choose one to see its details.</p></div>
+          <div className="wf-empty"><Wand2 size={22} /><h3>{t("No workflow selected")}</h3><p>{t("Choose one to see its details.")}</p></div>
         )}
       </aside>
 
-      {dragging ? <div className="wf-drop"><FileJson size={24} /><strong>Drop to import</strong><span>ComfyUI workflow JSON, API or visual format</span></div> : null}
+      {dragging ? <div className="wf-drop"><FileJson size={24} /><strong>{t("Drop to import")}</strong><span>{t("ComfyUI workflow JSON, API or visual format")}</span></div> : null}
 
       <Modal
         open={importOpen}
@@ -509,19 +517,19 @@ export function WorkflowGallery({ view }: { view: any }) {
         size="form"
         busy={busy}
         className="wf-import"
-        title={<>{importStep === "choose" ? "Import workflows" : `Review ${imports.length} workflow${imports.length === 1 ? "" : "s"}`}</>}
+        title={<>{importStep === "choose" ? t("Import workflows") : t("Review {0} workflow{1}", { "0": (imports.length), "1": (imports.length === 1 ? t("") : t("s")) })}</>}
         description={importStep === "choose"
-          ? "Workflows run as saved, except for the inputs connected to the studio. ComfyUI’s Export (API) JSON works best; the visual format works too."
-          : "Check what follows the studio. Everything else keeps the workflow’s saved values."}
+          ? t("Workflows run as saved, except for the inputs connected to the studio. ComfyUI’s Export (API) JSON works best; the visual format works too.")
+          : t("Check what follows the studio. Everything else keeps the workflow’s saved values.")}
         footer={importStep === "choose" ? (
           <>
-            <button className="btn" disabled={busy} onClick={closeImport}>Cancel</button>
-            <button className="btn is-primary" onClick={previewPaste} disabled={busy || !pasteJson.trim()}>{busy ? "Reading…" : "Review"}</button>
+            <button className="btn" disabled={busy} onClick={closeImport}>{t("Cancel")}</button>
+            <button className="btn is-primary" onClick={previewPaste} disabled={busy || !pasteJson.trim()}>{busy ? t("Reading…") : t("Review")}</button>
           </>
         ) : (
           <>
-            <button className="btn" disabled={busy} onClick={() => setImportStep("choose")}><ArrowLeft size={14} /> Add more</button>
-            <button className="btn is-primary" onClick={saveImports} disabled={busy || !imports.length}>{busy ? "Importing…" : `Import ${imports.length === 1 ? "workflow" : `${imports.length} workflows`}`}</button>
+            <button className="btn" disabled={busy} onClick={() => setImportStep("choose")}><ArrowLeft size={14} />{t("Add more")}</button>
+            <button className="btn is-primary" onClick={saveImports} disabled={busy || !imports.length}>{busy ? t("Importing…") : t("Import {0}", { "0": (imports.length === 1 ? t("workflow") : `${imports.length} workflows`) })}</button>
           </>
         )}
       >
@@ -529,11 +537,11 @@ export function WorkflowGallery({ view }: { view: any }) {
           <>
             <button type="button" className="wf-dropzone" onClick={() => fileInput.current?.click()} disabled={busy}>
               <FileJson size={22} />
-              <strong>Choose JSON files</strong>
-              <span>or drop them anywhere in this window</span>
+              <strong>{t("Choose JSON files")}</strong>
+              <span>{t("or drop them anywhere in this window")}</span>
             </button>
             <input ref={fileInput} hidden type="file" accept="application/json,.json" multiple onChange={(event) => { if (event.target.files?.length) readFiles(event.target.files); event.currentTarget.value = ""; }} />
-            <Field label={<><ClipboardPaste size={13} /> Or paste the JSON</>}>
+            <Field label={<><ClipboardPaste size={13} />{t("Or paste the JSON")}</>}>
               <textarea className="wf-paste" value={pasteJson} onChange={(event) => setPasteJson(event.target.value)} placeholder="{ … }" spellCheck={false} />
             </Field>
             <AgentGuide onCopy={() => copyAgent(agentPrompt(), "guide")} copied={agentCopy.copied === "guide"} />
@@ -545,20 +553,20 @@ export function WorkflowGallery({ view }: { view: any }) {
               return (
                 <div className="wf-review-card" key={`${item.filename}-${index}`}>
                   <div className="wf-review-head">
-                    <span className="wf-review-file"><FileJson size={14} /> {item.filename || "Pasted workflow"}</span>
+                    <span className="wf-review-file"><FileJson size={14} /> {item.filename || t("Pasted workflow")}</span>
                     <span className={cn("wf-status", `is-${status.state}`)}><i aria-hidden="true" />{status.label}</span>
-                    <button type="button" className="modal-close" aria-label="Remove from import" onClick={() => setImports((current) => current.filter((_, i) => i !== index))}><X size={14} /></button>
+                    <button type="button" className="modal-close" aria-label={t("Remove from import")} onClick={() => setImports((current) => current.filter((_, i) => i !== index))}><X size={14} /></button>
                   </div>
-                  {status.state === "missing-nodes" ? <p className="wf-issue">Imports, but won’t run until ComfyUI has these nodes: {item.preview.validation.missingNodes?.join(", ")}</p> : null}
+                  {status.state === "missing-nodes" ? <p className="wf-issue">{t("Imports, but won’t run until ComfyUI has these nodes:")}{" "}{item.preview.validation.missingNodes?.join(", ")}</p> : null}
                   {item.preview.risks?.length ? <ImportRisks risks={item.preview.risks} /> : null}
-                  <Field label="Name"><input className="modal-input" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
+                  <Field label={t("Name")}><input className="modal-input" value={item.metadata.name} onChange={(event) => updateImport(index, { name: event.target.value })} /></Field>
                   <div className="wf-review-row">
-                    <div className="field"><span>Kind</span><Segmented label="Kind" value={item.metadata.kind} onChange={(next) => updateImport(index, { kind: next })} options={[{ value: "image", label: "Image" }, { value: "video", label: "Video" }]} /></div>
-                    <Field label="Family"><Select value={item.metadata.family || "custom"} onChange={(value) => updateImport(index, { family: value })} options={familyOptions(item.metadata.family)} /></Field>
+                    <div className="field"><span>{t("Kind")}</span><Segmented label={t("Kind")} value={item.metadata.kind} onChange={(next) => updateImport(index, { kind: next })} options={[{ value: "image", label: t("Image") }, { value: "video", label: t("Video") }]} /></div>
+                    <Field label={t("Family")}><Select value={item.metadata.family || "custom"} onChange={(value) => updateImport(index, { family: value })} options={familyOptions(item.metadata.family)} /></Field>
                   </div>
                   <ImportFit item={item} />
                   <details className="wf-mapping">
-                    <summary>Change connections</summary>
+                    <summary>{t("Change connections")}</summary>
                     <div className="wf-map-grid">
                       {workflowControls.filter((control) => control.editable).map(({ key, label }) => (
                         <Field key={key} label={label}>
@@ -566,7 +574,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                             value={selectedNodeValue(item.metadata.controls[key])}
                             onChange={(value) => updateImportControl(index, key, value === "__none" ? "" : value)}
                             options={[
-                              { label: "Stays as saved", value: "__none" },
+                              { label: t("Stays as saved"), value: "__none" },
                               ...item.metadata.nodes.flatMap((node) => node.inputs.map((input) => ({ label: `${node.title || node.classType} #${node.id} · ${input}`, value: `${node.id}.${input}` })))
                             ]}
                           />
@@ -578,7 +586,7 @@ export function WorkflowGallery({ view }: { view: any }) {
                 </div>
               );
             })}
-            {!imports.length ? <div className="wf-empty"><FileJson size={20} /><h3>Nothing to import</h3><p>Add a file or paste JSON.</p></div> : null}
+            {!imports.length ? <div className="wf-empty"><FileJson size={20} /><h3>{t("Nothing to import")}</h3><p>{t("Add a file or paste JSON.")}</p></div> : null}
           </div>
         )}
       </Modal>

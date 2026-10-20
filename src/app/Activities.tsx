@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -79,6 +81,7 @@ export function ActivityColumn({ activities, onHeight }: {
   activities: Array<Activity | null | undefined | false>;
   onHeight?: (height: number) => void;
 }) {
+  useLanguage();
   const observer = useRef<ResizeObserver | null>(null);
   const report = useRef(onHeight);
   report.current = onHeight;
@@ -110,6 +113,7 @@ function keyboardFocus(target: EventTarget) {
 }
 
 function ActivityIsland({ activity }: { activity: Activity }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const [held, setHeld] = useState(false);
   const pageHidden = usePageHidden();
@@ -242,7 +246,7 @@ function ActivityIsland({ activity }: { activity: Activity }) {
               key="controls"
               className="activity-controls"
               role="group"
-              aria-label="Controls"
+              aria-label={t("Controls")}
               aria-live="off"
               initial={reduced ? { opacity: 0 } : { opacity: 0, y: -8, scale: 0.94, filter: 'blur(4px)' }}
               animate={reduced ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}

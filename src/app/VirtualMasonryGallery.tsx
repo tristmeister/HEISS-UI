@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { GalleryTile } from './GalleryTile';
@@ -107,6 +109,7 @@ export function VirtualMasonryGallery({
   upscaleNotices,
   onDismissUpscaleNotice,
 }: VirtualMasonryGalleryProps) {
+  useLanguage();
   const reducedMotion = useReducedMotion();
   const [containerRef, containerWidth] = useElementWidth<HTMLElement>();
   // The element that scrolls, found from where the gallery actually sits. The
@@ -362,7 +365,7 @@ export function VirtualMasonryGallery({
     <section
       ref={containerRef}
       className={grouped ? "gallery virtual-gallery is-grouped" : "gallery virtual-gallery"}
-      aria-label="Gallery"
+      aria-label={t("Gallery")}
       onPointerEnter={hold}
       onPointerLeave={release}
       onKeyDown={(event) => {

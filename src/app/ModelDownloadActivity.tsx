@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import React from 'react';
 import { Pause, Play, X } from 'lucide-react';
 import { AnimatedNumber } from './AnimatedNumber';
@@ -22,7 +23,7 @@ function placeOf(item: ModelDownload): DownloadOrigin['kind'] | null {
 }
 
 function waiting(count: number, word: string) {
-  return count ? <><span aria-hidden="true">+{count}</span><span className="sr-only">, {count} more {word}</span></> : undefined;
+  return count ? <><span aria-hidden="true">+{count}</span><span className="sr-only">, {count}{t("more")}{" "}{word}</span></> : undefined;
 }
 
 /**
@@ -91,7 +92,7 @@ export function useModelDownloadActivity({ onDone, hidden, onOpen }: { onDone: (
   // One key for Pause and Resume: the same button changes, so keyboard focus stays on it.
   const controls: ActivityControl[] | undefined = mode === 'downloading' ? [
     ...(active?.verifying ? [] : [{ key: 'toggle', icon: <Pause size={14} fill="currentColor" strokeWidth={0} />, tip: queued ? 'Pause all' : 'Pause', label: queued ? `Pause all ${queued + 1} downloads` : `Pause ${label}`, run: guard(islandActions.pauseAll) }]),
-    { key: 'cancel', icon: <X size={15} />, tone: 'danger', tip: 'Cancel', label: `Cancel ${label}`, run: guard(() => islandActions.cancel([active!])) }
+    { key: 'cancel', icon: <X size={15} />, tone: 'danger', tip: 'Cancel', label: t("Cancel {0}", { "0": (label) }), run: guard(() => islandActions.cancel([active!])) }
   ] : mode === 'paused' ? [
     { key: 'toggle', icon: <Play size={14} fill="currentColor" strokeWidth={0} />, tip: held.length > 1 ? 'Resume all' : 'Resume', label: held.length > 1 ? `Resume all ${held.length} downloads` : `Resume ${label}`, run: guard(islandActions.resumeAll) },
     { key: 'cancel', icon: <X size={15} />, tone: 'danger', tip: held.length > 1 ? 'Cancel all' : 'Cancel', label: held.length > 1 ? `Cancel all ${held.length} downloads` : `Cancel ${label}`, run: guard(() => islandActions.cancel(held)) }
@@ -121,13 +122,13 @@ export function useModelDownloadActivity({ onDone, hidden, onOpen }: { onDone: (
     progress: mode === 'downloading' || mode === 'paused' ? progress : undefined,
     meta,
     metaTitle: mode === 'error' ? meta : undefined,
-    open: { label: `${title}. Show it in ${place ? placeName[place] : 'model setup'}`, run: () => { open(); } },
+    open: { label: t("{0}. Show it in {1}", { "0": (title), "1": (place ? placeName[place] : t("model setup")) }), run: () => { open(); } },
     openHint: place ? `Show in ${placeName[place]}` : 'Show',
     controls,
-    action: mode === 'canceled' ? { label: 'Undo', run: () => { islandActions.undoCancel().catch(() => downloads.refresh()); } } : undefined,
-    dismiss: mode === 'canceled' ? { label: 'Discard now', title: 'Discard now', run: islandActions.commitCancel }
-      : mode === 'paused' ? { label: 'Hide. It stays paused', title: 'Hide. It stays paused', run: islandActions.forgetHeld }
-      : mode !== 'downloading' ? { label: 'Dismiss', run: dismiss } : undefined,
+    action: mode === 'canceled' ? { label: t("Undo"), run: () => { islandActions.undoCancel().catch(() => downloads.refresh()); } } : undefined,
+    dismiss: mode === 'canceled' ? { label: t("Discard now"), title: t("Discard now"), run: islandActions.commitCancel }
+      : mode === 'paused' ? { label: t("Hide. It stays paused"), title: t("Hide. It stays paused"), run: islandActions.forgetHeld }
+      : mode !== 'downloading' ? { label: t("Dismiss"), run: dismiss } : undefined,
     expire: mode === 'ready' ? { after: READY_HOLD_MS, run: () => setFlash(null) } : undefined
   };
 }

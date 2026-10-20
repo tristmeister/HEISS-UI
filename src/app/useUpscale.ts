@@ -1,3 +1,4 @@
+import { t } from '../i18n/core.js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
 import type { AutoUpscale, GalleryItem, NativeSize, NativeSupport, Preferences, UpscaleInstall, UpscaleQuality, UpscaleStatus } from './types';
@@ -158,7 +159,7 @@ export function tiledDecodeFor(plan: SizePlan | null) {
 }
 
 export function upscaleQualityLabel(quality = "balanced") {
-  return upscaleEfforts.find((effort) => effort.value === quality)?.label || "Balanced";
+  return t(upscaleEfforts.find((effort) => effort.value === quality)?.label || 'Balanced');
 }
 
 /** Why an image could not be upscaled, shown in a popover on its upscale button. */
@@ -228,7 +229,7 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
       }
       // Sealed into Hidden, but ComfyUI's own copy is still readable where HEISS UI could not reach it.
       if (before === "running" && now === "done" && item.upscale?.leftBehind) {
-        showToast("Upscaled in Hidden. ComfyUI’s copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library to remove these copies.", "warning");
+        showToast(t("Upscaled in Hidden. ComfyUI’s copy is still in its output folder (heiss-ui). If ComfyUI runs on this computer, set that folder in Settings › Library to remove these copies."), "warning");
       }
       seen.set(item.id, now);
     }

@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -14,6 +16,7 @@ const GLYPH = [
 ];
 
 function FolderGlyph() {
+  useLanguage();
   return (
     <span className="mf-glyph" aria-hidden="true">
       {GLYPH.flatMap((row, y) => row.split('').map((cell, x) => (
@@ -28,6 +31,7 @@ function FolderGlyph() {
  * not read. One tap opens the setup; the × hides it until what it found changes.
  */
 export function ModelFoldersNotice({ folders: state }: { folders: ModelFolders }) {
+  useLanguage();
   const reduced = useReducedMotion();
   const folders = state.report?.folders || [];
   const count = folders.reduce((sum, folder) => sum + folder.count, 0);
@@ -46,12 +50,12 @@ export function ModelFoldersNotice({ folders: state }: { folders: ModelFolders }
             <button type="button" className="mf-notice-main" onClick={state.openDialog}>
               <FolderGlyph />
               <span className="mf-notice-text">
-                <strong>{count === 1 ? '1 model' : `${count} models`} found</strong>
-                <span>In {where}, which ComfyUI doesn’t read.</span>
+                <strong>{count === 1 ? t("1 model") : t("{0} models", { "0": (count) })}{t("found")}</strong>
+                <span>{t("In")}{" "}{where}{t(", which ComfyUI doesn’t read.")}</span>
               </span>
-              <span className="mf-notice-cta">Add</span>
+              <span className="mf-notice-cta">{t("Add")}</span>
             </button>
-            <button type="button" className="mf-notice-close" aria-label="Dismiss" onClick={state.dismissNotice}><X size={12} /></button>
+            <button type="button" className="mf-notice-close" aria-label={t("Dismiss")} onClick={state.dismissNotice}><X size={12} /></button>
           </div>
         </motion.div>
       ) : null}

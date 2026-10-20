@@ -1,3 +1,5 @@
+import { t } from '../i18n/core.js';
+import { useLanguage } from '../i18n/react';
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Fingerprint, KeyRound } from 'lucide-react';
@@ -20,6 +22,7 @@ function heroStageFor(hidden: HiddenState): VaultHeroStage {
  * set up here, the password always. Enter on the password, or one click.
  */
 function UnlockControls({ hidden, autoFocus = false, compact = false }: { hidden: HiddenState; autoFocus?: boolean; compact?: boolean }) {
+  useLanguage();
   const { support, usablePasskey, unlockStage, unlockError } = hidden;
   const biometric = Boolean(usablePasskey && support?.available);
   const [usePassword, setUsePassword] = useState(!biometric);
@@ -48,7 +51,7 @@ function UnlockControls({ hidden, autoFocus = false, compact = false }: { hidden
       {biometric && !usePassword ? (
         <button type="button" className="hidden-unlock-primary" onClick={() => hidden.unlockBiometric()} disabled={working}>
           <Fingerprint size={17} />
-          <span>{unlockStage === "asking" ? `Waiting for ${support?.label}…` : unlockStage === "checking" ? "Opening…" : `Unlock with ${support?.label}`}</span>
+          <span>{unlockStage === "asking" ? t("Waiting for {0}…", { "0": (support?.label) }) : unlockStage === "checking" ? t("Opening…") : t("Unlock with {0}", { "0": (support?.label) })}</span>
         </button>
       ) : (
         <form className={cn("hidden-unlock-field", unlockStage === "failed" && "is-wrong")} onSubmit={(event) => { event.preventDefault(); submit(); }}>
@@ -58,20 +61,20 @@ function UnlockControls({ hidden, autoFocus = false, compact = false }: { hidden
             className="is-framed"
             type="password"
             autoComplete="current-password"
-            aria-label="Hidden password"
-            placeholder="Password"
+            aria-label={t("Hidden password")}
+            placeholder={t("Password")}
             value={password}
             disabled={working}
             onChange={(event) => { setPassword(event.target.value); if (unlockStage === "failed") hidden.setUnlockStage("idle"); }}
           />
-          <button type="submit" disabled={!password || working} aria-label="Unlock">{unlockStage === "checking" ? "…" : "Unlock"}</button>
+          <button type="submit" disabled={!password || working} aria-label={t("Unlock")}>{unlockStage === "checking" ? "…" : t("Unlock")}</button>
         </form>
       )}
       <div className="hidden-unlock-meta" aria-live="polite">
         {unlockStage === "failed" && unlockError ? <span className="is-error">{unlockError}</span> : null}
         {biometric ? (
           <button type="button" className="hidden-unlock-switch" onClick={() => { setUsePassword((value) => !value); hidden.setUnlockStage("idle"); }}>
-            {usePassword ? `Use ${support?.label}` : "Use password"}
+            {usePassword ? t("Use {0}", { "0": (support?.label) }) : t("Use password")}
           </button>
         ) : null}
       </div>
@@ -92,6 +95,7 @@ function lockStageFor(hidden: HiddenState): LockMarkStage {
  * blurred thumbnail. Unlocking springs the shackle and the gallery fades in.
  */
 export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenState; onLeave: () => void; onSetup: () => void }) {
+  useLanguage();
   const stage = lockStageFor(hidden);
   const notSetUp = !hidden.enabled;
   // Hidden is made on the computer it lives on; other devices can only say where.
@@ -107,26 +111,27 @@ export function HiddenLockScreen({ hidden, onLeave, onSetup }: { hidden: HiddenS
       <div className="empty stage-empty hidden-lock-stage">
         <div className="stage-mark"><LockMark className="stage-layer" stage={notSetUp ? "locked" : stage} /></div>
         <div className="stage-copy">
-          <h2>{notSetUp ? "Hidden" : stage === "opening" ? "Unlocked" : "Hidden is locked"}</h2>
+          <h2>{notSetUp ? t("Hidden") : stage === "opening" ? t("Unlocked") : t("Hidden is locked")}</h2>
           <p>{notSetUp
-            ? atComputer ? "Images you keep to yourself, encrypted on this computer." : "Images you keep to yourself. Set up Hidden on the computer running HEISS UI."
-            : hidden.usablePasskey && hidden.support?.available ? `Unlock with ${hidden.support.label} or your password.` : "Enter your password to unlock."}</p>
+            ? atComputer ? t("Images you keep to yourself, encrypted on this computer.") : t("Images you keep to yourself. Set up Hidden on the computer running HEISS UI.")
+            : hidden.usablePasskey && hidden.support?.available ? t("Unlock with {0} or your password.", { "0": (hidden.support.label) }) : t("Enter your password to unlock.")}</p>
           <div className="empty-actions">
             {notSetUp && !atComputer ? <div className="hidden-unlock-spacer" /> : notSetUp ? (
               <div className="hidden-unlock">
-                <button type="button" className="hidden-unlock-primary" onClick={onSetup}><span>Set up Hidden</span></button>
+                <button type="button" className="hidden-unlock-primary" onClick={onSetup}><span>{t("Set up Hidden")}</span></button>
               </div>
             ) : stage !== "opening" ? <UnlockControls hidden={hidden} autoFocus /> : <div className="hidden-unlock-spacer" />}
           </div>
         </div>
       </div>
-      <button type="button" className="hidden-lockscreen-back" onClick={onLeave}><ArrowLeft size={14} /> Gallery</button>
+      <button type="button" className="hidden-lockscreen-back" onClick={onLeave}><ArrowLeft size={14} />{t("Gallery")}</button>
     </motion.section>
   );
 }
 
 /** Unlocking from anywhere else, such as hiding an image while Hidden is locked. */
 export function HiddenUnlockSheet({ hidden }: { hidden: HiddenState }) {
+  useLanguage();
   const stage = heroStageFor(hidden);
   const busy = hidden.unlockStage === "asking" || hidden.unlockStage === "checking" || hidden.unlockStage === "opening";
   const what = hidden.intent?.kind === "hide" ? `to hide ${hidden.intent.items.length === 1 ? "this image" : `these ${hidden.intent.items.length} images`}` : hidden.intent?.kind === "generate" ? "to generate into it" : "";
@@ -138,8 +143,8 @@ export function HiddenUnlockSheet({ hidden }: { hidden: HiddenState }) {
       busy={busy}
       className="upscale-modal hidden-modal hidden-unlock-modal"
       hero={<div className="upscale-hero-wrap hidden-hero-wrap is-short"><VaultHero className="upscale-hero hidden-hero" stage={stage} /></div>}
-      title={stage === "unlocking" ? "Unlocked" : "Unlock Hidden"}
-      description={stage === "unlocking" ? "Opening…" : what ? `Unlock ${what}.` : "Hidden is locked."}
+      title={stage === "unlocking" ? t("Unlocked") : t("Unlock Hidden")}
+      description={stage === "unlocking" ? t("Opening…") : what ? t("Unlock {0}.", { "0": (what) }) : t("Hidden is locked.")}
     >
       {stage !== "unlocking" ? <UnlockControls hidden={hidden} autoFocus compact /> : <div className="hidden-unlock-spacer" />}
     </Modal>
