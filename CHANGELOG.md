@@ -11,14 +11,20 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> Updated dependencies and faster builds
+> Faster results and a few fixes
+
+### Improved
+- New pictures appear in the gallery sooner after a run finishes.
+- Repeat edits with the same reference start faster.
+- HEISS UI stays responsive while it saves large Civitai-ready PNGs.
+- Updated dependencies. Building from source is about six times faster.
+
+### Fixed
+- The video viewer no longer shows the same error twice.
 
 ### Changed
-- Updated React, Express, sharp, Tailwind and the other dependencies, and moved
-  to Vite 8, TypeScript 7, lucide 1 and framer-motion 14. Building the app is
-  about six times faster. No features change.
-- Running from source now needs **Node.js 20.19 or newer** (was 20.9), because
-  Vite 8 does. The downloads bring their own Node.js and are not affected.
+- Running from source now needs Node.js 20.19 or newer. The downloads include
+  their own Node.js and aren't affected.
 
 ## [0.18.1] - 2026-10-19
 
