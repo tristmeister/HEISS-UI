@@ -11,6 +11,12 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+> Updated dependencies, nothing else changed
+
+### Changed
+- Updated React, Vite, Tailwind, Express, sharp and other dependencies to
+  their latest compatible versions. No features or behavior change.
+
 ## [0.18.1] - 2026-10-19
 
 > Bug fixes and a FLUX.3 prompt enhancer switch
