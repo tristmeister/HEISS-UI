@@ -7,12 +7,12 @@
 // Keep this small and stable: an installed copy keeps running its own copy
 // of this file until the next start, while the rest of the app is replaced.
 
-// sharp and the server need Node 20.9 or newer; say so instead of failing on a
+// Building the app (Vite 8) needs Node 20.19 or newer; say so instead of failing on a
 // syntax error or a missing built-in. Everything else is imported after this
 // check, so an old Node gets this far.
 const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
-if (nodeMajor < 20 || (nodeMajor === 20 && nodeMinor < 9)) {
-  console.log(`\n  HEISS UI needs Node.js 20.9 or newer (22 LTS recommended); this is ${process.versions.node}. Get it from https://nodejs.org\n`);
+if (nodeMajor < 20 || (nodeMajor === 20 && nodeMinor < 19)) {
+  console.log(`\n  HEISS UI needs Node.js 20.19 or newer (22 LTS recommended); this is ${process.versions.node}. Get it from https://nodejs.org\n`);
   process.exit(1);
 }
 

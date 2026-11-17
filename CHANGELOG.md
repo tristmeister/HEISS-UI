@@ -11,11 +11,14 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
-> Updated dependencies, nothing else changed
+> Updated dependencies and faster builds
 
 ### Changed
-- Updated React, Vite, Tailwind, Express, sharp and other dependencies to
-  their latest compatible versions. No features or behavior change.
+- Updated React, Express, sharp, Tailwind and the other dependencies, and moved
+  to Vite 8, TypeScript 7, lucide 1 and framer-motion 14. Building the app is
+  about six times faster. No features change.
+- Running from source now needs **Node.js 20.19 or newer** (was 20.9), because
+  Vite 8 does. The downloads bring their own Node.js and are not affected.
 
 ## [0.18.1] - 2026-10-19
 

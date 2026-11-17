@@ -33,7 +33,7 @@ When port 8787 is in use, the next free one (8788, 8789, …) is used instead. T
 
 ### Node.js is missing or too old
 
-The Windows, macOS (Apple Silicon) and Linux downloads include Node.js in the `runtime` folder. A copy from GitHub, or an older macOS or Linux download, needs **Node.js 20.9 or newer** (22 LTS recommended) from [nodejs.org](https://nodejs.org). The launcher says which version it found.
+The Windows, macOS (Apple Silicon) and Linux downloads include Node.js in the `runtime` folder. A copy from GitHub, or an older macOS or Linux download, needs **Node.js 20.19 or newer** (22 LTS recommended) from [nodejs.org](https://nodejs.org). The launcher says which version it found.
 
 ### macOS won't open the launcher
 

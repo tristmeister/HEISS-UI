@@ -83,7 +83,7 @@ Get [ComfyUI Desktop](https://www.comfy.org/download), leave it running, and HEI
 <details>
 <summary><b>Install from source</b></summary>
 
-To follow `main` or change the code. This needs **Node.js 20.9+** (22 LTS or newer recommended); the downloads bring their own.
+To follow `main` or change the code. This needs **Node.js 20.19+** (22 LTS or newer recommended); the downloads bring their own.
 
 ```bash
 git clone https://github.com/tristmeister/HEISS-UI.git heiss-ui

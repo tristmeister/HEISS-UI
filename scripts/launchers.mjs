@@ -1,8 +1,8 @@
 // The double-click launchers a release carries (see scripts/package-release.mjs).
 // Each starts scripts/start.mjs on the download's own Node.js (runtime/current.txt
-// names it), else on a Node.js 20.9+ from PATH.
+// names it), else on a Node.js 20.19+ from PATH.
 
-const nodeCheck = "const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>20||(a===20&&b>=9)?0:1)";
+const nodeCheck = "const [a,b]=process.versions.node.split('.').map(Number);process.exit(a>20||(a===20&&b>=19)?0:1)";
 
 /**
  * macOS (.command) and Linux (.sh). The update swaps this file by renaming, so
@@ -32,12 +32,12 @@ export function shellLauncher() {
     `  if node -e "${nodeCheck}" 2>/dev/null; then`,
     "    NODE=node",
     "  else",
-    "    echo \"HEISS UI needs Node.js 20.9 or newer (22 LTS recommended); this is $(node -v 2>/dev/null). Get it from https://nodejs.org\"",
+    "    echo \"HEISS UI needs Node.js 20.19 or newer (22 LTS recommended); this is $(node -v 2>/dev/null). Get it from https://nodejs.org\"",
     "    pause; exit 1",
     "  fi",
     "fi",
     "if [ -z \"$NODE\" ]; then",
-    "  echo \"HEISS UI needs Node.js 20.9 or newer (22 LTS recommended): https://nodejs.org\"",
+    "  echo \"HEISS UI needs Node.js 20.19 or newer (22 LTS recommended): https://nodejs.org\"",
     "  echo \"Install it, then open this file again.\"",
     "  pause; exit 1",
     "fi",
@@ -89,7 +89,7 @@ export function windowsLauncher() {
     "if defined HEISS_RUNTIME if exist \"runtime\\%HEISS_RUNTIME%\\node.exe\" set \"HEISS_NODE=runtime\\%HEISS_RUNTIME%\\node.exe\"",
     "if not \"%HEISS_NODE%\"==\"node\" goto run",
     "where node >nul 2>nul && goto run",
-    "echo HEISS UI needs Node.js 20.9 or newer (22 LTS recommended): https://nodejs.org& pause & exit /b 1",
+    "echo HEISS UI needs Node.js 20.19 or newer (22 LTS recommended): https://nodejs.org& pause & exit /b 1",
     ":run",
     "(\"%HEISS_NODE%\" scripts\\start.mjs || pause) & exit /b",
     ""

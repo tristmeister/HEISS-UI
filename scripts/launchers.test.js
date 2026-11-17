@@ -48,7 +48,7 @@ test("without a bundled Node and none on PATH, the launcher says what to install
   const result = spawnSync("/bin/sh", [launcher], { cwd: dir, encoding: "utf8", env: { PATH: bin } });
   fs.rmSync(bin, { recursive: true, force: true });
   assert.equal(result.status, 1);
-  assert.match(result.stdout, /needs Node\.js 20\.9 or newer/);
+  assert.match(result.stdout, /needs Node\.js 20\.19 or newer/);
   fs.rmSync(dir, { recursive: true, force: true });
 });
 

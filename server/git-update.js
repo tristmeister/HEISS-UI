@@ -21,7 +21,7 @@ export function describeGitError(error, step = "") {
   if (error?.code === "ENOENT") {
     return tool === "git"
       ? "Git isn't installed. Install it from git-scm.com, or use the release zip instead."
-      : "npm isn't available, so the update can't install its packages. Install Node.js 20.9 or newer (it includes npm), then try again.";
+      : "npm isn't available, so the update can't install its packages. Install Node.js 20.19 or newer (it includes npm), then try again.";
   }
   if (error?.killed || error?.signal === "SIGTERM") return `The ${step || tool} step took too long and was stopped. Try again, or update by hand in a terminal.`;
   if (/could not resolve host|unable to access|could not read from remote|connection (refused|timed out|reset)|network is unreachable|failed to connect|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|ECONNRESET/i.test(output)) {
