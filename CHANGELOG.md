@@ -11,6 +11,8 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+## [0.18.2] - 2026-11-18
+
 > Faster results and a few fixes
 
 ### Improved
@@ -1172,7 +1174,8 @@ notes cover everything that changed since the fork.
 The baseline HEISS UI grew from, forked from
 [J-AI Studio](https://github.com/jasperdevs/J-AI-Studio). Never tagged.
 
-[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.18.1...HEAD
+[Unreleased]: https://github.com/tristmeister/HEISS-UI/compare/v0.18.2...HEAD
+[0.18.2]: https://github.com/tristmeister/HEISS-UI/compare/v0.18.1...v0.18.2
 [0.18.1]: https://github.com/tristmeister/HEISS-UI/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/tristmeister/HEISS-UI/compare/v0.16.0...v0.17.0
