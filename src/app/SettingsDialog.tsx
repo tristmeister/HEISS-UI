@@ -15,7 +15,7 @@ import { MosaicButton } from './MosaicButton';
 import { apiFetch, apiJson } from './api';
 import type { ModelFile, Models, Profile, OutputFolderReport, UpdateStatus, UpscaleInstall, UpscaleStatus } from './types';
 import type { ModelFolders } from './useModelFolders';
-import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
+import { formatBytes, upscaleEfforts, upscaleEngineOf, upscaleEngines, upscaleQualityLabel } from './useUpscale';
 import { HiddenSettings } from './HiddenSettings';
 import { shortcuts } from './shortcuts';
 import { SettingsDrawer } from './SettingsDrawer';
@@ -313,7 +313,11 @@ function UpscaleReadiness({ status, reason, install, onOpenSetup, onDownload }: 
     return <Row label={<Status tone="warn">Unavailable</Status>} description={reason || 'Smart upscale isn’t available right now.'}><button className="btn" onClick={onOpenSetup}>Open setup</button></Row>;
   }
   if (!status.nodesInstalled) {
-    return <Row label={<Status tone="warn">Needs the SeedVR2 nodes</Status>} description="A one-time install of its ComfyUI nodes."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+    return <Row label={<Status tone="warn">{status.engine === 'kandinsky' ? 'Needs the Kandinsky ImageSR nodes' : 'Needs the SeedVR2 nodes'}</Status>} description="A one-time install of its ComfyUI nodes."><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
+  }
+  if (status.manualModels && !status.ready) {
+    const missing = status.models.filter((model) => !model.present).map((model) => `${model.label} in ${model.detail}`).join(' and ');
+    return <Row label={<Status tone="warn">Needs its model</Status>} description={`Put the ${missing}, then check again.`}><button className="btn is-primary" onClick={onOpenSetup}>Set up</button></Row>;
   }
   if (install?.status === 'error' && !status.ready) {
     return <Row label={<Status tone="bad">Download stopped</Status>} description={install.error}><button className="btn is-primary" onClick={onOpenSetup}>Resume</button></Row>;
@@ -769,6 +773,7 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
   const inpaintModels = ((modelProfiles || []) as Profile[]).filter((profile) => profile.capabilities?.inpaint);
   const inpaintOn = prefs.inpainting !== false;
   const effort = upscaleEfforts.find((item) => item.value === (prefs.upscaleQuality || 'balanced')) || upscaleEfforts[1];
+  const upscaleEngine = upscaleEngines.find((item) => item.value === upscaleEngineOf(effort.value)) || upscaleEngines[0];
   const faceDetailReady = Boolean(upscaleStatus?.faceDetail?.nodesInstalled);
   const connected = Boolean(health?.ok);
   const comfyRestarting = useComfyRestarting();
@@ -885,8 +890,16 @@ export function SettingsDialog({ view, open, section, onSectionChange, onClose, 
               <SwitchRow label="Smart upscale" description="Shows an upscale arrow on finished images. The larger, sharper copy is saved next to the original." checked={upscaleOn} onChange={(next) => setPrefs({ smartUpscale: next })} />
               {upscaleOn ? (
                 <>
-                  <Row label="Effort" description={effort.detail}>
-                    <Segmented label="Upscale effort" value={effort.value} onChange={(next) => setPrefs({ upscaleQuality: next })} options={upscaleEfforts.map(({ value, label, scale }) => ({ value, label: `${label} ${scale}` }))} />
+                  <Row label="Engine" description={upscaleEngine.detail}>
+                    <Segmented label="Upscale engine" value={upscaleEngine.value} onChange={(next) => setPrefs({ upscaleQuality: upscaleEngines.find((item) => item.value === next)?.first || 'balanced' })} options={upscaleEngines.map(({ value, label }) => ({ value, label }))} />
+                  </Row>
+                  <Row label={upscaleEngine.value === 'kandinsky' ? 'Factor' : 'Effort'} description={effort.detail}>
+                    <Segmented
+                      label={upscaleEngine.value === 'kandinsky' ? 'Upscale factor' : 'Upscale effort'}
+                      value={effort.value}
+                      onChange={(next) => setPrefs({ upscaleQuality: next })}
+                      options={upscaleEfforts.filter((item) => item.engine === upscaleEngine.value).map(({ value, label, scale, engine }) => ({ value, label: engine === 'kandinsky' ? scale : `${label} ${scale}` }))}
+                    />
                   </Row>
                   <SwitchRow
                     label="Face detail pass"

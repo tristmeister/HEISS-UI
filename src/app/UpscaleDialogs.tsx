@@ -5,7 +5,7 @@ import { NodeInstall } from './NodeInstall';
 import { UpscaleHero } from './UpscaleHero';
 import { useThisComputer } from './device';
 import { cn } from './format';
-import { formatBytes, upscaleEfforts, upscaleQualityLabel } from './useUpscale';
+import { formatBytes, upscaleEfforts, upscaleEngineOf, upscaleQualityLabel } from './useUpscale';
 import type { UpscaleSetup, UpscaleSetupStage } from './useUpscale';
 import type { UpscaleInstall, UpscaleInstallFile, UpscaleQuality, UpscaleStatus } from './types';
 import { SafeImg } from './SafeImg';
@@ -86,11 +86,14 @@ function fileLine(file: UpscaleInstallFile) {
 }
 
 const copyFor = (stage: UpscaleSetupStage, quality: string, pending: boolean, fallback: string): { title: string; description: string } => {
+  const kandinsky = upscaleEngineOf(quality) === "kandinsky";
   switch (stage) {
     case "checking": return { title: "Setting up smart upscale", description: "Checking ComfyUI…" };
     case "offline": return { title: "Waiting for ComfyUI", description: "Start ComfyUI to continue." };
-    case "nodes": return { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale runs on the SeedVR2 nodes. Install them through ComfyUI-Manager or a terminal." };
-    case "models": return { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
+    case "nodes": return kandinsky
+      ? { title: "Add Kandinsky ImageSR to ComfyUI", description: `${upscaleQualityLabel(quality)} runs on the native Kandinsky ImageSR 2.0 nodes. Install them by Git URL or a terminal.` }
+      : { title: "Add SeedVR2 to ComfyUI", description: "Smart upscale runs on the SeedVR2 nodes. Install them through ComfyUI-Manager or a terminal." };
+    case "models": return kandinsky ? { title: "Add the Kandinsky model", description: `${upscaleQualityLabel(quality)} needs its converted checkpoint and the FLUX.1 VAE in ComfyUI’s model folders. Nothing downloads from here.` } : { title: "Download the upscale model", description: `${upscaleQualityLabel(quality)} upscaling needs its SeedVR2 weights, a one-time download from Hugging Face.${fallback ? ` Until then it uses ${fallback}.` : ""}` };
     case "downloading": return { title: "Downloading SeedVR2", description: pending ? "The image upscales when this finishes. The download continues if you close this." : "The download continues if you close this." };
     case "verifying": return { title: "Checking the download", description: "Making sure the files are complete." };
     case "ready": return fallback && !pending
@@ -161,8 +164,8 @@ export function UpscaleSetupDialog({
           showToast={showToast}
           onRestarted={() => setup.recheck()}
         />
-        <Watcher lastChecked={setup.lastChecked}>Waiting for the SeedVR2 nodes…</Watcher>
-        {status?.detectedNodes?.length ? (
+        <Watcher lastChecked={setup.lastChecked}>{status?.engine === "kandinsky" ? "Waiting for the Kandinsky ImageSR nodes…" : "Waiting for the SeedVR2 nodes…"}</Watcher>
+        {status?.engine !== "kandinsky" && status?.detectedNodes?.length ? (
           <p className="upscale-fine">
             A different or older SeedVR2 pack is installed ({status.detectedNodes.join(", ")}). Smart upscale needs the one above.
           </p>
@@ -176,6 +179,30 @@ export function UpscaleSetupDialog({
         {comfyUrl ? <a className="btn is-primary" href={comfyUrl} target="_blank" rel="noreferrer">Open ComfyUI <ExternalLink size={13} /></a> : null}
       </>
     );
+  } else if (stage === "models" && status?.manualModels) {
+    body = (
+      <>
+        <ul className="upscale-files">
+          {(status.models || []).map((model) => (
+            <li key={model.key}>
+              <div>
+                <strong>{model.label}{model.detail ? <em>{model.detail}</em> : null}</strong>
+                <code>{model.file}</code>
+              </div>
+              <span>{model.present ? "Found" : "Missing"}</span>
+            </li>
+          ))}
+        </ul>
+        {status.modelDir ? (
+          <div className="upscale-dest">
+            <FolderOpen size={14} aria-hidden="true" />
+            <code title={status.modelDir}>{status.modelDir}</code>
+          </div>
+        ) : null}
+        <Watcher lastChecked={setup.lastChecked}>Waiting for the files…</Watcher>
+      </>
+    );
+    footer = <>{later}{recheck}</>;
   } else if (stage === "models") {
     body = !admin ? (
       <div className="upscale-callout">
@@ -190,7 +217,7 @@ export function UpscaleSetupDialog({
     ) : (
       <>
         <div className="upscale-efforts" role="radiogroup" aria-label="Upscale effort">
-          {upscaleEfforts.map((effort) => (
+          {upscaleEfforts.filter((effort) => effort.engine === "seedvr2").map((effort) => (
             <button
               key={effort.value}
               type="button"

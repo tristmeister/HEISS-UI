@@ -10,13 +10,16 @@ import { comfyPython, comfyRootDir, packInstallPlan } from "./node-install.js";
 import { nodePacks } from "./node-packs.js";
 import { renameWithRetry } from "./json-store.js";
 import { freeBytesAt } from "./paths.js";
+import { isKandinsky, kandinskyGraph, kandinskyPlan, kandinskyQualities, kandinskyStatus } from "./upscale-kandinsky.js";
 
 export { freeBytesAt };
 
 // SeedVR2 restores detail rather than interpolating it, so the pipeline mirrors
 // the reference workflow: soften the source with a lanczos pre-scale, then let
 // the model rebuild the short side at the requested resolution.
-export const upscaleQualities = ["fast", "balanced", "high"];
+// Kandinsky ImageSR 2.0 adds its fixed factors, ×2 and ×4, as efforts of their own (upscale-kandinsky.js).
+export const upscaleQualities = ["fast", "balanced", "high", ...kandinskyQualities];
+export { isKandinsky };
 
 /**
  * Every file HEISS UI may download, with the exact size and SHA-256 Hugging Face
@@ -175,6 +178,8 @@ function resolveVae(have) {
 
 /** The files this tier would download: its preferred DiT (unless a tier alternate is here) and the VAE. */
 export function requiredModelsFor(quality, info, dir = seedvr2ModelDir()) {
+  // Kandinsky's weights are never downloaded here.
+  if (isKandinsky(quality)) return [];
   const tier = ditTiers[normalizeQuality(quality)];
   const have = available(info, dir);
   const ditPresent = tier.some((file) => byBase(have.dit, file));
@@ -229,8 +234,18 @@ export async function managerInfo() {
   return { connected, available: false, version: null };
 }
 
+function faceDetailState(info) {
+  return {
+    nodesInstalled: missingNodeClasses(info, faceDetailNodeClasses).length === 0,
+    missingNodes: missingNodeClasses(info, faceDetailNodeClasses),
+    detectors: optionsFor(info, "UltralyticsDetectorProvider", "model_name").map(String),
+    samModels: optionsFor(info, "SAMLoader", "model_name").map(String)
+  };
+}
+
 export function upscaleStatus(info = {}, quality = "balanced") {
   const normalized = normalizeQuality(quality);
+  if (isKandinsky(normalized)) return { ...kandinskyStatus(info, normalized), faceDetail: faceDetailState(info), install: installSnapshot() };
   const missingNodes = missingNodeClasses(info, upscaleNodeClasses);
   const modelDir = seedvr2ModelDir();
   const have = available(info, modelDir);
@@ -240,6 +255,7 @@ export function upscaleStatus(info = {}, quality = "balanced") {
   // download when SeedVR2 has nothing at all to load.
   const canSubstitute = have.dit.length > 0 && have.vae.length > 0;
   return {
+    engine: "seedvr2",
     quality: normalized,
     nodesInstalled: missingNodes.length === 0,
     missingNodes,
@@ -256,12 +272,7 @@ export function upscaleStatus(info = {}, quality = "balanced") {
     // The weight a substituting tier actually loads, so the UI can name it.
     fallbackFile: missingModels.length > 0 && canSubstitute ? path.basename(resolveDit(normalized, have).file) : "",
     ready: missingNodes.length === 0 && (missingModels.length === 0 || canSubstitute),
-    faceDetail: {
-      nodesInstalled: missingNodeClasses(info, faceDetailNodeClasses).length === 0,
-      missingNodes: missingNodeClasses(info, faceDetailNodeClasses),
-      detectors: optionsFor(info, "UltralyticsDetectorProvider", "model_name").map(String),
-      samModels: optionsFor(info, "SAMLoader", "model_name").map(String)
-    },
+    faceDetail: faceDetailState(info),
     install: installSnapshot()
   };
 }
@@ -488,6 +499,7 @@ export const upscaleTargets = [2048, 4096];
  */
 export function upscalePlan({ width, height, quality = "balanced", target = 0 }) {
   const normalized = normalizeQuality(quality);
+  if (isKandinsky(normalized)) return kandinskyPlan({ width, height, quality: normalized, target }, upscaleTargets);
   const preset = presets[normalized];
   const sourceWidth = Math.max(1, Math.round(Number(width) || 0));
   const sourceHeight = Math.max(1, Math.round(Number(height) || 0));
@@ -644,6 +656,11 @@ function devicesFor(info, nodeClass) {
 }
 
 export function upscaleGraph(body, info = {}) {
+  if (isKandinsky(normalizeQuality(body.quality))) {
+    const graph = { "1": { class_type: "LoadImage", inputs: { image: String(body.imageName || "") } } };
+    const source = body.faceDetail ? faceDetailStack(graph, body, ["1", 0], info) : ["1", 0];
+    return kandinskyGraph({ ...body, quality: normalizeQuality(body.quality) }, info, graph, source, upscaleTargets);
+  }
   const plan = upscalePlan(body);
   const have = available(info, seedvr2ModelDir());
   const dit = resolveDit(plan.quality, have);

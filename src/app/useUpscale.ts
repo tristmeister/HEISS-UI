@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, apiJson } from './api';
-import type { AutoUpscale, GalleryItem, NativeSize, NativeSupport, Preferences, UpscaleInstall, UpscaleQuality, UpscaleStatus } from './types';
+import type { AutoUpscale, GalleryItem, NativeSize, NativeSupport, Preferences, UpscaleEngine, UpscaleInstall, UpscaleQuality, UpscaleStatus } from './types';
 import type { ShowToast } from './toast';
 import { mediaUrl } from './mediaUrl';
 import { fitRatio } from './sizing';
@@ -78,12 +78,27 @@ export function formatBytes(bytes = 0) {
   return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
 }
 
-/** The three efforts, with what each first download weighs (DiT plus the shared VAE). */
+/**
+ * Every effort, with its engine and what its first download weighs (DiT plus the shared VAE).
+ * Kandinsky's efforts are its two fixed factors, and its weights are never downloaded here.
+ */
 export const upscaleEfforts = [
-  { value: "fast", label: "Fast", scale: "1.5×", model: "SeedVR2 3B", detail: "1.5× with the 3B model. Uses the least graphics memory.", downloadBytes: 3_892_869_510 },
-  { value: "balanced", label: "Balanced", scale: "2×", model: "SeedVR2 7B", detail: "2× with the 7B fp8 model.", downloadBytes: 8_967_621_152 },
-  { value: "high", label: "High", scale: "3×", model: "SeedVR2 7B fp16", detail: "3× with the 7B fp16 model. Slowest, and uses the most graphics memory.", downloadBytes: 16_980_659_238 }
+  { value: "fast", engine: "seedvr2", label: "Fast", scale: "1.5×", model: "SeedVR2 3B", detail: "1.5× with the 3B model. Uses the least graphics memory.", downloadBytes: 3_892_869_510 },
+  { value: "balanced", engine: "seedvr2", label: "Balanced", scale: "2×", model: "SeedVR2 7B", detail: "2× with the 7B fp8 model.", downloadBytes: 8_967_621_152 },
+  { value: "high", engine: "seedvr2", label: "High", scale: "3×", model: "SeedVR2 7B fp16", detail: "3× with the 7B fp16 model. Slowest, and uses the most graphics memory.", downloadBytes: 16_980_659_238 },
+  { value: "x2", engine: "kandinsky", label: "Kandinsky", scale: "2×", model: "Kandinsky ImageSR 2.0", detail: "Exactly twice the size, in one step. Fast, and light on graphics memory.", downloadBytes: 0 },
+  { value: "x4", engine: "kandinsky", label: "Kandinsky", scale: "4×", model: "Kandinsky ImageSR 2.0", detail: "Exactly four times the size, in one step. Very large sources are scaled down first.", downloadBytes: 0 }
 ] as const;
+
+/** The two engines, and the effort each starts on. */
+export const upscaleEngines = [
+  { value: "seedvr2", label: "SeedVR2", first: "balanced", detail: "Restores detail at 1.5×, 2× or 3×." },
+  { value: "kandinsky", label: "Kandinsky ImageSR", first: "x2", detail: "One-step super-resolution at exactly 2× or 4×." }
+] as const;
+
+export function upscaleEngineOf(quality = "balanced"): UpscaleEngine {
+  return upscaleEfforts.find((effort) => effort.value === quality)?.engine || "seedvr2";
+}
 
 /** The size menu's preset tabs; Custom is the size menu's own (customSize). */
 export const autoUpscaleTiers: { value: AutoUpscale; label: string }[] = [
@@ -158,7 +173,10 @@ export function tiledDecodeFor(plan: SizePlan | null) {
 }
 
 export function upscaleQualityLabel(quality = "balanced") {
-  return upscaleEfforts.find((effort) => effort.value === quality)?.label || "Balanced";
+  const effort = upscaleEfforts.find((item) => item.value === quality);
+  if (!effort) return "Balanced";
+  // "Kandinsky" alone would not say which factor.
+  return effort.engine === "kandinsky" ? `${effort.label} ${effort.scale}` : effort.label;
 }
 
 /** Why an image could not be upscaled, shown in a popover on its upscale button. */
@@ -344,7 +362,8 @@ export function useUpscale({ gallery, prefs, showToast, loadGalleryDelta, patchG
 
   // While setup waits on something outside HEISS UI (installing nodes,
   // restarting ComfyUI), watch for it instead of asking for a re-check.
-  const watching = setupOpen && (stage === "nodes" || stage === "offline" || stage === "checking");
+  // Kandinsky's files are placed by hand, so setup watches for them the same way.
+  const watching = setupOpen && (stage === "nodes" || stage === "offline" || stage === "checking" || (stage === "models" && Boolean(status?.manualModels)));
   useEffect(() => {
     if (!watching) return;
     const timer = window.setInterval(() => { refreshStatus(setupQuality, { fresh: true }); }, 3000);

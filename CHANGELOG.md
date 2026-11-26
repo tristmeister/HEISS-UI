@@ -11,6 +11,14 @@ version opens with a `> ` summary line, which the update pill shows.
 
 ## [Unreleased]
 
+### Added
+- **Kandinsky upscale.** Smart upscale has a second engine,
+  [Kandinsky ImageSR 2.0](https://github.com/NidAll/ComfyUI-Kandinsky-ImageSR2):
+  pick it under Settings › Features › Smart upscale, then 2× or 4×, and a
+  picture comes out exactly that many times larger in one step. Its converted
+  checkpoint goes in `models/diffusion_models` and the FLUX.1 VAE in
+  `models/vae`; setup says which file is missing and notices when it arrives.
+
 ## [0.18.2] - 2026-11-18
 
 > Faster results and a few fixes
