@@ -32,6 +32,15 @@ export const nodePacks = {
     manager: "seedvr2_videoupscaler",
     nodes: ["SeedVR2LoadDiTModel", "SeedVR2LoadVAEModel", "SeedVR2VideoUpscaler"]
   },
+  kandinskysr2: {
+    name: "Kandinsky ImageSR 2.0 (native)",
+    repository: "https://github.com/NidAll/ComfyUI-Kandinsky-ImageSR2.git",
+    folder: "ComfyUI-Kandinsky-ImageSR2",
+    commit: "f409978a5fd782bb0816154953aad4a1d4057907",
+    ref: "main, 2026-11-26",
+    nodes: ["KandinskyImageSR2Loader", "KandinskyImageSR2Upscale"],
+    note: "Install it by Git URL. Its model goes in models/diffusion_models and the FLUX.1 VAE in models/vae."
+  },
   extramodels: {
     name: "ComfyUI_ExtraModels",
     // NVIDIA's own Sana docs point at this fork; the city96 original in Manager's list lacks Sprint.

@@ -186,7 +186,9 @@ Bigger, sharper pictures with [SeedVR2](https://github.com/numz/ComfyUI-SeedVR2_
 <details>
 <summary><b>Effort and faces</b></summary>
 
-**Fast**, **Balanced** (2K) and **High** (4K) trade speed for quality; High is the slowest and uses the most graphics memory. The effort is set under **Settings › Features › Smart upscale**, where it can also be turned off. The optional **face detail pass** (beta) redraws small faces and needs the Impact Pack and Impact Subpack nodes.
+**Fast**, **Balanced** (2K) and **High** (4K) trade speed for quality; High is the slowest and uses the most graphics memory. The effort is set under **Settings › Features › Smart upscale**, where it can also be turned off.
+
+The same drawer offers a second engine, [Kandinsky ImageSR 2.0](https://github.com/NidAll/ComfyUI-Kandinsky-ImageSR2): a one-step upscale at exactly **2×** or **4×**, light on graphics memory. Its converted checkpoint goes in `models/diffusion_models` and the FLUX.1 VAE in `models/vae`; nothing downloads from the studio. The optional **face detail pass** (beta) redraws small faces and needs the Impact Pack and Impact Subpack nodes.
 
 </details>
 

@@ -1798,7 +1798,9 @@ app.get("/api/upscale/status", async (req, res) => {
   if (!info) return;
   const status = upscaleStatus(info, req.query.quality);
   // Only worth the extra round trips while the nodes still need installing.
-  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack("seedvr2"), autoInstall: packInstallRoutes("seedvr2"), ...nodeInstallPlan() };
+  // Kandinsky ImageSR has its own pack; the setup panel installs whichever engine the effort runs on.
+  const enginePack = status.engine === "kandinsky" ? "kandinskysr2" : "seedvr2";
+  if (!status.nodesInstalled) status.nodeSetup = { manager: await managerAvailable(), pack: nodePack(enginePack), autoInstall: packInstallRoutes(enginePack), ...(enginePack === "seedvr2" ? nodeInstallPlan() : packInstallPlan(nodePacks[enginePack], comfyRootDir(), process.platform)) };
   // The face pass has its own two packs; each missing one gets the same install panel.
   if (!status.faceDetail.nodesInstalled) {
     const missing = new Set(status.faceDetail.missingNodes);
@@ -1850,7 +1852,8 @@ app.post("/api/upscale", async (req, res) => {
   const faceDetail = Boolean(req.body?.faceDetail);
   const status = upscaleStatus(info, quality);
   if (!status.ready) {
-    res.status(400).json({ ok: false, error: status.nodesInstalled ? "The SeedVR2 models aren’t installed yet." : `ComfyUI is missing the SeedVR2 nodes: ${status.missingNodes.join(", ")}.`, status });
+    const engine = status.engine === "kandinsky" ? "Kandinsky ImageSR" : "SeedVR2";
+    res.status(400).json({ ok: false, error: status.nodesInstalled ? `The ${engine} models aren’t installed yet.` : `ComfyUI is missing the ${engine} nodes: ${status.missingNodes.join(", ")}.`, status });
     return;
   }
   if (faceDetail && !status.faceDetail.nodesInstalled) {

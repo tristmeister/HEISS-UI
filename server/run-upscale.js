@@ -9,7 +9,7 @@ import { generationSettings, outputsFrom } from "./gallery-store.js";
  * tile shows one picture, never an original and an upscale to flip between.
  */
 
-const tierLabels = { balanced: "2K", high: "4K" };
+const tierLabels = { balanced: "2K", high: "4K", x2: "×2", x4: "×4" };
 const targetLabels = { 2048: "2K", 4096: "4K" };
 
 /**
@@ -34,7 +34,8 @@ export function planRunUpscale(graph, body, info, customWorkflow = null) {
   const label = targetLabels[target] || tierLabels[quality] || "";
   const status = upscaleStatus(info, quality);
   if (!status.ready) {
-    return { skipped: status.nodesInstalled ? "Smart upscale’s SeedVR2 model isn’t installed yet" : "Smart upscale needs the SeedVR2 nodes in ComfyUI", quality };
+    const engine = status.engine === "kandinsky" ? "Kandinsky ImageSR" : "SeedVR2";
+    return { skipped: status.nodesInstalled ? `Smart upscale’s ${engine} model isn’t installed yet` : `Smart upscale needs the ${engine} nodes in ComfyUI`, quality };
   }
   const source = {
     quality,

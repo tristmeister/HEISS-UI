@@ -49,7 +49,9 @@ export type ReferenceRoleControl = {
 };
 export type PromptComposition = { prefix?: string; suffix?: string; policy?: string; version?: number };
 export type GenerationSettings = Record<string, string | number | boolean | null | undefined | LoraSelection[]>;
-export type UpscaleQuality = "fast" | "balanced" | "high";
+/** SeedVR2's efforts, then Kandinsky ImageSR 2.0's fixed factors. */
+export type UpscaleQuality = "fast" | "balanced" | "high" | "x2" | "x4";
+export type UpscaleEngine = "seedvr2" | "kandinsky";
 /** Smart upscale in the size menu: every new image comes out at this size, upscaled as part of its run. */
 /**
  * The size menu's pick (useUpscale sizePlan says how a run gets there).
@@ -353,7 +355,10 @@ export type UpscaleInstall = {
 } | null;
 export type UpscaleStatus = {
   ok?: boolean;
+  engine?: UpscaleEngine;
   quality: UpscaleQuality;
+  /** Its weights are placed in ComfyUI's model folders by hand; nothing downloads (Kandinsky). */
+  manualModels?: boolean;
   nodesInstalled: boolean;
   missingNodes: string[];
   detectedNodes?: string[];
