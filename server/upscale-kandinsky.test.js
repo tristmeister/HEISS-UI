@@ -76,6 +76,17 @@ test("a very large source is scaled down first so ×4 stays within 8192", () => 
   assert.deepEqual(graph["5"].inputs.image, ["2", 0]);
 });
 
+test("the 8192 cap holds for a very long panorama, over the short-side floor", () => {
+  for (const [width, height, quality] of [[20000, 1000, "x4"], [2560, 150, "x4"], [1000, 40000, "x2"]]) {
+    const plan = upscalePlan({ width, height, quality });
+    assert.ok(Math.max(plan.estimatedWidth, plan.estimatedHeight) <= 8192, `${width}×${height} ${quality}`);
+  }
+  // Where the cap doesn't bite, the floor still keeps a tiny short side readable.
+  const small = upscalePlan({ width: 512, height: 100, quality: "x4" });
+  assert.equal(small.preScale, 1);
+  assert.deepEqual([small.estimatedWidth, small.estimatedHeight], [2048, 400]);
+});
+
 test("the graph loads the model and VAE and saves through node 9", () => {
   const { graph, plan } = upscaleGraph({ imageName: "pic.png", quality: "x2", width: 896, height: 1152 }, ready);
   assert.equal(graph["1"].inputs.image, "pic.png");

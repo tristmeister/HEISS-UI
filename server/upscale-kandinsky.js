@@ -93,8 +93,11 @@ export function kandinskyPlan({ width, height, quality = "x2", target = 0 }, tar
   const sourceHeight = Math.max(1, Math.round(Number(height) || 0));
   const longSide = Math.max(sourceWidth, sourceHeight);
   const goal = Math.min(targets.includes(Number(target)) ? Number(target) : longSide * factor, kandinskyMaxLong);
-  // Never shrink the input below what the model can still read detail from.
-  const preScale = Math.min(1, Math.max(goal / (longSide * factor), 128 / Math.min(sourceWidth, sourceHeight)));
+  // Never shrink the input below what the model can still read detail from, but the size cap
+  // comes last: a very long panorama gives up its short side before it passes the cap.
+  const floor = 128 / Math.min(sourceWidth, sourceHeight);
+  const cap = kandinskyMaxLong / (longSide * factor);
+  const preScale = Math.min(1, cap, Math.max(goal / (longSide * factor), floor));
   const inputWidth = Math.round(sourceWidth * preScale);
   const inputHeight = Math.round(sourceHeight * preScale);
   const estimatedWidth = inputWidth * factor;
